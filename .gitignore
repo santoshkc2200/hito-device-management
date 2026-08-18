@@ -36,3 +36,8 @@ hdms-frontend/packages/api-client/.cache/
 *.log
 tmp/
 .task/
+
+# --- Playwright ---
+hdms-frontend/test-results/
+hdms-frontend/playwright-report/
+hdms-frontend/blob-report/
