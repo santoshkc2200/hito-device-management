@@ -1,0 +1,17 @@
+# Local dev TLS front door. Terminates HTTPS with the mkcert certificate so
+# the kiosk's camera fallback (BarcodeDetector) — which refuses to run over
+# plain HTTP — works the same way it will in front of the real deploy,
+# where Caddy holds a real certificate instead of a local one.
+{
+	auto_https off
+}
+
+https://localhost:8443 {
+	tls /certs/localhost.pem /certs/localhost-key.pem
+
+	reverse_proxy api:8443 {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}

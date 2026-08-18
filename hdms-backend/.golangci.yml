@@ -1,0 +1,134 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - depguard
+    - unconvert
+    - unparam
+
+  settings:
+    depguard:
+      rules:
+        # Every module may depend on platform/*, the standard library, and
+        # third-party packages — but never reach sideways into another
+        # module. Go's own `internal` visibility rule already makes each
+        # module's internal/store and internal/domain uncompilable from
+        # outside; these rules add the piece Go can't enforce on its own —
+        # blocking one module's public …api package from being imported by
+        # another module directly, which would silently reintroduce the
+        # coupling that checkout exists to own. See docs/02-architecture.md.
+
+        identity-isolation:
+          files: ["**/internal/modules/identity/**"]
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog, desc: "identity must not depend on catalog — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi, desc: "identity must not depend on catalog — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials, desc: "identity must not depend on credentials — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi, desc: "identity must not depend on credentials — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending, desc: "identity must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending/lendingapi, desc: "identity must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification, desc: "identity must not depend on notification — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification/notificationapi, desc: "identity must not depend on notification — only checkout orchestrates across modules"}
+
+        catalog-isolation:
+          files: ["**/internal/modules/catalog/**"]
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity, desc: "catalog must not depend on identity — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity/identityapi, desc: "catalog must not depend on identity — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials, desc: "catalog must not depend on credentials — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi, desc: "catalog must not depend on credentials — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending, desc: "catalog must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending/lendingapi, desc: "catalog must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification, desc: "catalog must not depend on notification — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification/notificationapi, desc: "catalog must not depend on notification — only checkout orchestrates across modules"}
+
+        credentials-isolation:
+          files: ["**/internal/modules/credentials/**"]
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity, desc: "credentials must not depend on identity — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity/identityapi, desc: "credentials must not depend on identity — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog, desc: "credentials must not depend on catalog — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi, desc: "credentials must not depend on catalog — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending, desc: "credentials must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending/lendingapi, desc: "credentials must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification, desc: "credentials must not depend on notification — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification/notificationapi, desc: "credentials must not depend on notification — only checkout orchestrates across modules"}
+
+        lending-isolation:
+          files: ["**/internal/modules/lending/**"]
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity, desc: "lending receives IDs, not entities — it must not depend on identity"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity/identityapi, desc: "lending receives IDs, not entities — it must not depend on identity"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog, desc: "lending receives IDs, not entities — it must not depend on catalog"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi, desc: "lending receives IDs, not entities — it must not depend on catalog"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials, desc: "lending receives IDs, not entities — it must not depend on credentials"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi, desc: "lending receives IDs, not entities — it must not depend on credentials"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification, desc: "lending must not depend on notification — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification/notificationapi, desc: "lending must not depend on notification — only checkout orchestrates across modules"}
+
+        audit-isolation:
+          files: ["**/internal/modules/audit/**"]
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity/identityapi, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending/lendingapi, desc: "audit is a write-only sink for every module; it must not depend on any of them"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification, desc: "audit must not depend on notification — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification/notificationapi, desc: "audit must not depend on notification — only checkout orchestrates across modules"}
+
+        notification-isolation:
+          files: ["**/internal/modules/notification/**"]
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity, desc: "notification must not depend on identity — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity/identityapi, desc: "notification must not depend on identity — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog, desc: "notification must not depend on catalog — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi, desc: "notification must not depend on catalog — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials, desc: "notification must not depend on credentials — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi, desc: "notification must not depend on credentials — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending, desc: "notification must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending/lendingapi, desc: "notification must not depend on lending — only checkout orchestrates across modules"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; nothing may import it, including its siblings"}
+
+        # checkout is the one orchestrator: it may depend on the four
+        # modules' public …api packages, and nothing else module-shaped.
+        checkout-orchestrator:
+          files: ["**/internal/modules/checkout/**"]
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity, desc: "import identityapi, not identity — the module package is wiring-only"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog, desc: "import catalogapi, not catalog — the module package is wiring-only"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials, desc: "import credentialsapi, not credentials — the module package is wiring-only"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending, desc: "import lendingapi, not lending — the module package is wiring-only"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/audit, desc: "import auditapi, not audit — the module package is wiring-only"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification, desc: "notification is Phase 6; checkout does not depend on it yet"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/notification/notificationapi, desc: "notification is Phase 6; checkout does not depend on it yet"}
+
+        # Nothing outside the composition root wires the orchestrator —
+        # "nothing depends on checkout" (docs/02-architecture.md).
+        no-checkout-outside-cmd:
+          files:
+            - "$all"
+            - "!**/cmd/**"
+            - "!**/internal/modules/checkout/**"
+          deny:
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; only cmd/hdms-api's composition root may import it"}
+            - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; only cmd/hdms-api's composition root may import it"}
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

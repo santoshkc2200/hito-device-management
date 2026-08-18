@@ -1,0 +1,135 @@
+version: "3"
+
+vars:
+  BACKEND: hdms-backend
+  FRONTEND: hdms-frontend
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  env:
+    desc: Create .env from .env.example if it doesn't exist yet.
+    status:
+      - test -f .env
+    cmds:
+      - cp .env.example .env
+      - 'echo ".env created from .env.example — edit HDMS_TOKEN_PEPPER before anything but local dev"'
+
+  certs:
+    desc: Issue a locally-trusted TLS certificate for localhost via mkcert.
+    status:
+      - test -f certs/localhost.pem
+      - test -f certs/localhost-key.pem
+    cmds:
+      - mkcert -install
+      - mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
+
+  dev:
+    desc: Bring up Postgres, Caddy and the API (Docker), then both frontend dev servers (native, for fast HMR).
+    deps: [env, certs]
+    cmds:
+      - docker compose up -d --build db caddy api
+      - task: frontend:dev
+
+  down:
+    desc: Stop the Docker Compose stack.
+    cmds:
+      - docker compose down
+
+  frontend:dev:
+    desc: Run both Vite dev servers (kiosk + admin) over HTTPS.
+    dir: "{{.FRONTEND}}"
+    cmds:
+      - pnpm install --frozen-lockfile
+      - pnpm --parallel --filter kiosk --filter admin dev
+
+  migrate:
+    desc: Apply pending database migrations.
+    dir: "{{.BACKEND}}"
+    cmds:
+      - go run ./cmd/hdms-cli migrate
+
+  seed:
+    desc: Migrate and load local fixture data.
+    dir: "{{.BACKEND}}"
+    cmds:
+      - go run ./cmd/hdms-cli seed
+
+  generate:
+    desc: Regenerate the Go server interfaces and the TS API client from api/openapi.yaml.
+    cmds:
+      - task: generate:backend
+      - task: generate:frontend
+
+  generate:backend:
+    dir: "{{.BACKEND}}/api"
+    cmds:
+      - oapi-codegen -config oapi-codegen.yaml openapi.yaml
+
+  generate:frontend:
+    dir: "{{.FRONTEND}}/packages/api-client"
+    cmds:
+      - pnpm generate
+
+  lint:
+    desc: Lint the backend (with the module-boundary guard) and the frontend.
+    cmds:
+      - task: lint:backend
+      - task: lint:frontend
+
+  lint:backend:
+    dir: "{{.BACKEND}}"
+    cmds:
+      - golangci-lint run ./...
+
+  lint:frontend:
+    dir: "{{.FRONTEND}}"
+    cmds:
+      - pnpm -r lint
+
+  test:
+    desc: Run unit tests for the backend and frontend.
+    cmds:
+      - task: test:backend
+      - task: test:frontend
+
+  test:backend:
+    dir: "{{.BACKEND}}"
+    cmds:
+      - go test ./...
+
+  test:integration:
+    desc: Run backend integration tests against a real Postgres via testcontainers.
+    dir: "{{.BACKEND}}"
+    cmds:
+      - go test -tags=integration ./test/...
+
+  test:frontend:
+    dir: "{{.FRONTEND}}"
+    cmds:
+      - pnpm -r test
+
+  e2e:
+    desc: Run Playwright end-to-end tests against the dev stack.
+    dir: "{{.FRONTEND}}"
+    cmds:
+      - pnpm exec playwright test
+
+  build:
+    desc: Build the API binary and both frontend apps.
+    cmds:
+      - task: build:backend
+      - task: build:frontend
+
+  build:backend:
+    dir: "{{.BACKEND}}"
+    cmds:
+      - go build -o bin/hdms-api ./cmd/hdms-api
+      - go build -o bin/hdms-cli ./cmd/hdms-cli
+
+  build:frontend:
+    dir: "{{.FRONTEND}}"
+    cmds:
+      - pnpm -r build

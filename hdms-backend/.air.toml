@@ -1,0 +1,12 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/hdms-api ./cmd/hdms-api"
+bin = "./tmp/hdms-api"
+include_ext = ["go", "yaml", "sql"]
+exclude_dir = ["tmp", "test"]
+delay = 200
+
+[log]
+time = true

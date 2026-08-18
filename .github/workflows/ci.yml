@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26"
+  NODE_VERSION: "26"
+
+jobs:
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: hdms
+          POSTGRES_PASSWORD: hdms
+          POSTGRES_DB: hdms
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hdms"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: hdms-backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: hdms-backend/go.sum
+
+      - name: Install oapi-codegen
+        run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+
+      - name: golangci-lint (includes the module-boundary guard)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: hdms-backend
+          version: latest
+
+      - name: task generate produces no diff
+        run: |
+          (cd api && oapi-codegen -config oapi-codegen.yaml openapi.yaml)
+          git diff --exit-code -- internal/platform/httpx/gen
+
+      - name: Unit tests
+        run: go test ./...
+
+      - name: Integration tests
+        env:
+          HDMS_DATABASE_URL: postgres://hdms:hdms@localhost:5432/hdms?sslmode=disable
+        run: go test -tags=integration ./test/...
+
+      - name: Build
+        run: |
+          go build -o bin/hdms-api ./cmd/hdms-api
+          go build -o bin/hdms-cli ./cmd/hdms-cli
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hdms-frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: hdms-frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: api-client generate produces no diff
+        run: |
+          pnpm --filter @hdms/api-client generate
+          git diff --exit-code -- packages/api-client/src/gen
+
+      - run: pnpm -r lint
+      - run: pnpm -r test
+      - run: pnpm -r build

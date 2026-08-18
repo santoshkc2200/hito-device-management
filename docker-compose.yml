@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hdms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hdms}
+      POSTGRES_DB: ${POSTGRES_DB:-hdms}
+    ports:
+      - "5442:5432"
+    volumes:
+      # Postgres 18's image stores data under a major-version-specific
+      # subdirectory of /var/lib/postgresql itself, not .../data — mounting
+      # the parent is what the image now expects.
+      - hdms-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hdms}"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./hdms-backend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HDMS_ENV: development
+      HDMS_HTTP_ADDR: ":8443"
+      HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms}:${POSTGRES_PASSWORD:-hdms}@db:5432/${POSTGRES_DB:-hdms}?sslmode=disable
+      HDMS_TLS_CERT_FILE: /certs/localhost.pem
+      HDMS_TLS_KEY_FILE: /certs/localhost-key.pem
+    volumes:
+      - ./hdms-backend:/app
+      - hdms-go-mod-cache:/go/pkg/mod
+      - ./certs:/certs:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+    depends_on:
+      - api
+
+volumes:
+  hdms-db-data:
+  hdms-go-mod-cache:

@@ -1,0 +1,17 @@
+{
+  "name": "@hdms/domain",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "oxlint .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "oxlint": "^1.79.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.11"
+  }
+}

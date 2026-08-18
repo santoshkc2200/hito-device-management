@@ -1,0 +1,91 @@
+openapi: 3.1.0
+info:
+  title: HDMS API
+  description: >
+    Hito Device Management System. Source of truth for the HTTP contract —
+    see docs/06-api-contract.md. Go server interfaces are generated with
+    oapi-codegen; the TypeScript client is generated with openapi-ts.
+    Neither is hand-edited.
+  version: "0.1.0"
+servers:
+  - url: /v1
+
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      summary: Liveness probe. No auth.
+      tags: [system]
+      responses:
+        "200":
+          description: The process is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /readyz:
+    get:
+      operationId: getReadyz
+      summary: Readiness probe, including the database. No auth.
+      tags: [system]
+      responses:
+        "200":
+          description: The process and its dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: A dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    # RFC 9457 application/problem+json, the error shape for the whole API.
+    # See docs/06-api-contract.md for the registered `type` values.
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        requestId:
+          type: string
+        extensions:
+          type: object
+          additionalProperties: true
+
+  securitySchemes:
+    kioskToken:
+      type: http
+      scheme: bearer
+      description: Long-lived opaque token issued when a kiosk is registered.
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: hdms_session
+    serviceToken:
+      type: http
+      scheme: bearer
+      description: Used by imports, exports and scheduled jobs.

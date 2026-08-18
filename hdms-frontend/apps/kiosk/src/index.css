@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "@hdms/ui/tokens.css";
+
+body {
+  @apply bg-background text-foreground;
+  /* The kiosk is a fixed installed PWA on an iPad; nothing should scroll,
+     select or bounce the way a normal web page does. */
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

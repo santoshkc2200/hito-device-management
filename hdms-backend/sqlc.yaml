@@ -1,0 +1,72 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "queries/identity"
+    schema: "migrations"
+    gen:
+      go:
+        package: "identitystore"
+        out: "internal/modules/identity/internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/catalog"
+    schema: "migrations"
+    gen:
+      go:
+        package: "catalogstore"
+        out: "internal/modules/catalog/internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/credentials"
+    schema: "migrations"
+    gen:
+      go:
+        package: "credentialsstore"
+        out: "internal/modules/credentials/internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/lending"
+    schema: "migrations"
+    gen:
+      go:
+        package: "lendingstore"
+        out: "internal/modules/lending/internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/checkout"
+    schema: "migrations"
+    gen:
+      go:
+        package: "checkoutstore"
+        out: "internal/modules/checkout/internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/audit"
+    schema: "migrations"
+    gen:
+      go:
+        package: "auditstore"
+        out: "internal/modules/audit/internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/notification"
+    schema: "migrations"
+    gen:
+      go:
+        package: "notificationstore"
+        out: "internal/modules/notification/internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
