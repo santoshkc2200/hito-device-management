@@ -55,6 +55,8 @@ jobs:
         run: |
           (cd api && oapi-codegen -config oapi-codegen.yaml openapi.yaml)
           git diff --exit-code -- internal/platform/httpx/gen
+          go run ./cmd/hdms-cli export all
+          git diff --exit-code -- ../hdms-frontend/packages/domain/session-machine.json ../hdms-frontend/packages/domain/scenarios.json
 
       - name: Unit tests
         run: go test ./...

@@ -10,7 +10,11 @@ import "fmt"
 // cell itself — ResolveAction decides those, via resolvePendingAgainstUser
 // below, so the borrow/return/reject judgement still lives in one place.
 type Rule struct {
-	decide func(snap Snapshot, in Input) Decision
+	Action       Action
+	Target       SessionState
+	ClearPending bool
+	Dynamic      bool
+	decide       func(snap Snapshot, in Input) Decision
 }
 
 // Apply runs the rule.
@@ -63,9 +67,15 @@ func baseArgs(snap Snapshot, in Input) map[string]any {
 // input beyond the standard message args — the common case, and every
 // cell except the two resolvePendingAgainstUser covers.
 func static(action Action, next SessionState, clearPending bool, key MessageKey) Rule {
-	return Rule{decide: func(snap Snapshot, in Input) Decision {
-		return Decision{Action: action, NextState: next, ClearPending: clearPending, MessageKey: key, MessageArgs: baseArgs(snap, in)}
-	}}
+	return Rule{
+		Action:       action,
+		Target:       next,
+		ClearPending: clearPending,
+		Dynamic:      false,
+		decide: func(snap Snapshot, in Input) Decision {
+			return Decision{Action: action, NextState: next, ClearPending: clearPending, MessageKey: key, MessageArgs: baseArgs(snap, in)}
+		},
+	}
 }
 
 // resolvePendingAgainstUser is the (AwaitingUser, ClassUserActive) and
@@ -76,17 +86,23 @@ func static(action Action, next SessionState, clearPending bool, key MessageKey)
 // ResolveHistorical calls, so the kiosk and the backfill screen's
 // auto-detection can never disagree (FR-74).
 func resolvePendingAgainstUser() Rule {
-	return Rule{decide: func(snap Snapshot, in Input) Decision {
-		args := baseArgs(snap, in)
-		switch ResolveAction(snap.PendingDeviceHolderID, in.UserID) {
-		case ActionBorrow:
-			return Decision{Action: ActionBorrow, NextState: Ready, ClearPending: true, MessageKey: MsgBorrowed, MessageArgs: args}
-		case ActionReturn:
-			return Decision{Action: ActionReturn, NextState: Ready, ClearPending: true, MessageKey: MsgReturned, MessageArgs: args}
-		default: // ActionReject: pending device is held by someone else
-			return Decision{Action: ActionReject, NextState: Idle, ClearPending: true, MessageKey: MsgDeviceHeldByOther, MessageArgs: args}
-		}
-	}}
+	return Rule{
+		Action:       ActionResolvePending,
+		Target:       Ready,
+		ClearPending: true,
+		Dynamic:      true,
+		decide: func(snap Snapshot, in Input) Decision {
+			args := baseArgs(snap, in)
+			switch ResolveAction(snap.PendingDeviceHolderID, in.UserID) {
+			case ActionBorrow:
+				return Decision{Action: ActionBorrow, NextState: Ready, ClearPending: true, MessageKey: MsgBorrowed, MessageArgs: args}
+			case ActionReturn:
+				return Decision{Action: ActionReturn, NextState: Ready, ClearPending: true, MessageKey: MsgReturned, MessageArgs: args}
+			default: // ActionReject: pending device is held by someone else
+				return Decision{Action: ActionReject, NextState: Idle, ClearPending: true, MessageKey: MsgDeviceHeldByOther, MessageArgs: args}
+			}
+		},
+	}
 }
 
 // liveUserRules is the rule set shared by AwaitingDevice and Ready — the

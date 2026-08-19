@@ -227,14 +227,14 @@ func (s *Service) executeSwitchUser(
 	now := s.clock.Now()
 	newRow, err := q.CreateSession(ctx, checkoutstore.CreateSessionParams{
 		ID: pgtypeconv.NewUUID(), KioskID: session.KioskID, State: checkoutstore.SessionStateIdle,
-		ExpiresAt: pgtypeconv.Timestamptz(now.Add(idleTTL)),
+		ExpiresAt: pgtypeconv.Timestamptz(now.Add(machine.TimeoutFor(machine.Idle))),
 	})
 	if err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: create switched-to session: %w", err)
 	}
 	newRow, err = q.UpdateSessionState(ctx, checkoutstore.UpdateSessionStateParams{
 		ID: newRow.ID, State: checkoutstore.SessionStateAwaitingDevice, UserID: uid, PendingDevice: pgtype.UUID{},
-		LastActivity: pgtypeconv.Timestamptz(now), ExpiresAt: pgtypeconv.Timestamptz(now.Add(activeTTL)),
+		LastActivity: pgtypeconv.Timestamptz(now), ExpiresAt: pgtypeconv.Timestamptz(now.Add(machine.TimeoutFor(machine.AwaitingDevice))),
 		LastTokenHash: scanTokenHash(params.Token), LastScanAt: pgtypeconv.Timestamptz(now),
 	})
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
 	"github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi"
+	"github.com/hito-hospital/hdms/internal/modules/checkout/internal/machine"
 	checkoutstore "github.com/hito-hospital/hdms/internal/modules/checkout/internal/store"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
@@ -22,12 +23,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Timeout constants (2.3a design note / docs/04's Timeouts table), all in
-// one place so 2.3b's table and 2.7's JSON export read from the same
-// source rather than each hard-coding their own copy.
+// Sweep interval from 2.3a design note / docs/04's Timeouts table.
 const (
-	idleTTL       = 45 * time.Second // idle, awaiting_user: waiting on a person
-	activeTTL     = 25 * time.Second // awaiting_device, ready: user is known
 	sweepInterval = 30 * time.Second
 )
 
@@ -51,12 +48,7 @@ var _ checkoutapi.Service = (*Service)(nil)
 // expires — the same mapping 2.3b's transition table carries as data for
 // the kiosk's countdown ring and 2.7's JSON export.
 func ttlFor(state checkoutapi.SessionState) time.Duration {
-	switch state {
-	case checkoutapi.StateAwaitingDevice, checkoutapi.StateReady:
-		return activeTTL
-	default: // idle, awaiting_user
-		return idleTTL
-	}
+	return machine.TimeoutFor(machine.SessionState(state))
 }
 
 // CreateSession opens a fresh idle session at a kiosk. One kiosk has at

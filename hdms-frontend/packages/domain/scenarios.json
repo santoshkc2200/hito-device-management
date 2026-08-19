@@ -1,0 +1,1212 @@
+[
+  {
+    "name": "1 — Device first, then user, device in stock -> borrow",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "LAPTOP-07",
+        "deviceStatus": "available"
+      },
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "CARD-Sharma",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      },
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "2 — Device first, then user, user already holds it -> return",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_on_loan_other_user",
+        "kind": "device",
+        "deviceId": "LAPTOP-07",
+        "deviceStatus": "on_loan",
+        "holderUserId": "CARD-Sharma"
+      },
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "CARD-Sharma",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      },
+      {
+        "action": "return",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "3 — User first, then device, device in stock -> borrow",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "CARD-Sharma",
+        "userStatus": "active"
+      },
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "PROJECTOR-02",
+        "deviceStatus": "available"
+      },
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "LAPTOP-07",
+        "deviceStatus": "available"
+      }
+    ],
+    "expected": [
+      {
+        "action": "set_user",
+        "state": "awaiting_device"
+      },
+      {
+        "action": "borrow",
+        "state": "ready"
+      },
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "4 — User first, then device they already hold -> return",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "CARD-Sharma",
+        "userStatus": "active"
+      },
+      {
+        "class": "device_on_loan_same_user",
+        "kind": "device",
+        "deviceId": "LAPTOP-07",
+        "deviceStatus": "on_loan",
+        "holderUserId": "CARD-Sharma"
+      }
+    ],
+    "expected": [
+      {
+        "action": "set_user",
+        "state": "awaiting_device"
+      },
+      {
+        "action": "return",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "5 — Device held by someone else",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_on_loan_other_user",
+        "kind": "device",
+        "deviceId": "LAPTOP-07",
+        "deviceStatus": "on_loan",
+        "holderUserId": "CARD-Karki"
+      },
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "CARD-Sharma",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      },
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "6 — Unregistered person, device scanned first -> paper fallback",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "PENDRIVE-11",
+        "deviceStatus": "available"
+      },
+      {
+        "class": "unknown",
+        "kind": "unknown"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      },
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "7 — Lost card that has been reissued",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "revoked",
+        "kind": "revoked"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + device_available",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "dev-avail",
+        "deviceStatus": "available"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + device_on_loan_same_user",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_on_loan_same_user",
+        "kind": "device",
+        "deviceId": "dev-loan-same",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-session-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + device_on_loan_other_user",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_on_loan_other_user",
+        "kind": "device",
+        "deviceId": "dev-loan-other",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-other-2"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + device_unavailable",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_unavailable",
+        "kind": "device",
+        "deviceId": "dev-maint",
+        "deviceStatus": "maintenance"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + device_duplicate",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_duplicate",
+        "kind": "device",
+        "deviceId": "dev-dup",
+        "deviceStatus": "available",
+        "sameAsPendingWithin3s": true
+      }
+    ],
+    "expected": [
+      {
+        "action": "duplicate",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + user_active",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "user-switched-2",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "set_user",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + user_same",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "user_same",
+        "kind": "user",
+        "userId": "user-session-1",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "set_user",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + user_suspended",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "user_suspended",
+        "kind": "user",
+        "userId": "user-susp-1",
+        "userStatus": "suspended"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + user_archived",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "user_archived",
+        "kind": "user",
+        "userId": "user-arch-1",
+        "userStatus": "archived"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + unbound",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "unbound",
+        "kind": "unbound"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + unknown",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "unknown",
+        "kind": "unknown"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + revoked",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "revoked",
+        "kind": "revoked"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + timeout",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "timeout",
+        "kind": "timeout"
+      }
+    ],
+    "expected": [
+      {
+        "action": "expire",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + device_available",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "dev-avail",
+        "deviceStatus": "available",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "replace_pending",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + device_on_loan_same_user",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "device_on_loan_same_user",
+        "kind": "device",
+        "deviceId": "dev-loan-same",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-session-1",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "replace_pending",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + device_on_loan_other_user",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "device_on_loan_other_user",
+        "kind": "device",
+        "deviceId": "dev-loan-other",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-other-2",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "replace_pending",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + device_unavailable",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "device_unavailable",
+        "kind": "device",
+        "deviceId": "dev-maint",
+        "deviceStatus": "maintenance",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + device_duplicate",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "device_duplicate",
+        "kind": "device",
+        "deviceId": "dev-dup",
+        "deviceStatus": "available",
+        "sameAsPendingWithin3s": true,
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "duplicate",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_active (pending available -> borrow)",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "user-1",
+        "userStatus": "active",
+        "pendingDeviceId": "dev-1",
+        "pendingDeviceStatus": "available"
+      }
+    ],
+    "expected": [
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_active (pending on loan to same user -> return)",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "user-1",
+        "userStatus": "active",
+        "pendingDeviceId": "dev-1",
+        "pendingDeviceStatus": "on_loan",
+        "pendingDeviceHolderId": "user-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "return",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_active (pending on loan to other user -> reject)",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "user-1",
+        "userStatus": "active",
+        "pendingDeviceId": "dev-1",
+        "pendingDeviceStatus": "on_loan",
+        "pendingDeviceHolderId": "user-2"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_same (pending available -> borrow)",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_same",
+        "kind": "user",
+        "userId": "user-1",
+        "userStatus": "active",
+        "pendingDeviceId": "dev-1",
+        "pendingDeviceStatus": "available"
+      }
+    ],
+    "expected": [
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_same (pending on loan to same user -> return)",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_same",
+        "kind": "user",
+        "userId": "user-1",
+        "userStatus": "active",
+        "pendingDeviceId": "dev-1",
+        "pendingDeviceStatus": "on_loan",
+        "pendingDeviceHolderId": "user-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "return",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_same (pending on loan to other user -> reject)",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_same",
+        "kind": "user",
+        "userId": "user-1",
+        "userStatus": "active",
+        "pendingDeviceId": "dev-1",
+        "pendingDeviceStatus": "on_loan",
+        "pendingDeviceHolderId": "user-2"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_suspended",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_suspended",
+        "kind": "user",
+        "userId": "user-susp-1",
+        "userStatus": "suspended",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + user_archived",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "user_archived",
+        "kind": "user",
+        "userId": "user-arch-1",
+        "userStatus": "archived",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + unbound",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "unbound",
+        "kind": "unbound",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + unknown",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "unknown",
+        "kind": "unknown",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + revoked",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "revoked",
+        "kind": "revoked",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + timeout",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "timeout",
+        "kind": "timeout",
+        "pendingDeviceId": "dev-pending-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "expire",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + device_available",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "dev-avail",
+        "deviceStatus": "available"
+      }
+    ],
+    "expected": [
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + device_on_loan_same_user",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "device_on_loan_same_user",
+        "kind": "device",
+        "deviceId": "dev-loan-same",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-session-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "return",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + device_on_loan_other_user",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "device_on_loan_other_user",
+        "kind": "device",
+        "deviceId": "dev-loan-other",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-other-2"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + device_unavailable",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "device_unavailable",
+        "kind": "device",
+        "deviceId": "dev-maint",
+        "deviceStatus": "maintenance"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + device_duplicate",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "device_duplicate",
+        "kind": "device",
+        "deviceId": "dev-dup",
+        "deviceStatus": "available",
+        "sameAsPendingWithin3s": true
+      }
+    ],
+    "expected": [
+      {
+        "action": "duplicate",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + user_active",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "user-switched-2",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "switch_user",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + user_same",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "user_same",
+        "kind": "user",
+        "userId": "user-session-1",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "none",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + user_suspended",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "user_suspended",
+        "kind": "user",
+        "userId": "user-susp-1",
+        "userStatus": "suspended"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + user_archived",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "user_archived",
+        "kind": "user",
+        "userId": "user-arch-1",
+        "userStatus": "archived"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + unbound",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "unbound",
+        "kind": "unbound"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + unknown",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "unknown",
+        "kind": "unknown"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + revoked",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "revoked",
+        "kind": "revoked"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + timeout",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "timeout",
+        "kind": "timeout"
+      }
+    ],
+    "expected": [
+      {
+        "action": "expire",
+        "state": "idle"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + device_available",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "device_available",
+        "kind": "device",
+        "deviceId": "dev-avail",
+        "deviceStatus": "available"
+      }
+    ],
+    "expected": [
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + device_on_loan_same_user",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "device_on_loan_same_user",
+        "kind": "device",
+        "deviceId": "dev-loan-same",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-session-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "return",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + device_on_loan_other_user",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "device_on_loan_other_user",
+        "kind": "device",
+        "deviceId": "dev-loan-other",
+        "deviceStatus": "on_loan",
+        "holderUserId": "user-other-2"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + device_unavailable",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "device_unavailable",
+        "kind": "device",
+        "deviceId": "dev-maint",
+        "deviceStatus": "maintenance"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + device_duplicate",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "device_duplicate",
+        "kind": "device",
+        "deviceId": "dev-dup",
+        "deviceStatus": "available",
+        "sameAsPendingWithin3s": true
+      }
+    ],
+    "expected": [
+      {
+        "action": "duplicate",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + user_active",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "user_active",
+        "kind": "user",
+        "userId": "user-switched-2",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "switch_user",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + user_same",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "user_same",
+        "kind": "user",
+        "userId": "user-session-1",
+        "userStatus": "active"
+      }
+    ],
+    "expected": [
+      {
+        "action": "none",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + user_suspended",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "user_suspended",
+        "kind": "user",
+        "userId": "user-susp-1",
+        "userStatus": "suspended"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + user_archived",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "user_archived",
+        "kind": "user",
+        "userId": "user-arch-1",
+        "userStatus": "archived"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + unbound",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "unbound",
+        "kind": "unbound"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + unknown",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "unknown",
+        "kind": "unknown"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + revoked",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "revoked",
+        "kind": "revoked"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + timeout",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "timeout",
+        "kind": "timeout"
+      }
+    ],
+    "expected": [
+      {
+        "action": "expire",
+        "state": "idle"
+      }
+    ]
+  }
+]

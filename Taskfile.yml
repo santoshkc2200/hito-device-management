@@ -58,10 +58,11 @@ tasks:
       - go run ./cmd/hdms-cli seed
 
   generate:
-    desc: Regenerate the Go server interfaces and the TS API client from api/openapi.yaml.
+    desc: Regenerate the Go server interfaces, the TS API client, and the shared machine definition.
     cmds:
       - task: generate:backend
       - task: generate:frontend
+      - task: generate:machine
 
   generate:backend:
     dir: "{{.BACKEND}}/api"
@@ -72,6 +73,17 @@ tasks:
     dir: "{{.FRONTEND}}/packages/api-client"
     cmds:
       - pnpm generate
+
+  generate:machine:
+    desc: Export session machine definition and scenario fixtures to @hdms/domain.
+    dir: "{{.BACKEND}}"
+    cmds:
+      - go run ./cmd/hdms-cli export all
+
+  export:machine:
+    desc: Alias for generate:machine.
+    cmds:
+      - task: generate:machine
 
   lint:
     desc: Lint the backend (with the module-boundary guard) and the frontend.

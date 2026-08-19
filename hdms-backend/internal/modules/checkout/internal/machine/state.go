@@ -7,6 +7,8 @@
 // one can stay pure and be tested with nothing but Go values.
 package machine
 
+import "time"
+
 // SessionState is the subset of checkoutapi.SessionState the transition
 // table decides over: the four "live" states a session passes through
 // while scans are still being resolved. completed/expired/cancelled are
@@ -48,6 +50,31 @@ const (
 
 func (c InputClass) String() string { return string(c) }
 
+// Version is bumped whenever the machine table definition or timeouts change.
+const Version = "1.0.0"
+
+// Timeout constants (docs/04 Timeouts table) for the machine and kiosk countdown timers.
+const (
+	IdleTimeoutMs           = 0
+	AwaitingUserTimeoutMs   = 45000
+	AwaitingDeviceTimeoutMs = 25000
+	ReadyTimeoutMs          = 25000
+)
+
+// TimeoutFor returns the expiry duration for a session in state.
+func TimeoutFor(state SessionState) time.Duration {
+	switch state {
+	case AwaitingUser:
+		return AwaitingUserTimeoutMs * time.Millisecond
+	case AwaitingDevice:
+		return AwaitingDeviceTimeoutMs * time.Millisecond
+	case Ready:
+		return ReadyTimeoutMs * time.Millisecond
+	default:
+		return 45 * time.Second // idle session TTL before sweep
+	}
+}
+
 // allClasses is every InputClass, in the fixed order the completeness
 // check and the 2.7 JSON exporter iterate in.
 var allClasses = []InputClass{
@@ -57,8 +84,22 @@ var allClasses = []InputClass{
 	ClassUnbound, ClassUnknown, ClassRevoked, ClassTimeout,
 }
 
+// AllClasses returns a copy of every InputClass in a fixed, deterministic order.
+func AllClasses() []InputClass {
+	res := make([]InputClass, len(allClasses))
+	copy(res, allClasses)
+	return res
+}
+
 // allStates is every live SessionState the table covers, in a fixed order.
 var allStates = []SessionState{Idle, AwaitingUser, AwaitingDevice, Ready}
+
+// AllStates returns a copy of every live SessionState in a fixed, deterministic order.
+func AllStates() []SessionState {
+	res := make([]SessionState, len(allStates))
+	copy(res, allStates)
+	return res
+}
 
 // Action is what execute (2.3c) must do to realise a Decision. It is a
 // switch target only — execute may not re-inspect Input to change course;
@@ -77,6 +118,7 @@ const (
 	ActionReject         Action = "reject"
 	ActionDuplicate      Action = "duplicate"
 	ActionExpire         Action = "expire"
+	ActionResolvePending Action = "resolve_pending"
 )
 
 func (a Action) String() string { return string(a) }
@@ -92,6 +134,7 @@ const (
 	KindUnbound InputKind = "unbound"
 	KindUnknown InputKind = "unknown"
 	KindRevoked InputKind = "revoked"
+	KindTimeout InputKind = "timeout"
 )
 
 // MessageKey names a template in the messages catalogue

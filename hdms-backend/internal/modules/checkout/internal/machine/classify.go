@@ -6,6 +6,8 @@ package machine
 // and getting it wrong silently turns a rejection into a return.
 func classify(snap Snapshot, in Input) InputClass {
 	switch in.Kind {
+	case KindTimeout:
+		return ClassTimeout
 	case KindUnbound:
 		return ClassUnbound
 	case KindUnknown:

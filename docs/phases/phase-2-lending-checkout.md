@@ -106,9 +106,9 @@ There is no kiosk enrollment. This section is about refusing well.
 - [ ] OpenAPI spec updated; client regenerated
 
 ### 2.7 Shared machine definition
-- [ ] `packages/domain/session-machine.json` — states, transitions, timeouts
-- [ ] Go tests drive the transition table from it
-- [ ] `packages/domain/scenarios.json` — the full scenario fixture for the
+- [x] `packages/domain/session-machine.json` — states, transitions, timeouts
+- [x] Go tests drive the transition table from it
+- [x] `packages/domain/scenarios.json` — the full scenario fixture for the
       Phase 3 parity test
 
 ### 2.8 Testing ★

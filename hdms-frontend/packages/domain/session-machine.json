@@ -1,0 +1,296 @@
+{
+  "version": "1.0.0",
+  "states": {
+    "awaiting_device": {
+      "on": {
+        "device_available": {
+          "action": "borrow",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_duplicate": {
+          "action": "duplicate",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "device_on_loan_other_user": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "device_on_loan_same_user": {
+          "action": "return",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_unavailable": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "revoked": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "timeout": {
+          "action": "expire",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "unbound": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "unknown": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "user_active": {
+          "action": "switch_user",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "user_archived": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "user_same": {
+          "action": "none",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "user_suspended": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        }
+      },
+      "after": {
+        "25000": {
+          "target": "idle"
+        }
+      }
+    },
+    "awaiting_user": {
+      "on": {
+        "device_available": {
+          "action": "replace_pending",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_duplicate": {
+          "action": "duplicate",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_on_loan_other_user": {
+          "action": "replace_pending",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_on_loan_same_user": {
+          "action": "replace_pending",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_unavailable": {
+          "action": "reject",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "revoked": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": true
+        },
+        "timeout": {
+          "action": "expire",
+          "target": "idle",
+          "clearsPending": true
+        },
+        "unbound": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": true
+        },
+        "unknown": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": true
+        },
+        "user_active": {
+          "action": "resolve_pending",
+          "target": "ready",
+          "clearsPending": true
+        },
+        "user_archived": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": true
+        },
+        "user_same": {
+          "action": "resolve_pending",
+          "target": "ready",
+          "clearsPending": true
+        },
+        "user_suspended": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": true
+        }
+      },
+      "after": {
+        "45000": {
+          "target": "idle"
+        }
+      }
+    },
+    "idle": {
+      "on": {
+        "device_available": {
+          "action": "hold_device",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_duplicate": {
+          "action": "duplicate",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "device_on_loan_other_user": {
+          "action": "hold_device",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_on_loan_same_user": {
+          "action": "hold_device",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_unavailable": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "revoked": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "timeout": {
+          "action": "expire",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "unbound": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "unknown": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "user_active": {
+          "action": "set_user",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "user_archived": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "user_same": {
+          "action": "set_user",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "user_suspended": {
+          "action": "reject",
+          "target": "idle",
+          "clearsPending": false
+        }
+      }
+    },
+    "ready": {
+      "on": {
+        "device_available": {
+          "action": "borrow",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_duplicate": {
+          "action": "duplicate",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_on_loan_other_user": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_on_loan_same_user": {
+          "action": "return",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_unavailable": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "revoked": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "timeout": {
+          "action": "expire",
+          "target": "idle",
+          "clearsPending": false
+        },
+        "unbound": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "unknown": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "user_active": {
+          "action": "switch_user",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "user_archived": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "user_same": {
+          "action": "none",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "user_suspended": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        }
+      },
+      "after": {
+        "25000": {
+          "target": "idle"
+        }
+      }
+    }
+  }
+}

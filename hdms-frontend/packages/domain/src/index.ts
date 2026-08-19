@@ -2,3 +2,4 @@
 // parser, kept parity-tested against the Go implementation in
 // hdms-backend/internal/platform/tokens (docs/02-architecture.md).
 export * from "./token";
+export * from "./session-machine";

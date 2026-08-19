@@ -12,10 +12,10 @@ func TestTTLForState(t *testing.T) {
 		state checkoutapi.SessionState
 		want  time.Duration
 	}{
-		{checkoutapi.StateIdle, idleTTL},
-		{checkoutapi.StateAwaitingUser, idleTTL},
-		{checkoutapi.StateAwaitingDevice, activeTTL},
-		{checkoutapi.StateReady, activeTTL},
+		{checkoutapi.StateIdle, 45 * time.Second},
+		{checkoutapi.StateAwaitingUser, 45 * time.Second},
+		{checkoutapi.StateAwaitingDevice, 25 * time.Second},
+		{checkoutapi.StateReady, 25 * time.Second},
 	}
 	for _, c := range cases {
 		if got := ttlFor(c.state); got != c.want {

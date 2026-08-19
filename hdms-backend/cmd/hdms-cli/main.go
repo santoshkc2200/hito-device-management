@@ -11,12 +11,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/hito-hospital/hdms/internal/cliimport"
 	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
+	"github.com/hito-hospital/hdms/internal/modules/checkout"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
@@ -38,10 +40,14 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli <seed|migrate|admin bootstrap|import devices|import users|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli <seed|migrate|admin bootstrap|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string) error {
+	if cmd == "export" {
+		return runExport(args)
+	}
+
 	ctx := context.Background()
 
 	cfg, err := config.Load()
@@ -260,4 +266,86 @@ func promptPassword() (string, error) {
 		return "", fmt.Errorf("password must be at least 12 characters")
 	}
 	return string(pw1), nil
+}
+
+func runExport(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: hdms-cli export <machine|scenarios|all> [--out <path>] [--domain-dir <path>]")
+	}
+
+	target := args[0]
+	fs := flag.NewFlagSet("export "+target, flag.ContinueOnError)
+	out := fs.String("out", "", "output file path (optional)")
+	domainDir := fs.String("domain-dir", "", "path to packages/domain directory (optional)")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+
+	getDomainDir := func() string {
+		if *domainDir != "" {
+			return *domainDir
+		}
+		candidates := []string{
+			"../hdms-frontend/packages/domain",
+			"hdms-frontend/packages/domain",
+			"packages/domain",
+		}
+		for _, c := range candidates {
+			if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+				return c
+			}
+		}
+		return "../hdms-frontend/packages/domain"
+	}
+
+	exportFile := func(filename string, data []byte) error {
+		var outPath string
+		if *out != "" && target != "all" {
+			outPath = *out
+		} else {
+			outPath = filepath.Join(getDomainDir(), filename)
+		}
+
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			return fmt.Errorf("create parent directory: %w", err)
+		}
+		if err := os.WriteFile(outPath, data, 0644); err != nil {
+			return fmt.Errorf("write %s: %w", outPath, err)
+		}
+		fmt.Printf("Exported %s\n", outPath)
+		return nil
+	}
+
+	switch target {
+	case "machine":
+		data, err := checkout.ExportMachineJSON()
+		if err != nil {
+			return err
+		}
+		return exportFile("session-machine.json", data)
+
+	case "scenarios":
+		data, err := checkout.ExportScenariosJSON()
+		if err != nil {
+			return err
+		}
+		return exportFile("scenarios.json", data)
+
+	case "all":
+		mdata, err := checkout.ExportMachineJSON()
+		if err != nil {
+			return err
+		}
+		if err := exportFile("session-machine.json", mdata); err != nil {
+			return err
+		}
+		sdata, err := checkout.ExportScenariosJSON()
+		if err != nil {
+			return err
+		}
+		return exportFile("scenarios.json", sdata)
+
+	default:
+		return fmt.Errorf("usage: hdms-cli export <machine|scenarios|all> [--out <path>] [--domain-dir <path>]")
+	}
 }
