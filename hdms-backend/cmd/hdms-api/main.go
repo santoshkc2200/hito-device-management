@@ -16,11 +16,15 @@ import (
 	"github.com/hito-hospital/hdms/internal/apiserver"
 	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
+	"github.com/hito-hospital/hdms/internal/modules/checkout"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
+	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
+	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/observability"
@@ -67,15 +71,57 @@ func run() error {
 	defer pool.Close()
 
 	// Module composition root — the one place in the codebase that knows
-	// every module exists (docs/02-architecture.md). lending, checkout and
-	// notification are still Phase 2+ stubs and are not constructed here.
+	// every module exists (docs/02-architecture.md). notification is
+	// still a Phase 6 stub and is not constructed here.
 	auditSvc := audit.New(pool)
 	identitySvc := identity.New(pool, auditSvc)
 	catalogSvc := catalog.New(pool, auditSvc)
 	credentialsSvc := credentials.New(pool, auditSvc, cfg.TokenPepper, cfg.CredentialEncKey)
 	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL)
+	lendingSvc := lending.New(pool, auditSvc, clock.System{})
 
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc)
+	// Event bus and outbox dispatcher (2.2): audit is the only subscriber
+	// until 2.6 adds the SSE hub. checkout is the only publisher until
+	// credentials/identity's own call sites are wired in a later phase.
+	bus := events.NewBus(logger)
+	auditSvc.Subscribe(bus)
+	dispatcher := events.NewDispatcher(pool, bus, logger, events.DefaultPollInterval)
+	dispatcher.AddSweep(func(ctx context.Context) error {
+		return httpx.SweepExpiredIdempotencyKeys(ctx, pool)
+	})
+	dispatcher.Start(ctx)
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		dispatcher.Stop(stopCtx)
+	}()
+
+	checkoutSvc := checkout.New(pool, clock.System{}, checkout.Deps{
+		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc,
+	}, auditSvc, bus)
+	sweeper := checkout.NewSweeper(checkoutSvc, 0, logger)
+	sweeper.Start(ctx)
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		sweeper.Stop(stopCtx)
+	}()
+
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc)
+
+	// actorOf scopes an idempotency key to the caller (2.5): a kiosk's key
+	// never collides with an admin's. httpx cannot import auth directly
+	// (auth already imports httpx for problem+json rendering), so this
+	// closure is how the composition root bridges the two.
+	actorOf := func(r *http.Request) string {
+		if admin, ok := auth.AdminFromContext(r.Context()); ok {
+			return "admin:" + admin.ID
+		}
+		if kiosk, ok := auth.KioskFromContext(r.Context()); ok {
+			return "kiosk:" + kiosk.ID
+		}
+		return ""
+	}
 
 	mux := http.NewServeMux()
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
@@ -88,6 +134,7 @@ func run() error {
 		httpx.WithCORS(devOrigins()),
 		authSvc.Middleware,
 		httpx.WithRateLimit,
+		httpx.WithIdempotency(pool, actorOf, logger),
 	)(otelhttp.NewHandler(mux, "hdms-api"))
 
 	server := &http.Server{

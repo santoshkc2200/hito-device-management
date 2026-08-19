@@ -50,6 +50,51 @@ func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccount
 	return i, err
 }
 
+const createKiosk = `-- name: CreateKiosk :one
+INSERT INTO kiosks (id, name, location, token_hash)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at
+`
+
+type CreateKioskParams struct {
+	ID        pgtype.UUID `json:"id"`
+	Name      string      `json:"name"`
+	Location  pgtype.Text `json:"location"`
+	TokenHash []byte      `json:"token_hash"`
+}
+
+type CreateKioskRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	TokenHash      []byte             `json:"token_hash"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateKiosk(ctx context.Context, arg CreateKioskParams) (CreateKioskRow, error) {
+	row := q.db.QueryRow(ctx, createKiosk,
+		arg.ID,
+		arg.Name,
+		arg.Location,
+		arg.TokenHash,
+	)
+	var i CreateKioskRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Location,
+		&i.TokenHash,
+		&i.EnabledSources,
+		&i.Status,
+		&i.LastSeenAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createSession = `-- name: CreateSession :one
 INSERT INTO admin_sessions (id, admin_id, session_token_hash, csrf_token, expires_at)
 VALUES ($1, $2, $3, $4, $5)
@@ -141,14 +186,46 @@ func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (Admi
 	return i, err
 }
 
+const getKioskByPairingCodeHash = `-- name: GetKioskByPairingCodeHash :one
+SELECT id, name, pairing_code_expires_at
+FROM kiosks
+WHERE pairing_code_hash = $1 AND status = 'active'
+`
+
+type GetKioskByPairingCodeHashRow struct {
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	PairingCodeExpiresAt pgtype.Timestamptz `json:"pairing_code_expires_at"`
+}
+
+// Scoped to active kiosks so a disabled kiosk's stale pairing code (if any)
+// cannot be redeemed.
+func (q *Queries) GetKioskByPairingCodeHash(ctx context.Context, pairingCodeHash []byte) (GetKioskByPairingCodeHashRow, error) {
+	row := q.db.QueryRow(ctx, getKioskByPairingCodeHash, pairingCodeHash)
+	var i GetKioskByPairingCodeHashRow
+	err := row.Scan(&i.ID, &i.Name, &i.PairingCodeExpiresAt)
+	return i, err
+}
+
 const getKioskByTokenHash = `-- name: GetKioskByTokenHash :one
 SELECT id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at
 FROM kiosks WHERE token_hash = $1
 `
 
-func (q *Queries) GetKioskByTokenHash(ctx context.Context, tokenHash []byte) (Kiosk, error) {
+type GetKioskByTokenHashRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	TokenHash      []byte             `json:"token_hash"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetKioskByTokenHash(ctx context.Context, tokenHash []byte) (GetKioskByTokenHashRow, error) {
 	row := q.db.QueryRow(ctx, getKioskByTokenHash, tokenHash)
-	var i Kiosk
+	var i GetKioskByTokenHashRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -206,6 +283,24 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, sessionTokenHash []
 	return i, err
 }
 
+const redeemKioskPairingCode = `-- name: RedeemKioskPairingCode :exec
+UPDATE kiosks
+SET token_hash = $2, pairing_code_hash = NULL, pairing_code_expires_at = NULL
+WHERE id = $1
+`
+
+type RedeemKioskPairingCodeParams struct {
+	ID        pgtype.UUID `json:"id"`
+	TokenHash []byte      `json:"token_hash"`
+}
+
+// Consumes the code and installs the freshly minted token in one
+// statement, so a redeemed code can never be replayed.
+func (q *Queries) RedeemKioskPairingCode(ctx context.Context, arg RedeemKioskPairingCodeParams) error {
+	_, err := q.db.Exec(ctx, redeemKioskPairingCode, arg.ID, arg.TokenHash)
+	return err
+}
+
 const renewSession = `-- name: RenewSession :one
 UPDATE admin_sessions SET last_seen_at = now(), expires_at = $2
 WHERE id = $1
@@ -235,6 +330,30 @@ func (q *Queries) RenewSession(ctx context.Context, arg RenewSessionParams) (Adm
 	return i, err
 }
 
+const setKioskPairingCode = `-- name: SetKioskPairingCode :one
+UPDATE kiosks SET pairing_code_hash = $2, pairing_code_expires_at = $3
+WHERE id = $1
+RETURNING id, name
+`
+
+type SetKioskPairingCodeParams struct {
+	ID                   pgtype.UUID        `json:"id"`
+	PairingCodeHash      []byte             `json:"pairing_code_hash"`
+	PairingCodeExpiresAt pgtype.Timestamptz `json:"pairing_code_expires_at"`
+}
+
+type SetKioskPairingCodeRow struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) SetKioskPairingCode(ctx context.Context, arg SetKioskPairingCodeParams) (SetKioskPairingCodeRow, error) {
+	row := q.db.QueryRow(ctx, setKioskPairingCode, arg.ID, arg.PairingCodeHash, arg.PairingCodeExpiresAt)
+	var i SetKioskPairingCodeRow
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const updateKioskLastSeen = `-- name: UpdateKioskLastSeen :exec
 UPDATE kiosks SET last_seen_at = now() WHERE id = $1
 `
@@ -242,4 +361,44 @@ UPDATE kiosks SET last_seen_at = now() WHERE id = $1
 func (q *Queries) UpdateKioskLastSeen(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, updateKioskLastSeen, id)
 	return err
+}
+
+const updateKioskTokenHash = `-- name: UpdateKioskTokenHash :one
+UPDATE kiosks SET token_hash = $2
+WHERE id = $1
+RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at
+`
+
+type UpdateKioskTokenHashParams struct {
+	ID        pgtype.UUID `json:"id"`
+	TokenHash []byte      `json:"token_hash"`
+}
+
+type UpdateKioskTokenHashRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	TokenHash      []byte             `json:"token_hash"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+// Used by both explicit rotation and pairing-code redemption, which mints
+// and reveals a fresh token the same way registration does.
+func (q *Queries) UpdateKioskTokenHash(ctx context.Context, arg UpdateKioskTokenHashParams) (UpdateKioskTokenHashRow, error) {
+	row := q.db.QueryRow(ctx, updateKioskTokenHash, arg.ID, arg.TokenHash)
+	var i UpdateKioskTokenHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Location,
+		&i.TokenHash,
+		&i.EnabledSources,
+		&i.Status,
+		&i.LastSeenAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }

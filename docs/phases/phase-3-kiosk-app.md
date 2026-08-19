@@ -4,6 +4,11 @@
 device — in under eight seconds, with no instruction.
 **Duration:** ~2 weeks · **Depends on:** Phase 2 (frozen contract) · **Parallel with:** Phase 4
 
+**Detailed breakdown:** [`phase-3/`](phase-3/) splits the tasks below into
+fifteen executable sub-phases, each with its file paths, tests and exit criteria,
+plus the ordering that lets the hardware-bound input track run in parallel with
+the screen track. Start there; this page stays the summary.
+
 > Shortened from the original ~2–3 week estimate. Removing kiosk self-registration
 > deleted the enrollment form, the full QWERTY on-screen keyboard, and a state
 > from the machine — roughly a week of the most fiddly work in the phase.

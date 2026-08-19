@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+	"time"
 
 	"github.com/hito-hospital/hdms/internal/cliimport"
 	"github.com/hito-hospital/hdms/internal/modules/audit"
@@ -37,7 +38,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli <seed|migrate|admin bootstrap|import devices|import users>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli <seed|migrate|admin bootstrap|import devices|import users|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string) error {
@@ -57,6 +58,8 @@ func run(cmd string, args []string) error {
 		return runAdmin(ctx, cfg, args)
 	case "import":
 		return runImport(ctx, cfg, args)
+	case "kiosk":
+		return runKiosk(ctx, cfg, args)
 	default:
 		return fmt.Errorf("unknown subcommand %q", cmd)
 	}
@@ -168,6 +171,73 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 	fmt.Println("  raw secret: ", secret)
 	fmt.Println()
 	return nil
+}
+
+func runKiosk(ctx context.Context, cfg config.Config, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: hdms-cli kiosk <register --name --location|rotate <id>|pairing-code <id>>")
+	}
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL)
+
+	switch args[0] {
+	case "register":
+		fs := flag.NewFlagSet("kiosk register", flag.ContinueOnError)
+		name := fs.String("name", "", "kiosk name (required)")
+		location := fs.String("location", "", "kiosk location")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *name == "" {
+			return fmt.Errorf("--name is required")
+		}
+
+		id, token, err := authSvc.RegisterKiosk(ctx, *name, *location)
+		if err != nil {
+			return fmt.Errorf("register kiosk: %w", err)
+		}
+		fmt.Printf("Kiosk registered: %s (%s)\n\n", id, *name)
+		fmt.Println("Bearer token — shown once, store it now:")
+		fmt.Println()
+		fmt.Println(" ", token)
+		fmt.Println()
+		return nil
+
+	case "rotate":
+		if len(args) < 2 || args[1] == "" {
+			return fmt.Errorf("usage: hdms-cli kiosk rotate <id>")
+		}
+		token, err := authSvc.RotateKioskToken(ctx, args[1])
+		if err != nil {
+			return fmt.Errorf("rotate kiosk token: %w", err)
+		}
+		fmt.Println("New bearer token — shown once, store it now:")
+		fmt.Println()
+		fmt.Println(" ", token)
+		fmt.Println()
+		return nil
+
+	case "pairing-code":
+		if len(args) < 2 || args[1] == "" {
+			return fmt.Errorf("usage: hdms-cli kiosk pairing-code <id>")
+		}
+		code, expiresAt, err := authSvc.IssuePairingCode(ctx, args[1])
+		if err != nil {
+			return fmt.Errorf("issue pairing code: %w", err)
+		}
+		fmt.Printf("Pairing code (expires %s):\n\n", expiresAt.Format(time.RFC3339))
+		fmt.Println(" ", code)
+		fmt.Println()
+		return nil
+
+	default:
+		return fmt.Errorf("usage: hdms-cli kiosk <register --name --location|rotate <id>|pairing-code <id>>")
+	}
 }
 
 func promptPassword() (string, error) {

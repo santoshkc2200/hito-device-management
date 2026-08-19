@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	CreateAdminAccount(ctx context.Context, arg CreateAdminAccountParams) (AdminAccount, error)
+	CreateKiosk(ctx context.Context, arg CreateKioskParams) (CreateKioskRow, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (AdminSession, error)
 	DeleteSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) error
 	// Only used at login, where a non-existent email must fail the same way a
@@ -19,15 +20,25 @@ type Querier interface {
 	// not this query's behaviour, to keep that response uniform.
 	GetAdminAccountByEmail(ctx context.Context, lower string) (AdminAccount, error)
 	GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (AdminAccount, error)
-	GetKioskByTokenHash(ctx context.Context, tokenHash []byte) (Kiosk, error)
+	// Scoped to active kiosks so a disabled kiosk's stale pairing code (if any)
+	// cannot be redeemed.
+	GetKioskByPairingCodeHash(ctx context.Context, pairingCodeHash []byte) (GetKioskByPairingCodeHashRow, error)
+	GetKioskByTokenHash(ctx context.Context, tokenHash []byte) (GetKioskByTokenHashRow, error)
 	// Joins the owning account so the middleware can reject a disabled account
 	// on every request without a second round trip.
 	GetSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) (GetSessionByTokenHashRow, error)
+	// Consumes the code and installs the freshly minted token in one
+	// statement, so a redeemed code can never be replayed.
+	RedeemKioskPairingCode(ctx context.Context, arg RedeemKioskPairingCodeParams) error
 	// Sliding expiry: called on every valid use with a freshly computed
 	// expires_at (now + TTL), matching docs/09's "12-hour expiry with sliding
 	// renewal".
 	RenewSession(ctx context.Context, arg RenewSessionParams) (AdminSession, error)
+	SetKioskPairingCode(ctx context.Context, arg SetKioskPairingCodeParams) (SetKioskPairingCodeRow, error)
 	UpdateKioskLastSeen(ctx context.Context, id pgtype.UUID) error
+	// Used by both explicit rotation and pairing-code redemption, which mints
+	// and reveals a fresh token the same way registration does.
+	UpdateKioskTokenHash(ctx context.Context, arg UpdateKioskTokenHashParams) (UpdateKioskTokenHashRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

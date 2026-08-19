@@ -46,3 +46,34 @@ FROM kiosks WHERE token_hash = $1;
 
 -- name: UpdateKioskLastSeen :exec
 UPDATE kiosks SET last_seen_at = now() WHERE id = $1;
+
+-- name: CreateKiosk :one
+INSERT INTO kiosks (id, name, location, token_hash)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at;
+
+-- name: UpdateKioskTokenHash :one
+-- Used by both explicit rotation and pairing-code redemption, which mints
+-- and reveals a fresh token the same way registration does.
+UPDATE kiosks SET token_hash = $2
+WHERE id = $1
+RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at;
+
+-- name: SetKioskPairingCode :one
+UPDATE kiosks SET pairing_code_hash = $2, pairing_code_expires_at = $3
+WHERE id = $1
+RETURNING id, name;
+
+-- name: GetKioskByPairingCodeHash :one
+-- Scoped to active kiosks so a disabled kiosk's stale pairing code (if any)
+-- cannot be redeemed.
+SELECT id, name, pairing_code_expires_at
+FROM kiosks
+WHERE pairing_code_hash = $1 AND status = 'active';
+
+-- name: RedeemKioskPairingCode :exec
+-- Consumes the code and installs the freshly minted token in one
+-- statement, so a redeemed code can never be replayed.
+UPDATE kiosks
+SET token_hash = $2, pairing_code_hash = NULL, pairing_code_expires_at = NULL
+WHERE id = $1;

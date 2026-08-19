@@ -315,6 +315,140 @@ func (ns NullKioskStatus) Value() (driver.Value, error) {
 	return string(ns.KioskStatus), nil
 }
 
+type LoanOrigin string
+
+const (
+	LoanOriginKiosk  LoanOrigin = "kiosk"
+	LoanOriginAdmin  LoanOrigin = "admin"
+	LoanOriginPaper  LoanOrigin = "paper"
+	LoanOriginImport LoanOrigin = "import"
+)
+
+func (e *LoanOrigin) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = LoanOrigin(s)
+	case string:
+		*e = LoanOrigin(s)
+	default:
+		return fmt.Errorf("unsupported scan type for LoanOrigin: %T", src)
+	}
+	return nil
+}
+
+type NullLoanOrigin struct {
+	LoanOrigin LoanOrigin `json:"loan_origin"`
+	Valid      bool       `json:"valid"` // Valid is true if LoanOrigin is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLoanOrigin) Scan(value interface{}) error {
+	if value == nil {
+		ns.LoanOrigin, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.LoanOrigin.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLoanOrigin) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.LoanOrigin), nil
+}
+
+type LoanStatus string
+
+const (
+	LoanStatusOpen       LoanStatus = "open"
+	LoanStatusReturned   LoanStatus = "returned"
+	LoanStatusWrittenOff LoanStatus = "written_off"
+)
+
+func (e *LoanStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = LoanStatus(s)
+	case string:
+		*e = LoanStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for LoanStatus: %T", src)
+	}
+	return nil
+}
+
+type NullLoanStatus struct {
+	LoanStatus LoanStatus `json:"loan_status"`
+	Valid      bool       `json:"valid"` // Valid is true if LoanStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLoanStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.LoanStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.LoanStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLoanStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.LoanStatus), nil
+}
+
+type SessionState string
+
+const (
+	SessionStateIdle           SessionState = "idle"
+	SessionStateAwaitingUser   SessionState = "awaiting_user"
+	SessionStateAwaitingDevice SessionState = "awaiting_device"
+	SessionStateReady          SessionState = "ready"
+	SessionStateCompleted      SessionState = "completed"
+	SessionStateExpired        SessionState = "expired"
+	SessionStateCancelled      SessionState = "cancelled"
+)
+
+func (e *SessionState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SessionState(s)
+	case string:
+		*e = SessionState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SessionState: %T", src)
+	}
+	return nil
+}
+
+type NullSessionState struct {
+	SessionState SessionState `json:"session_state"`
+	Valid        bool         `json:"valid"` // Valid is true if SessionState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSessionState) Scan(value interface{}) error {
+	if value == nil {
+		ns.SessionState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SessionState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSessionState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SessionState), nil
+}
+
 type SubjectType string
 
 const (
@@ -495,15 +629,53 @@ type DeviceCategory struct {
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 }
 
+type IdempotencyKey struct {
+	Key          string             `json:"key"`
+	Actor        string             `json:"actor"`
+	RequestHash  []byte             `json:"request_hash"`
+	StatusCode   pgtype.Int4        `json:"status_code"`
+	ResponseBody []byte             `json:"response_body"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
+}
+
 type Kiosk struct {
-	ID             pgtype.UUID        `json:"id"`
-	Name           string             `json:"name"`
-	Location       pgtype.Text        `json:"location"`
-	TokenHash      []byte             `json:"token_hash"`
-	EnabledSources []string           `json:"enabled_sources"`
-	Status         KioskStatus        `json:"status"`
-	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	Location             pgtype.Text        `json:"location"`
+	TokenHash            []byte             `json:"token_hash"`
+	EnabledSources       []string           `json:"enabled_sources"`
+	Status               KioskStatus        `json:"status"`
+	LastSeenAt           pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	PairingCodeHash      []byte             `json:"pairing_code_hash"`
+	PairingCodeExpiresAt pgtype.Timestamptz `json:"pairing_code_expires_at"`
+}
+
+type Loan struct {
+	ID            pgtype.UUID         `json:"id"`
+	DeviceID      pgtype.UUID         `json:"device_id"`
+	UserID        pgtype.UUID         `json:"user_id"`
+	Status        LoanStatus          `json:"status"`
+	Origin        LoanOrigin          `json:"origin"`
+	BorrowedAt    pgtype.Timestamptz  `json:"borrowed_at"`
+	DueAt         pgtype.Timestamptz  `json:"due_at"`
+	ReturnedAt    pgtype.Timestamptz  `json:"returned_at"`
+	BorrowKioskID pgtype.UUID         `json:"borrow_kiosk_id"`
+	ReturnKioskID pgtype.UUID         `json:"return_kiosk_id"`
+	BorrowActor   string              `json:"borrow_actor"`
+	ReturnActor   pgtype.Text         `json:"return_actor"`
+	BorrowSource  string              `json:"borrow_source"`
+	ReturnSource  pgtype.Text         `json:"return_source"`
+	ConditionOut  NullDeviceCondition `json:"condition_out"`
+	ConditionIn   NullDeviceCondition `json:"condition_in"`
+	Notes         pgtype.Text         `json:"notes"`
+	SessionID     pgtype.UUID         `json:"session_id"`
+	PaperRef      pgtype.Text         `json:"paper_ref"`
+	RecordedAt    pgtype.Timestamptz  `json:"recorded_at"`
+	RecordedBy    pgtype.Text         `json:"recorded_by"`
+	BackfillNote  pgtype.Text         `json:"backfill_note"`
+	Disputed      bool                `json:"disputed"`
 }
 
 type Outbox struct {
@@ -512,6 +684,33 @@ type Outbox struct {
 	Payload     []byte             `json:"payload"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	PublishedAt pgtype.Timestamptz `json:"published_at"`
+}
+
+type ScanEvent struct {
+	ID           pgtype.UUID        `json:"id"`
+	SessionID    pgtype.UUID        `json:"session_id"`
+	At           pgtype.Timestamptz `json:"at"`
+	Source       string             `json:"source"`
+	TokenPreview string             `json:"token_preview"`
+	ResolvedType pgtype.Text        `json:"resolved_type"`
+	ResolvedID   pgtype.UUID        `json:"resolved_id"`
+	Result       string             `json:"result"`
+	Reason       pgtype.Text        `json:"reason"`
+}
+
+type ScanSession struct {
+	ID            pgtype.UUID        `json:"id"`
+	KioskID       pgtype.UUID        `json:"kiosk_id"`
+	State         SessionState       `json:"state"`
+	UserID        pgtype.UUID        `json:"user_id"`
+	PendingDevice pgtype.UUID        `json:"pending_device"`
+	StartedAt     pgtype.Timestamptz `json:"started_at"`
+	LastActivity  pgtype.Timestamptz `json:"last_activity"`
+	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
+	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
+	Outcome       pgtype.Text        `json:"outcome"`
+	LastTokenHash []byte             `json:"last_token_hash"`
+	LastScanAt    pgtype.Timestamptz `json:"last_scan_at"`
 }
 
 type User struct {

@@ -142,6 +142,11 @@ type Service interface {
 	// of its status.
 	SetCondition(ctx context.Context, id string, condition DeviceCondition, actor string) (DeviceSummary, error)
 
+	// CategoryOf fetches one category by id — checkout reads a device's
+	// category through this to compute a due date without importing more
+	// than the period it needs (checkout.DeviceLookup).
+	CategoryOf(ctx context.Context, categoryID string) (Category, error)
+
 	// CreateCategory adds a device category with its default loan period.
 	CreateCategory(ctx context.Context, params CreateCategoryParams) (Category, error)
 

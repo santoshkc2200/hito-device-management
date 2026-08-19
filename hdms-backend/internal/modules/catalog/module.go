@@ -326,6 +326,25 @@ func (s *Service) ListCategories(ctx context.Context) ([]catalogapi.Category, er
 	return categories, nil
 }
 
+// CategoryOf fetches one category by id — checkout's due-date computation
+// reads a device's category through this rather than through ListCategories
+// (2.3a's checkout.DeviceLookup).
+func (s *Service) CategoryOf(ctx context.Context, categoryID string) (catalogapi.Category, error) {
+	cid, err := pgtypeconv.UUID(categoryID)
+	if err != nil {
+		return catalogapi.Category{}, fmt.Errorf("catalog: invalid category id: %w", err)
+	}
+	q := catalogstore.New(db.Conn(ctx, s.pool))
+	row, err := q.GetCategoryByID(ctx, cid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return catalogapi.Category{}, catalogapi.ErrCategoryNotFound
+		}
+		return catalogapi.Category{}, fmt.Errorf("catalog: category of: %w", err)
+	}
+	return toCategory(row), nil
+}
+
 func toDeviceSummary(row catalogstore.Device) catalogapi.DeviceSummary {
 	return catalogapi.DeviceSummary{
 		ID:           pgtypeconv.UUIDString(row.ID),

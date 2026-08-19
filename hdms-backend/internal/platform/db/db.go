@@ -125,3 +125,13 @@ func Conn(ctx context.Context, pool *Pool) DBTX {
 	}
 	return pool.Pool
 }
+
+// InTx reports whether ctx carries an ambient transaction from a TxManager
+// Do call. events.Publish uses this to assert, in test builds only, that
+// it was called from inside the caller's transaction rather than after it —
+// a mistake that would silently break the "publish is atomic with the
+// domain change" guarantee the outbox exists for.
+func InTx(ctx context.Context) bool {
+	_, ok := txFromContext(ctx)
+	return ok
+}

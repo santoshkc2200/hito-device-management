@@ -7,6 +7,11 @@ entirely through the API. The kiosk in Phase 3 becomes a thin renderer.
 This is the phase where correctness is won or lost. Everything else in the
 project is a user interface over what is built here.
 
+**Detailed breakdown:** [`phase-2/`](phase-2/) splits the tasks below into
+fourteen executable sub-phases, each with its file paths, tests and exit
+criteria, plus the ordering that lets the paper-backfill track run in parallel
+with the scan-session track. Start there; this page stays the summary.
+
 ## Tasks
 
 ### 2.1 `lending` module

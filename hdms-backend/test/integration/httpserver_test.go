@@ -18,10 +18,14 @@ import (
 	"github.com/hito-hospital/hdms/internal/apiserver"
 	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
+	"github.com/hito-hospital/hdms/internal/modules/checkout"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
+	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
+	"github.com/hito-hospital/hdms/internal/platform/clock"
+	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/test/testdb"
@@ -56,12 +60,16 @@ func newTestHarness(t *testing.T) *testHarness {
 	catalogSvc := catalog.New(pool, auditSvc)
 	credentialsSvc := credentials.New(pool, auditSvc, pepper, credEncKey)
 	authSvc := auth.New(pool, pepper, totpEncKey, time.Hour)
-
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc)
-	mux := http.NewServeMux()
-	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
+	lendingSvc := lending.New(pool, auditSvc, clock.System{})
 
 	discardLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	checkoutSvc := checkout.New(pool, clock.System{}, checkout.Deps{
+		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc,
+	}, auditSvc, events.NewBus(discardLogger))
+
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc)
+	mux := http.NewServeMux()
+	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
 	handler := httpx.Chain(
 		httpx.WithRequestID,
 		httpx.WithRecovery(discardLogger),

@@ -80,3 +80,23 @@ sql:
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/events"
+    schema: "migrations"
+    gen:
+      go:
+        package: "eventsstore"
+        out: "internal/platform/events/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/idempotency"
+    schema: "migrations"
+    gen:
+      go:
+        package: "idempotencystore"
+        out: "internal/platform/httpx/idempotency/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true

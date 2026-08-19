@@ -107,23 +107,30 @@ linters:
 
         # checkout is the one orchestrator: it may depend on the four
         # modules' public …api packages, and nothing else module-shaped.
+        # The trailing $ anchors each pattern to an exact match — depguard
+        # otherwise treats a bare package path as a prefix, which would
+        # silently deny the …api subpackages these rules exist to allow.
         checkout-orchestrator:
           files: ["**/internal/modules/checkout/**"]
           deny:
-            - {pkg: github.com/hito-hospital/hdms/internal/modules/identity, desc: "import identityapi, not identity — the module package is wiring-only"}
-            - {pkg: github.com/hito-hospital/hdms/internal/modules/catalog, desc: "import catalogapi, not catalog — the module package is wiring-only"}
-            - {pkg: github.com/hito-hospital/hdms/internal/modules/credentials, desc: "import credentialsapi, not credentials — the module package is wiring-only"}
-            - {pkg: github.com/hito-hospital/hdms/internal/modules/lending, desc: "import lendingapi, not lending — the module package is wiring-only"}
-            - {pkg: github.com/hito-hospital/hdms/internal/modules/audit, desc: "import auditapi, not audit — the module package is wiring-only"}
+            - {pkg: "github.com/hito-hospital/hdms/internal/modules/identity$", desc: "import identityapi, not identity — the module package is wiring-only"}
+            - {pkg: "github.com/hito-hospital/hdms/internal/modules/catalog$", desc: "import catalogapi, not catalog — the module package is wiring-only"}
+            - {pkg: "github.com/hito-hospital/hdms/internal/modules/credentials$", desc: "import credentialsapi, not credentials — the module package is wiring-only"}
+            - {pkg: "github.com/hito-hospital/hdms/internal/modules/lending$", desc: "import lendingapi, not lending — the module package is wiring-only"}
+            - {pkg: "github.com/hito-hospital/hdms/internal/modules/audit$", desc: "import auditapi, not audit — the module package is wiring-only"}
             - {pkg: github.com/hito-hospital/hdms/internal/modules/notification, desc: "notification is Phase 6; checkout does not depend on it yet"}
             - {pkg: github.com/hito-hospital/hdms/internal/modules/notification/notificationapi, desc: "notification is Phase 6; checkout does not depend on it yet"}
 
         # Nothing outside the composition root wires the orchestrator —
         # "nothing depends on checkout" (docs/02-architecture.md).
+        # internal/apiserver is part of that composition root alongside
+        # cmd/hdms-api: it already holds concrete module types (identity,
+        # catalog, credentials) the same way, per its own server.go.
         no-checkout-outside-cmd:
           files:
             - "$all"
             - "!**/cmd/**"
+            - "!**/internal/apiserver/**"
             - "!**/internal/modules/checkout/**"
           deny:
             - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; only cmd/hdms-api's composition root may import it"}
