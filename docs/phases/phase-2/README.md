@@ -82,6 +82,7 @@ slotted into any gap.
 | `migrations/0008_checkout.sql` | 2.3a |
 | `migrations/0009_idempotency.sql` | 2.5 |
 | `migrations/0010_kiosk_scope.sql` (if kiosk scopes need a column) | 2.6 |
+| `migrations/0011_disputed_open_loan_index.sql` | 2.4b |
 
 Every migration has a working `-- +goose Down`; `test/integration/migrations_test.go`
 already exercises up/down and must stay green.

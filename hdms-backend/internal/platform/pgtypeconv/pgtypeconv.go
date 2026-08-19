@@ -88,6 +88,15 @@ func NullTimestamptz(t *time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: *t, Valid: true}
 }
 
+// NullBool wraps a *bool for a nullable boolean filter parameter; nil maps
+// to SQL NULL, which the sqlc.narg filters read as "no constraint".
+func NullBool(b *bool) pgtype.Bool {
+	if b == nil {
+		return pgtype.Bool{}
+	}
+	return pgtype.Bool{Bool: *b, Valid: true}
+}
+
 // TimePtr unwraps a nullable timestamptz column to *time.Time, nil if it
 // was NULL.
 func TimePtr(t pgtype.Timestamptz) *time.Time {

@@ -45,7 +45,7 @@ type Snapshot struct {
 	// device's custody at the moment 2.3c loaded it, so Decide can resolve
 	// "a user just scanned against an already-pending device" into
 	// borrow/return/reject without doing its own lookup (resolve.go's
-	// resolveAction). Both are "" when PendingDeviceID is "". A pending
+	// ResolveAction). Both are "" when PendingDeviceID is "". A pending
 	// device is never in maintenance/retired/lost — that status is
 	// rejected before a device is ever allowed to become pending — so
 	// PendingDeviceStatus is always "available" or "on_loan" here.

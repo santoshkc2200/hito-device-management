@@ -296,6 +296,150 @@ export type ResolvedCredential = {
     kind: CredentialKind;
 };
 
+export type BackfillAction = 'borrow' | 'return';
+
+/**
+ * The admin's answer to a conflict the preview reported (FR-75). The application never picks one. "change-device" is client-side: by save-time the asset tag has been edited, so a row still carrying it is rejected as unresolved.
+ *
+ */
+export type BackfillResolution = 'truncate-existing' | 'change-device' | 'discard-row' | 'record-as-disputed';
+
+export type BackfillRowStatus = 'ok' | 'conflict' | 'unresolved' | 'discarded';
+
+export type BackfillNewUser = {
+    fullName: string;
+    employeeNo: string;
+    departmentId?: string;
+};
+
+/**
+ * Discriminated union — exactly one of userId, employeeNo, token or newUser. The token form is how a scanned card identifies the person on the admin desk's USB scanner.
+ *
+ */
+export type BackfillUserRef = {
+    userId?: string;
+    employeeNo?: string;
+    token?: string;
+    newUser?: BackfillNewUser;
+};
+
+export type BackfillRow = {
+    /**
+     * The row's key in the response, so the UI updates rows in place without reordering the admin's work.
+     */
+    clientRowId: string;
+    /**
+     * An asset tag or a scanned device credential token — one field, one trigger pull.
+     */
+    deviceRef: string;
+    userRef: BackfillUserRef;
+    /**
+     * The OUT time, with an explicit offset — the admin is reading a wall clock off paper.
+     */
+    borrowedAt: string;
+    /**
+     * The IN time; absent means the row describes an open loan, which puts the device on loan.
+     */
+    returnedAt?: string;
+    action?: BackfillAction;
+    resolution?: BackfillResolution;
+    note?: string;
+};
+
+export type BackfillBatch = {
+    /**
+     * Register page / slip reference, stamped on every loan the batch writes (INV-14).
+     */
+    paperRef: string;
+    rows: Array<BackfillRow>;
+};
+
+export type BackfillDeviceRef = {
+    id: string;
+    assetTag: string;
+    name: string;
+};
+
+export type BackfillPersonRef = {
+    id: string;
+    fullName: string;
+    department?: string;
+};
+
+export type BackfillExistingLoan = {
+    id: string;
+    userDisplay: string;
+    department?: string;
+    borrowedAt: string;
+    returnedAt?: string;
+    origin: string;
+};
+
+export type BackfillConflict = {
+    type: 'overlapping-custody';
+    existingLoan: BackfillExistingLoan;
+    resolutions: Array<BackfillResolution>;
+};
+
+export type BackfillRowResult = {
+    clientRowId: string;
+    action?: BackfillAction;
+    status: BackfillRowStatus;
+    device?: BackfillDeviceRef;
+    user?: BackfillPersonRef;
+    /**
+     * True when this row's person did not exist before the batch; drives the "issue cards to the new people" step (FR-77).
+     */
+    createsUser?: boolean;
+    /**
+     * The loan this row created (commit only).
+     */
+    loanId?: string;
+    /**
+     * The loan this row closed (return rows).
+     */
+    closesLoanId?: string;
+    /**
+     * The inline-created (or reused) person's id (commit only).
+     */
+    userId?: string;
+    /**
+     * The row was recorded as a disputed claim — visible forever, never a custody fact.
+     */
+    disputed?: boolean;
+    warnings?: Array<string>;
+    /**
+     * The offending field, for unresolved rows.
+     */
+    field?: string;
+    /**
+     * Why the row is unresolved, in admin-readable words.
+     */
+    reason?: string;
+    conflict?: BackfillConflict;
+};
+
+export type BackfillSummary = {
+    ok: number;
+    conflicts: number;
+    newUsers: number;
+};
+
+export type BackfillResult = {
+    rows: Array<BackfillRowResult>;
+    summary: BackfillSummary;
+    /**
+     * False for a preview and for a rejected commit (nothing was written).
+     */
+    committed: boolean;
+};
+
+export type BackfillLastEntry = {
+    paperRef?: string;
+    recordedAt: string;
+    recordedBy?: string;
+};
+
 export type IdParam = string;
 
 export type CursorParam = string;
@@ -311,6 +455,12 @@ export type UserStatusFilter = UserStatus;
 export type CategoryFilter = string;
 
 export type DepartmentFilter = string;
+
+/**
+ * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+ *
+ */
+export type IdempotencyKey = string;
 
 export type GetHealthzData = {
     body?: never;
@@ -1094,3 +1244,100 @@ export type GetCredentialHistoryResponses = {
 };
 
 export type GetCredentialHistoryResponse = GetCredentialHistoryResponses[keyof GetCredentialHistoryResponses];
+
+export type PreviewBackfillBatchData = {
+    body: BackfillBatch;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/backfill/preview';
+};
+
+export type PreviewBackfillBatchErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type PreviewBackfillBatchError = PreviewBackfillBatchErrors[keyof PreviewBackfillBatchErrors];
+
+export type PreviewBackfillBatchResponses = {
+    /**
+     * The per-row resolution. Conflicts and unresolved rows are ordinary row statuses here, not HTTP errors.
+     */
+    200: BackfillResult;
+};
+
+export type PreviewBackfillBatchResponse = PreviewBackfillBatchResponses[keyof PreviewBackfillBatchResponses];
+
+export type RecordBackfillBatchData = {
+    body: BackfillBatch;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/backfill';
+};
+
+export type RecordBackfillBatchErrors = {
+    /**
+     * The batch contains a row that still conflicts with existing custody; nothing was written. `extensions.clientRowIds` names the conflicting rows — the structured per-row detail is what the preview is for.
+     */
+    409: Problem;
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RecordBackfillBatchError = RecordBackfillBatchErrors[keyof RecordBackfillBatchErrors];
+
+export type RecordBackfillBatchResponses = {
+    /**
+     * The batch was committed. Per-row results carry the created loan ids and the created user ids.
+     */
+    200: BackfillResult;
+};
+
+export type RecordBackfillBatchResponse = RecordBackfillBatchResponses[keyof RecordBackfillBatchResponses];
+
+export type GetBackfillLastEntryData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/backfill/last-entry';
+};
+
+export type GetBackfillLastEntryErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetBackfillLastEntryError = GetBackfillLastEntryErrors[keyof GetBackfillLastEntryErrors];
+
+export type GetBackfillLastEntryResponses = {
+    /**
+     * The most recent paper-origin recording.
+     */
+    200: BackfillLastEntry;
+    /**
+     * No paper entry has been recorded yet.
+     */
+    204: void;
+};
+
+export type GetBackfillLastEntryResponse = GetBackfillLastEntryResponses[keyof GetBackfillLastEntryResponses];

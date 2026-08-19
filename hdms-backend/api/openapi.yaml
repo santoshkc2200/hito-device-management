@@ -645,6 +645,87 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  # --- Paper backfill (2.4b) -------------------------------------------------
+
+  /backfill/preview:
+    post:
+      operationId: previewBackfillBatch
+      summary: >
+        Validate a staged paper-register batch and return, per row, the
+        auto-detected action (FR-74), the resolved device and person, and any
+        custody conflict — writing nothing. The screen calls it as rows change
+        so a conflict surfaces while the admin is still looking at the page.
+        Admin-only; the kiosk token cannot reach it.
+      tags: [backfill]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackfillBatch"
+      responses:
+        "200":
+          description: The per-row resolution. Conflicts and unresolved rows are ordinary row statuses here, not HTTP errors.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackfillResult"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backfill:
+    post:
+      operationId: recordBackfillBatch
+      summary: >
+        Commit a validated batch atomically — all rows or none. The same
+        server-side validation the preview runs is re-run here; a preview is a
+        convenience, never a grant. Returns the created loan ids and the ids of
+        any users created, which the "issue cards to the new people" step
+        (FR-77) is driven from. Admin-only; the kiosk token cannot reach it.
+      tags: [backfill]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackfillBatch"
+      responses:
+        "200":
+          description: The batch was committed. Per-row results carry the created loan ids and the created user ids.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackfillResult"
+        "409":
+          description: The batch contains a row that still conflicts with existing custody; nothing was written. `extensions.clientRowIds` names the conflicting rows — the structured per-row detail is what the preview is for.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backfill/last-entry:
+    get:
+      operationId: getBackfillLastEntry
+      summary: When a paper page was last recorded — the dashboard's backlog nag (Q11).
+      tags: [backfill]
+      responses:
+        "200":
+          description: The most recent paper-origin recording.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackfillLastEntry"
+        "204":
+          description: No paper entry has been recorded yet.
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1080,6 +1161,195 @@ components:
         kind:
           $ref: "#/components/schemas/CredentialKind"
 
+    # --- Paper backfill (2.4b) ------------------------------------------------
+
+    BackfillAction:
+      type: string
+      enum: [borrow, return]
+
+    BackfillResolution:
+      type: string
+      description: >
+        The admin's answer to a conflict the preview reported (FR-75). The
+        application never picks one. "change-device" is client-side: by
+        save-time the asset tag has been edited, so a row still carrying it
+        is rejected as unresolved.
+      enum: [truncate-existing, change-device, discard-row, record-as-disputed]
+
+    BackfillRowStatus:
+      type: string
+      enum: [ok, conflict, unresolved, discarded]
+
+    BackfillNewUser:
+      type: object
+      required: [fullName, employeeNo]
+      properties:
+        fullName: { type: string }
+        employeeNo: { type: string }
+        departmentId: { type: string }
+
+    BackfillUserRef:
+      type: object
+      description: >
+        Discriminated union — exactly one of userId, employeeNo, token or
+        newUser. The token form is how a scanned card identifies the person
+        on the admin desk's USB scanner.
+      properties:
+        userId: { type: string }
+        employeeNo: { type: string }
+        token: { type: string }
+        newUser:
+          $ref: "#/components/schemas/BackfillNewUser"
+
+    BackfillRow:
+      type: object
+      required: [clientRowId, deviceRef, userRef, borrowedAt]
+      properties:
+        clientRowId:
+          type: string
+          description: The row's key in the response, so the UI updates rows in place without reordering the admin's work.
+        deviceRef:
+          type: string
+          description: An asset tag or a scanned device credential token — one field, one trigger pull.
+        userRef:
+          $ref: "#/components/schemas/BackfillUserRef"
+        borrowedAt:
+          type: string
+          format: date-time
+          description: The OUT time, with an explicit offset — the admin is reading a wall clock off paper.
+        returnedAt:
+          type: string
+          format: date-time
+          description: The IN time; absent means the row describes an open loan, which puts the device on loan.
+        action:
+          $ref: "#/components/schemas/BackfillAction"
+        resolution:
+          $ref: "#/components/schemas/BackfillResolution"
+        note: { type: string }
+
+    BackfillBatch:
+      type: object
+      required: [paperRef, rows]
+      properties:
+        paperRef:
+          type: string
+          description: Register page / slip reference, stamped on every loan the batch writes (INV-14).
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackfillRow"
+
+    BackfillDeviceRef:
+      type: object
+      required: [id, assetTag, name]
+      properties:
+        id: { type: string }
+        assetTag: { type: string }
+        name: { type: string }
+
+    BackfillPersonRef:
+      type: object
+      required: [id, fullName]
+      properties:
+        id: { type: string }
+        fullName: { type: string }
+        department: { type: string }
+
+    BackfillExistingLoan:
+      type: object
+      required: [id, userDisplay, borrowedAt, origin]
+      properties:
+        id: { type: string }
+        userDisplay: { type: string }
+        department: { type: string }
+        borrowedAt: { type: string, format: date-time }
+        returnedAt: { type: string, format: date-time }
+        origin: { type: string }
+
+    BackfillConflict:
+      type: object
+      required: [type, existingLoan, resolutions]
+      properties:
+        type:
+          type: string
+          enum: [overlapping-custody]
+        existingLoan:
+          $ref: "#/components/schemas/BackfillExistingLoan"
+        resolutions:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackfillResolution"
+
+    BackfillRowResult:
+      type: object
+      required: [clientRowId, status]
+      properties:
+        clientRowId: { type: string }
+        action:
+          $ref: "#/components/schemas/BackfillAction"
+        status:
+          $ref: "#/components/schemas/BackfillRowStatus"
+        device:
+          $ref: "#/components/schemas/BackfillDeviceRef"
+        user:
+          $ref: "#/components/schemas/BackfillPersonRef"
+        createsUser:
+          type: boolean
+          description: True when this row's person did not exist before the batch; drives the "issue cards to the new people" step (FR-77).
+        loanId:
+          type: string
+          description: The loan this row created (commit only).
+        closesLoanId:
+          type: string
+          description: The loan this row closed (return rows).
+        userId:
+          type: string
+          description: The inline-created (or reused) person's id (commit only).
+        disputed:
+          type: boolean
+          description: The row was recorded as a disputed claim — visible forever, never a custody fact.
+        warnings:
+          type: array
+          items: { type: string }
+        field:
+          type: string
+          description: The offending field, for unresolved rows.
+        reason:
+          type: string
+          description: Why the row is unresolved, in admin-readable words.
+        conflict:
+          $ref: "#/components/schemas/BackfillConflict"
+
+    BackfillSummary:
+      type: object
+      required: [ok, conflicts, newUsers]
+      properties:
+        ok: { type: integer }
+        conflicts: { type: integer }
+        newUsers: { type: integer }
+
+    BackfillResult:
+      type: object
+      required: [rows, summary, committed]
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackfillRowResult"
+        summary:
+          $ref: "#/components/schemas/BackfillSummary"
+        committed:
+          type: boolean
+          description: False for a preview and for a rejected commit (nothing was written).
+
+    BackfillLastEntry:
+      type: object
+      required: [recordedAt]
+      properties:
+        paperRef: { type: string }
+        recordedAt: { type: string, format: date-time }
+        recordedBy: { type: string }
+
   parameters:
     IDParam:
       name: id
@@ -1136,6 +1406,20 @@ components:
       required: false
       schema:
         type: string
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+      description: >
+        Stores the response for 24 h and replays it verbatim on a retry with
+        the same key (a different body gets `idempotency-mismatch`, 422). The
+        kiosk derives its key as sha256(session_id | device_id | action |
+        minute_bucket) — the minute bucket is what makes a deliberate
+        re-borrow a minute later a new transaction rather than a replay. The
+        admin console may send any stable per-action value or omit the header.
 
   responses:
     ProblemResponse:

@@ -71,8 +71,8 @@ func TestResolveAction(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := resolveAction(c.custodyHolderID, c.actorID); got != c.want {
-				t.Errorf("resolveAction(%q, %q) = %q, want %q", c.custodyHolderID, c.actorID, got, c.want)
+			if got := ResolveAction(c.custodyHolderID, c.actorID); got != c.want {
+				t.Errorf("ResolveAction(%q, %q) = %q, want %q", c.custodyHolderID, c.actorID, got, c.want)
 			}
 		})
 	}

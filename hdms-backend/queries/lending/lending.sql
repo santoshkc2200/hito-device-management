@@ -31,11 +31,13 @@ SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
 FROM loans WHERE id = $1;
 
 -- name: OpenLoansForUser :many
+-- NOT disputed: a disputed row is a recorded claim, never a custody fact,
+-- so it never appears as one of the user's open loans (2.4b).
 SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed
-FROM loans WHERE user_id = $1 AND status = 'open'
+FROM loans WHERE user_id = $1 AND status = 'open' AND NOT disputed
 ORDER BY borrowed_at DESC;
 
 -- name: OpenLoanForDevice :one
@@ -43,7 +45,7 @@ SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed
-FROM loans WHERE device_id = $1 AND status = 'open';
+FROM loans WHERE device_id = $1 AND status = 'open' AND NOT disputed;
 
 -- name: OverdueLoans :many
 SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
@@ -51,11 +53,11 @@ SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed
 FROM loans
-WHERE status = 'open' AND due_at IS NOT NULL AND due_at < $1
+WHERE status = 'open' AND NOT disputed AND due_at IS NOT NULL AND due_at < $1
 ORDER BY due_at;
 
 -- name: CountOpenByDevice :one
-SELECT count(*) FROM loans WHERE device_id = $1 AND status = 'open';
+SELECT count(*) FROM loans WHERE device_id = $1 AND status = 'open' AND NOT disputed;
 
 -- name: ListLoans :many
 SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
@@ -67,6 +69,7 @@ WHERE (sqlc.narg('status')::loan_status IS NULL OR status = sqlc.narg('status'))
   AND (sqlc.narg('origin')::loan_origin IS NULL OR origin = sqlc.narg('origin'))
   AND (sqlc.narg('user_id')::uuid IS NULL OR user_id = sqlc.narg('user_id'))
   AND (sqlc.narg('device_id')::uuid IS NULL OR device_id = sqlc.narg('device_id'))
+  AND (sqlc.narg('disputed')::boolean IS NULL OR disputed = sqlc.narg('disputed'))
   AND (sqlc.narg('from_at')::timestamptz IS NULL OR borrowed_at >= sqlc.narg('from_at'))
   AND (sqlc.narg('to_at')::timestamptz IS NULL OR borrowed_at <= sqlc.narg('to_at'))
   AND (
@@ -145,3 +148,37 @@ RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_
     borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed;
+
+-- name: CloseHistoricalAt :one
+-- 2.4b's historical close: end a loan at an explicit, possibly past,
+-- instant, moving returned_at EARLIER when it is already set (the
+-- truncate-existing conflict resolution) or setting it for the first time
+-- (a paper return row closing an open loan). Paper provenance is filled in
+-- only where the loan does not already carry any (COALESCE against the
+-- loan's own values), so closing a kiosk-origin loan never rewrites its
+-- origin or invents a second provenance story.
+UPDATE loans
+SET status = 'returned', returned_at = $2, return_actor = $3, return_source = $4,
+    condition_in = COALESCE(sqlc.narg('condition_in')::device_condition, condition_in),
+    paper_ref = COALESCE(paper_ref, sqlc.narg('paper_ref')::text),
+    recorded_at = COALESCE(recorded_at, sqlc.narg('recorded_at')::timestamptz),
+    recorded_by = COALESCE(recorded_by, sqlc.narg('recorded_by')::text),
+    backfill_note = COALESCE(backfill_note, sqlc.narg('backfill_note')::text)
+WHERE id = $1
+  AND NOT disputed
+  AND borrowed_at < $2
+  AND (returned_at IS NULL OR returned_at > $2)
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed;
+
+-- name: LastPaperEntry :many
+-- The most recent paper-origin recording, for the dashboard's "last paper
+-- entry: N days ago" nag (2.4b.5). :many + LIMIT 1 rather than :one so the
+-- empty case is an empty slice, not an error the caller must unwrap.
+SELECT paper_ref, recorded_at, recorded_by
+FROM loans
+WHERE origin = 'paper' AND recorded_at IS NOT NULL
+ORDER BY recorded_at DESC
+LIMIT 1;

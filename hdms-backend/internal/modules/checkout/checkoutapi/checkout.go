@@ -7,6 +7,7 @@ package checkoutapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -30,6 +31,30 @@ var (
 	ErrSessionClosed      = errors.New("checkout: session closed")
 	ErrSessionConflict    = errors.New("checkout: session conflict")
 	ErrInvalidTokenFormat = errors.New("checkout: invalid token format")
+
+	// ErrHistoricalTimeInFuture: ResolveHistorical and the backfill batch
+	// reject a timestamp in the future — paper describes the past.
+	ErrHistoricalTimeInFuture = errors.New("checkout: a historical timestamp may not be in the future")
+
+	// ErrPaperRefRequired / ErrEmptyPaperBatch: the batch-level validations
+	// that are request-shape problems rather than per-row ones.
+	ErrPaperRefRequired  = errors.New("checkout: a paper batch requires a paperRef")
+	ErrEmptyPaperBatch   = errors.New("checkout: a paper batch requires at least one row")
+	ErrPaperRowMalformed = errors.New("checkout: a paper row is malformed")
+)
+
+// HistoricalAction is ResolveHistorical's answer: given a device, a person
+// and a past instant, did that person take the device (borrow), give it
+// back (return), or does somebody else already hold it (conflict)? The
+// same machine.ResolveAction the live scan path uses decides it, which is
+// what keeps the backfill screen's auto-detection and the kiosk in
+// agreement (FR-74).
+type HistoricalAction string
+
+const (
+	HistoricalBorrow   HistoricalAction = "borrow"
+	HistoricalReturn   HistoricalAction = "return"
+	HistoricalConflict HistoricalAction = "conflict"
 )
 
 // UserView is the session read model's view of its identified user —
@@ -182,6 +207,26 @@ type Service interface {
 	// honest proxy for distinct people: the same person re-scanning three
 	// times is one person to go and register.
 	CountScanRejectionsSince(ctx context.Context, since time.Time) ([]ScanRejectionCount, error)
+
+	// ResolveHistorical answers borrow/return/conflict for a device, a
+	// person and a past instant, against custody as it stood at that
+	// instant (FR-74). It shares the live machine's ResolveAction, so the
+	// kiosk and the backfill screen cannot disagree.
+	ResolveHistorical(ctx context.Context, deviceID, userID string, at time.Time) (HistoricalAction, error)
+
+	// PreviewPaperBatch validates a whole staged batch and reports, per
+	// row, the auto-detected action and any conflict — writing nothing.
+	// The validation is the identical code path RecordPaperBatch runs, in
+	// a transaction that is always rolled back, so preview and commit
+	// cannot drift apart.
+	PreviewPaperBatch(ctx context.Context, batch PaperBatch, actor string) (PaperBatchResult, error)
+
+	// RecordPaperBatch commits a batch in one transaction — all rows or
+	// none. A batch containing a row that is still conflicting or
+	// unresolved writes nothing and returns a *PaperBatchError carrying
+	// the full per-row result, so the administrator can fix exactly the
+	// rows that are wrong.
+	RecordPaperBatch(ctx context.Context, batch PaperBatch, actor string) (PaperBatchResult, error)
 }
 
 // ScanRejectionCount is one resolved type's slice of the turned-away
@@ -190,4 +235,161 @@ type ScanRejectionCount struct {
 	ResolvedType   string // "unbound" | "unknown" | "revoked" | ...
 	DistinctTokens int
 	TotalScans     int
+}
+
+// ─── Paper backfill (2.4b) ──────────────────────────────────────────────────
+//
+// One PaperRow is one line of the paper register: a device reference, a
+// person reference, an OUT time and optionally an IN time. References are
+// deliberately loose strings — the admin's USB scanner may drop an asset
+// tag or a credential token into the same field — and resolved server-side.
+
+// PaperNewUser is the inline person-creation payload (FR-73): the whole
+// compact panel, never a navigation away from the batch.
+type PaperNewUser struct {
+	FullName     string
+	EmployeeNo   string
+	DepartmentID string
+}
+
+// PaperUserRef is the discriminated union the admin screen sends for a
+// row's person: exactly one of UserID, EmployeeNo, Token (a scanned
+// credential) or NewUser. More than one set is rejected as ambiguous —
+// guessing between them is how a loan lands on the wrong Sharma.
+type PaperUserRef struct {
+	UserID     string
+	EmployeeNo string
+	Token      string
+	NewUser    *PaperNewUser
+}
+
+// PaperRow is one staged line of a PaperBatch. Action overrides the
+// auto-detection ("" = auto); Resolution is the admin's answer to a
+// conflict the preview reported ("" = none was reported).
+type PaperRow struct {
+	ClientRowID string
+	DeviceRef   string // asset tag or a scanned credential token
+	UserRef     PaperUserRef
+
+	BorrowedAt time.Time
+	ReturnedAt *time.Time // nil = the row describes an open loan
+
+	Action     string // "" (auto) | "borrow" | "return"
+	Resolution string // "" | "truncate-existing" | "change-device" | "discard-row" | "record-as-disputed"
+	Note       string // free text, kept as the loan's backfill note
+}
+
+// PaperBatch is one register page, saved atomically.
+type PaperBatch struct {
+	PaperRef string
+	Rows     []PaperRow
+}
+
+// Row statuses reported per row, keyed to the admin screen's row states.
+const (
+	PaperRowOK         = "ok"
+	PaperRowConflict   = "conflict"
+	PaperRowUnresolved = "unresolved"
+	PaperRowDiscarded  = "discarded"
+)
+
+// The conflict resolutions the UI may offer (FR-75). The application never
+// picks one; the administrator does.
+const (
+	ResolveTruncateExisting = "truncate-existing"
+	ResolveChangeDevice     = "change-device"
+	ResolveDiscardRow       = "discard-row"
+	ResolveRecordDisputed   = "record-as-disputed"
+)
+
+// PaperExistingLoan is the conflicting custody record attached to a
+// conflict: enough to render the "already recorded" half of the side-by-side
+// comparison, per docs/08's conflict panel.
+type PaperExistingLoan struct {
+	ID          string
+	UserDisplay string
+	Department  string
+	BorrowedAt  time.Time
+	ReturnedAt  *time.Time
+	Origin      string
+}
+
+// PaperConflict is a structured disagreement between paper and system —
+// never a message string the UI must parse.
+type PaperConflict struct {
+	Type         string // "overlapping-custody"
+	ExistingLoan PaperExistingLoan
+	Resolutions  []string
+}
+
+// PaperUserView is the resolved person for one row — display fields only.
+type PaperUserView struct {
+	ID         string
+	FullName   string
+	Department string
+}
+
+// PaperRowResult is one row's outcome, keyed by ClientRowID so the UI
+// updates rows in place without reordering the administrator's work.
+type PaperRowResult struct {
+	ClientRowID string
+	Action      string // "borrow" | "return"; "" before action detection was possible
+	Status      string // PaperRowOK | PaperRowConflict | PaperRowUnresolved | PaperRowDiscarded
+
+	Device      *DeviceView
+	User        *PaperUserView
+	CreatesUser bool
+
+	// Commit-only: what was written.
+	LoanID       string // the loan this row created (borrow rows)
+	ClosesLoanID string // the loan this row closed (return rows)
+	UserID       string // the inline-created (or reused) user's id
+
+	Disputed bool // the row was recorded as a disputed claim
+	Warnings []string
+	Field    string // offending field, for unresolved rows
+	Reason   string // human-readable why, for unresolved rows
+	Conflict *PaperConflict
+}
+
+// PaperSummary is the batch-level tally the admin screen shows next to the
+// Save button.
+type PaperSummary struct {
+	OK        int
+	Conflicts int
+	NewUsers  int
+}
+
+// PaperBatchResult is the whole batch's outcome. Committed is false for a
+// preview and for a rejected commit (nothing was written).
+type PaperBatchResult struct {
+	Rows      []PaperRowResult
+	Summary   PaperSummary
+	Committed bool
+}
+
+// PaperBatchError is RecordPaperBatch's rejection: the batch was not
+// written, and Result says exactly which rows are conflicting or
+// unresolved and why. HasConflicts vs HasUnresolved decides the HTTP
+// status (409 overlapping-custody vs 422 validation-failed).
+type PaperBatchError struct {
+	Result PaperBatchResult
+}
+
+func (e *PaperBatchError) Error() string {
+	return fmt.Sprintf("checkout: paper batch rejected: %d conflicting, %d unresolved rows",
+		e.Result.Summary.Conflicts, countUnresolved(e.Result))
+}
+
+func (e *PaperBatchError) HasConflicts() bool  { return e.Result.Summary.Conflicts > 0 }
+func (e *PaperBatchError) HasUnresolved() bool { return countUnresolved(e.Result) > 0 }
+
+func countUnresolved(r PaperBatchResult) int {
+	n := 0
+	for _, row := range r.Rows {
+		if row.Status == PaperRowUnresolved {
+			n++
+		}
+	}
+	return n
 }

@@ -7,7 +7,7 @@ import "fmt"
 // should happen. Almost every cell is a fixed outcome (static); the two
 // cells where a just-identified user resolves against an already-pending
 // device are the one place the actual Action depends on more than the
-// cell itself — resolveAction decides those, via resolvePendingAgainstUser
+// cell itself — ResolveAction decides those, via resolvePendingAgainstUser
 // below, so the borrow/return/reject judgement still lives in one place.
 type Rule struct {
 	decide func(snap Snapshot, in Input) Decision
@@ -72,13 +72,13 @@ func static(action Action, next SessionState, clearPending bool, key MessageKey)
 // (AwaitingUser, ClassUserSame) rule: a user has just been identified
 // while a device is already pending, and whether that is a borrow, a
 // return, or a rejection depends on who — if anyone — currently holds the
-// pending device. resolveAction is the same helper 2.4b's
+// pending device. ResolveAction is the same helper 2.4b's
 // ResolveHistorical calls, so the kiosk and the backfill screen's
 // auto-detection can never disagree (FR-74).
 func resolvePendingAgainstUser() Rule {
 	return Rule{decide: func(snap Snapshot, in Input) Decision {
 		args := baseArgs(snap, in)
-		switch resolveAction(snap.PendingDeviceHolderID, in.UserID) {
+		switch ResolveAction(snap.PendingDeviceHolderID, in.UserID) {
 		case ActionBorrow:
 			return Decision{Action: ActionBorrow, NextState: Ready, ClearPending: true, MessageKey: MsgBorrowed, MessageArgs: args}
 		case ActionReturn:
@@ -162,7 +162,7 @@ var table = map[SessionState]map[InputClass]Rule{
 		// borrow, a return, or "held by someone else" depends on the
 		// pending device's custody, not on this cell alone —
 		// resolvePendingAgainstUser answers it via the shared
-		// resolveAction helper (FR-74).
+		// ResolveAction helper (FR-74).
 		ClassUserActive: resolvePendingAgainstUser(),
 		// Unreachable: awaiting_user has no session user yet either.
 		ClassUserSame:      resolvePendingAgainstUser(),

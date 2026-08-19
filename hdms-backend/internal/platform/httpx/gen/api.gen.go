@@ -43,6 +43,87 @@ func (e AdminRole) Valid() bool {
 	}
 }
 
+// Defines values for BackfillAction.
+const (
+	Borrow BackfillAction = "borrow"
+	Return BackfillAction = "return"
+)
+
+// Valid indicates whether the value is a known member of the BackfillAction enum.
+func (e BackfillAction) Valid() bool {
+	switch e {
+	case Borrow:
+		return true
+	case Return:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackfillConflictType.
+const (
+	OverlappingCustody BackfillConflictType = "overlapping-custody"
+)
+
+// Valid indicates whether the value is a known member of the BackfillConflictType enum.
+func (e BackfillConflictType) Valid() bool {
+	switch e {
+	case OverlappingCustody:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackfillResolution.
+const (
+	ChangeDevice     BackfillResolution = "change-device"
+	DiscardRow       BackfillResolution = "discard-row"
+	RecordAsDisputed BackfillResolution = "record-as-disputed"
+	TruncateExisting BackfillResolution = "truncate-existing"
+)
+
+// Valid indicates whether the value is a known member of the BackfillResolution enum.
+func (e BackfillResolution) Valid() bool {
+	switch e {
+	case ChangeDevice:
+		return true
+	case DiscardRow:
+		return true
+	case RecordAsDisputed:
+		return true
+	case TruncateExisting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackfillRowStatus.
+const (
+	BackfillRowStatusConflict   BackfillRowStatus = "conflict"
+	BackfillRowStatusDiscarded  BackfillRowStatus = "discarded"
+	BackfillRowStatusOk         BackfillRowStatus = "ok"
+	BackfillRowStatusUnresolved BackfillRowStatus = "unresolved"
+)
+
+// Valid indicates whether the value is a known member of the BackfillRowStatus enum.
+func (e BackfillRowStatus) Valid() bool {
+	switch e {
+	case BackfillRowStatusConflict:
+		return true
+	case BackfillRowStatusDiscarded:
+		return true
+	case BackfillRowStatusOk:
+		return true
+	case BackfillRowStatusUnresolved:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CredentialKind.
 const (
 	Code128 CredentialKind = "code128"
@@ -141,13 +222,13 @@ func (e DeviceStatus) Valid() bool {
 
 // Defines values for HealthStatusStatus.
 const (
-	Ok HealthStatusStatus = "ok"
+	HealthStatusStatusOk HealthStatusStatus = "ok"
 )
 
 // Valid indicates whether the value is a known member of the HealthStatusStatus enum.
 func (e HealthStatusStatus) Valid() bool {
 	switch e {
-	case Ok:
+	case HealthStatusStatusOk:
 		return true
 	default:
 		return false
@@ -224,6 +305,149 @@ type Admin struct {
 
 // AdminRole defines model for AdminRole.
 type AdminRole string
+
+// BackfillAction defines model for BackfillAction.
+type BackfillAction string
+
+// BackfillBatch defines model for BackfillBatch.
+type BackfillBatch struct {
+	// PaperRef Register page / slip reference, stamped on every loan the batch writes (INV-14).
+	PaperRef string        `json:"paperRef"`
+	Rows     []BackfillRow `json:"rows"`
+}
+
+// BackfillConflict defines model for BackfillConflict.
+type BackfillConflict struct {
+	ExistingLoan BackfillExistingLoan `json:"existingLoan"`
+	Resolutions  []BackfillResolution `json:"resolutions"`
+	Type         BackfillConflictType `json:"type"`
+}
+
+// BackfillConflictType defines model for BackfillConflict.Type.
+type BackfillConflictType string
+
+// BackfillDeviceRef defines model for BackfillDeviceRef.
+type BackfillDeviceRef struct {
+	AssetTag string `json:"assetTag"`
+	Id       string `json:"id"`
+	Name     string `json:"name"`
+}
+
+// BackfillExistingLoan defines model for BackfillExistingLoan.
+type BackfillExistingLoan struct {
+	BorrowedAt  time.Time  `json:"borrowedAt"`
+	Department  *string    `json:"department,omitempty"`
+	Id          string     `json:"id"`
+	Origin      string     `json:"origin"`
+	ReturnedAt  *time.Time `json:"returnedAt,omitempty"`
+	UserDisplay string     `json:"userDisplay"`
+}
+
+// BackfillLastEntry defines model for BackfillLastEntry.
+type BackfillLastEntry struct {
+	PaperRef   *string   `json:"paperRef,omitempty"`
+	RecordedAt time.Time `json:"recordedAt"`
+	RecordedBy *string   `json:"recordedBy,omitempty"`
+}
+
+// BackfillNewUser defines model for BackfillNewUser.
+type BackfillNewUser struct {
+	DepartmentId *string `json:"departmentId,omitempty"`
+	EmployeeNo   string  `json:"employeeNo"`
+	FullName     string  `json:"fullName"`
+}
+
+// BackfillPersonRef defines model for BackfillPersonRef.
+type BackfillPersonRef struct {
+	Department *string `json:"department,omitempty"`
+	FullName   string  `json:"fullName"`
+	Id         string  `json:"id"`
+}
+
+// BackfillResolution The admin's answer to a conflict the preview reported (FR-75). The application never picks one. "change-device" is client-side: by save-time the asset tag has been edited, so a row still carrying it is rejected as unresolved.
+type BackfillResolution string
+
+// BackfillResult defines model for BackfillResult.
+type BackfillResult struct {
+	// Committed False for a preview and for a rejected commit (nothing was written).
+	Committed bool                `json:"committed"`
+	Rows      []BackfillRowResult `json:"rows"`
+	Summary   BackfillSummary     `json:"summary"`
+}
+
+// BackfillRow defines model for BackfillRow.
+type BackfillRow struct {
+	Action *BackfillAction `json:"action,omitempty"`
+
+	// BorrowedAt The OUT time, with an explicit offset — the admin is reading a wall clock off paper.
+	BorrowedAt time.Time `json:"borrowedAt"`
+
+	// ClientRowId The row's key in the response, so the UI updates rows in place without reordering the admin's work.
+	ClientRowId string `json:"clientRowId"`
+
+	// DeviceRef An asset tag or a scanned device credential token — one field, one trigger pull.
+	DeviceRef string  `json:"deviceRef"`
+	Note      *string `json:"note,omitempty"`
+
+	// Resolution The admin's answer to a conflict the preview reported (FR-75). The application never picks one. "change-device" is client-side: by save-time the asset tag has been edited, so a row still carrying it is rejected as unresolved.
+	Resolution *BackfillResolution `json:"resolution,omitempty"`
+
+	// ReturnedAt The IN time; absent means the row describes an open loan, which puts the device on loan.
+	ReturnedAt *time.Time `json:"returnedAt,omitempty"`
+
+	// UserRef Discriminated union — exactly one of userId, employeeNo, token or newUser. The token form is how a scanned card identifies the person on the admin desk's USB scanner.
+	UserRef BackfillUserRef `json:"userRef"`
+}
+
+// BackfillRowResult defines model for BackfillRowResult.
+type BackfillRowResult struct {
+	Action      *BackfillAction `json:"action,omitempty"`
+	ClientRowId string          `json:"clientRowId"`
+
+	// ClosesLoanId The loan this row closed (return rows).
+	ClosesLoanId *string           `json:"closesLoanId,omitempty"`
+	Conflict     *BackfillConflict `json:"conflict,omitempty"`
+
+	// CreatesUser True when this row's person did not exist before the batch; drives the "issue cards to the new people" step (FR-77).
+	CreatesUser *bool              `json:"createsUser,omitempty"`
+	Device      *BackfillDeviceRef `json:"device,omitempty"`
+
+	// Disputed The row was recorded as a disputed claim — visible forever, never a custody fact.
+	Disputed *bool `json:"disputed,omitempty"`
+
+	// Field The offending field, for unresolved rows.
+	Field *string `json:"field,omitempty"`
+
+	// LoanId The loan this row created (commit only).
+	LoanId *string `json:"loanId,omitempty"`
+
+	// Reason Why the row is unresolved, in admin-readable words.
+	Reason *string            `json:"reason,omitempty"`
+	Status BackfillRowStatus  `json:"status"`
+	User   *BackfillPersonRef `json:"user,omitempty"`
+
+	// UserId The inline-created (or reused) person's id (commit only).
+	UserId   *string   `json:"userId,omitempty"`
+	Warnings *[]string `json:"warnings,omitempty"`
+}
+
+// BackfillRowStatus defines model for BackfillRowStatus.
+type BackfillRowStatus string
+
+// BackfillSummary defines model for BackfillSummary.
+type BackfillSummary struct {
+	Conflicts int `json:"conflicts"`
+	NewUsers  int `json:"newUsers"`
+	Ok        int `json:"ok"`
+}
+
+// BackfillUserRef Discriminated union — exactly one of userId, employeeNo, token or newUser. The token form is how a scanned card identifies the person on the admin desk's USB scanner.
+type BackfillUserRef struct {
+	EmployeeNo *string          `json:"employeeNo,omitempty"`
+	NewUser    *BackfillNewUser `json:"newUser,omitempty"`
+	Token      *string          `json:"token,omitempty"`
+	UserId     *string          `json:"userId,omitempty"`
+}
 
 // BindCredentialRequest defines model for BindCredentialRequest.
 type BindCredentialRequest struct {
@@ -571,6 +795,9 @@ type DeviceStatusFilter = DeviceStatus
 // IDParam defines model for IDParam.
 type IDParam = string
 
+// IdempotencyKey defines model for IdempotencyKey.
+type IdempotencyKey = string
+
 // LimitParam defines model for LimitParam.
 type LimitParam = int
 
@@ -582,6 +809,18 @@ type UserStatusFilter = UserStatus
 
 // ProblemResponse defines model for ProblemResponse.
 type ProblemResponse = Problem
+
+// RecordBackfillBatchParams defines parameters for RecordBackfillBatch.
+type RecordBackfillBatchParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// PreviewBackfillBatchParams defines parameters for PreviewBackfillBatch.
+type PreviewBackfillBatchParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
 
 // ListCredentialsBySubjectParams defines parameters for ListCredentialsBySubject.
 type ListCredentialsBySubjectParams struct {
@@ -615,6 +854,12 @@ type ListUsersParams struct {
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
+
+// RecordBackfillBatchJSONRequestBody defines body for RecordBackfillBatch for application/json ContentType.
+type RecordBackfillBatchJSONRequestBody = BackfillBatch
+
+// PreviewBackfillBatchJSONRequestBody defines body for PreviewBackfillBatch for application/json ContentType.
+type PreviewBackfillBatchJSONRequestBody = BackfillBatch
 
 // CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
 type CreateCategoryJSONRequestBody = CreateCategoryRequest
@@ -669,6 +914,15 @@ type ServerInterface interface {
 	// GetCurrentAdmin The identity of the currently authenticated admin.
 	// (GET /auth/me)
 	GetCurrentAdmin(w http.ResponseWriter, r *http.Request)
+	// RecordBackfillBatch Commit a validated batch atomically — all rows or none. The same server-side validation the preview runs is re-run here; a preview is a convenience, never a grant. Returns the created loan ids and the ids of any users created, which the "issue cards to the new people" step (FR-77) is driven from. Admin-only; the kiosk token cannot reach it.
+	// (POST /backfill)
+	RecordBackfillBatch(w http.ResponseWriter, r *http.Request, params RecordBackfillBatchParams)
+	// GetBackfillLastEntry When a paper page was last recorded — the dashboard's backlog nag (Q11).
+	// (GET /backfill/last-entry)
+	GetBackfillLastEntry(w http.ResponseWriter, r *http.Request)
+	// PreviewBackfillBatch Validate a staged paper-register batch and return, per row, the auto-detected action (FR-74), the resolved device and person, and any custody conflict — writing nothing. The screen calls it as rows change so a conflict surfaces while the admin is still looking at the page. Admin-only; the kiosk token cannot reach it.
+	// (POST /backfill/preview)
+	PreviewBackfillBatch(w http.ResponseWriter, r *http.Request, params PreviewBackfillBatchParams)
 	// ListCategories List device categories.
 	// (GET /categories)
 	ListCategories(w http.ResponseWriter, r *http.Request)
@@ -794,6 +1048,102 @@ func (siw *ServerInterfaceWrapper) GetCurrentAdmin(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCurrentAdmin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecordBackfillBatch operation middleware
+func (siw *ServerInterfaceWrapper) RecordBackfillBatch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RecordBackfillBatchParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecordBackfillBatch(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetBackfillLastEntry operation middleware
+func (siw *ServerInterfaceWrapper) GetBackfillLastEntry(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBackfillLastEntry(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewBackfillBatch operation middleware
+func (siw *ServerInterfaceWrapper) PreviewBackfillBatch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PreviewBackfillBatchParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewBackfillBatch(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1681,6 +2031,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials/{id}/revoke", wrapper.RevokeCredential)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials/{id}/reissue", wrapper.ReissueCredential)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/credentials/{id}/history", wrapper.GetCredentialHistory)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backfill/preview", wrapper.PreviewBackfillBatch)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backfill", wrapper.RecordBackfillBatch)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backfill/last-entry", wrapper.GetBackfillLastEntry)
 
 	return m
 }
@@ -1690,74 +2043,108 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

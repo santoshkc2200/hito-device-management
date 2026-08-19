@@ -56,7 +56,7 @@ func New(
 var _ gen.ServerInterface = (*Server)(nil)
 
 func (s *Server) GetHealthz(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.Ok})
+	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.HealthStatusStatusOk})
 }
 
 func (s *Server) GetReadyz(w http.ResponseWriter, r *http.Request) {
@@ -64,5 +64,5 @@ func (s *Server) GetReadyz(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, r, httpx.NewProblem("not-ready", "Dependency unavailable", http.StatusServiceUnavailable))
 		return
 	}
-	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.Ok})
+	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.HealthStatusStatusOk})
 }

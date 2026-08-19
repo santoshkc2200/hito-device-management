@@ -50,6 +50,12 @@ var (
 	// CHECK violated" translateLoanErr is required to identify.
 	ErrInvalidReturnTime       = errors.New("lending: returned_at must be after borrowed_at")
 	ErrPaperProvenanceRequired = errors.New("lending: a paper-origin loan requires recorded_at and recorded_by")
+
+	// ErrAlreadyEndedBefore is CloseHistoricalAt's "nothing to do": the loan
+	// already ends at or before the requested instant, so the paper's claim
+	// adds nothing. The caller (backfill) surfaces it as a per-row warning,
+	// not a failure — the system was already right, or righter.
+	ErrAlreadyEndedBefore = errors.New("lending: the loan already ends at or before that instant")
 )
 
 // DeviceAlreadyOnLoanError is ErrDeviceAlreadyOnLoan together with the loan
@@ -179,6 +185,7 @@ type ListLoansParams struct {
 	DeviceID string
 	From     *time.Time // borrowed_at >= From
 	To       *time.Time // borrowed_at <= To
+	Disputed *bool      // nil = either; the Disputed records report sets true
 	Cursor   string
 	Limit    int
 }
@@ -188,6 +195,37 @@ type ListLoansParams struct {
 type ListLoansResult struct {
 	Items      []Loan
 	NextCursor string
+}
+
+// CloseHistoricalParams is the historical close 2.4b's backfill performs:
+// end a loan at an explicit, possibly past, instant — either an open loan's
+// first return, or a truncate-existing correction that moves returned_at
+// earlier. Distinct from CloseLoan (clock-driven, live path) and
+// ForceReturn (admin override at roughly now, or a caller-supplied now-ish
+// time) because the paper path must also fill provenance without ever
+// overwriting provenance the loan already carries.
+type CloseHistoricalParams struct {
+	LoanID     string
+	ReturnedAt time.Time
+
+	ReturnActor  string // 'admin:<id>'
+	ReturnSource string // "paper"
+
+	ConditionIn string // "" = leave unchanged
+
+	// Provenance — applied only where the loan does not already have one.
+	PaperRef     string
+	RecordedAt   *time.Time
+	RecordedBy   string
+	BackfillNote string
+}
+
+// PaperEntry is the answer to "when was a paper register page last typed
+// in" — the dashboard's backlog nag (2.4b.5).
+type PaperEntry struct {
+	PaperRef   string
+	RecordedAt time.Time
+	RecordedBy string
 }
 
 // Service is the lending module's public API.
@@ -235,10 +273,22 @@ type Service interface {
 	// conflicts with existing custody.
 	RecordHistorical(ctx context.Context, params RecordHistoricalParams) (Loan, error)
 
+	// CloseHistoricalAt ends a loan at an explicit, possibly past, instant —
+	// 2.4b's paper return rows and the truncate-existing conflict
+	// resolution. Fails with ErrLoanNotFound if the loan does not exist,
+	// ErrInvalidReturnTime if the instant precedes its borrowed_at, and
+	// ErrAlreadyEndedBefore when it already ends at or before the instant
+	// (nothing to do; the caller decides whether that is a warning).
+	CloseHistoricalAt(ctx context.Context, params CloseHistoricalParams) (Loan, error)
+
 	// CustodyAt returns the loan whose custody window contains at, ignoring
 	// written-off and disputed rows. Fails with ErrLoanNotFound if no loan
 	// covers that instant.
 	CustodyAt(ctx context.Context, deviceID string, at time.Time) (Loan, error)
+
+	// LastPaperEntry reports the most recent paper-origin recording, or nil
+	// if none exists yet.
+	LastPaperEntry(ctx context.Context) (*PaperEntry, error)
 
 	// ListLoans returns a cursor page of loans matching params.
 	ListLoans(ctx context.Context, params ListLoansParams) (ListLoansResult, error)

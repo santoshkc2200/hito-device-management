@@ -11,6 +11,14 @@ import (
 )
 
 type Querier interface {
+	// 2.4b's historical close: end a loan at an explicit, possibly past,
+	// instant, moving returned_at EARLIER when it is already set (the
+	// truncate-existing conflict resolution) or setting it for the first time
+	// (a paper return row closing an open loan). Paper provenance is filled in
+	// only where the loan does not already carry any (COALESCE against the
+	// loan's own values), so closing a kiosk-origin loan never rewrites its
+	// origin or invents a second provenance story.
+	CloseHistoricalAt(ctx context.Context, arg CloseHistoricalAtParams) (Loan, error)
 	CloseLoan(ctx context.Context, arg CloseLoanParams) (Loan, error)
 	CountOpenByDevice(ctx context.Context, deviceID pgtype.UUID) (int64, error)
 	// The loan (open or covering) whose custody window contains `at`, ignoring
@@ -19,12 +27,18 @@ type Querier interface {
 	CustodyAt(ctx context.Context, arg CustodyAtParams) (Loan, error)
 	ForceReturnLoan(ctx context.Context, arg ForceReturnLoanParams) (Loan, error)
 	GetLoan(ctx context.Context, id pgtype.UUID) (Loan, error)
+	// The most recent paper-origin recording, for the dashboard's "last paper
+	// entry: N days ago" nag (2.4b.5). :many + LIMIT 1 rather than :one so the
+	// empty case is an empty slice, not an error the caller must unwrap.
+	LastPaperEntry(ctx context.Context) ([]LastPaperEntryRow, error)
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	// The live path: origin is always 'kiosk' — a loan opened here means a
 	// device was scanned right now, whether at a kiosk or overridden live by an
 	// admin. Genuinely backdated loans go through RecordHistorical instead.
 	OpenLoan(ctx context.Context, arg OpenLoanParams) (Loan, error)
 	OpenLoanForDevice(ctx context.Context, deviceID pgtype.UUID) (Loan, error)
+	// NOT disputed: a disputed row is a recorded claim, never a custody fact,
+	// so it never appears as one of the user's open loans (2.4b).
 	OpenLoansForUser(ctx context.Context, userID pgtype.UUID) ([]Loan, error)
 	OverdueLoans(ctx context.Context, dueAt pgtype.Timestamptz) ([]Loan, error)
 	// Re-read used only to populate OverlappingCustodyError.Existing after a

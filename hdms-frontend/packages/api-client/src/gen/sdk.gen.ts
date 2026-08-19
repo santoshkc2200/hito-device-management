@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BindCredentialData, BindCredentialErrors, BindCredentialResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateUserData, CreateUserErrors, CreateUserResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetHealthzData, GetHealthzResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
+import type { BindCredentialData, BindCredentialErrors, BindCredentialResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateUserData, CreateUserErrors, CreateUserResponses, GetBackfillLastEntryData, GetBackfillLastEntryErrors, GetBackfillLastEntryResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetHealthzData, GetHealthzResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, PreviewBackfillBatchData, PreviewBackfillBatchErrors, PreviewBackfillBatchResponses, RecordBackfillBatchData, RecordBackfillBatchErrors, RecordBackfillBatchResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -444,5 +444,54 @@ export const getCredentialHistory = <ThrowOnError extends boolean = false>(optio
             type: 'apiKey'
         }],
     url: '/credentials/{id}/history',
+    ...options
+});
+
+/**
+ * Validate a staged paper-register batch and return, per row, the auto-detected action (FR-74), the resolved device and person, and any custody conflict — writing nothing. The screen calls it as rows change so a conflict surfaces while the admin is still looking at the page. Admin-only; the kiosk token cannot reach it.
+ *
+ */
+export const previewBackfillBatch = <ThrowOnError extends boolean = false>(options: Options<PreviewBackfillBatchData, ThrowOnError>): RequestResult<PreviewBackfillBatchResponses, PreviewBackfillBatchErrors, ThrowOnError> => (options.client ?? client).post<PreviewBackfillBatchResponses, PreviewBackfillBatchErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backfill/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Commit a validated batch atomically — all rows or none. The same server-side validation the preview runs is re-run here; a preview is a convenience, never a grant. Returns the created loan ids and the ids of any users created, which the "issue cards to the new people" step (FR-77) is driven from. Admin-only; the kiosk token cannot reach it.
+ *
+ */
+export const recordBackfillBatch = <ThrowOnError extends boolean = false>(options: Options<RecordBackfillBatchData, ThrowOnError>): RequestResult<RecordBackfillBatchResponses, RecordBackfillBatchErrors, ThrowOnError> => (options.client ?? client).post<RecordBackfillBatchResponses, RecordBackfillBatchErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backfill',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * When a paper page was last recorded — the dashboard's backlog nag (Q11).
+ */
+export const getBackfillLastEntry = <ThrowOnError extends boolean = false>(options?: Options<GetBackfillLastEntryData, ThrowOnError>): RequestResult<GetBackfillLastEntryResponses, GetBackfillLastEntryErrors, ThrowOnError> => (options?.client ?? client).get<GetBackfillLastEntryResponses, GetBackfillLastEntryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backfill/last-entry',
     ...options
 });

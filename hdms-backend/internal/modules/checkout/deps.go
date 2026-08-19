@@ -23,11 +23,18 @@ type UserLookup interface {
 	// LookupDepartment turns a UserSummary's DepartmentID into a name, for
 	// the "…is with Dr. Karki (Radiology)" half of FR-23's message.
 	LookupDepartment(ctx context.Context, id string) (identityapi.Department, error)
+	// LookupUserByEmployeeNo resolves a paper row's employeeNo userRef.
+	LookupUserByEmployeeNo(ctx context.Context, employeeNo string) (identityapi.UserSummary, error)
+	// CreateUser realises a paper row's newUser userRef inline (FR-73).
+	CreateUser(ctx context.Context, params identityapi.CreateUserParams) (identityapi.UserSummary, error)
 }
 
 // DeviceLookup is the subset of catalogapi.Service checkout needs.
 type DeviceLookup interface {
 	LookupDevice(ctx context.Context, id string) (catalogapi.DeviceSummary, error)
+	// LookupDeviceByAssetTag resolves a paper row's deviceRef when it is
+	// an asset tag rather than a scanned token.
+	LookupDeviceByAssetTag(ctx context.Context, assetTag string) (catalogapi.DeviceSummary, error)
 	CategoryOf(ctx context.Context, categoryID string) (catalogapi.Category, error)
 	SetStatus(ctx context.Context, id string, status catalogapi.DeviceStatus, reason, actor string) (catalogapi.DeviceSummary, error)
 }
@@ -44,6 +51,12 @@ type Loans interface {
 	OpenLoansFor(ctx context.Context, userID string) ([]lendingapi.Loan, error)
 	HolderOf(ctx context.Context, deviceID string) (lendingapi.Loan, error)
 	DueDateFor(period *time.Duration, borrowedAt time.Time) *time.Time
+
+	// The paper backfill (2.4b) writes history through these.
+	RecordHistorical(ctx context.Context, params lendingapi.RecordHistoricalParams) (lendingapi.Loan, error)
+	CloseHistoricalAt(ctx context.Context, params lendingapi.CloseHistoricalParams) (lendingapi.Loan, error)
+	CustodyAt(ctx context.Context, deviceID string, at time.Time) (lendingapi.Loan, error)
+	CountOpenByDevice(ctx context.Context, deviceID string) (int, error)
 }
 
 // Deps bundles every dependency checkout needs, satisfied at construction

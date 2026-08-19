@@ -1,6 +1,6 @@
 package machine
 
-// resolveAction answers the one question the live machine and paper
+// ResolveAction answers the one question the live machine and paper
 // backfill (2.4b's ResolveHistorical) must never disagree on: given who
 // currently holds something (custodyHolderID, "" if nobody) and who is
 // standing in front of it now (actorID), is this a borrow, a return, or a
@@ -12,7 +12,7 @@ package machine
 // ResolveHistorical calls it directly, over lending.CustodyAt instead of a
 // live pending device. One function, two callers, so the kiosk and the
 // backfill screen's auto-detection can never disagree (FR-74).
-func resolveAction(custodyHolderID, actorID string) Action {
+func ResolveAction(custodyHolderID, actorID string) Action {
 	switch custodyHolderID {
 	case "":
 		return ActionBorrow

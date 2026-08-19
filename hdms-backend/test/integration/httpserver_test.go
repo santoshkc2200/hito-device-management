@@ -77,6 +77,10 @@ func newTestHarness(t *testing.T) *testHarness {
 		httpx.WithRequestID,
 		httpx.WithRecovery(discardLogger),
 		authSvc.Middleware,
+		// After the auth middleware, as in cmd/hdms-api, so keys are scoped
+		// by actor. Unlike WithRateLimit this is safe to share: the store is
+		// per-testdb, and requests without the header pass straight through.
+		httpx.WithIdempotency(pool, harnessActorOf, discardLogger),
 	)(mux)
 
 	ts := httptest.NewServer(handler)
@@ -199,4 +203,16 @@ func mustURL(t *testing.T, raw string) *url.URL {
 		t.Fatalf("parse url: %v", err)
 	}
 	return u
+}
+
+// harnessActorOf mirrors cmd/hdms-api's actorOf for the idempotency
+// middleware: the authenticated principal as an actor string, "" otherwise.
+func harnessActorOf(r *http.Request) string {
+	if admin, ok := auth.AdminFromContext(r.Context()); ok {
+		return "admin:" + admin.ID
+	}
+	if kiosk, ok := auth.KioskFromContext(r.Context()); ok {
+		return "kiosk:" + kiosk.ID
+	}
+	return ""
 }

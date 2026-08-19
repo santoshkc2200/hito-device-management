@@ -11,6 +11,84 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const closeHistoricalAt = `-- name: CloseHistoricalAt :one
+UPDATE loans
+SET status = 'returned', returned_at = $2, return_actor = $3, return_source = $4,
+    condition_in = COALESCE($5::device_condition, condition_in),
+    paper_ref = COALESCE(paper_ref, $6::text),
+    recorded_at = COALESCE(recorded_at, $7::timestamptz),
+    recorded_by = COALESCE(recorded_by, $8::text),
+    backfill_note = COALESCE(backfill_note, $9::text)
+WHERE id = $1
+  AND NOT disputed
+  AND borrowed_at < $2
+  AND (returned_at IS NULL OR returned_at > $2)
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed
+`
+
+type CloseHistoricalAtParams struct {
+	ID           pgtype.UUID         `json:"id"`
+	ReturnedAt   pgtype.Timestamptz  `json:"returned_at"`
+	ReturnActor  pgtype.Text         `json:"return_actor"`
+	ReturnSource pgtype.Text         `json:"return_source"`
+	ConditionIn  NullDeviceCondition `json:"condition_in"`
+	PaperRef     pgtype.Text         `json:"paper_ref"`
+	RecordedAt   pgtype.Timestamptz  `json:"recorded_at"`
+	RecordedBy   pgtype.Text         `json:"recorded_by"`
+	BackfillNote pgtype.Text         `json:"backfill_note"`
+}
+
+// 2.4b's historical close: end a loan at an explicit, possibly past,
+// instant, moving returned_at EARLIER when it is already set (the
+// truncate-existing conflict resolution) or setting it for the first time
+// (a paper return row closing an open loan). Paper provenance is filled in
+// only where the loan does not already carry any (COALESCE against the
+// loan's own values), so closing a kiosk-origin loan never rewrites its
+// origin or invents a second provenance story.
+func (q *Queries) CloseHistoricalAt(ctx context.Context, arg CloseHistoricalAtParams) (Loan, error) {
+	row := q.db.QueryRow(ctx, closeHistoricalAt,
+		arg.ID,
+		arg.ReturnedAt,
+		arg.ReturnActor,
+		arg.ReturnSource,
+		arg.ConditionIn,
+		arg.PaperRef,
+		arg.RecordedAt,
+		arg.RecordedBy,
+		arg.BackfillNote,
+	)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Status,
+		&i.Origin,
+		&i.BorrowedAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.BorrowKioskID,
+		&i.ReturnKioskID,
+		&i.BorrowActor,
+		&i.ReturnActor,
+		&i.BorrowSource,
+		&i.ReturnSource,
+		&i.ConditionOut,
+		&i.ConditionIn,
+		&i.Notes,
+		&i.SessionID,
+		&i.PaperRef,
+		&i.RecordedAt,
+		&i.RecordedBy,
+		&i.BackfillNote,
+		&i.Disputed,
+	)
+	return i, err
+}
+
 const closeLoan = `-- name: CloseLoan :one
 UPDATE loans
 SET status = 'returned', returned_at = $2, return_kiosk_id = $3, return_actor = $4,
@@ -70,7 +148,7 @@ func (q *Queries) CloseLoan(ctx context.Context, arg CloseLoanParams) (Loan, err
 }
 
 const countOpenByDevice = `-- name: CountOpenByDevice :one
-SELECT count(*) FROM loans WHERE device_id = $1 AND status = 'open'
+SELECT count(*) FROM loans WHERE device_id = $1 AND status = 'open' AND NOT disputed
 `
 
 func (q *Queries) CountOpenByDevice(ctx context.Context, deviceID pgtype.UUID) (int64, error) {
@@ -225,6 +303,43 @@ func (q *Queries) GetLoan(ctx context.Context, id pgtype.UUID) (Loan, error) {
 	return i, err
 }
 
+const lastPaperEntry = `-- name: LastPaperEntry :many
+SELECT paper_ref, recorded_at, recorded_by
+FROM loans
+WHERE origin = 'paper' AND recorded_at IS NOT NULL
+ORDER BY recorded_at DESC
+LIMIT 1
+`
+
+type LastPaperEntryRow struct {
+	PaperRef   pgtype.Text        `json:"paper_ref"`
+	RecordedAt pgtype.Timestamptz `json:"recorded_at"`
+	RecordedBy pgtype.Text        `json:"recorded_by"`
+}
+
+// The most recent paper-origin recording, for the dashboard's "last paper
+// entry: N days ago" nag (2.4b.5). :many + LIMIT 1 rather than :one so the
+// empty case is an empty slice, not an error the caller must unwrap.
+func (q *Queries) LastPaperEntry(ctx context.Context) ([]LastPaperEntryRow, error) {
+	rows, err := q.db.Query(ctx, lastPaperEntry)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LastPaperEntryRow
+	for rows.Next() {
+		var i LastPaperEntryRow
+		if err := rows.Scan(&i.PaperRef, &i.RecordedAt, &i.RecordedBy); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLoans = `-- name: ListLoans :many
 SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
@@ -235,15 +350,16 @@ WHERE ($1::loan_status IS NULL OR status = $1)
   AND ($2::loan_origin IS NULL OR origin = $2)
   AND ($3::uuid IS NULL OR user_id = $3)
   AND ($4::uuid IS NULL OR device_id = $4)
-  AND ($5::timestamptz IS NULL OR borrowed_at >= $5)
-  AND ($6::timestamptz IS NULL OR borrowed_at <= $6)
+  AND ($5::boolean IS NULL OR disputed = $5)
+  AND ($6::timestamptz IS NULL OR borrowed_at >= $6)
+  AND ($7::timestamptz IS NULL OR borrowed_at <= $7)
   AND (
-    $7::timestamptz IS NULL
-    OR borrowed_at < $7
-    OR (borrowed_at = $7 AND id < $8)
+    $8::timestamptz IS NULL
+    OR borrowed_at < $8
+    OR (borrowed_at = $8 AND id < $9)
   )
 ORDER BY borrowed_at DESC, id DESC
-LIMIT $9
+LIMIT $10
 `
 
 type ListLoansParams struct {
@@ -251,6 +367,7 @@ type ListLoansParams struct {
 	Origin           NullLoanOrigin     `json:"origin"`
 	UserID           pgtype.UUID        `json:"user_id"`
 	DeviceID         pgtype.UUID        `json:"device_id"`
+	Disputed         pgtype.Bool        `json:"disputed"`
 	FromAt           pgtype.Timestamptz `json:"from_at"`
 	ToAt             pgtype.Timestamptz `json:"to_at"`
 	CursorBorrowedAt pgtype.Timestamptz `json:"cursor_borrowed_at"`
@@ -264,6 +381,7 @@ func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, e
 		arg.Origin,
 		arg.UserID,
 		arg.DeviceID,
+		arg.Disputed,
 		arg.FromAt,
 		arg.ToAt,
 		arg.CursorBorrowedAt,
@@ -388,7 +506,7 @@ SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed
-FROM loans WHERE device_id = $1 AND status = 'open'
+FROM loans WHERE device_id = $1 AND status = 'open' AND NOT disputed
 `
 
 func (q *Queries) OpenLoanForDevice(ctx context.Context, deviceID pgtype.UUID) (Loan, error) {
@@ -427,10 +545,12 @@ SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed
-FROM loans WHERE user_id = $1 AND status = 'open'
+FROM loans WHERE user_id = $1 AND status = 'open' AND NOT disputed
 ORDER BY borrowed_at DESC
 `
 
+// NOT disputed: a disputed row is a recorded claim, never a custody fact,
+// so it never appears as one of the user's open loans (2.4b).
 func (q *Queries) OpenLoansForUser(ctx context.Context, userID pgtype.UUID) ([]Loan, error) {
 	rows, err := q.db.Query(ctx, openLoansForUser, userID)
 	if err != nil {
@@ -481,7 +601,7 @@ SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed
 FROM loans
-WHERE status = 'open' AND due_at IS NOT NULL AND due_at < $1
+WHERE status = 'open' AND NOT disputed AND due_at IS NOT NULL AND due_at < $1
 ORDER BY due_at
 `
 

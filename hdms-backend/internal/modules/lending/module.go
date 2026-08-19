@@ -369,6 +369,89 @@ func (s *Service) CustodyAt(ctx context.Context, deviceID string, at time.Time) 
 	return toLoan(row), nil
 }
 
+// CloseHistoricalAt ends a loan at an explicit, possibly past, instant —
+// the paper backfill write path for return rows and the truncate-existing
+// resolution. The update's WHERE clause only matches rows whose end would
+// actually move (or be set), so a "nothing to do" outcome surfaces as
+// ErrNoRows here and is re-read to distinguish a genuinely absent loan
+// (ErrLoanNotFound) from one that already ends at or before the instant
+// (ErrAlreadyEndedBefore) or is itself disputed (ErrLoanNotOpen — a
+// disputed claim cannot be corrected through this path).
+func (s *Service) CloseHistoricalAt(ctx context.Context, params lendingapi.CloseHistoricalParams) (lendingapi.Loan, error) {
+	lid, err := pgtypeconv.UUID(params.LoanID)
+	if err != nil {
+		return lendingapi.Loan{}, fmt.Errorf("lending: invalid loan id: %w", err)
+	}
+	if params.ReturnedAt.IsZero() {
+		return lendingapi.Loan{}, fmt.Errorf("lending: returnedAt is required")
+	}
+
+	var loan lendingapi.Loan
+	txErr := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := lendingstore.New(db.Conn(ctx, s.pool))
+		row, err := q.CloseHistoricalAt(ctx, lendingstore.CloseHistoricalAtParams{
+			ID:           lid,
+			ReturnedAt:   pgtypeconv.Timestamptz(params.ReturnedAt),
+			ReturnActor:  pgtypeconv.Text(params.ReturnActor),
+			ReturnSource: pgtypeconv.Text(params.ReturnSource),
+			ConditionIn:  nullCondition(params.ConditionIn),
+			PaperRef:     pgtypeconv.Text(params.PaperRef),
+			RecordedAt:   pgtypeconv.NullTimestamptz(params.RecordedAt),
+			RecordedBy:   pgtypeconv.Text(params.RecordedBy),
+			BackfillNote: pgtypeconv.Text(params.BackfillNote),
+		})
+		if err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+			// No row matched: the loan is absent, already ends at or before
+			// the instant, or is disputed. Which one decides what the
+			// caller is told, so read it back on this same connection.
+			current, getErr := q.GetLoan(ctx, lid)
+			switch {
+			case errors.Is(getErr, pgx.ErrNoRows):
+				return lendingapi.ErrLoanNotFound
+			case getErr != nil:
+				return getErr
+			case current.Disputed:
+				return lendingapi.ErrLoanNotOpen
+			case !pgtypeconv.Time(current.BorrowedAt).Before(params.ReturnedAt):
+				return lendingapi.ErrInvalidReturnTime
+			default:
+				return lendingapi.ErrAlreadyEndedBefore
+			}
+		}
+		loan = toLoan(row)
+		return s.audit.Record(ctx, auditapi.Event{
+			Actor: params.ReturnActor, Action: "loan.closed_historical", Subject: "loan:" + loan.ID,
+			Payload: map[string]any{"deviceId": loan.DeviceID, "userId": loan.UserID, "returnedAt": params.ReturnedAt},
+		})
+	})
+	if txErr != nil {
+		return lendingapi.Loan{}, txErr
+	}
+	return loan, nil
+}
+
+// LastPaperEntry reports the most recent paper-origin recording for the
+// dashboard's backlog nag, or nil when no paper page has been recorded yet.
+func (s *Service) LastPaperEntry(ctx context.Context) (*lendingapi.PaperEntry, error) {
+	q := lendingstore.New(db.Conn(ctx, s.pool))
+	rows, err := q.LastPaperEntry(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("lending: last paper entry: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	row := rows[0]
+	return &lendingapi.PaperEntry{
+		PaperRef:   pgtypeconv.TextString(row.PaperRef),
+		RecordedAt: pgtypeconv.Time(row.RecordedAt),
+		RecordedBy: pgtypeconv.TextString(row.RecordedBy),
+	}, nil
+}
+
 func (s *Service) ListLoans(ctx context.Context, params lendingapi.ListLoansParams) (lendingapi.ListLoansResult, error) {
 	limit := params.Limit
 	if limit <= 0 || limit > 200 {
@@ -393,6 +476,7 @@ func (s *Service) ListLoans(ctx context.Context, params lendingapi.ListLoansPara
 		Origin:           nullLoanOrigin(params.Origin),
 		UserID:           userID,
 		DeviceID:         deviceID,
+		Disputed:         pgtypeconv.NullBool(params.Disputed),
 		FromAt:           pgtypeconv.NullTimestamptz(params.From),
 		ToAt:             pgtypeconv.NullTimestamptz(params.To),
 		CursorBorrowedAt: cursorAt,
@@ -452,6 +536,16 @@ func (s *Service) translateLoanErr(ctx context.Context, err error, deviceID stri
 	case "23505":
 		return &lendingapi.DeviceAlreadyOnLoanError{Existing: s.currentOpenLoanOrZero(ctx, deviceID)}
 	case "23P01":
+		// The unique index (INV-1) and the exclusion constraint (INV-13)
+		// both reject a second open loan, and which one reports first is an
+		// accident of index OIDs — a rebuilt index (0011 changed exactly
+		// that) reports later. The semantics are not accidental: if the
+		// device has an open loan right now, this is the
+		// device-already-on-loan condition whichever constraint said so;
+		// only a purely temporal overlap is ErrOverlappingCustody.
+		if open := s.currentOpenLoanOrZero(ctx, deviceID); open.ID != "" {
+			return &lendingapi.DeviceAlreadyOnLoanError{Existing: open}
+		}
 		return &lendingapi.OverlappingCustodyError{Existing: s.overlappingLoanOrZero(ctx, deviceID, borrowedAt, returnedAt)}
 	case "23514":
 		switch pgErr.ConstraintName {

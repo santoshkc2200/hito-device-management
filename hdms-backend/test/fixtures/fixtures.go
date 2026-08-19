@@ -144,6 +144,23 @@ func AvailableDevice(t *testing.T, pool *db.Pool) string {
 	return createDevice(t, pool).ID
 }
 
+// DeviceWithAssetTag creates a fresh available device and returns its id
+// together with the asset tag — what the paper-backfill tests type into a
+// row's deviceRef.
+func DeviceWithAssetTag(t *testing.T, pool *db.Pool) (id, assetTag string) {
+	t.Helper()
+	dev := createDevice(t, pool)
+	return dev.ID, dev.AssetTag
+}
+
+// UserWithEmployeeNo creates a fresh active user and returns the id with
+// the employee number — what a backfill row's employeeNo userRef carries.
+func UserWithEmployeeNo(t *testing.T, pool *db.Pool) (id, employeeNo string) {
+	t.Helper()
+	u := createUser(t, pool)
+	return u.ID, u.EmployeeNo
+}
+
 // DeviceInStatus creates a device and drives it directly to status,
 // returning its id. Every non-available status is reachable in a single
 // transition from a freshly created (available) device.

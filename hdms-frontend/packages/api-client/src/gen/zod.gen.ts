@@ -301,6 +301,121 @@ export const zResolvedCredential = z.object({
     kind: zCredentialKind
 });
 
+export const zBackfillAction = z.enum(['borrow', 'return']);
+
+/**
+ * The admin's answer to a conflict the preview reported (FR-75). The application never picks one. "change-device" is client-side: by save-time the asset tag has been edited, so a row still carrying it is rejected as unresolved.
+ *
+ */
+export const zBackfillResolution = z.enum([
+    'truncate-existing',
+    'change-device',
+    'discard-row',
+    'record-as-disputed'
+]);
+
+export const zBackfillRowStatus = z.enum([
+    'ok',
+    'conflict',
+    'unresolved',
+    'discarded'
+]);
+
+export const zBackfillNewUser = z.object({
+    fullName: z.string(),
+    employeeNo: z.string(),
+    departmentId: z.string().optional()
+});
+
+/**
+ * Discriminated union — exactly one of userId, employeeNo, token or newUser. The token form is how a scanned card identifies the person on the admin desk's USB scanner.
+ *
+ */
+export const zBackfillUserRef = z.object({
+    userId: z.string().optional(),
+    employeeNo: z.string().optional(),
+    token: z.string().optional(),
+    newUser: zBackfillNewUser.optional()
+});
+
+export const zBackfillRow = z.object({
+    clientRowId: z.string(),
+    deviceRef: z.string(),
+    userRef: zBackfillUserRef,
+    borrowedAt: z.iso.datetime(),
+    returnedAt: z.iso.datetime().optional(),
+    action: zBackfillAction.optional(),
+    resolution: zBackfillResolution.optional(),
+    note: z.string().optional()
+});
+
+export const zBackfillBatch = z.object({
+    paperRef: z.string(),
+    rows: z.array(zBackfillRow)
+});
+
+export const zBackfillDeviceRef = z.object({
+    id: z.string(),
+    assetTag: z.string(),
+    name: z.string()
+});
+
+export const zBackfillPersonRef = z.object({
+    id: z.string(),
+    fullName: z.string(),
+    department: z.string().optional()
+});
+
+export const zBackfillExistingLoan = z.object({
+    id: z.string(),
+    userDisplay: z.string(),
+    department: z.string().optional(),
+    borrowedAt: z.iso.datetime(),
+    returnedAt: z.iso.datetime().optional(),
+    origin: z.string()
+});
+
+export const zBackfillConflict = z.object({
+    type: z.enum(['overlapping-custody']),
+    existingLoan: zBackfillExistingLoan,
+    resolutions: z.array(zBackfillResolution)
+});
+
+export const zBackfillRowResult = z.object({
+    clientRowId: z.string(),
+    action: zBackfillAction.optional(),
+    status: zBackfillRowStatus,
+    device: zBackfillDeviceRef.optional(),
+    user: zBackfillPersonRef.optional(),
+    createsUser: z.boolean().optional(),
+    loanId: z.string().optional(),
+    closesLoanId: z.string().optional(),
+    userId: z.string().optional(),
+    disputed: z.boolean().optional(),
+    warnings: z.array(z.string()).optional(),
+    field: z.string().optional(),
+    reason: z.string().optional(),
+    conflict: zBackfillConflict.optional()
+});
+
+export const zBackfillSummary = z.object({
+    ok: z.int(),
+    conflicts: z.int(),
+    newUsers: z.int()
+});
+
+export const zBackfillResult = z.object({
+    rows: z.array(zBackfillRowResult),
+    summary: zBackfillSummary,
+    committed: z.boolean()
+});
+
+export const zBackfillLastEntry = z.object({
+    paperRef: z.string().optional(),
+    recordedAt: z.iso.datetime(),
+    recordedBy: z.string().optional()
+});
+
 export const zIdParam = z.string();
 
 export const zCursorParam = z.string();
@@ -316,6 +431,12 @@ export const zUserStatusFilter = zUserStatus;
 export const zCategoryFilter = z.string();
 
 export const zDepartmentFilter = z.string();
+
+/**
+ * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+ *
+ */
+export const zIdempotencyKey = z.string();
 
 /**
  * The process is up.
@@ -570,3 +691,30 @@ export const zGetCredentialHistoryPath = z.object({
  * OK.
  */
 export const zGetCredentialHistoryResponse = zCredentialEventList;
+
+export const zPreviewBackfillBatchBody = zBackfillBatch;
+
+export const zPreviewBackfillBatchHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+/**
+ * The per-row resolution. Conflicts and unresolved rows are ordinary row statuses here, not HTTP errors.
+ */
+export const zPreviewBackfillBatchResponse = zBackfillResult;
+
+export const zRecordBackfillBatchBody = zBackfillBatch;
+
+export const zRecordBackfillBatchHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+/**
+ * The batch was committed. Per-row results carry the created loan ids and the created user ids.
+ */
+export const zRecordBackfillBatchResponse = zBackfillResult;
+
+export const zGetBackfillLastEntryResponse = z.union([
+    zBackfillLastEntry,
+    z.void()
+]);
