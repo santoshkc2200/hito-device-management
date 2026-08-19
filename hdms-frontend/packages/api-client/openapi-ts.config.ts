@@ -10,6 +10,6 @@ export default defineConfig({
     "@hey-api/client-fetch",
     "@hey-api/typescript",
     "@hey-api/sdk",
-    "zod",
+    { name: "zod", exportFromIndex: true },
   ],
 });

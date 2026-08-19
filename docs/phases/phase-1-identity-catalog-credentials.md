@@ -67,39 +67,47 @@ and is not blocking.
       than "not found"
 
 ### 1.5 Labels and printing
-- [ ] `bwip-js` in the admin app: QR, Data Matrix, Code 128 rendering
-- [ ] Device sticker template — QR, asset tag, name, hospital, token text
-- [ ] Staff card template
-- [ ] Sheet layout with configurable grid, label size and margins; CSS `@page`
+- [x] `bwip-js` in the admin app: QR, Data Matrix, Code 128 rendering — the
+      `Barcode` component supports all three `bcid`s; device stickers default
+      to QR with Data Matrix available as a print-time rendering choice for
+      small items (not a separate stored credential kind)
+- [x] Device sticker template — QR, asset tag, name, hospital, token text
+- [x] Staff card template
+- [x] Sheet layout with configurable grid, label size and margins; CSS `@page`
       print stylesheet
-- [ ] Print preview that is byte-identical to what the printer receives
-- [ ] Single-label print path for a direct thermal printer
-- [ ] PNG/SVG export of an individual code
-- [ ] **Paper register slip template** (FR-70) — printable pad pages with the
-      columns from [08](../08-admin-console.md#the-paper-register-slip-fr-70),
-      configurable in settings
-- [ ] **Test print on the real label stock and the real printer** — dimensions
-      that look right on screen are frequently 2 mm off on paper
+- [x] Print preview that is byte-identical to what the printer receives (the
+      previewed DOM node is the printed node, via a `.print-area` visibility
+      toggle, not a separate render path)
+- [x] Single-label print path for a direct thermal printer
+- [x] PNG/SVG export of an individual code
+- [x] **Paper register slip template** (FR-70) — printable pad pages with the
+      columns from [08](../08-admin-console.md#the-paper-register-slip-fr-70)
+      (full settings-configurability, e.g. custom columns/hospital name, is
+      Phase 4 territory per that doc's own Settings section)
+- [ ] **Test print on the real label stock and the real printer** — physical
+      task, part of 1.8
 
 ### 1.6 Bulk import
-- [ ] `hdms-cli import devices --file devices.csv`
-- [ ] `hdms-cli import users --file staff.csv`
-- [ ] Dry-run mode reporting what would be created / updated / rejected, with row
+- [x] `hdms-cli import devices --file devices.csv`
+- [x] `hdms-cli import users --file staff.csv`
+- [x] Dry-run mode reporting what would be created / updated / rejected, with row
       numbers
-- [ ] Idempotent on re-run (match by asset tag / employee number)
-- [ ] Optional `--mint-credentials` to issue a QR for each imported row
-- [ ] CSV templates committed with a short filling guide for the administrator
+- [x] Idempotent on re-run (match by asset tag / employee number)
+- [x] Optional `--mint-credentials` to issue a QR for each imported row
+- [x] CSV templates committed with a short filling guide for the administrator
 
 ### 1.7 Minimal admin surface for this phase
 Not the full console (Phase 4) — just enough to do the physical rollout **and to
 register borrowers**, which is now the only way anyone gets a card:
-- [ ] Admin login (password + TOTP), session handling
-- [ ] Device list + create/edit
-- [ ] User list + create/edit
-- [ ] **Register borrower + bind a card in one transaction** (FR-41, FR-59)
-- [ ] Credentials panel: issue, print, reprint, reissue, revoke, bind
-- [ ] Blank card batch generation, with the unbound count
-- [ ] Label and card sheet printing
+- [x] Admin login (password + TOTP), session handling
+- [x] Device list + create/edit
+- [x] User list + create/edit
+- [x] **Register borrower + bind a card in one transaction** (FR-41, FR-59)
+- [x] Credentials panel: issue, print, reprint, reissue, revoke, bind
+- [x] Blank card batch generation, with the unbound count
+- [x] Label and card sheet printing — including bulk "Print labels" from the
+      Devices list, which reprints each selected device's real token rather
+      than sample data
 
 ### 1.8 Physical rollout ★
 - [ ] Collect device inventory into the CSV (name, category, model, serial)

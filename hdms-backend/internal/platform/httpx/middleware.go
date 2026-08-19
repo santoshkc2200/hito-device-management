@@ -4,7 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 // Middleware is the shared shape every link in the chain has.
@@ -92,13 +96,66 @@ func WithRecovery(logger *slog.Logger) Middleware {
 	}
 }
 
-// WithRateLimit is a placeholder for the per-kiosk-token / per-admin-session
-// limit described in docs/06-api-contract.md (60 scans/minute). It needs an
-// authenticated principal to key on, which doesn't exist until Phase 1's
-// auth middleware is real, so it is a pass-through here and is replaced
-// wholesale rather than patched once there is something to rate-limit.
+// clientLimiters holds one token bucket per client IP, created lazily and
+// kept for the life of the process. An internal single-instance tool has no
+// need for a distributed limiter (Redis etc.) — in-memory is deliberate,
+// not a shortcut.
+var clientLimiters sync.Map // map[string]*rate.Limiter
+
+// loginLimiters is a second, stricter bucket keyed the same way but scoped
+// to POST /v1/auth/login, to blunt password-guessing (docs/09's T6) — a
+// stolen-but-rate-limited login form is a much smaller problem than an
+// unlimited one.
+var loginLimiters sync.Map // map[string]*rate.Limiter
+
+const (
+	generalRateLimit = 10 // requests/sec, sustained
+	generalBurst     = 30
+	loginRateLimit   = 0.1 // ~1 attempt per 10s, sustained
+	loginBurst       = 5
+)
+
+// WithRateLimit applies a general per-client-IP limit to every request, and
+// a much stricter one to POST /v1/auth/login specifically
+// (docs/06-api-contract.md's per-principal limits; login has no
+// authenticated principal yet, so it is keyed on IP instead).
 func WithRateLimit(next http.Handler) http.Handler {
-	return next
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := clientIP(r)
+
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login" {
+			if !allow(&loginLimiters, ip, loginRateLimit, loginBurst) {
+				WriteProblem(w, r, NewProblem("rate-limited", "Too many login attempts", http.StatusTooManyRequests))
+				return
+			}
+		}
+
+		if !allow(&clientLimiters, ip, generalRateLimit, generalBurst) {
+			WriteProblem(w, r, NewProblem("rate-limited", "Too many requests", http.StatusTooManyRequests))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func allow(limiters *sync.Map, key string, r rate.Limit, burst int) bool {
+	v, _ := limiters.LoadOrStore(key, rate.NewLimiter(r, burst))
+	return v.(*rate.Limiter).Allow()
+}
+
+// clientIP prefers the first hop of X-Forwarded-For (Caddy sets this in
+// front of the app in every environment except native `go run` dev, where
+// there is no proxy and RemoteAddr is the real client) and falls back to
+// RemoteAddr.
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if i := strings.IndexByte(xff, ','); i >= 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	return r.RemoteAddr
 }
 
 // WithCORS is the kiosk/admin CORS policy: same-origin in production
@@ -115,7 +172,7 @@ func WithCORS(allowedOrigins []string) Middleware {
 			if _, ok := allowed[origin]; ok {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key, "+HeaderRequestID)
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key, X-CSRF-Token, "+HeaderRequestID)
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 			}
 			if r.Method == http.MethodOptions {

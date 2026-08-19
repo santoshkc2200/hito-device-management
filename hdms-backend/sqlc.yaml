@@ -70,3 +70,13 @@ sql:
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/auth"
+    schema: "migrations"
+    gen:
+      go:
+        package: "authstore"
+        out: "internal/platform/auth/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true

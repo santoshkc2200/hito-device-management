@@ -1,0 +1,4 @@
+asset_tag,name,category,manufacturer,model,serial_no,home_location,notes,acquired_on
+LAPTOP-01,Dell Latitude 5420,Laptop,Dell,Latitude 5420,SN-A10293,Equipment Desk,,2025-03-14
+LAPTOP-02,Dell Latitude 5420,Laptop,Dell,Latitude 5420,SN-A10294,Equipment Desk,,2025-03-14
+PENDRIVE-01,16GB USB Drive,USB Drive,SanDisk,Ultra Flair,,Equipment Desk,,

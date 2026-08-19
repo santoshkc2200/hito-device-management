@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHealthzData, GetHealthzResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses } from './types.gen';
+import type { BindCredentialData, BindCredentialErrors, BindCredentialResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateUserData, CreateUserErrors, CreateUserResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetHealthzData, GetHealthzResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -27,3 +27,422 @@ export const getHealthz = <ThrowOnError extends boolean = false>(options?: Optio
  * Readiness probe, including the database. No auth.
  */
 export const getReadyz = <ThrowOnError extends boolean = false>(options?: Options<GetReadyzData, ThrowOnError>): RequestResult<GetReadyzResponses, GetReadyzErrors, ThrowOnError> => (options?.client ?? client).get<GetReadyzResponses, GetReadyzErrors, ThrowOnError>({ url: '/readyz', ...options });
+
+/**
+ * Admin login with password + TOTP. Sets the session and CSRF cookies.
+ */
+export const login = <ThrowOnError extends boolean = false>(options: Options<LoginData, ThrowOnError>): RequestResult<LoginResponses, LoginErrors, ThrowOnError> => (options.client ?? client).post<LoginResponses, LoginErrors, ThrowOnError>({
+    url: '/auth/login',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Revoke the current session.
+ */
+export const logout = <ThrowOnError extends boolean = false>(options?: Options<LogoutData, ThrowOnError>): RequestResult<LogoutResponses, LogoutErrors, ThrowOnError> => (options?.client ?? client).post<LogoutResponses, LogoutErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/auth/logout',
+    ...options
+});
+
+/**
+ * The identity of the currently authenticated admin.
+ */
+export const getCurrentAdmin = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentAdminData, ThrowOnError>): RequestResult<GetCurrentAdminResponses, GetCurrentAdminErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentAdminResponses, GetCurrentAdminErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/auth/me',
+    ...options
+});
+
+/**
+ * List devices.
+ */
+export const listDevices = <ThrowOnError extends boolean = false>(options?: Options<ListDevicesData, ThrowOnError>): RequestResult<ListDevicesResponses, ListDevicesErrors, ThrowOnError> => (options?.client ?? client).get<ListDevicesResponses, ListDevicesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/devices',
+    ...options
+});
+
+/**
+ * Register a new device.
+ */
+export const createDevice = <ThrowOnError extends boolean = false>(options: Options<CreateDeviceData, ThrowOnError>): RequestResult<CreateDeviceResponses, CreateDeviceErrors, ThrowOnError> => (options.client ?? client).post<CreateDeviceResponses, CreateDeviceErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/devices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Fetch one device.
+ */
+export const getDevice = <ThrowOnError extends boolean = false>(options: Options<GetDeviceData, ThrowOnError>): RequestResult<GetDeviceResponses, GetDeviceErrors, ThrowOnError> => (options.client ?? client).get<GetDeviceResponses, GetDeviceErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/devices/{id}',
+    ...options
+});
+
+/**
+ * Edit a device's fields, including its condition.
+ */
+export const updateDevice = <ThrowOnError extends boolean = false>(options: Options<UpdateDeviceData, ThrowOnError>): RequestResult<UpdateDeviceResponses, UpdateDeviceErrors, ThrowOnError> => (options.client ?? client).patch<UpdateDeviceResponses, UpdateDeviceErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/devices/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Drive the device status lifecycle. Requires a reason for every transition except registration.
+ */
+export const setDeviceStatus = <ThrowOnError extends boolean = false>(options: Options<SetDeviceStatusData, ThrowOnError>): RequestResult<SetDeviceStatusResponses, SetDeviceStatusErrors, ThrowOnError> => (options.client ?? client).post<SetDeviceStatusResponses, SetDeviceStatusErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/devices/{id}/status',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List device categories.
+ */
+export const listCategories = <ThrowOnError extends boolean = false>(options?: Options<ListCategoriesData, ThrowOnError>): RequestResult<ListCategoriesResponses, ListCategoriesErrors, ThrowOnError> => (options?.client ?? client).get<ListCategoriesResponses, ListCategoriesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/categories',
+    ...options
+});
+
+/**
+ * Create a device category.
+ */
+export const createCategory = <ThrowOnError extends boolean = false>(options: Options<CreateCategoryData, ThrowOnError>): RequestResult<CreateCategoryResponses, CreateCategoryErrors, ThrowOnError> => (options.client ?? client).post<CreateCategoryResponses, CreateCategoryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/categories',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Edit a device category.
+ */
+export const updateCategory = <ThrowOnError extends boolean = false>(options: Options<UpdateCategoryData, ThrowOnError>): RequestResult<UpdateCategoryResponses, UpdateCategoryErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCategoryResponses, UpdateCategoryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/categories/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List users.
+ */
+export const listUsers = <ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users',
+    ...options
+});
+
+/**
+ * Register a borrower. Admin-only (FR-45); `registeredBy` is derived from the session, never client-supplied.
+ */
+export const createUser = <ThrowOnError extends boolean = false>(options: Options<CreateUserData, ThrowOnError>): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> => (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Register a borrower and bind a card in one atomic transaction (FR-41, FR-44, FR-59).
+ */
+export const registerUserWithCard = <ThrowOnError extends boolean = false>(options: Options<RegisterUserWithCardData, ThrowOnError>): RequestResult<RegisterUserWithCardResponses, RegisterUserWithCardErrors, ThrowOnError> => (options.client ?? client).post<RegisterUserWithCardResponses, RegisterUserWithCardErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users/register-with-card',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Fetch one user.
+ */
+export const getUser = <ThrowOnError extends boolean = false>(options: Options<GetUserData, ThrowOnError>): RequestResult<GetUserResponses, GetUserErrors, ThrowOnError> => (options.client ?? client).get<GetUserResponses, GetUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users/{id}',
+    ...options
+});
+
+/**
+ * Edit a user's fields. Employee number is not editable — it is the bulk-import matching key.
+ */
+export const updateUser = <ThrowOnError extends boolean = false>(options: Options<UpdateUserData, ThrowOnError>): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> => (options.client ?? client).patch<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Suspend a borrower, recording why.
+ */
+export const suspendUser = <ThrowOnError extends boolean = false>(options: Options<SuspendUserData, ThrowOnError>): RequestResult<SuspendUserResponses, SuspendUserErrors, ThrowOnError> => (options.client ?? client).post<SuspendUserResponses, SuspendUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users/{id}/suspend',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List departments, for the department picker on user forms.
+ */
+export const listDepartments = <ThrowOnError extends boolean = false>(options?: Options<ListDepartmentsData, ThrowOnError>): RequestResult<ListDepartmentsResponses, ListDepartmentsErrors, ThrowOnError> => (options?.client ?? client).get<ListDepartmentsResponses, ListDepartmentsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/departments',
+    ...options
+});
+
+/**
+ * List every credential ever issued to one subject, most recent first.
+ */
+export const listCredentialsBySubject = <ThrowOnError extends boolean = false>(options: Options<ListCredentialsBySubjectData, ThrowOnError>): RequestResult<ListCredentialsBySubjectResponses, ListCredentialsBySubjectErrors, ThrowOnError> => (options.client ?? client).get<ListCredentialsBySubjectResponses, ListCredentialsBySubjectErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials',
+    ...options
+});
+
+/**
+ * Mint a new credential. The plaintext token is returned exactly once.
+ */
+export const issueCredential = <ThrowOnError extends boolean = false>(options: Options<IssueCredentialData, ThrowOnError>): RequestResult<IssueCredentialResponses, IssueCredentialErrors, ThrowOnError> => (options.client ?? client).post<IssueCredentialResponses, IssueCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Mint a batch of unbound "blank card stock" credentials.
+ */
+export const issueBlankBatch = <ThrowOnError extends boolean = false>(options: Options<IssueBlankBatchData, ThrowOnError>): RequestResult<IssueBlankBatchResponses, IssueBlankBatchErrors, ThrowOnError> => (options.client ?? client).post<IssueBlankBatchResponses, IssueBlankBatchErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/blank-batch',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Count of unbound "blank card stock" credentials remaining.
+ */
+export const getUnboundCredentialCount = <ThrowOnError extends boolean = false>(options?: Options<GetUnboundCredentialCountData, ThrowOnError>): RequestResult<GetUnboundCredentialCountResponses, GetUnboundCredentialCountErrors, ThrowOnError> => (options?.client ?? client).get<GetUnboundCredentialCountResponses, GetUnboundCredentialCountErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/unbound-count',
+    ...options
+});
+
+/**
+ * Resolve a scanned token to its credential and subject, for binding a physical card during registration.
+ */
+export const resolveCredential = <ThrowOnError extends boolean = false>(options: Options<ResolveCredentialData, ThrowOnError>): RequestResult<ResolveCredentialResponses, ResolveCredentialErrors, ThrowOnError> => (options.client ?? client).get<ResolveCredentialResponses, ResolveCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/resolve',
+    ...options
+});
+
+/**
+ * Bind an unbound blank card to a subject.
+ */
+export const bindCredential = <ThrowOnError extends boolean = false>(options: Options<BindCredentialData, ThrowOnError>): RequestResult<BindCredentialResponses, BindCredentialErrors, ThrowOnError> => (options.client ?? client).post<BindCredentialResponses, BindCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/{id}/bind',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Recover and re-return the plaintext token of a device credential. Device tokens only.
+ */
+export const reprintCredential = <ThrowOnError extends boolean = false>(options: Options<ReprintCredentialData, ThrowOnError>): RequestResult<ReprintCredentialResponses, ReprintCredentialErrors, ThrowOnError> => (options.client ?? client).post<ReprintCredentialResponses, ReprintCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/{id}/reprint',
+    ...options
+});
+
+/**
+ * Kill a token permanently, with no replacement minted.
+ */
+export const revokeCredential = <ThrowOnError extends boolean = false>(options: Options<RevokeCredentialData, ThrowOnError>): RequestResult<RevokeCredentialResponses, RevokeCredentialErrors, ThrowOnError> => (options.client ?? client).post<RevokeCredentialResponses, RevokeCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/{id}/revoke',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * For a lost card — revoke the old one and mint a new one in the same transaction.
+ */
+export const reissueCredential = <ThrowOnError extends boolean = false>(options: Options<ReissueCredentialData, ThrowOnError>): RequestResult<ReissueCredentialResponses, ReissueCredentialErrors, ThrowOnError> => (options.client ?? client).post<ReissueCredentialResponses, ReissueCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/{id}/reissue',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * One credential's issuance history.
+ */
+export const getCredentialHistory = <ThrowOnError extends boolean = false>(options: Options<GetCredentialHistoryData, ThrowOnError>): RequestResult<GetCredentialHistoryResponses, GetCredentialHistoryErrors, ThrowOnError> => (options.client ?? client).get<GetCredentialHistoryResponses, GetCredentialHistoryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/{id}/history',
+    ...options
+});

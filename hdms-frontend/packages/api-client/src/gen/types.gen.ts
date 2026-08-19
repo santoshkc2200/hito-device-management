@@ -20,6 +20,298 @@ export type Problem = {
     };
 };
 
+export type AdminRole = 'superadmin' | 'admin' | 'operator';
+
+export type Admin = {
+    id: string;
+    email: string;
+    fullName: string;
+    role: AdminRole;
+};
+
+export type LoginRequest = {
+    email: string;
+    password: string;
+    totpCode: string;
+};
+
+export type DeviceStatus = 'available' | 'on_loan' | 'maintenance' | 'retired' | 'lost';
+
+export type DeviceCondition = 'good' | 'fair' | 'damaged';
+
+export type Device = {
+    id: string;
+    assetTag: string;
+    name: string;
+    categoryId: string;
+    manufacturer?: string;
+    model?: string;
+    serialNo?: string;
+    status: DeviceStatus;
+    condition: DeviceCondition;
+    homeLocation?: string;
+    notes?: string;
+    acquiredOn?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type DeviceList = {
+    items: Array<Device>;
+    nextCursor?: string;
+};
+
+export type CreateDeviceRequest = {
+    assetTag: string;
+    name: string;
+    categoryId: string;
+    manufacturer?: string;
+    model?: string;
+    serialNo?: string;
+    homeLocation?: string;
+    notes?: string;
+    acquiredOn?: string;
+};
+
+export type UpdateDeviceRequest = {
+    name: string;
+    categoryId: string;
+    manufacturer?: string;
+    model?: string;
+    serialNo?: string;
+    homeLocation?: string;
+    notes?: string;
+    acquiredOn?: string;
+    condition?: DeviceCondition;
+};
+
+export type SetDeviceStatusRequest = {
+    status: DeviceStatus;
+    reason?: string;
+};
+
+export type Category = {
+    id: string;
+    name: string;
+    defaultLoanPeriodSeconds?: number;
+    requiresApproval: boolean;
+    createdAt: string;
+};
+
+export type CategoryList = {
+    items: Array<Category>;
+};
+
+export type CreateCategoryRequest = {
+    name: string;
+    defaultLoanPeriodSeconds?: number;
+    requiresApproval?: boolean;
+};
+
+export type UpdateCategoryRequest = {
+    name: string;
+    defaultLoanPeriodSeconds?: number;
+    requiresApproval?: boolean;
+};
+
+export type UserStatus = 'active' | 'suspended' | 'archived';
+
+export type User = {
+    id: string;
+    employeeNo: string;
+    fullName: string;
+    departmentId?: string;
+    email?: string;
+    phone?: string;
+    status: UserStatus;
+    notes?: string;
+    registeredAt: string;
+    registeredBy: string;
+    updatedAt: string;
+};
+
+export type UserList = {
+    items: Array<User>;
+    nextCursor?: string;
+};
+
+export type CreateUserRequest = {
+    employeeNo: string;
+    fullName: string;
+    departmentId?: string;
+    email?: string;
+    phone?: string;
+    notes?: string;
+};
+
+export type UpdateUserRequest = {
+    fullName: string;
+    departmentId?: string;
+    email?: string;
+    phone?: string;
+    notes?: string;
+};
+
+export type SuspendUserRequest = {
+    reason: string;
+};
+
+export type RegisterWithCardRequest = {
+    employeeNo: string;
+    fullName: string;
+    departmentId?: string;
+    email?: string;
+    phone?: string;
+    notes?: string;
+    /**
+     * An existing unbound blank credential to bind. If omitted, a fresh QR credential is minted for the new user instead.
+     *
+     */
+    credentialId?: string;
+};
+
+export type RegisterWithCardResponse = {
+    user: User;
+    credential: Credential;
+    /**
+     * The plaintext token, present only when a fresh credential was minted (no credentialId was supplied). Absent when an existing blank card was bound instead — its token was already disclosed at the moment it was printed and is not recoverable now.
+     *
+     */
+    token?: string;
+};
+
+export type Department = {
+    id: string;
+    name: string;
+};
+
+export type DepartmentList = {
+    items: Array<Department>;
+};
+
+export type CredentialKind = 'qr' | 'code128' | 'nfc' | 'rfid' | 'manual';
+
+export type SubjectType = 'user' | 'device';
+
+export type CredentialStatus = 'active' | 'revoked' | 'lost';
+
+export type Credential = {
+    id: string;
+    subjectType: SubjectType;
+    /**
+     * Absent when the credential is unbound blank stock.
+     */
+    subjectId?: string;
+    kind: CredentialKind;
+    tokenPreview?: string;
+    label?: string;
+    status: CredentialStatus;
+    issueSeq: number;
+    replacesId?: string;
+    issuedAt: string;
+    issuedBy: string;
+    revokedAt?: string;
+    revokedBy?: string;
+    revokedReason?: string;
+    printedCount: number;
+    lastPrintedAt?: string;
+};
+
+export type IssuedCredential = Credential & {
+    /**
+     * Plaintext token. Returned exactly once, at the moment of issuance, reprint, or reissue — never retrievable again after this response.
+     */
+    token: string;
+};
+
+export type CredentialList = {
+    items: Array<Credential>;
+};
+
+export type IssueCredentialRequest = {
+    subjectType: SubjectType;
+    /**
+     * Omit with subjectType "user" to mint unbound blank card stock.
+     */
+    subjectId?: string;
+    kind: CredentialKind;
+    label?: string;
+    /**
+     * Required, and used verbatim, only when kind is "manual".
+     */
+    manualToken?: string;
+};
+
+export type IssueBlankBatchRequest = {
+    count: number;
+    kind: CredentialKind;
+};
+
+export type IssueBlankBatchResponse = {
+    items: Array<IssuedCredential>;
+};
+
+export type BindCredentialRequest = {
+    subjectId: string;
+};
+
+export type RevokeCredentialRequest = {
+    reason: string;
+};
+
+export type ReissueCredentialRequest = {
+    reason: string;
+    manualToken?: string;
+};
+
+export type CredentialEvent = {
+    at: string;
+    kind: string;
+    actor: string;
+    reason?: string;
+};
+
+export type CredentialEventList = {
+    items: Array<CredentialEvent>;
+};
+
+export type UnboundCountResponse = {
+    count: number;
+};
+
+/**
+ * Resolve's subject discriminator. "unbound" is a successful resolution of a real, unbound blank card (INV-12) — not an error.
+ *
+ */
+export type ResolvedCredentialType = 'user' | 'device' | 'unbound';
+
+export type ResolvedCredential = {
+    type: ResolvedCredentialType;
+    /**
+     * Absent when type is "unbound".
+     */
+    subjectId?: string;
+    credentialId: string;
+    credentialStatus: CredentialStatus;
+    kind: CredentialKind;
+};
+
+export type IdParam = string;
+
+export type CursorParam = string;
+
+export type LimitParam = number;
+
+export type QueryFilter = string;
+
+export type DeviceStatusFilter = DeviceStatus;
+
+export type UserStatusFilter = UserStatus;
+
+export type CategoryFilter = string;
+
+export type DepartmentFilter = string;
+
 export type GetHealthzData = {
     body?: never;
     path?: never;
@@ -60,3 +352,745 @@ export type GetReadyzResponses = {
 };
 
 export type GetReadyzResponse = GetReadyzResponses[keyof GetReadyzResponses];
+
+export type LoginData = {
+    body: LoginRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/login';
+};
+
+export type LoginErrors = {
+    /**
+     * Invalid credentials, invalid TOTP code, or a disabled account.
+     */
+    default: Problem;
+};
+
+export type LoginError = LoginErrors[keyof LoginErrors];
+
+export type LoginResponses = {
+    /**
+     * Authenticated. `Set-Cookie` carries `hdms_session` (HttpOnly) and `hdms_csrf` (readable, echoed back as `X-CSRF-Token` on mutating requests).
+     */
+    200: Admin;
+};
+
+export type LoginResponse = LoginResponses[keyof LoginResponses];
+
+export type LogoutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/logout';
+};
+
+export type LogoutErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type LogoutError = LogoutErrors[keyof LogoutErrors];
+
+export type LogoutResponses = {
+    /**
+     * Logged out.
+     */
+    204: void;
+};
+
+export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
+
+export type GetCurrentAdminData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/me';
+};
+
+export type GetCurrentAdminErrors = {
+    /**
+     * Not authenticated.
+     */
+    default: Problem;
+};
+
+export type GetCurrentAdminError = GetCurrentAdminErrors[keyof GetCurrentAdminErrors];
+
+export type GetCurrentAdminResponses = {
+    /**
+     * OK.
+     */
+    200: Admin;
+};
+
+export type GetCurrentAdminResponse = GetCurrentAdminResponses[keyof GetCurrentAdminResponses];
+
+export type ListDevicesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: DeviceStatus;
+        category?: string;
+        q?: string;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/devices';
+};
+
+export type ListDevicesErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListDevicesError = ListDevicesErrors[keyof ListDevicesErrors];
+
+export type ListDevicesResponses = {
+    /**
+     * OK.
+     */
+    200: DeviceList;
+};
+
+export type ListDevicesResponse = ListDevicesResponses[keyof ListDevicesResponses];
+
+export type CreateDeviceData = {
+    body: CreateDeviceRequest;
+    path?: never;
+    query?: never;
+    url: '/devices';
+};
+
+export type CreateDeviceErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateDeviceError = CreateDeviceErrors[keyof CreateDeviceErrors];
+
+export type CreateDeviceResponses = {
+    /**
+     * Created.
+     */
+    201: Device;
+};
+
+export type CreateDeviceResponse = CreateDeviceResponses[keyof CreateDeviceResponses];
+
+export type GetDeviceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/devices/{id}';
+};
+
+export type GetDeviceErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetDeviceError = GetDeviceErrors[keyof GetDeviceErrors];
+
+export type GetDeviceResponses = {
+    /**
+     * OK.
+     */
+    200: Device;
+};
+
+export type GetDeviceResponse = GetDeviceResponses[keyof GetDeviceResponses];
+
+export type UpdateDeviceData = {
+    body: UpdateDeviceRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/devices/{id}';
+};
+
+export type UpdateDeviceErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateDeviceError = UpdateDeviceErrors[keyof UpdateDeviceErrors];
+
+export type UpdateDeviceResponses = {
+    /**
+     * OK.
+     */
+    200: Device;
+};
+
+export type UpdateDeviceResponse = UpdateDeviceResponses[keyof UpdateDeviceResponses];
+
+export type SetDeviceStatusData = {
+    body: SetDeviceStatusRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/devices/{id}/status';
+};
+
+export type SetDeviceStatusErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type SetDeviceStatusError = SetDeviceStatusErrors[keyof SetDeviceStatusErrors];
+
+export type SetDeviceStatusResponses = {
+    /**
+     * OK.
+     */
+    200: Device;
+};
+
+export type SetDeviceStatusResponse = SetDeviceStatusResponses[keyof SetDeviceStatusResponses];
+
+export type ListCategoriesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/categories';
+};
+
+export type ListCategoriesErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListCategoriesError = ListCategoriesErrors[keyof ListCategoriesErrors];
+
+export type ListCategoriesResponses = {
+    /**
+     * OK.
+     */
+    200: CategoryList;
+};
+
+export type ListCategoriesResponse = ListCategoriesResponses[keyof ListCategoriesResponses];
+
+export type CreateCategoryData = {
+    body: CreateCategoryRequest;
+    path?: never;
+    query?: never;
+    url: '/categories';
+};
+
+export type CreateCategoryErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateCategoryError = CreateCategoryErrors[keyof CreateCategoryErrors];
+
+export type CreateCategoryResponses = {
+    /**
+     * Created.
+     */
+    201: Category;
+};
+
+export type CreateCategoryResponse = CreateCategoryResponses[keyof CreateCategoryResponses];
+
+export type UpdateCategoryData = {
+    body: UpdateCategoryRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/categories/{id}';
+};
+
+export type UpdateCategoryErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateCategoryError = UpdateCategoryErrors[keyof UpdateCategoryErrors];
+
+export type UpdateCategoryResponses = {
+    /**
+     * OK.
+     */
+    200: Category;
+};
+
+export type UpdateCategoryResponse = UpdateCategoryResponses[keyof UpdateCategoryResponses];
+
+export type ListUsersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: UserStatus;
+        department?: string;
+        q?: string;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/users';
+};
+
+export type ListUsersErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListUsersError = ListUsersErrors[keyof ListUsersErrors];
+
+export type ListUsersResponses = {
+    /**
+     * OK.
+     */
+    200: UserList;
+};
+
+export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
+
+export type CreateUserData = {
+    body: CreateUserRequest;
+    path?: never;
+    query?: never;
+    url: '/users';
+};
+
+export type CreateUserErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateUserError = CreateUserErrors[keyof CreateUserErrors];
+
+export type CreateUserResponses = {
+    /**
+     * Created.
+     */
+    201: User;
+};
+
+export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
+
+export type RegisterUserWithCardData = {
+    body: RegisterWithCardRequest;
+    path?: never;
+    query?: never;
+    url: '/users/register-with-card';
+};
+
+export type RegisterUserWithCardErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RegisterUserWithCardError = RegisterUserWithCardErrors[keyof RegisterUserWithCardErrors];
+
+export type RegisterUserWithCardResponses = {
+    /**
+     * Created.
+     */
+    201: RegisterWithCardResponse;
+};
+
+export type RegisterUserWithCardResponse = RegisterUserWithCardResponses[keyof RegisterUserWithCardResponses];
+
+export type GetUserData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type GetUserErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetUserError = GetUserErrors[keyof GetUserErrors];
+
+export type GetUserResponses = {
+    /**
+     * OK.
+     */
+    200: User;
+};
+
+export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
+
+export type UpdateUserData = {
+    body: UpdateUserRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type UpdateUserErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateUserError = UpdateUserErrors[keyof UpdateUserErrors];
+
+export type UpdateUserResponses = {
+    /**
+     * OK.
+     */
+    200: User;
+};
+
+export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
+
+export type SuspendUserData = {
+    body: SuspendUserRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/suspend';
+};
+
+export type SuspendUserErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type SuspendUserError = SuspendUserErrors[keyof SuspendUserErrors];
+
+export type SuspendUserResponses = {
+    /**
+     * OK.
+     */
+    200: User;
+};
+
+export type SuspendUserResponse = SuspendUserResponses[keyof SuspendUserResponses];
+
+export type ListDepartmentsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/departments';
+};
+
+export type ListDepartmentsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListDepartmentsError = ListDepartmentsErrors[keyof ListDepartmentsErrors];
+
+export type ListDepartmentsResponses = {
+    /**
+     * OK.
+     */
+    200: DepartmentList;
+};
+
+export type ListDepartmentsResponse = ListDepartmentsResponses[keyof ListDepartmentsResponses];
+
+export type ListCredentialsBySubjectData = {
+    body?: never;
+    path?: never;
+    query: {
+        subjectType: SubjectType;
+        subjectId: string;
+        status?: CredentialStatus;
+    };
+    url: '/credentials';
+};
+
+export type ListCredentialsBySubjectErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListCredentialsBySubjectError = ListCredentialsBySubjectErrors[keyof ListCredentialsBySubjectErrors];
+
+export type ListCredentialsBySubjectResponses = {
+    /**
+     * OK.
+     */
+    200: CredentialList;
+};
+
+export type ListCredentialsBySubjectResponse = ListCredentialsBySubjectResponses[keyof ListCredentialsBySubjectResponses];
+
+export type IssueCredentialData = {
+    body: IssueCredentialRequest;
+    path?: never;
+    query?: never;
+    url: '/credentials';
+};
+
+export type IssueCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type IssueCredentialError = IssueCredentialErrors[keyof IssueCredentialErrors];
+
+export type IssueCredentialResponses = {
+    /**
+     * Created. Never cached.
+     */
+    201: IssuedCredential;
+};
+
+export type IssueCredentialResponse = IssueCredentialResponses[keyof IssueCredentialResponses];
+
+export type IssueBlankBatchData = {
+    body: IssueBlankBatchRequest;
+    path?: never;
+    query?: never;
+    url: '/credentials/blank-batch';
+};
+
+export type IssueBlankBatchErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type IssueBlankBatchError = IssueBlankBatchErrors[keyof IssueBlankBatchErrors];
+
+export type IssueBlankBatchResponses = {
+    /**
+     * Created. Never cached.
+     */
+    201: IssueBlankBatchResponse;
+};
+
+export type IssueBlankBatchResponse2 = IssueBlankBatchResponses[keyof IssueBlankBatchResponses];
+
+export type GetUnboundCredentialCountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/credentials/unbound-count';
+};
+
+export type GetUnboundCredentialCountErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetUnboundCredentialCountError = GetUnboundCredentialCountErrors[keyof GetUnboundCredentialCountErrors];
+
+export type GetUnboundCredentialCountResponses = {
+    /**
+     * OK.
+     */
+    200: UnboundCountResponse;
+};
+
+export type GetUnboundCredentialCountResponse = GetUnboundCredentialCountResponses[keyof GetUnboundCredentialCountResponses];
+
+export type ResolveCredentialData = {
+    body?: never;
+    path?: never;
+    query: {
+        token: string;
+    };
+    url: '/credentials/resolve';
+};
+
+export type ResolveCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ResolveCredentialError = ResolveCredentialErrors[keyof ResolveCredentialErrors];
+
+export type ResolveCredentialResponses = {
+    /**
+     * OK.
+     */
+    200: ResolvedCredential;
+};
+
+export type ResolveCredentialResponse = ResolveCredentialResponses[keyof ResolveCredentialResponses];
+
+export type BindCredentialData = {
+    body: BindCredentialRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credentials/{id}/bind';
+};
+
+export type BindCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type BindCredentialError = BindCredentialErrors[keyof BindCredentialErrors];
+
+export type BindCredentialResponses = {
+    /**
+     * OK.
+     */
+    200: Credential;
+};
+
+export type BindCredentialResponse = BindCredentialResponses[keyof BindCredentialResponses];
+
+export type ReprintCredentialData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credentials/{id}/reprint';
+};
+
+export type ReprintCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ReprintCredentialError = ReprintCredentialErrors[keyof ReprintCredentialErrors];
+
+export type ReprintCredentialResponses = {
+    /**
+     * OK. Never cached.
+     */
+    200: IssuedCredential;
+};
+
+export type ReprintCredentialResponse = ReprintCredentialResponses[keyof ReprintCredentialResponses];
+
+export type RevokeCredentialData = {
+    body: RevokeCredentialRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credentials/{id}/revoke';
+};
+
+export type RevokeCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RevokeCredentialError = RevokeCredentialErrors[keyof RevokeCredentialErrors];
+
+export type RevokeCredentialResponses = {
+    /**
+     * OK.
+     */
+    200: Credential;
+};
+
+export type RevokeCredentialResponse = RevokeCredentialResponses[keyof RevokeCredentialResponses];
+
+export type ReissueCredentialData = {
+    body: ReissueCredentialRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credentials/{id}/reissue';
+};
+
+export type ReissueCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ReissueCredentialError = ReissueCredentialErrors[keyof ReissueCredentialErrors];
+
+export type ReissueCredentialResponses = {
+    /**
+     * OK. Never cached.
+     */
+    200: IssuedCredential;
+};
+
+export type ReissueCredentialResponse = ReissueCredentialResponses[keyof ReissueCredentialResponses];
+
+export type GetCredentialHistoryData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credentials/{id}/history';
+};
+
+export type GetCredentialHistoryErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetCredentialHistoryError = GetCredentialHistoryErrors[keyof GetCredentialHistoryErrors];
+
+export type GetCredentialHistoryResponses = {
+    /**
+     * OK.
+     */
+    200: CredentialEventList;
+};
+
+export type GetCredentialHistoryResponse = GetCredentialHistoryResponses[keyof GetCredentialHistoryResponses];

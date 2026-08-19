@@ -10,12 +10,16 @@ info:
 servers:
   - url: /v1
 
+security:
+  - adminSession: []
+
 paths:
   /healthz:
     get:
       operationId: getHealthz
       summary: Liveness probe. No auth.
       tags: [system]
+      security: []
       responses:
         "200":
           description: The process is up.
@@ -29,6 +33,7 @@ paths:
       operationId: getReadyz
       summary: Readiness probe, including the database. No auth.
       tags: [system]
+      security: []
       responses:
         "200":
           description: The process and its dependencies are ready.
@@ -42,6 +47,603 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+
+  # --- Admin auth ---------------------------------------------------------
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Admin login with password + TOTP. Sets the session and CSRF cookies.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated. `Set-Cookie` carries `hdms_session` (HttpOnly) and `hdms_csrf` (readable, echoed back as `X-CSRF-Token` on mutating requests).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+        default:
+          description: Invalid credentials, invalid TOTP code, or a disabled account.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke the current session.
+      tags: [auth]
+      responses:
+        "204":
+          description: Logged out.
+        default:
+          description: Error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /auth/me:
+    get:
+      operationId: getCurrentAdmin
+      summary: The identity of the currently authenticated admin.
+      tags: [auth]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+        default:
+          description: Not authenticated.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # --- Catalog --------------------------------------------------------------
+
+  /devices:
+    get:
+      operationId: listDevices
+      summary: List devices.
+      tags: [devices]
+      parameters:
+        - $ref: "#/components/parameters/DeviceStatusFilter"
+        - $ref: "#/components/parameters/CategoryFilter"
+        - $ref: "#/components/parameters/QueryFilter"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createDevice
+      summary: Register a new device.
+      tags: [devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeviceRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /devices/{id}:
+    get:
+      operationId: getDevice
+      summary: Fetch one device.
+      tags: [devices]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    patch:
+      operationId: updateDevice
+      summary: Edit a device's fields, including its condition.
+      tags: [devices]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDeviceRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /devices/{id}/status:
+    post:
+      operationId: setDeviceStatus
+      summary: Drive the device status lifecycle. Requires a reason for every transition except registration.
+      tags: [devices]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetDeviceStatusRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /categories:
+    get:
+      operationId: listCategories
+      summary: List device categories.
+      tags: [categories]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createCategory
+      summary: Create a device category.
+      tags: [categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /categories/{id}:
+    patch:
+      operationId: updateCategory
+      summary: Edit a device category.
+      tags: [categories]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Identity ---------------------------------------------------------
+
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/UserStatusFilter"
+        - $ref: "#/components/parameters/DepartmentFilter"
+        - $ref: "#/components/parameters/QueryFilter"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createUser
+      summary: Register a borrower. Admin-only (FR-45); `registeredBy` is derived from the session, never client-supplied.
+      tags: [users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /users/register-with-card:
+    post:
+      operationId: registerUserWithCard
+      summary: Register a borrower and bind a card in one atomic transaction (FR-41, FR-44, FR-59).
+      tags: [users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterWithCardRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterWithCardResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: Fetch one user.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    patch:
+      operationId: updateUser
+      summary: Edit a user's fields. Employee number is not editable — it is the bulk-import matching key.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /users/{id}/suspend:
+    post:
+      operationId: suspendUser
+      summary: Suspend a borrower, recording why.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuspendUserRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /departments:
+    get:
+      operationId: listDepartments
+      summary: List departments, for the department picker on user forms.
+      tags: [users]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Credentials --------------------------------------------------------
+
+  /credentials:
+    get:
+      operationId: listCredentialsBySubject
+      summary: List every credential ever issued to one subject, most recent first.
+      tags: [credentials]
+      parameters:
+        - name: subjectType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/SubjectType"
+        - name: subjectId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CredentialStatus"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: issueCredential
+      summary: Mint a new credential. The plaintext token is returned exactly once.
+      tags: [credentials]
+      x-sensitive: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueCredentialRequest"
+      responses:
+        "201":
+          description: Created. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedCredential"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/blank-batch:
+    post:
+      operationId: issueBlankBatch
+      summary: Mint a batch of unbound "blank card stock" credentials.
+      tags: [credentials]
+      x-sensitive: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueBlankBatchRequest"
+      responses:
+        "201":
+          description: Created. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueBlankBatchResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/unbound-count:
+    get:
+      operationId: getUnboundCredentialCount
+      summary: Count of unbound "blank card stock" credentials remaining.
+      tags: [credentials]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnboundCountResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/resolve:
+    get:
+      operationId: resolveCredential
+      summary: Resolve a scanned token to its credential and subject, for binding a physical card during registration.
+      tags: [credentials]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolvedCredential"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/{id}/bind:
+    post:
+      operationId: bindCredential
+      summary: Bind an unbound blank card to a subject.
+      tags: [credentials]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BindCredentialRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Credential"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/{id}/reprint:
+    post:
+      operationId: reprintCredential
+      summary: Recover and re-return the plaintext token of a device credential. Device tokens only.
+      tags: [credentials]
+      x-sensitive: true
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedCredential"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/{id}/revoke:
+    post:
+      operationId: revokeCredential
+      summary: Kill a token permanently, with no replacement minted.
+      tags: [credentials]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeCredentialRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Credential"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/{id}/reissue:
+    post:
+      operationId: reissueCredential
+      summary: For a lost card — revoke the old one and mint a new one in the same transaction.
+      tags: [credentials]
+      x-sensitive: true
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReissueCredentialRequest"
+      responses:
+        "200":
+          description: OK. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedCredential"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /credentials/{id}/history:
+    get:
+      operationId: getCredentialHistory
+      summary: One credential's issuance history.
+      tags: [credentials]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialEventList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
 
 components:
   schemas:
@@ -75,6 +677,473 @@ components:
         extensions:
           type: object
           additionalProperties: true
+
+    # --- Admin auth ---------------------------------------------------------
+
+    AdminRole:
+      type: string
+      enum: [superadmin, admin, operator]
+
+    Admin:
+      type: object
+      required: [id, email, fullName, role]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        fullName: { type: string }
+        role:
+          $ref: "#/components/schemas/AdminRole"
+
+    LoginRequest:
+      type: object
+      required: [email, password, totpCode]
+      properties:
+        email: { type: string }
+        password: { type: string }
+        totpCode: { type: string }
+
+    # --- Catalog --------------------------------------------------------------
+
+    DeviceStatus:
+      type: string
+      enum: [available, on_loan, maintenance, retired, lost]
+
+    DeviceCondition:
+      type: string
+      enum: [good, fair, damaged]
+
+    Device:
+      type: object
+      required: [id, assetTag, name, categoryId, status, condition, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        assetTag: { type: string }
+        name: { type: string }
+        categoryId: { type: string }
+        manufacturer: { type: string }
+        model: { type: string }
+        serialNo: { type: string }
+        status:
+          $ref: "#/components/schemas/DeviceStatus"
+        condition:
+          $ref: "#/components/schemas/DeviceCondition"
+        homeLocation: { type: string }
+        notes: { type: string }
+        acquiredOn: { type: string, format: date }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DeviceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+        nextCursor: { type: string }
+
+    CreateDeviceRequest:
+      type: object
+      required: [assetTag, name, categoryId]
+      properties:
+        assetTag: { type: string }
+        name: { type: string }
+        categoryId: { type: string }
+        manufacturer: { type: string }
+        model: { type: string }
+        serialNo: { type: string }
+        homeLocation: { type: string }
+        notes: { type: string }
+        acquiredOn: { type: string, format: date }
+
+    UpdateDeviceRequest:
+      type: object
+      required: [name, categoryId]
+      properties:
+        name: { type: string }
+        categoryId: { type: string }
+        manufacturer: { type: string }
+        model: { type: string }
+        serialNo: { type: string }
+        homeLocation: { type: string }
+        notes: { type: string }
+        acquiredOn: { type: string, format: date }
+        condition:
+          $ref: "#/components/schemas/DeviceCondition"
+
+    SetDeviceStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/DeviceStatus"
+        reason: { type: string }
+
+    Category:
+      type: object
+      required: [id, name, requiresApproval, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        defaultLoanPeriodSeconds: { type: integer, format: int64 }
+        requiresApproval: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    CategoryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        defaultLoanPeriodSeconds: { type: integer, format: int64 }
+        requiresApproval: { type: boolean }
+
+    UpdateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        defaultLoanPeriodSeconds: { type: integer, format: int64 }
+        requiresApproval: { type: boolean }
+
+    # --- Identity ---------------------------------------------------------
+
+    UserStatus:
+      type: string
+      enum: [active, suspended, archived]
+
+    User:
+      type: object
+      required: [id, employeeNo, fullName, status, registeredAt, registeredBy, updatedAt]
+      properties:
+        id: { type: string }
+        employeeNo: { type: string }
+        fullName: { type: string }
+        departmentId: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        notes: { type: string }
+        registeredAt: { type: string, format: date-time }
+        registeredBy: { type: string }
+        updatedAt: { type: string, format: date-time }
+
+    UserList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        nextCursor: { type: string }
+
+    CreateUserRequest:
+      type: object
+      required: [employeeNo, fullName]
+      properties:
+        employeeNo: { type: string }
+        fullName: { type: string }
+        departmentId: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        notes: { type: string }
+
+    UpdateUserRequest:
+      type: object
+      required: [fullName]
+      properties:
+        fullName: { type: string }
+        departmentId: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        notes: { type: string }
+
+    SuspendUserRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+
+    RegisterWithCardRequest:
+      type: object
+      required: [employeeNo, fullName]
+      properties:
+        employeeNo: { type: string }
+        fullName: { type: string }
+        departmentId: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        notes: { type: string }
+        credentialId:
+          type: string
+          description: >
+            An existing unbound blank credential to bind. If omitted, a
+            fresh QR credential is minted for the new user instead.
+
+    RegisterWithCardResponse:
+      type: object
+      required: [user, credential]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        credential:
+          $ref: "#/components/schemas/Credential"
+        token:
+          type: string
+          description: >
+            The plaintext token, present only when a fresh credential was
+            minted (no credentialId was supplied). Absent when an existing
+            blank card was bound instead — its token was already disclosed
+            at the moment it was printed and is not recoverable now.
+
+    Department:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+    DepartmentList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Department"
+
+    # --- Credentials --------------------------------------------------------
+
+    CredentialKind:
+      type: string
+      enum: [qr, code128, nfc, rfid, manual]
+
+    SubjectType:
+      type: string
+      enum: [user, device]
+
+    CredentialStatus:
+      type: string
+      enum: [active, revoked, lost]
+
+    Credential:
+      type: object
+      required: [id, subjectType, kind, status, issueSeq, issuedAt, issuedBy, printedCount]
+      properties:
+        id: { type: string }
+        subjectType:
+          $ref: "#/components/schemas/SubjectType"
+        subjectId:
+          type: string
+          description: Absent when the credential is unbound blank stock.
+        kind:
+          $ref: "#/components/schemas/CredentialKind"
+        tokenPreview: { type: string }
+        label: { type: string }
+        status:
+          $ref: "#/components/schemas/CredentialStatus"
+        issueSeq: { type: integer }
+        replacesId: { type: string }
+        issuedAt: { type: string, format: date-time }
+        issuedBy: { type: string }
+        revokedAt: { type: string, format: date-time }
+        revokedBy: { type: string }
+        revokedReason: { type: string }
+        printedCount: { type: integer }
+        lastPrintedAt: { type: string, format: date-time }
+
+    IssuedCredential:
+      allOf:
+        - $ref: "#/components/schemas/Credential"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: Plaintext token. Returned exactly once, at the moment of issuance, reprint, or reissue — never retrievable again after this response.
+
+    CredentialList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Credential"
+
+    IssueCredentialRequest:
+      type: object
+      required: [subjectType, kind]
+      properties:
+        subjectType:
+          $ref: "#/components/schemas/SubjectType"
+        subjectId:
+          type: string
+          description: Omit with subjectType "user" to mint unbound blank card stock.
+        kind:
+          $ref: "#/components/schemas/CredentialKind"
+        label: { type: string }
+        manualToken:
+          type: string
+          description: Required, and used verbatim, only when kind is "manual".
+
+    IssueBlankBatchRequest:
+      type: object
+      required: [count, kind]
+      properties:
+        count: { type: integer, minimum: 1 }
+        kind:
+          $ref: "#/components/schemas/CredentialKind"
+
+    IssueBlankBatchResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/IssuedCredential"
+
+    BindCredentialRequest:
+      type: object
+      required: [subjectId]
+      properties:
+        subjectId: { type: string }
+
+    RevokeCredentialRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+
+    ReissueCredentialRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+        manualToken: { type: string }
+
+    CredentialEvent:
+      type: object
+      required: [at, kind, actor]
+      properties:
+        at: { type: string, format: date-time }
+        kind: { type: string }
+        actor: { type: string }
+        reason: { type: string }
+
+    CredentialEventList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CredentialEvent"
+
+    UnboundCountResponse:
+      type: object
+      required: [count]
+      properties:
+        count: { type: integer }
+
+    ResolvedCredentialType:
+      type: string
+      description: >
+        Resolve's subject discriminator. "unbound" is a successful
+        resolution of a real, unbound blank card (INV-12) — not an error.
+      enum: [user, device, unbound]
+
+    ResolvedCredential:
+      type: object
+      required: [type, credentialId, credentialStatus, kind]
+      properties:
+        type:
+          $ref: "#/components/schemas/ResolvedCredentialType"
+        subjectId:
+          type: string
+          description: Absent when type is "unbound".
+        credentialId: { type: string }
+        credentialStatus:
+          $ref: "#/components/schemas/CredentialStatus"
+        kind:
+          $ref: "#/components/schemas/CredentialKind"
+
+  parameters:
+    IDParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+    CursorParam:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+
+    QueryFilter:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
+
+    DeviceStatusFilter:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/DeviceStatus"
+
+    UserStatusFilter:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/UserStatus"
+
+    CategoryFilter:
+      name: category
+      in: query
+      required: false
+      schema:
+        type: string
+
+    DepartmentFilter:
+      name: department
+      in: query
+      required: false
+      schema:
+        type: string
+
+  responses:
+    ProblemResponse:
+      description: Error.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
 
   securitySchemes:
     kioskToken:

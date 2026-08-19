@@ -1,69 +1,93 @@
 /*
  * Shared design tokens for both apps (docs/02-architecture.md). Tailwind v4
- * reads `@theme` blocks directly — no tailwind.config.js needed. Real
- * brand colors arrive with the first real screens in Phase 3/4; these are
- * the shadcn/ui default slate tokens so components render correctly today.
+ * reads `@theme` blocks directly — no tailwind.config.js needed.
+ *
+ * Palette: a clinical instrument-panel register, not a consumer SaaS one —
+ * cool near-white surfaces, a desaturated ink foreground, and a single
+ * confident "equipment blue" for actions. Status uses a dot+label pattern
+ * everywhere (device/user/credential status) via --color-success/-warning
+ * on top of shadcn's default destructive, so state reads the same way
+ * across every screen. Identifiers (asset tags, employee numbers, tokens)
+ * set in --font-mono — deliberately typeset like the printed label they
+ * have to match character-for-character.
  */
 @theme {
-  --radius: 0.5rem;
+  --font-sans:
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:
+    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
-  --color-background: oklch(1 0 0);
-  --color-foreground: oklch(0.145 0 0);
+  --radius: 0.375rem;
 
-  --color-primary: oklch(0.205 0 0);
-  --color-primary-foreground: oklch(0.985 0 0);
+  --color-background: oklch(0.985 0.003 240);
+  --color-foreground: oklch(0.22 0.02 250);
 
-  --color-secondary: oklch(0.97 0 0);
-  --color-secondary-foreground: oklch(0.205 0 0);
+  --color-primary: oklch(0.47 0.09 220);
+  --color-primary-foreground: oklch(0.985 0.003 240);
 
-  --color-muted: oklch(0.97 0 0);
-  --color-muted-foreground: oklch(0.556 0 0);
+  --color-secondary: oklch(0.955 0.006 240);
+  --color-secondary-foreground: oklch(0.22 0.02 250);
 
-  --color-accent: oklch(0.97 0 0);
-  --color-accent-foreground: oklch(0.205 0 0);
+  --color-muted: oklch(0.955 0.006 240);
+  --color-muted-foreground: oklch(0.5 0.02 245);
+
+  --color-accent: oklch(0.93 0.02 220);
+  --color-accent-foreground: oklch(0.3 0.06 220);
 
   --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.145 0 0);
+  --color-card-foreground: oklch(0.22 0.02 250);
 
   --color-popover: oklch(1 0 0);
-  --color-popover-foreground: oklch(0.145 0 0);
+  --color-popover-foreground: oklch(0.22 0.02 250);
 
-  --color-destructive: oklch(0.577 0.245 27.325);
-  --color-destructive-foreground: oklch(0.985 0 0);
+  --color-destructive: oklch(0.55 0.19 25);
+  --color-destructive-foreground: oklch(0.985 0.003 240);
 
-  --color-border: oklch(0.922 0 0);
-  --color-input: oklch(0.922 0 0);
-  --color-ring: oklch(0.708 0 0);
+  --color-success: oklch(0.6 0.11 155);
+  --color-success-foreground: oklch(0.985 0.003 240);
+
+  --color-warning: oklch(0.72 0.13 75);
+  --color-warning-foreground: oklch(0.28 0.05 75);
+
+  --color-border: oklch(0.9 0.006 240);
+  --color-input: oklch(0.9 0.006 240);
+  --color-ring: oklch(0.6 0.08 220);
 }
 
 @media (prefers-color-scheme: dark) {
   @theme {
-    --color-background: oklch(0.145 0 0);
-    --color-foreground: oklch(0.985 0 0);
+    --color-background: oklch(0.19 0.014 250);
+    --color-foreground: oklch(0.96 0.004 240);
 
-    --color-primary: oklch(0.985 0 0);
-    --color-primary-foreground: oklch(0.205 0 0);
+    --color-primary: oklch(0.72 0.09 220);
+    --color-primary-foreground: oklch(0.19 0.014 250);
 
-    --color-secondary: oklch(0.269 0 0);
-    --color-secondary-foreground: oklch(0.985 0 0);
+    --color-secondary: oklch(0.27 0.014 250);
+    --color-secondary-foreground: oklch(0.96 0.004 240);
 
-    --color-muted: oklch(0.269 0 0);
-    --color-muted-foreground: oklch(0.708 0 0);
+    --color-muted: oklch(0.27 0.014 250);
+    --color-muted-foreground: oklch(0.68 0.014 245);
 
-    --color-accent: oklch(0.269 0 0);
-    --color-accent-foreground: oklch(0.985 0 0);
+    --color-accent: oklch(0.32 0.03 220);
+    --color-accent-foreground: oklch(0.9 0.02 220);
 
-    --color-card: oklch(0.205 0 0);
-    --color-card-foreground: oklch(0.985 0 0);
+    --color-card: oklch(0.23 0.014 250);
+    --color-card-foreground: oklch(0.96 0.004 240);
 
-    --color-popover: oklch(0.205 0 0);
-    --color-popover-foreground: oklch(0.985 0 0);
+    --color-popover: oklch(0.23 0.014 250);
+    --color-popover-foreground: oklch(0.96 0.004 240);
 
-    --color-destructive: oklch(0.396 0.141 25.723);
-    --color-destructive-foreground: oklch(0.985 0 0);
+    --color-destructive: oklch(0.6 0.19 25);
+    --color-destructive-foreground: oklch(0.96 0.004 240);
 
-    --color-border: oklch(0.269 0 0);
-    --color-input: oklch(0.269 0 0);
-    --color-ring: oklch(0.556 0 0);
+    --color-success: oklch(0.65 0.11 155);
+    --color-success-foreground: oklch(0.19 0.014 250);
+
+    --color-warning: oklch(0.75 0.13 75);
+    --color-warning-foreground: oklch(0.19 0.014 250);
+
+    --color-border: oklch(0.32 0.014 250);
+    --color-input: oklch(0.32 0.014 250);
+    --color-ring: oklch(0.6 0.08 220);
   }
 }

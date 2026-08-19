@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -14,6 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hito-hospital/hdms/internal/apiserver"
+	"github.com/hito-hospital/hdms/internal/modules/audit"
+	"github.com/hito-hospital/hdms/internal/modules/catalog"
+	"github.com/hito-hospital/hdms/internal/modules/credentials"
+	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
@@ -62,14 +66,19 @@ func run() error {
 	}
 	defer pool.Close()
 
-	// Module composition root. Phase 0 wires none of the seven business
-	// modules yet — there is nothing for them to do until Phase 1 gives
-	// identity and catalog their first operations — but health, logging,
-	// tracing and metrics are real from day one.
-	_ = db.NewTxManager(pool)
+	// Module composition root — the one place in the codebase that knows
+	// every module exists (docs/02-architecture.md). lending, checkout and
+	// notification are still Phase 2+ stubs and are not constructed here.
+	auditSvc := audit.New(pool)
+	identitySvc := identity.New(pool, auditSvc)
+	catalogSvc := catalog.New(pool, auditSvc)
+	credentialsSvc := credentials.New(pool, auditSvc, cfg.TokenPepper, cfg.CredentialEncKey)
+	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL)
+
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc)
 
 	mux := http.NewServeMux()
-	gen.HandlerFromMuxWithBaseURL(&apiServer{pool: pool}, mux, "/v1")
+	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
 	mux.Handle("GET /metrics", observability.MetricsHandler())
 
 	handler := httpx.Chain(
@@ -77,7 +86,7 @@ func run() error {
 		httpx.WithLogging(logger),
 		httpx.WithRecovery(logger),
 		httpx.WithCORS(devOrigins()),
-		auth.Middleware,
+		authSvc.Middleware,
 		httpx.WithRateLimit,
 	)(otelhttp.NewHandler(mux, "hdms-api"))
 
@@ -119,28 +128,4 @@ func devOrigins() []string {
 		"https://localhost:5173",
 		"https://localhost:5174",
 	}
-}
-
-// apiServer implements gen.ServerInterface — the interface oapi-codegen
-// derived from api/openapi.yaml. Implementing it (rather than hand-routing)
-// is what makes a spec change that adds a handler a compile error here.
-type apiServer struct {
-	pool *db.Pool
-}
-
-func (s *apiServer) GetHealthz(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, gen.HealthStatus{Status: gen.Ok})
-}
-
-func (s *apiServer) GetReadyz(w http.ResponseWriter, r *http.Request) {
-	if err := s.pool.HealthCheck(r.Context()); err != nil {
-		httpx.WriteProblem(w, r, httpx.NewProblem("not-ready", "Dependency unavailable", http.StatusServiceUnavailable))
-		return
-	}
-	writeJSON(w, gen.HealthStatus{Status: gen.Ok})
-}
-
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
 }

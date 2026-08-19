@@ -6,15 +6,19 @@ vi.mock("@hdms/api-client", async () => {
   const actual = await vi.importActual<typeof import("@hdms/api-client")>("@hdms/api-client");
   return {
     ...actual,
-    getHealthz: vi.fn().mockResolvedValue({ data: { status: "ok" }, error: undefined }),
+    getCurrentAdmin: vi.fn().mockResolvedValue({
+      data: undefined,
+      error: { type: "unauthorized", title: "Unauthorized", status: 401 },
+      response: new Response(null, { status: 401 }),
+    }),
   };
 });
 
 describe("App", () => {
-  it("renders the API status once the health check resolves", async () => {
+  it("redirects an unauthenticated visitor to the login screen", async () => {
     render(<App />);
 
-    expect(await screen.findByText(/API status: ok/i)).toBeInTheDocument();
-    expect(screen.getByText("HDMS Admin")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /device management/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
   });
 });

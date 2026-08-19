@@ -35,6 +35,22 @@ none at all. A stolen kiosk cannot manufacture a borrower.
 
 ## Endpoints
 
+### Admin auth
+
+```
+POST   /v1/auth/login     { email, password, totpCode } → admin identity; sets hdms_session (HttpOnly) + hdms_csrf cookies
+POST   /v1/auth/logout    revoke the current session
+GET    /v1/auth/me        the identity of the currently authenticated admin
+```
+
+No self-service enrollment endpoint: the first admin account (and its TOTP
+secret) is created by `hdms-cli admin bootstrap`, run once by whoever deploys
+the system — consistent with registration being administrator-only everywhere
+else (FR-45's spirit). Every other `/v1/*` route (except `/healthz`, `/readyz`
+and `/auth/login` itself) requires the `adminSession` cookie; mutating
+methods additionally require the `X-CSRF-Token` header to match the
+`hdms_csrf` cookie (double-submit).
+
 ### Session and checkout — the kiosk's hot path
 
 ```
@@ -125,6 +141,8 @@ PATCH  /v1/users/{id}
 POST   /v1/users/{id}/suspend       { reason }
 GET    /v1/users/{id}/loans
 
+GET    /v1/departments              picker for the registration form's department field
+
 GET    /v1/categories
 POST   /v1/categories
 PATCH  /v1/categories/{id}
@@ -136,6 +154,8 @@ PATCH  /v1/categories/{id}
 GET    /v1/credentials                       ?subjectType= &subjectId= &status=
 POST   /v1/credentials                       issue a new one   → token returned ONCE
 POST   /v1/credentials/blank-batch           { count, kind } → pre-printed card stock
+GET    /v1/credentials/unbound-count         how many blank cards remain unbound
+GET    /v1/credentials/resolve               ?token= → subject/status, for binding a scanned physical card
 POST   /v1/credentials/{id}/bind             bind an unbound card to a user; admin-only
 POST   /v1/credentials/{id}/reprint          device tokens only; returns the token
 POST   /v1/credentials/{id}/revoke           { reason }

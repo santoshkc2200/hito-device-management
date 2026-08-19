@@ -16,6 +16,307 @@ export const zProblem = z.object({
     extensions: z.record(z.string(), z.unknown()).optional()
 });
 
+export const zAdminRole = z.enum([
+    'superadmin',
+    'admin',
+    'operator'
+]);
+
+export const zAdmin = z.object({
+    id: z.string(),
+    email: z.string(),
+    fullName: z.string(),
+    role: zAdminRole
+});
+
+export const zLoginRequest = z.object({
+    email: z.string(),
+    password: z.string(),
+    totpCode: z.string()
+});
+
+export const zDeviceStatus = z.enum([
+    'available',
+    'on_loan',
+    'maintenance',
+    'retired',
+    'lost'
+]);
+
+export const zDeviceCondition = z.enum([
+    'good',
+    'fair',
+    'damaged'
+]);
+
+export const zDevice = z.object({
+    id: z.string(),
+    assetTag: z.string(),
+    name: z.string(),
+    categoryId: z.string(),
+    manufacturer: z.string().optional(),
+    model: z.string().optional(),
+    serialNo: z.string().optional(),
+    status: zDeviceStatus,
+    condition: zDeviceCondition,
+    homeLocation: z.string().optional(),
+    notes: z.string().optional(),
+    acquiredOn: z.iso.date().optional(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime()
+});
+
+export const zDeviceList = z.object({
+    items: z.array(zDevice),
+    nextCursor: z.string().optional()
+});
+
+export const zCreateDeviceRequest = z.object({
+    assetTag: z.string(),
+    name: z.string(),
+    categoryId: z.string(),
+    manufacturer: z.string().optional(),
+    model: z.string().optional(),
+    serialNo: z.string().optional(),
+    homeLocation: z.string().optional(),
+    notes: z.string().optional(),
+    acquiredOn: z.iso.date().optional()
+});
+
+export const zUpdateDeviceRequest = z.object({
+    name: z.string(),
+    categoryId: z.string(),
+    manufacturer: z.string().optional(),
+    model: z.string().optional(),
+    serialNo: z.string().optional(),
+    homeLocation: z.string().optional(),
+    notes: z.string().optional(),
+    acquiredOn: z.iso.date().optional(),
+    condition: zDeviceCondition.optional()
+});
+
+export const zSetDeviceStatusRequest = z.object({
+    status: zDeviceStatus,
+    reason: z.string().optional()
+});
+
+export const zCategory = z.object({
+    id: z.string(),
+    name: z.string(),
+    defaultLoanPeriodSeconds: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }).optional(),
+    requiresApproval: z.boolean(),
+    createdAt: z.iso.datetime()
+});
+
+export const zCategoryList = z.object({
+    items: z.array(zCategory)
+});
+
+export const zCreateCategoryRequest = z.object({
+    name: z.string(),
+    defaultLoanPeriodSeconds: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }).optional(),
+    requiresApproval: z.boolean().optional()
+});
+
+export const zUpdateCategoryRequest = z.object({
+    name: z.string(),
+    defaultLoanPeriodSeconds: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }).optional(),
+    requiresApproval: z.boolean().optional()
+});
+
+export const zUserStatus = z.enum([
+    'active',
+    'suspended',
+    'archived'
+]);
+
+export const zUser = z.object({
+    id: z.string(),
+    employeeNo: z.string(),
+    fullName: z.string(),
+    departmentId: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    status: zUserStatus,
+    notes: z.string().optional(),
+    registeredAt: z.iso.datetime(),
+    registeredBy: z.string(),
+    updatedAt: z.iso.datetime()
+});
+
+export const zUserList = z.object({
+    items: z.array(zUser),
+    nextCursor: z.string().optional()
+});
+
+export const zCreateUserRequest = z.object({
+    employeeNo: z.string(),
+    fullName: z.string(),
+    departmentId: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    notes: z.string().optional()
+});
+
+export const zUpdateUserRequest = z.object({
+    fullName: z.string(),
+    departmentId: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    notes: z.string().optional()
+});
+
+export const zSuspendUserRequest = z.object({
+    reason: z.string()
+});
+
+export const zRegisterWithCardRequest = z.object({
+    employeeNo: z.string(),
+    fullName: z.string(),
+    departmentId: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    notes: z.string().optional(),
+    credentialId: z.string().optional()
+});
+
+export const zDepartment = z.object({
+    id: z.string(),
+    name: z.string()
+});
+
+export const zDepartmentList = z.object({
+    items: z.array(zDepartment)
+});
+
+export const zCredentialKind = z.enum([
+    'qr',
+    'code128',
+    'nfc',
+    'rfid',
+    'manual'
+]);
+
+export const zSubjectType = z.enum(['user', 'device']);
+
+export const zCredentialStatus = z.enum([
+    'active',
+    'revoked',
+    'lost'
+]);
+
+export const zCredential = z.object({
+    id: z.string(),
+    subjectType: zSubjectType,
+    subjectId: z.string().optional(),
+    kind: zCredentialKind,
+    tokenPreview: z.string().optional(),
+    label: z.string().optional(),
+    status: zCredentialStatus,
+    issueSeq: z.int(),
+    replacesId: z.string().optional(),
+    issuedAt: z.iso.datetime(),
+    issuedBy: z.string(),
+    revokedAt: z.iso.datetime().optional(),
+    revokedBy: z.string().optional(),
+    revokedReason: z.string().optional(),
+    printedCount: z.int(),
+    lastPrintedAt: z.iso.datetime().optional()
+});
+
+export const zRegisterWithCardResponse = z.object({
+    user: zUser,
+    credential: zCredential,
+    token: z.string().optional()
+});
+
+export const zIssuedCredential = zCredential.and(z.object({
+    token: z.string()
+}));
+
+export const zCredentialList = z.object({
+    items: z.array(zCredential)
+});
+
+export const zIssueCredentialRequest = z.object({
+    subjectType: zSubjectType,
+    subjectId: z.string().optional(),
+    kind: zCredentialKind,
+    label: z.string().optional(),
+    manualToken: z.string().optional()
+});
+
+export const zIssueBlankBatchRequest = z.object({
+    count: z.int().gte(1),
+    kind: zCredentialKind
+});
+
+export const zIssueBlankBatchResponse = z.object({
+    items: z.array(zIssuedCredential)
+});
+
+export const zBindCredentialRequest = z.object({
+    subjectId: z.string()
+});
+
+export const zRevokeCredentialRequest = z.object({
+    reason: z.string()
+});
+
+export const zReissueCredentialRequest = z.object({
+    reason: z.string(),
+    manualToken: z.string().optional()
+});
+
+export const zCredentialEvent = z.object({
+    at: z.iso.datetime(),
+    kind: z.string(),
+    actor: z.string(),
+    reason: z.string().optional()
+});
+
+export const zCredentialEventList = z.object({
+    items: z.array(zCredentialEvent)
+});
+
+export const zUnboundCountResponse = z.object({
+    count: z.int()
+});
+
+/**
+ * Resolve's subject discriminator. "unbound" is a successful resolution of a real, unbound blank card (INV-12) — not an error.
+ *
+ */
+export const zResolvedCredentialType = z.enum([
+    'user',
+    'device',
+    'unbound'
+]);
+
+export const zResolvedCredential = z.object({
+    type: zResolvedCredentialType,
+    subjectId: z.string().optional(),
+    credentialId: z.string(),
+    credentialStatus: zCredentialStatus,
+    kind: zCredentialKind
+});
+
+export const zIdParam = z.string();
+
+export const zCursorParam = z.string();
+
+export const zLimitParam = z.int();
+
+export const zQueryFilter = z.string();
+
+export const zDeviceStatusFilter = zDeviceStatus;
+
+export const zUserStatusFilter = zUserStatus;
+
+export const zCategoryFilter = z.string();
+
+export const zDepartmentFilter = z.string();
+
 /**
  * The process is up.
  */
@@ -25,3 +326,247 @@ export const zGetHealthzResponse = zHealthStatus;
  * The process and its dependencies are ready.
  */
 export const zGetReadyzResponse = zHealthStatus;
+
+export const zLoginBody = zLoginRequest;
+
+/**
+ * Authenticated. `Set-Cookie` carries `hdms_session` (HttpOnly) and `hdms_csrf` (readable, echoed back as `X-CSRF-Token` on mutating requests).
+ */
+export const zLoginResponse = zAdmin;
+
+/**
+ * Logged out.
+ */
+export const zLogoutResponse = z.void();
+
+/**
+ * OK.
+ */
+export const zGetCurrentAdminResponse = zAdmin;
+
+export const zListDevicesQuery = z.object({
+    status: zDeviceStatus.optional(),
+    category: z.string().optional(),
+    q: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListDevicesResponse = zDeviceList;
+
+export const zCreateDeviceBody = zCreateDeviceRequest;
+
+/**
+ * Created.
+ */
+export const zCreateDeviceResponse = zDevice;
+
+export const zGetDevicePath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetDeviceResponse = zDevice;
+
+export const zUpdateDeviceBody = zUpdateDeviceRequest;
+
+export const zUpdateDevicePath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateDeviceResponse = zDevice;
+
+export const zSetDeviceStatusBody = zSetDeviceStatusRequest;
+
+export const zSetDeviceStatusPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zSetDeviceStatusResponse = zDevice;
+
+/**
+ * OK.
+ */
+export const zListCategoriesResponse = zCategoryList;
+
+export const zCreateCategoryBody = zCreateCategoryRequest;
+
+/**
+ * Created.
+ */
+export const zCreateCategoryResponse = zCategory;
+
+export const zUpdateCategoryBody = zUpdateCategoryRequest;
+
+export const zUpdateCategoryPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateCategoryResponse = zCategory;
+
+export const zListUsersQuery = z.object({
+    status: zUserStatus.optional(),
+    department: z.string().optional(),
+    q: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListUsersResponse = zUserList;
+
+export const zCreateUserBody = zCreateUserRequest;
+
+/**
+ * Created.
+ */
+export const zCreateUserResponse = zUser;
+
+export const zRegisterUserWithCardBody = zRegisterWithCardRequest;
+
+/**
+ * Created.
+ */
+export const zRegisterUserWithCardResponse = zRegisterWithCardResponse;
+
+export const zGetUserPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetUserResponse = zUser;
+
+export const zUpdateUserBody = zUpdateUserRequest;
+
+export const zUpdateUserPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateUserResponse = zUser;
+
+export const zSuspendUserBody = zSuspendUserRequest;
+
+export const zSuspendUserPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zSuspendUserResponse = zUser;
+
+/**
+ * OK.
+ */
+export const zListDepartmentsResponse = zDepartmentList;
+
+export const zListCredentialsBySubjectQuery = z.object({
+    subjectType: zSubjectType,
+    subjectId: z.string(),
+    status: zCredentialStatus.optional()
+});
+
+/**
+ * OK.
+ */
+export const zListCredentialsBySubjectResponse = zCredentialList;
+
+export const zIssueCredentialBody = zIssueCredentialRequest;
+
+/**
+ * Created. Never cached.
+ */
+export const zIssueCredentialResponse = zIssuedCredential;
+
+export const zIssueBlankBatchBody = zIssueBlankBatchRequest;
+
+/**
+ * Created. Never cached.
+ */
+export const zIssueBlankBatchResponse2 = zIssueBlankBatchResponse;
+
+/**
+ * OK.
+ */
+export const zGetUnboundCredentialCountResponse = zUnboundCountResponse;
+
+export const zResolveCredentialQuery = z.object({
+    token: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zResolveCredentialResponse = zResolvedCredential;
+
+export const zBindCredentialBody = zBindCredentialRequest;
+
+export const zBindCredentialPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zBindCredentialResponse = zCredential;
+
+export const zReprintCredentialPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK. Never cached.
+ */
+export const zReprintCredentialResponse = zIssuedCredential;
+
+export const zRevokeCredentialBody = zRevokeCredentialRequest;
+
+export const zRevokeCredentialPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zRevokeCredentialResponse = zCredential;
+
+export const zReissueCredentialBody = zReissueCredentialRequest;
+
+export const zReissueCredentialPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK. Never cached.
+ */
+export const zReissueCredentialResponse = zIssuedCredential;
+
+export const zGetCredentialHistoryPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetCredentialHistoryResponse = zCredentialEventList;

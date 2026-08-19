@@ -9,14 +9,135 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for AdminRole.
+const (
+	AdminRoleAdmin      AdminRole = "admin"
+	AdminRoleOperator   AdminRole = "operator"
+	AdminRoleSuperadmin AdminRole = "superadmin"
+)
+
+// Valid indicates whether the value is a known member of the AdminRole enum.
+func (e AdminRole) Valid() bool {
+	switch e {
+	case AdminRoleAdmin:
+		return true
+	case AdminRoleOperator:
+		return true
+	case AdminRoleSuperadmin:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CredentialKind.
+const (
+	Code128 CredentialKind = "code128"
+	Manual  CredentialKind = "manual"
+	Nfc     CredentialKind = "nfc"
+	Qr      CredentialKind = "qr"
+	Rfid    CredentialKind = "rfid"
+)
+
+// Valid indicates whether the value is a known member of the CredentialKind enum.
+func (e CredentialKind) Valid() bool {
+	switch e {
+	case Code128:
+		return true
+	case Manual:
+		return true
+	case Nfc:
+		return true
+	case Qr:
+		return true
+	case Rfid:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CredentialStatus.
+const (
+	CredentialStatusActive  CredentialStatus = "active"
+	CredentialStatusLost    CredentialStatus = "lost"
+	CredentialStatusRevoked CredentialStatus = "revoked"
+)
+
+// Valid indicates whether the value is a known member of the CredentialStatus enum.
+func (e CredentialStatus) Valid() bool {
+	switch e {
+	case CredentialStatusActive:
+		return true
+	case CredentialStatusLost:
+		return true
+	case CredentialStatusRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceCondition.
+const (
+	Damaged DeviceCondition = "damaged"
+	Fair    DeviceCondition = "fair"
+	Good    DeviceCondition = "good"
+)
+
+// Valid indicates whether the value is a known member of the DeviceCondition enum.
+func (e DeviceCondition) Valid() bool {
+	switch e {
+	case Damaged:
+		return true
+	case Fair:
+		return true
+	case Good:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceStatus.
+const (
+	DeviceStatusAvailable   DeviceStatus = "available"
+	DeviceStatusLost        DeviceStatus = "lost"
+	DeviceStatusMaintenance DeviceStatus = "maintenance"
+	DeviceStatusOnLoan      DeviceStatus = "on_loan"
+	DeviceStatusRetired     DeviceStatus = "retired"
+)
+
+// Valid indicates whether the value is a known member of the DeviceStatus enum.
+func (e DeviceStatus) Valid() bool {
+	switch e {
+	case DeviceStatusAvailable:
+		return true
+	case DeviceStatusLost:
+		return true
+	case DeviceStatusMaintenance:
+		return true
+	case DeviceStatusOnLoan:
+		return true
+	case DeviceStatusRetired:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for HealthStatusStatus.
 const (
@@ -33,6 +154,213 @@ func (e HealthStatusStatus) Valid() bool {
 	}
 }
 
+// Defines values for ResolvedCredentialType.
+const (
+	ResolvedCredentialTypeDevice  ResolvedCredentialType = "device"
+	ResolvedCredentialTypeUnbound ResolvedCredentialType = "unbound"
+	ResolvedCredentialTypeUser    ResolvedCredentialType = "user"
+)
+
+// Valid indicates whether the value is a known member of the ResolvedCredentialType enum.
+func (e ResolvedCredentialType) Valid() bool {
+	switch e {
+	case ResolvedCredentialTypeDevice:
+		return true
+	case ResolvedCredentialTypeUnbound:
+		return true
+	case ResolvedCredentialTypeUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubjectType.
+const (
+	SubjectTypeDevice SubjectType = "device"
+	SubjectTypeUser   SubjectType = "user"
+)
+
+// Valid indicates whether the value is a known member of the SubjectType enum.
+func (e SubjectType) Valid() bool {
+	switch e {
+	case SubjectTypeDevice:
+		return true
+	case SubjectTypeUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserStatus.
+const (
+	UserStatusActive    UserStatus = "active"
+	UserStatusArchived  UserStatus = "archived"
+	UserStatusSuspended UserStatus = "suspended"
+)
+
+// Valid indicates whether the value is a known member of the UserStatus enum.
+func (e UserStatus) Valid() bool {
+	switch e {
+	case UserStatusActive:
+		return true
+	case UserStatusArchived:
+		return true
+	case UserStatusSuspended:
+		return true
+	default:
+		return false
+	}
+}
+
+// Admin defines model for Admin.
+type Admin struct {
+	Email    string    `json:"email"`
+	FullName string    `json:"fullName"`
+	Id       string    `json:"id"`
+	Role     AdminRole `json:"role"`
+}
+
+// AdminRole defines model for AdminRole.
+type AdminRole string
+
+// BindCredentialRequest defines model for BindCredentialRequest.
+type BindCredentialRequest struct {
+	SubjectId string `json:"subjectId"`
+}
+
+// Category defines model for Category.
+type Category struct {
+	CreatedAt                time.Time `json:"createdAt"`
+	DefaultLoanPeriodSeconds *int64    `json:"defaultLoanPeriodSeconds,omitempty"`
+	Id                       string    `json:"id"`
+	Name                     string    `json:"name"`
+	RequiresApproval         bool      `json:"requiresApproval"`
+}
+
+// CategoryList defines model for CategoryList.
+type CategoryList struct {
+	Items []Category `json:"items"`
+}
+
+// CreateCategoryRequest defines model for CreateCategoryRequest.
+type CreateCategoryRequest struct {
+	DefaultLoanPeriodSeconds *int64 `json:"defaultLoanPeriodSeconds,omitempty"`
+	Name                     string `json:"name"`
+	RequiresApproval         *bool  `json:"requiresApproval,omitempty"`
+}
+
+// CreateDeviceRequest defines model for CreateDeviceRequest.
+type CreateDeviceRequest struct {
+	AcquiredOn   *openapi_types.Date `json:"acquiredOn,omitempty"`
+	AssetTag     string              `json:"assetTag"`
+	CategoryId   string              `json:"categoryId"`
+	HomeLocation *string             `json:"homeLocation,omitempty"`
+	Manufacturer *string             `json:"manufacturer,omitempty"`
+	Model        *string             `json:"model,omitempty"`
+	Name         string              `json:"name"`
+	Notes        *string             `json:"notes,omitempty"`
+	SerialNo     *string             `json:"serialNo,omitempty"`
+}
+
+// CreateUserRequest defines model for CreateUserRequest.
+type CreateUserRequest struct {
+	DepartmentId *string `json:"departmentId,omitempty"`
+	Email        *string `json:"email,omitempty"`
+	EmployeeNo   string  `json:"employeeNo"`
+	FullName     string  `json:"fullName"`
+	Notes        *string `json:"notes,omitempty"`
+	Phone        *string `json:"phone,omitempty"`
+}
+
+// Credential defines model for Credential.
+type Credential struct {
+	Id            string           `json:"id"`
+	IssueSeq      int              `json:"issueSeq"`
+	IssuedAt      time.Time        `json:"issuedAt"`
+	IssuedBy      string           `json:"issuedBy"`
+	Kind          CredentialKind   `json:"kind"`
+	Label         *string          `json:"label,omitempty"`
+	LastPrintedAt *time.Time       `json:"lastPrintedAt,omitempty"`
+	PrintedCount  int              `json:"printedCount"`
+	ReplacesId    *string          `json:"replacesId,omitempty"`
+	RevokedAt     *time.Time       `json:"revokedAt,omitempty"`
+	RevokedBy     *string          `json:"revokedBy,omitempty"`
+	RevokedReason *string          `json:"revokedReason,omitempty"`
+	Status        CredentialStatus `json:"status"`
+
+	// SubjectId Absent when the credential is unbound blank stock.
+	SubjectId    *string     `json:"subjectId,omitempty"`
+	SubjectType  SubjectType `json:"subjectType"`
+	TokenPreview *string     `json:"tokenPreview,omitempty"`
+}
+
+// CredentialEvent defines model for CredentialEvent.
+type CredentialEvent struct {
+	Actor  string    `json:"actor"`
+	At     time.Time `json:"at"`
+	Kind   string    `json:"kind"`
+	Reason *string   `json:"reason,omitempty"`
+}
+
+// CredentialEventList defines model for CredentialEventList.
+type CredentialEventList struct {
+	Items []CredentialEvent `json:"items"`
+}
+
+// CredentialKind defines model for CredentialKind.
+type CredentialKind string
+
+// CredentialList defines model for CredentialList.
+type CredentialList struct {
+	Items []Credential `json:"items"`
+}
+
+// CredentialStatus defines model for CredentialStatus.
+type CredentialStatus string
+
+// Department defines model for Department.
+type Department struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// DepartmentList defines model for DepartmentList.
+type DepartmentList struct {
+	Items []Department `json:"items"`
+}
+
+// Device defines model for Device.
+type Device struct {
+	AcquiredOn   *openapi_types.Date `json:"acquiredOn,omitempty"`
+	AssetTag     string              `json:"assetTag"`
+	CategoryId   string              `json:"categoryId"`
+	Condition    DeviceCondition     `json:"condition"`
+	CreatedAt    time.Time           `json:"createdAt"`
+	HomeLocation *string             `json:"homeLocation,omitempty"`
+	Id           string              `json:"id"`
+	Manufacturer *string             `json:"manufacturer,omitempty"`
+	Model        *string             `json:"model,omitempty"`
+	Name         string              `json:"name"`
+	Notes        *string             `json:"notes,omitempty"`
+	SerialNo     *string             `json:"serialNo,omitempty"`
+	Status       DeviceStatus        `json:"status"`
+	UpdatedAt    time.Time           `json:"updatedAt"`
+}
+
+// DeviceCondition defines model for DeviceCondition.
+type DeviceCondition string
+
+// DeviceList defines model for DeviceList.
+type DeviceList struct {
+	Items      []Device `json:"items"`
+	NextCursor *string  `json:"nextCursor,omitempty"`
+}
+
+// DeviceStatus defines model for DeviceStatus.
+type DeviceStatus string
+
 // HealthStatus defines model for HealthStatus.
 type HealthStatus struct {
 	Status HealthStatusStatus `json:"status"`
@@ -40,6 +368,62 @@ type HealthStatus struct {
 
 // HealthStatusStatus defines model for HealthStatus.Status.
 type HealthStatusStatus string
+
+// IssueBlankBatchRequest defines model for IssueBlankBatchRequest.
+type IssueBlankBatchRequest struct {
+	Count int            `json:"count"`
+	Kind  CredentialKind `json:"kind"`
+}
+
+// IssueBlankBatchResponse defines model for IssueBlankBatchResponse.
+type IssueBlankBatchResponse struct {
+	Items []IssuedCredential `json:"items"`
+}
+
+// IssueCredentialRequest defines model for IssueCredentialRequest.
+type IssueCredentialRequest struct {
+	Kind  CredentialKind `json:"kind"`
+	Label *string        `json:"label,omitempty"`
+
+	// ManualToken Required, and used verbatim, only when kind is "manual".
+	ManualToken *string `json:"manualToken,omitempty"`
+
+	// SubjectId Omit with subjectType "user" to mint unbound blank card stock.
+	SubjectId   *string     `json:"subjectId,omitempty"`
+	SubjectType SubjectType `json:"subjectType"`
+}
+
+// IssuedCredential defines model for IssuedCredential.
+type IssuedCredential struct {
+	Id            string           `json:"id"`
+	IssueSeq      int              `json:"issueSeq"`
+	IssuedAt      time.Time        `json:"issuedAt"`
+	IssuedBy      string           `json:"issuedBy"`
+	Kind          CredentialKind   `json:"kind"`
+	Label         *string          `json:"label,omitempty"`
+	LastPrintedAt *time.Time       `json:"lastPrintedAt,omitempty"`
+	PrintedCount  int              `json:"printedCount"`
+	ReplacesId    *string          `json:"replacesId,omitempty"`
+	RevokedAt     *time.Time       `json:"revokedAt,omitempty"`
+	RevokedBy     *string          `json:"revokedBy,omitempty"`
+	RevokedReason *string          `json:"revokedReason,omitempty"`
+	Status        CredentialStatus `json:"status"`
+
+	// SubjectId Absent when the credential is unbound blank stock.
+	SubjectId   *string     `json:"subjectId,omitempty"`
+	SubjectType SubjectType `json:"subjectType"`
+
+	// Token Plaintext token. Returned exactly once, at the moment of issuance, reprint, or reissue — never retrievable again after this response.
+	Token        string  `json:"token"`
+	TokenPreview *string `json:"tokenPreview,omitempty"`
+}
+
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	TotpCode string `json:"totpCode"`
+}
 
 // Problem defines model for Problem.
 type Problem struct {
@@ -52,14 +436,320 @@ type Problem struct {
 	Type       string                  `json:"type"`
 }
 
+// RegisterWithCardRequest defines model for RegisterWithCardRequest.
+type RegisterWithCardRequest struct {
+	// CredentialId An existing unbound blank credential to bind. If omitted, a fresh QR credential is minted for the new user instead.
+	CredentialId *string `json:"credentialId,omitempty"`
+	DepartmentId *string `json:"departmentId,omitempty"`
+	Email        *string `json:"email,omitempty"`
+	EmployeeNo   string  `json:"employeeNo"`
+	FullName     string  `json:"fullName"`
+	Notes        *string `json:"notes,omitempty"`
+	Phone        *string `json:"phone,omitempty"`
+}
+
+// RegisterWithCardResponse defines model for RegisterWithCardResponse.
+type RegisterWithCardResponse struct {
+	Credential Credential `json:"credential"`
+
+	// Token The plaintext token, present only when a fresh credential was minted (no credentialId was supplied). Absent when an existing blank card was bound instead — its token was already disclosed at the moment it was printed and is not recoverable now.
+	Token *string `json:"token,omitempty"`
+	User  User    `json:"user"`
+}
+
+// ReissueCredentialRequest defines model for ReissueCredentialRequest.
+type ReissueCredentialRequest struct {
+	ManualToken *string `json:"manualToken,omitempty"`
+	Reason      string  `json:"reason"`
+}
+
+// ResolvedCredential defines model for ResolvedCredential.
+type ResolvedCredential struct {
+	CredentialId     string           `json:"credentialId"`
+	CredentialStatus CredentialStatus `json:"credentialStatus"`
+	Kind             CredentialKind   `json:"kind"`
+
+	// SubjectId Absent when type is "unbound".
+	SubjectId *string `json:"subjectId,omitempty"`
+
+	// Type Resolve's subject discriminator. "unbound" is a successful resolution of a real, unbound blank card (INV-12) — not an error.
+	Type ResolvedCredentialType `json:"type"`
+}
+
+// ResolvedCredentialType Resolve's subject discriminator. "unbound" is a successful resolution of a real, unbound blank card (INV-12) — not an error.
+type ResolvedCredentialType string
+
+// RevokeCredentialRequest defines model for RevokeCredentialRequest.
+type RevokeCredentialRequest struct {
+	Reason string `json:"reason"`
+}
+
+// SetDeviceStatusRequest defines model for SetDeviceStatusRequest.
+type SetDeviceStatusRequest struct {
+	Reason *string      `json:"reason,omitempty"`
+	Status DeviceStatus `json:"status"`
+}
+
+// SubjectType defines model for SubjectType.
+type SubjectType string
+
+// SuspendUserRequest defines model for SuspendUserRequest.
+type SuspendUserRequest struct {
+	Reason string `json:"reason"`
+}
+
+// UnboundCountResponse defines model for UnboundCountResponse.
+type UnboundCountResponse struct {
+	Count int `json:"count"`
+}
+
+// UpdateCategoryRequest defines model for UpdateCategoryRequest.
+type UpdateCategoryRequest struct {
+	DefaultLoanPeriodSeconds *int64 `json:"defaultLoanPeriodSeconds,omitempty"`
+	Name                     string `json:"name"`
+	RequiresApproval         *bool  `json:"requiresApproval,omitempty"`
+}
+
+// UpdateDeviceRequest defines model for UpdateDeviceRequest.
+type UpdateDeviceRequest struct {
+	AcquiredOn   *openapi_types.Date `json:"acquiredOn,omitempty"`
+	CategoryId   string              `json:"categoryId"`
+	Condition    *DeviceCondition    `json:"condition,omitempty"`
+	HomeLocation *string             `json:"homeLocation,omitempty"`
+	Manufacturer *string             `json:"manufacturer,omitempty"`
+	Model        *string             `json:"model,omitempty"`
+	Name         string              `json:"name"`
+	Notes        *string             `json:"notes,omitempty"`
+	SerialNo     *string             `json:"serialNo,omitempty"`
+}
+
+// UpdateUserRequest defines model for UpdateUserRequest.
+type UpdateUserRequest struct {
+	DepartmentId *string `json:"departmentId,omitempty"`
+	Email        *string `json:"email,omitempty"`
+	FullName     string  `json:"fullName"`
+	Notes        *string `json:"notes,omitempty"`
+	Phone        *string `json:"phone,omitempty"`
+}
+
+// User defines model for User.
+type User struct {
+	DepartmentId *string    `json:"departmentId,omitempty"`
+	Email        *string    `json:"email,omitempty"`
+	EmployeeNo   string     `json:"employeeNo"`
+	FullName     string     `json:"fullName"`
+	Id           string     `json:"id"`
+	Notes        *string    `json:"notes,omitempty"`
+	Phone        *string    `json:"phone,omitempty"`
+	RegisteredAt time.Time  `json:"registeredAt"`
+	RegisteredBy string     `json:"registeredBy"`
+	Status       UserStatus `json:"status"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+}
+
+// UserList defines model for UserList.
+type UserList struct {
+	Items      []User  `json:"items"`
+	NextCursor *string `json:"nextCursor,omitempty"`
+}
+
+// UserStatus defines model for UserStatus.
+type UserStatus string
+
+// CategoryFilter defines model for CategoryFilter.
+type CategoryFilter = string
+
+// CursorParam defines model for CursorParam.
+type CursorParam = string
+
+// DepartmentFilter defines model for DepartmentFilter.
+type DepartmentFilter = string
+
+// DeviceStatusFilter defines model for DeviceStatusFilter.
+type DeviceStatusFilter = DeviceStatus
+
+// IDParam defines model for IDParam.
+type IDParam = string
+
+// LimitParam defines model for LimitParam.
+type LimitParam = int
+
+// QueryFilter defines model for QueryFilter.
+type QueryFilter = string
+
+// UserStatusFilter defines model for UserStatusFilter.
+type UserStatusFilter = UserStatus
+
+// ProblemResponse defines model for ProblemResponse.
+type ProblemResponse = Problem
+
+// ListCredentialsBySubjectParams defines parameters for ListCredentialsBySubject.
+type ListCredentialsBySubjectParams struct {
+	SubjectType SubjectType       `form:"subjectType" json:"subjectType"`
+	SubjectId   string            `form:"subjectId" json:"subjectId"`
+	Status      *CredentialStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ResolveCredentialParams defines parameters for ResolveCredential.
+type ResolveCredentialParams struct {
+	Token string `form:"token" json:"token"`
+}
+
+// ListDevicesParams defines parameters for ListDevices.
+type ListDevicesParams struct {
+	Status   *DeviceStatusFilter `form:"status,omitempty" json:"status,omitempty"`
+	Category *CategoryFilter     `form:"category,omitempty" json:"category,omitempty"`
+	Q        *QueryFilter        `form:"q,omitempty" json:"q,omitempty"`
+	Cursor   *CursorParam        `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit    *LimitParam         `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListUsersParams defines parameters for ListUsers.
+type ListUsersParams struct {
+	Status     *UserStatusFilter `form:"status,omitempty" json:"status,omitempty"`
+	Department *DepartmentFilter `form:"department,omitempty" json:"department,omitempty"`
+	Q          *QueryFilter      `form:"q,omitempty" json:"q,omitempty"`
+	Cursor     *CursorParam      `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit      *LimitParam       `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
+type CreateCategoryJSONRequestBody = CreateCategoryRequest
+
+// UpdateCategoryJSONRequestBody defines body for UpdateCategory for application/json ContentType.
+type UpdateCategoryJSONRequestBody = UpdateCategoryRequest
+
+// IssueCredentialJSONRequestBody defines body for IssueCredential for application/json ContentType.
+type IssueCredentialJSONRequestBody = IssueCredentialRequest
+
+// IssueBlankBatchJSONRequestBody defines body for IssueBlankBatch for application/json ContentType.
+type IssueBlankBatchJSONRequestBody = IssueBlankBatchRequest
+
+// BindCredentialJSONRequestBody defines body for BindCredential for application/json ContentType.
+type BindCredentialJSONRequestBody = BindCredentialRequest
+
+// ReissueCredentialJSONRequestBody defines body for ReissueCredential for application/json ContentType.
+type ReissueCredentialJSONRequestBody = ReissueCredentialRequest
+
+// RevokeCredentialJSONRequestBody defines body for RevokeCredential for application/json ContentType.
+type RevokeCredentialJSONRequestBody = RevokeCredentialRequest
+
+// CreateDeviceJSONRequestBody defines body for CreateDevice for application/json ContentType.
+type CreateDeviceJSONRequestBody = CreateDeviceRequest
+
+// UpdateDeviceJSONRequestBody defines body for UpdateDevice for application/json ContentType.
+type UpdateDeviceJSONRequestBody = UpdateDeviceRequest
+
+// SetDeviceStatusJSONRequestBody defines body for SetDeviceStatus for application/json ContentType.
+type SetDeviceStatusJSONRequestBody = SetDeviceStatusRequest
+
+// CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
+type CreateUserJSONRequestBody = CreateUserRequest
+
+// RegisterUserWithCardJSONRequestBody defines body for RegisterUserWithCard for application/json ContentType.
+type RegisterUserWithCardJSONRequestBody = RegisterWithCardRequest
+
+// UpdateUserJSONRequestBody defines body for UpdateUser for application/json ContentType.
+type UpdateUserJSONRequestBody = UpdateUserRequest
+
+// SuspendUserJSONRequestBody defines body for SuspendUser for application/json ContentType.
+type SuspendUserJSONRequestBody = SuspendUserRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Login Admin login with password + TOTP. Sets the session and CSRF cookies.
+	// (POST /auth/login)
+	Login(w http.ResponseWriter, r *http.Request)
+	// Logout Revoke the current session.
+	// (POST /auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request)
+	// GetCurrentAdmin The identity of the currently authenticated admin.
+	// (GET /auth/me)
+	GetCurrentAdmin(w http.ResponseWriter, r *http.Request)
+	// ListCategories List device categories.
+	// (GET /categories)
+	ListCategories(w http.ResponseWriter, r *http.Request)
+	// CreateCategory Create a device category.
+	// (POST /categories)
+	CreateCategory(w http.ResponseWriter, r *http.Request)
+	// UpdateCategory Edit a device category.
+	// (PATCH /categories/{id})
+	UpdateCategory(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ListCredentialsBySubject List every credential ever issued to one subject, most recent first.
+	// (GET /credentials)
+	ListCredentialsBySubject(w http.ResponseWriter, r *http.Request, params ListCredentialsBySubjectParams)
+	// IssueCredential Mint a new credential. The plaintext token is returned exactly once.
+	// (POST /credentials)
+	IssueCredential(w http.ResponseWriter, r *http.Request)
+	// IssueBlankBatch Mint a batch of unbound "blank card stock" credentials.
+	// (POST /credentials/blank-batch)
+	IssueBlankBatch(w http.ResponseWriter, r *http.Request)
+	// ResolveCredential Resolve a scanned token to its credential and subject, for binding a physical card during registration.
+	// (GET /credentials/resolve)
+	ResolveCredential(w http.ResponseWriter, r *http.Request, params ResolveCredentialParams)
+	// GetUnboundCredentialCount Count of unbound "blank card stock" credentials remaining.
+	// (GET /credentials/unbound-count)
+	GetUnboundCredentialCount(w http.ResponseWriter, r *http.Request)
+	// BindCredential Bind an unbound blank card to a subject.
+	// (POST /credentials/{id}/bind)
+	BindCredential(w http.ResponseWriter, r *http.Request, id IDParam)
+	// GetCredentialHistory One credential's issuance history.
+	// (GET /credentials/{id}/history)
+	GetCredentialHistory(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ReissueCredential For a lost card — revoke the old one and mint a new one in the same transaction.
+	// (POST /credentials/{id}/reissue)
+	ReissueCredential(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ReprintCredential Recover and re-return the plaintext token of a device credential. Device tokens only.
+	// (POST /credentials/{id}/reprint)
+	ReprintCredential(w http.ResponseWriter, r *http.Request, id IDParam)
+	// RevokeCredential Kill a token permanently, with no replacement minted.
+	// (POST /credentials/{id}/revoke)
+	RevokeCredential(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ListDepartments List departments, for the department picker on user forms.
+	// (GET /departments)
+	ListDepartments(w http.ResponseWriter, r *http.Request)
+	// ListDevices List devices.
+	// (GET /devices)
+	ListDevices(w http.ResponseWriter, r *http.Request, params ListDevicesParams)
+	// CreateDevice Register a new device.
+	// (POST /devices)
+	CreateDevice(w http.ResponseWriter, r *http.Request)
+	// GetDevice Fetch one device.
+	// (GET /devices/{id})
+	GetDevice(w http.ResponseWriter, r *http.Request, id IDParam)
+	// UpdateDevice Edit a device's fields, including its condition.
+	// (PATCH /devices/{id})
+	UpdateDevice(w http.ResponseWriter, r *http.Request, id IDParam)
+	// SetDeviceStatus Drive the device status lifecycle. Requires a reason for every transition except registration.
+	// (POST /devices/{id}/status)
+	SetDeviceStatus(w http.ResponseWriter, r *http.Request, id IDParam)
 	// GetHealthz Liveness probe. No auth.
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
 	// GetReadyz Readiness probe, including the database. No auth.
 	// (GET /readyz)
 	GetReadyz(w http.ResponseWriter, r *http.Request)
+	// ListUsers List users.
+	// (GET /users)
+	ListUsers(w http.ResponseWriter, r *http.Request, params ListUsersParams)
+	// CreateUser Register a borrower. Admin-only (FR-45); `registeredBy` is derived from the session, never client-supplied.
+	// (POST /users)
+	CreateUser(w http.ResponseWriter, r *http.Request)
+	// RegisterUserWithCard Register a borrower and bind a card in one atomic transaction (FR-41, FR-44, FR-59).
+	// (POST /users/register-with-card)
+	RegisterUserWithCard(w http.ResponseWriter, r *http.Request)
+	// GetUser Fetch one user.
+	// (GET /users/{id})
+	GetUser(w http.ResponseWriter, r *http.Request, id IDParam)
+	// UpdateUser Edit a user's fields. Employee number is not editable — it is the bulk-import matching key.
+	// (PATCH /users/{id})
+	UpdateUser(w http.ResponseWriter, r *http.Request, id IDParam)
+	// SuspendUser Suspend a borrower, recording why.
+	// (POST /users/{id}/suspend)
+	SuspendUser(w http.ResponseWriter, r *http.Request, id IDParam)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -70,6 +760,557 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Login(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCurrentAdmin operation middleware
+func (siw *ServerInterfaceWrapper) GetCurrentAdmin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCurrentAdmin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCategories operation middleware
+func (siw *ServerInterfaceWrapper) ListCategories(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCategories(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateCategory operation middleware
+func (siw *ServerInterfaceWrapper) CreateCategory(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCategory(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCategory operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCategory(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCredentialsBySubject operation middleware
+func (siw *ServerInterfaceWrapper) ListCredentialsBySubject(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCredentialsBySubjectParams
+
+	// ------------- Required query parameter "subjectType" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "subjectType", r.URL.Query(), &params.SubjectType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "subjectType"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subjectType", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "subjectId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "subjectId", r.URL.Query(), &params.SubjectId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "subjectId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subjectId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCredentialsBySubject(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IssueCredential operation middleware
+func (siw *ServerInterfaceWrapper) IssueCredential(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueCredential(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IssueBlankBatch operation middleware
+func (siw *ServerInterfaceWrapper) IssueBlankBatch(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueBlankBatch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveCredential operation middleware
+func (siw *ServerInterfaceWrapper) ResolveCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResolveCredentialParams
+
+	// ------------- Required query parameter "token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "token", r.URL.Query(), &params.Token, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveCredential(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUnboundCredentialCount operation middleware
+func (siw *ServerInterfaceWrapper) GetUnboundCredentialCount(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUnboundCredentialCount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BindCredential operation middleware
+func (siw *ServerInterfaceWrapper) BindCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BindCredential(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCredentialHistory operation middleware
+func (siw *ServerInterfaceWrapper) GetCredentialHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCredentialHistory(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReissueCredential operation middleware
+func (siw *ServerInterfaceWrapper) ReissueCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReissueCredential(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReprintCredential operation middleware
+func (siw *ServerInterfaceWrapper) ReprintCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReprintCredential(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeCredential operation middleware
+func (siw *ServerInterfaceWrapper) RevokeCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeCredential(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDepartments operation middleware
+func (siw *ServerInterfaceWrapper) ListDepartments(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDepartments(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDevices operation middleware
+func (siw *ServerInterfaceWrapper) ListDevices(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDevicesParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "category" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "category", r.URL.Query(), &params.Category, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "category"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDevices(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDevice operation middleware
+func (siw *ServerInterfaceWrapper) CreateDevice(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDevice(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDevice operation middleware
+func (siw *ServerInterfaceWrapper) GetDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDevice(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDevice operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDevice(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetDeviceStatus operation middleware
+func (siw *ServerInterfaceWrapper) SetDeviceStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDeviceStatus(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetHealthz operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Request) {
@@ -90,6 +1331,197 @@ func (siw *ServerInterfaceWrapper) GetReadyz(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetReadyz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListUsersParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "department" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "department", r.URL.Query(), &params.Department, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "department"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "department", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUsers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateUser operation middleware
+func (siw *ServerInterfaceWrapper) CreateUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegisterUserWithCard operation middleware
+func (siw *ServerInterfaceWrapper) RegisterUserWithCard(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegisterUserWithCard(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUser operation middleware
+func (siw *ServerInterfaceWrapper) GetUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUser(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateUser(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SuspendUser operation middleware
+func (siw *ServerInterfaceWrapper) SuspendUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SuspendUser(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -221,6 +1653,34 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.GetReadyz)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/login", wrapper.Login)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/logout", wrapper.Logout)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/me", wrapper.GetCurrentAdmin)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/devices", wrapper.ListDevices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/devices", wrapper.CreateDevice)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/devices/{id}", wrapper.GetDevice)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/devices/{id}", wrapper.UpdateDevice)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/devices/{id}/status", wrapper.SetDeviceStatus)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/categories", wrapper.ListCategories)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/categories", wrapper.CreateCategory)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/categories/{id}", wrapper.UpdateCategory)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/users", wrapper.ListUsers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/users", wrapper.CreateUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/users/register-with-card", wrapper.RegisterUserWithCard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/users/{id}", wrapper.GetUser)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/users/{id}", wrapper.UpdateUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/users/{id}/suspend", wrapper.SuspendUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/departments", wrapper.ListDepartments)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/credentials", wrapper.ListCredentialsBySubject)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials", wrapper.IssueCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials/blank-batch", wrapper.IssueBlankBatch)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/credentials/unbound-count", wrapper.GetUnboundCredentialCount)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/credentials/resolve", wrapper.ResolveCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials/{id}/bind", wrapper.BindCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials/{id}/reprint", wrapper.ReprintCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials/{id}/revoke", wrapper.RevokeCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/credentials/{id}/reissue", wrapper.ReissueCredential)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/credentials/{id}/history", wrapper.GetCredentialHistory)
 
 	return m
 }
@@ -230,19 +1690,74 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

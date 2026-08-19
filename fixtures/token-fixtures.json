@@ -1,0 +1,2002 @@
+[
+  {
+    "token": "XX-D-ETFN2FSCKN-1",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-2VYGLTXLW4-A",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-QZKREMSQZ3A-=",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "XX-D-NN2CNDJ3HW-~",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "XX-D-936DWDNFG4-R",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "XX-D-52ADF3W3JK-D",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-BRH8VFTBAA-7",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-1QY80BFR2V-E",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-B3G6822S6K-H",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-S3CY8FG2Q1-9",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-3R1KDM35Y-~",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-NY7A18RH17-A",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-Y4BNQTQTFH-S",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-74JAPC4NYN-P",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-4WVGV6K68AA-3",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-ERXN8X0YZQ-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-J9V8HZ6CNY-*",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-E7Z0C9DYRY-4",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-VB14J259JJA-Z",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-X-K9W7A66WY6-X",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-FTYBPKRPP0-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-1ZZRW2DYCG-F",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-V1Z#G0ZH0Z-K",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-9T815QNX3R-B",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-GYW3148BJ5-~",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-PJ5MXRBBDF-V",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-5JCF5GXKRE-P",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-AD5X2EWHV9-9",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-G446HHVG0J-F",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-NCD@4ZA33X-J",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-2WNP7T4MRQ-J",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-ANDV7Q22DQ-$",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-R25VP46QQM-V",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-7ZVCB6ZN00-H",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-2M7QXQ2ABS-5",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "hd-u-d9205dwank-=",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-12A0X2G4B9-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-2J74KP0K7R-S",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-7TWUTQGSV3-M",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-C36ATHG376-Y",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-QDEXA93838-8",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-D4XAMJ9K7P-G",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-07YE5CTS78-C",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-DK96S325HA-B",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-WX830TNMA5A-M",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "hd-u-bkkchtykhy-5",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "XX-D-DTY0ZHRCTE-D",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-2SYQ2A8QD5-Q",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-95GA64XVPR-R",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-5FB32GFE15-D",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-9JKDEKYT6D-8",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-4GSRWR5RHP-F",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-MZCWH8ADMK-Y",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-QZKP682P7Q-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-JADE9ARK9D-$",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-ME9XBWBS8B-$",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-JYNE9GW6V0-=",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-STK3649KG-F",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-T4Y0K1X5KD-A",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "hd-u-zk1yx42fk2-v",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-X-ZMRDMRXC8P-S",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-N1D9SEWEQB-G",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-DEMA3GSRWRA-T",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-89NSP8CG4N-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-DB0FWFDC65-5",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-5T917NECB-~",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-JDP7X4TKR4-7",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-PBYV92HNWD-P",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-NPK72HG6WX-7",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-9ZVB1H416G-N",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-KZ4BSM06G7-3",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-9V6TX6GE2H-S",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-BE53MZF6YZ-D",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-EMBMRWH5ZF-3",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-52BHVW2GTY-S",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-0FH2Q1BTH-3",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "XX-D-6N7R9021P1-S",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "XX-D-BB0MFCA9B2-P",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-QKVC3XMHMK-6",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-5BC@C9YRJX-F",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-ERY@H3CC7J-U",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-QS3QG06Y6-P",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-XAGANWWDGS-Z",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-NF9LZYWJOP-S",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-3P75BDRQQX-X",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-B6B8MG1CNF-9",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-50SW84A767-P",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-X-C5CFKNHHBE-X",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-G5YSKMRZP-4",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-MC2S762XTY-S",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-135DNH84DF-F",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-VJTVE4FS20-*",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-PGJJWA03Y2-1",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-ZE6U05V467-D",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "XX-D-8MF6FRYZ40-F",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-X-YMYSSKY98G-6",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-X-8PCERRDAHR-4",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-R08BKV36XJ-D",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-N201JMZ2Y8-5",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-X-PXWKG56Y1Y-X",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-FK65GH9MC4-W",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-2SJPPEA1QA-T",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-NYX3YVFYS8-3",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-EBWZQGRRCG-V",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-WW6KH74XY5A-~",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-JWD3DJF1EM-J",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-PVP!VZH1EM-X",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-SH7P8WMRE1-M",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-95AB00KZQR-F",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-WJ09J8CF3-J",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "hd-u-8vrb9xnq2v-w",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-D-D9SHKSGNW8A-Y",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-82E668PH0-G",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-256V3SA9CS-8",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-7TJRP88ZTA-7",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-QAG5DMHZYV-E",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-V5GDHCTPWX-X",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-XQ0%K9ZHA4-A",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "hd-u-2x9ax5hp7k-=",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-D-2YT7JSBS5R-Y",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-KV3WF59GN9A-Z",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-NSV75VEVP-Y",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-Z8E#6324N7-A",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-NEYX7XJGHT-V",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-TESFMZFRZB-9",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-7B8X6YSWV6-C",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-X-5BYAF6V4WE-*",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-BVN2H51NTV-=",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-44CUDABKHV-V",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-CAY#FHMY9F-C",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-A9D4357PMG-7",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-WPCN0KQTJEA-5",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-9NXHC5C0Z-Z",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-4YNSRTCNFF-W",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "hd-u-060rbz5th7-~",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "hd-u-wv6yvgn7df-g",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-D-CJQXRADG6J-V",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-8MJA117FMA-3",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-VT8NB98AR3A-W",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-WZEMCEN43Z-6",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-09G5EQTQZE-N",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-6C3BEHAJFQ-V",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "hd-u-p908hdab4e-u",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-D-5OTAIQWIKY-~",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-XWSFJ7BEVH-X",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-J7QHTGYFAN-B",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-39KSMT2Y75-B",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-V64P9G13QW-9",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-X3D#6CZMG5-$",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-OTR229Z4NI-G",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-F79CNXGQ89A-R",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "XX-D-PWYD6KHBTA-W",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-GKZXX5KG4S-2",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-WA8UM7CSDY-1",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-EEN9MXE1Q1-8",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-FTKJX25Y5B-E",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-38E36V8YD7-3",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-0TNJ1BRHM-5",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-XVY6F0TFW2-Z",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-P8DDZET9DB-H",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-B3B0CD201X-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-1012H8668-G",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-NN54HW33X0-N",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-8Z8RS8JSXW-$",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-VW18SKV5V5-V",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-QXMQ61KQAE-G",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-XX8FC3VR5P-K",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-LQRW3CRRT7-N",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-9PH0QFDNGS-E",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-SY5X1SBY2E-6",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-X-BM1VEMKTKD-U",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-BKKW6P98KM-D",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-YDFGAB03QEA-V",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-DVZ64P961-1",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-SN8S4GY883-2",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-6FYFC101KK-E",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-Y8X109C0BC-4",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "hd-u-ffq6c9rk2t-d",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "hd-u-8e13xdpcr9-8",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "hd-u-wmt83ygvgz-3",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-0JF#69VXKN-E",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-KPJKRHFVM-V",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-9XE27KSDTMA-=",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-W8P!4C71TH-3",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-SPHUG6M61K-~",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-X-VDQ71Q4CN1-U",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-MZW@A4AENQ-P",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-9GBRGRFDWX-F",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-CNK%4K2NW4-E",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-99D0JQYMT6-6",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-ZXA8VC8T1W-J",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-R83039G9YR-F",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "hd-u-gse3axe6hc-d",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-3SG!Y43CGN-*",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-X-WNTJHK7RZE-5",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-RMRXWSXWD8-M",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-JQN60BKH83-T",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-321@2H4CEA-3",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "hd-u-e35yxf9are-2",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-X-1S12CR9PFV-Y",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-V21@0QK833-5",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "XX-D-T2BSQ6GE99-=",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-1FWXGDQAK9-C",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-DC15304TM3-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-9YX9HN35J4-$",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-VP59XT9JEX-~",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-CDXC5BVK26-6",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-154%A6D2J5-P",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-YXDEFYDKBX-P",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-C2HUJ07MR6-B",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-GFF#PFCCD1-S",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-TVP2HSF29K-Y",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-Q1XHP7MR9W-U",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-BRDJ6T3EMB-U",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-H5N17CFE82-V",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "XX-D-QK00QPDBHA-1",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "hd-u-d57sydkpxk-6",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-X29U5Y4V0X-3",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-JJ44BXWDB0-Q",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-7NYNQZSZ0EA-M",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "hd-u-1c3xzhewvs-w",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "hd-u-xw4kb62319-x",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-RX10SGB0BG-V",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-MTXJ76JE85-3",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-S6VA3MWT3-N",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-R51H44S8CV-R",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-ZSKJN80346-1",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-VRF2MS4S8Y-K",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-ZVVNHJ5HR8-P",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "XX-D-5HVY23WDQD-K",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-7REN2CATTH-7",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-JSD31WWPH8A-6",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-3DRZJ907GE-E",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-41MX234KKK-T",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-X-1TZ0ENNBS3-J",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-9RKG2RPKGJ-W",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-AEX!SR8CGA-4",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "XX-D-YNTHNEYTN6-0",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-EPPZC93ZPP-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-X0R421H58R-C",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-9JS#N941NK-$",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-G11EEWDMYS-A",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-ART0CCMJ1W-K",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-7BV7Q5RKX3-E",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-553CW9X8RN-E",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-770HQD2PS7-$",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-43DPAMEGK3-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-ACSR3E7TDJ-B",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-5YDYP32HK4-P",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-ZZGKVMT9OM-H",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-948JT43A8R-M",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-EZS%E26KQA-9",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-3ZY97MQW80-W",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-EP5!00S0V7-9",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-KDX6KD1SWD-6",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-3VXVHV7F4E-T",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-7MD6D29PG-3",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-KC8V8A2MV7-Y",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-70DPG8S8ZT-C",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-VE91DAZGF5-V",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-PYTQFR6JEV-*",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-MC2BZ65T8P-M",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-SWAPM6XK2M-2",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "XX-D-SR0TMPXT1E-C",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-N7ASZCXD88-P",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-87R%ZSEKRX-6",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-VHDT980M04-1",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-GKCMVEB8Z9-4",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-BJ4P8YPDV9-V",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "hd-u-wrsr0r2mv0-c",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-NXMDKVKRRX-7",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-3C67J3339W-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-GA3E1B02KH-1",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-Q4SXC1SGM2-M",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-X-3YVB1KW9JQ-X",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-92ZD1SQ2GX-B",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-RM1HRFDFW5-A",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-017#G8J336-6",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-VXX6TCT8MC-X",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-NM4!Z3M2GZ-8",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-V8H90HCXJG-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-S8M6SN7BJ5-7",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-VXA10S3EJ-$",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-5KKDZXYVAM-V",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-QWFQQYM9FV-C",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-X-HF05BD1VMD-A",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-AHF9JPE9SX-S",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-X4KMCGKPSRA-G",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-AQMVQRPNQJ-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-96GSXVV4XG-M",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-43VSAYA7KF-~",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-08ESQX72D0-C",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-TJ763KYNQX-1",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-58BNCZ5NPS-S",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "hd-u-3cr8hrf0ck-8",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "XX-D-180G913SWS-H",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-X-P0PK1Q02FY-N",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-RF3WWP4V3B-Z",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-TJCQCRB137-W",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-GSP5MWRWB9-E",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-XQA8A93N9D-E",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-GFVKGSPZSX-F",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "XX-D-HQ379BXD2P-Q",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-2QQSKVPAS9-K",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-M07PA15ZHR-P",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-2VGMNRKBBY-Z",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-SRHVST64YG-P",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-S394SP8AJZ-C",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-M5MJRKNRQR-A",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-MZ64BVYJNF-*",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "XX-D-8GPVS6RKBV-Y",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-HTGSJ4SWPE-B",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-39RGPQ41P0-3",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-W34@N36GCR-7",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-C7SW5MGM4H-6",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-SGSFRA3C2N-D",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-BZCEH5Y5KC-F",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-KDA@H6WXCJ-R",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "hd-u-j8dbs3b3gz-8",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-X-E11ZERKECF-$",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-6V0!JY7QS0-S",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-9E4SGQ2GYF-R",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-R9J04FHFJC-E",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-52RXDAWAHF-8",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-A9BBBZWQ69-6",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-S7W388R994-P",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-V55P7EMSXJ-2",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-4VGM4R99ZT-=",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-9ANP0H4H04-G",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "hd-u-bda2rg19pj-1",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-H62AJ3PY6D-W",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-GZKWR0J2TP-J",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-XDJTAJC8N0-E",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-Q2ZB8ERCFTA-Z",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-D-1901M94DXV-=",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-6D164E6WWA-V",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-1KDMW5NJNT-D",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-TDEBPC66V4-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-KT7W2JBRMK-3",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "XX-D-SS2MS9RKW0-9",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "hd-u-1e237mpex2-t",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "XX-D-ZC22MB4NR1-*",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-9XTZFQJ2NS-R",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-6K15N39WZDA-=",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-X-MDVAD2JECP-R",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-X-7SDZ0T50C6-F",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "hd-u-e5cv3r5pra-4",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-AK2R62H02M-Q",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "hd-u-tymyzd970f-1",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-D-9GBPTWM2EM-4",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-U-ZA5JE4NSPQ-U",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-X-6FGKZQ690T-6",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "hd-u-1p1y49vvhm-9",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "XX-D-G0WJCJ7AEF-B",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-B5TA8B8RD9-K",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-T5JBQ4HFTF-2",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-BGRBGJ7Y5-6",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-XCP38GNJ2S-$",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-D-XJXTN8DX4T-1",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-0KNFFYHBMK-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-C6C!FY8MQ4-9",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "XX-D-FQ160SCTMX-8",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-7G2PTSKV87-*",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "XX-D-F6XZZE2GT9-B",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-P19DDQ20TAA-~",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-6HTBY31VVT-Y",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-460DV6NNA2-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-NJ03MHW2NZ-0",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "hd-u-ezh7g92shk-u",
+    "valid": true,
+    "case": "lowercase"
+  },
+  {
+    "token": "HD-U-7AQWAWZ88Z-5",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-FII3M54NOX-5",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-X-SJ02K669YQ-C",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-1GKD296ER2A-J",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-TZFV81PZ96-T",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-MH7EV3KZMB-J",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-ESYY8S2928-W",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-BKVBMHYTH2-M",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-U-ZJ01KZPWCD-C",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "HD-X-T2C2Y549F1-R",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-U-PSTVFBNMHN-F",
+    "valid": false,
+    "case": "bad-checksum"
+  },
+  {
+    "token": "XX-D-J5WJA33KXK-D",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-D-T4MJXPPKXW-X",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-FF8C1HAR2S-A",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-X-2M7GVG0G81-B",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-X-J344AVE7V6-2",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "XX-D-4BSQQV24EE-V",
+    "valid": false,
+    "case": "bad-namespace"
+  },
+  {
+    "token": "HD-U-555741NN41-X",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-NJRGGFK83-Q",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-U-93F%AJBH5J-G",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-SGN%ZR1WFB-K",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-M7W4EDCNPX-U",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-QYHUWR8EA9-2",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-D-N9HFP9KDR-9",
+    "valid": false,
+    "case": "bad-length"
+  },
+  {
+    "token": "HD-X-AQ9V8XANX7-Z",
+    "valid": false,
+    "case": "bad-hint"
+  },
+  {
+    "token": "HD-D-05S0Q3WC14-P",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-HDRKE9DZ2R-Z",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-D-MR2O7R9IEV-H",
+    "valid": true,
+    "case": "ambiguous-substitution"
+  },
+  {
+    "token": "HD-D-XVJK7S9MAH-6",
+    "valid": true,
+    "case": "generated"
+  },
+  {
+    "token": "HD-U-SPY%4VR5E1-5",
+    "valid": false,
+    "case": "bad-payload-char"
+  },
+  {
+    "token": "HD-U-RYNXXGHE46-3",
+    "valid": true,
+    "case": "generated"
+  }
+]

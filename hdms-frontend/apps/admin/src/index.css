@@ -2,5 +2,29 @@
 @import "@hdms/ui/tokens.css";
 
 body {
-  @apply bg-background text-foreground;
+  @apply bg-background text-foreground font-sans antialiased;
+}
+
+/* Identifiers — asset tags, employee numbers, tokens — are typeset like the
+   printed label they have to match character-for-character, not like prose. */
+.font-identifier {
+  @apply font-mono tabular-nums tracking-wide;
+}
+
+/* What's previewed is exactly what prints (docs/05-credentials-and-labeling.md):
+   the on-screen preview *is* the print source, marked with .print-area;
+   everything else on the page is hidden for the print pass rather than
+   duplicated into a separate print-only tree. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+  }
 }

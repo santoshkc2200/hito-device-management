@@ -1,40 +1,10 @@
-import { getHealthz } from "@hdms/api-client";
-import { useQuery } from "@tanstack/react-query";
-import { createRoute } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { rootRoute } from "./root";
-
-// Calls /v1/healthz through the generated client, proving the contract
-// pipeline end to end (docs/phases/phase-0-foundations.md, 0.7): the Go
-// server interface and this TS client both trace back to the same
-// api/openapi.yaml, with nothing hand-written in between.
-function HealthCheck() {
-  const { data, error, isPending, refetch } = useQuery({
-    queryKey: ["healthz"],
-    queryFn: async () => {
-      const { data, error } = await getHealthz();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-2xl font-semibold">HDMS Admin</h1>
-      <p className="text-muted-foreground">
-        {isPending && "Checking API…"}
-        {error && `API unreachable: ${error instanceof Error ? error.message : String(error)}`}
-        {data && `API status: ${data.status}`}
-      </p>
-      <Button variant="outline" onClick={() => refetch()}>
-        Recheck
-      </Button>
-    </main>
-  );
-}
+import { createRoute, redirect } from "@tanstack/react-router";
+import { authenticatedRoute } from "./authenticated";
 
 export const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/",
-  component: HealthCheck,
+  beforeLoad: () => {
+    throw redirect({ to: "/devices" });
+  },
 });
