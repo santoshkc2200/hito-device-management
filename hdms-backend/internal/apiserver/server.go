@@ -16,16 +16,12 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 )
 
-// Server implements gen.ServerInterface. Its methods are split across
-// devices.go, users.go, categories.go, credentials.go and
-// auth_handlers.go by the resource they serve; this file keeps only the
-// constructor and the two health endpoints. checkout and lending are
-// wired in (2.3c.4) ahead of their own HTTP handlers (2.6) so the
-// composition root in cmd/hdms-api can construct everything in one place.
+// Server implements gen.ServerInterface.
 type Server struct {
 	pool        *db.Pool
 	auth        *auth.Service
@@ -34,6 +30,7 @@ type Server struct {
 	credentials *credentials.Service
 	lending     *lending.Service
 	checkout    *checkout.Service
+	sseHub      *events.SSEHub
 }
 
 // New constructs the API server from the module services the composition
@@ -41,6 +38,7 @@ type Server struct {
 func New(
 	pool *db.Pool, authSvc *auth.Service, identitySvc *identity.Service, catalogSvc *catalog.Service,
 	credentialsSvc *credentials.Service, lendingSvc *lending.Service, checkoutSvc *checkout.Service,
+	sseHub *events.SSEHub,
 ) *Server {
 	return &Server{
 		pool:        pool,
@@ -50,6 +48,7 @@ func New(
 		credentials: credentialsSvc,
 		lending:     lendingSvc,
 		checkout:    checkoutSvc,
+		sseHub:      sseHub,
 	}
 }
 

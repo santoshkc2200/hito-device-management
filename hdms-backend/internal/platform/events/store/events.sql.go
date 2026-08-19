@@ -91,6 +91,53 @@ func (q *Queries) CountUnpublished(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const getPublishedEventsAfter = `-- name: GetPublishedEventsAfter :many
+SELECT id, topic, payload, created_at, published_at
+FROM outbox
+WHERE id > $1 AND published_at IS NOT NULL
+ORDER BY id ASC
+LIMIT $2
+`
+
+type GetPublishedEventsAfterParams struct {
+	ID    int64 `json:"id"`
+	Limit int32 `json:"limit"`
+}
+
+type GetPublishedEventsAfterRow struct {
+	ID          int64              `json:"id"`
+	Topic       string             `json:"topic"`
+	Payload     []byte             `json:"payload"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
+}
+
+func (q *Queries) GetPublishedEventsAfter(ctx context.Context, arg GetPublishedEventsAfterParams) ([]GetPublishedEventsAfterRow, error) {
+	rows, err := q.db.Query(ctx, getPublishedEventsAfter, arg.ID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPublishedEventsAfterRow
+	for rows.Next() {
+		var i GetPublishedEventsAfterRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Topic,
+			&i.Payload,
+			&i.CreatedAt,
+			&i.PublishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markPublished = `-- name: MarkPublished :exec
 UPDATE outbox SET published_at = now() WHERE id = $1
 `

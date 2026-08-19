@@ -1,0 +1,193 @@
+package apiserver
+
+import (
+	"net/http"
+
+	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
+)
+
+// ListLoans lists loans matching the supplied query filters.
+func (s *Server) ListLoans(w http.ResponseWriter, r *http.Request, params gen.ListLoansParams) {
+	var status lendingapi.Status
+	if params.Status != nil {
+		status = lendingapi.Status(*params.Status)
+	}
+
+	var origin lendingapi.Origin
+	if params.Origin != nil {
+		origin = lendingapi.Origin(*params.Origin)
+	}
+
+	limit := 0
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+
+	res, err := s.lending.ListLoans(r.Context(), lendingapi.ListLoansParams{
+		Status:   status,
+		Origin:   origin,
+		UserID:   fromPtr(params.UserId),
+		DeviceID: fromPtr(params.DeviceId),
+		From:     params.From,
+		To:       params.To,
+		Disputed: params.Disputed,
+		Cursor:   fromPtr(params.Cursor),
+		Limit:    limit,
+	})
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	items := make([]gen.Loan, len(res.Items))
+	for i, l := range res.Items {
+		items[i] = mapLoan(l)
+	}
+
+	writeJSON(w, http.StatusOK, gen.LoanList{
+		Items:      items,
+		NextCursor: strPtr(res.NextCursor),
+	})
+}
+
+// GetLoan retrieves a single loan by ID.
+func (s *Server) GetLoan(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	loan, err := s.lending.GetLoan(r.Context(), id)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, mapLoan(loan))
+}
+
+// ForceReturnLoan closes an open loan administratively.
+func (s *Server) ForceReturnLoan(w http.ResponseWriter, r *http.Request, id gen.IDParam, _ gen.ForceReturnLoanParams) {
+	body, ok := decodeJSON[gen.ForceReturnLoanRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if !requireReason(w, r, body.Reason) {
+		return
+	}
+
+	actor := actorFrom(r)
+	conditionIn := ""
+	if body.ConditionIn != nil {
+		conditionIn = string(*body.ConditionIn)
+	}
+
+	loan, err := s.lending.ForceReturn(r.Context(), id, body.Reason, conditionIn, body.ReturnedAt, actor)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, mapLoan(loan))
+}
+
+// WriteOffLoan closes an open loan as written-off (declared lost or destroyed).
+func (s *Server) WriteOffLoan(w http.ResponseWriter, r *http.Request, id gen.IDParam, _ gen.WriteOffLoanParams) {
+	body, ok := decodeJSON[gen.WriteOffLoanRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if !requireReason(w, r, body.Reason) {
+		return
+	}
+
+	actor := actorFrom(r)
+	loan, err := s.lending.WriteOff(r.Context(), id, body.Reason, actor)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, mapLoan(loan))
+}
+
+// ListDeviceLoans lists the loan history for one device.
+func (s *Server) ListDeviceLoans(w http.ResponseWriter, r *http.Request, id gen.IDParam, params gen.ListDeviceLoansParams) {
+	limit := 0
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+
+	res, err := s.lending.ListLoans(r.Context(), lendingapi.ListLoansParams{
+		DeviceID: id,
+		Cursor:   fromPtr(params.Cursor),
+		Limit:    limit,
+	})
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	items := make([]gen.Loan, len(res.Items))
+	for i, l := range res.Items {
+		items[i] = mapLoan(l)
+	}
+
+	writeJSON(w, http.StatusOK, gen.LoanList{
+		Items:      items,
+		NextCursor: strPtr(res.NextCursor),
+	})
+}
+
+// ListUserLoans lists the loan history for one user.
+func (s *Server) ListUserLoans(w http.ResponseWriter, r *http.Request, id gen.IDParam, params gen.ListUserLoansParams) {
+	limit := 0
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+
+	res, err := s.lending.ListLoans(r.Context(), lendingapi.ListLoansParams{
+		UserID: id,
+		Cursor: fromPtr(params.Cursor),
+		Limit:  limit,
+	})
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	items := make([]gen.Loan, len(res.Items))
+	for i, l := range res.Items {
+		items[i] = mapLoan(l)
+	}
+
+	writeJSON(w, http.StatusOK, gen.LoanList{
+		Items:      items,
+		NextCursor: strPtr(res.NextCursor),
+	})
+}
+
+func mapLoan(l lendingapi.Loan) gen.Loan {
+	return gen.Loan{
+		Id:            l.ID,
+		DeviceId:      l.DeviceID,
+		UserId:        l.UserID,
+		Status:        gen.LoanStatus(l.Status),
+		Origin:        gen.LoanOrigin(l.Origin),
+		BorrowedAt:    l.BorrowedAt,
+		DueAt:         l.DueAt,
+		ReturnedAt:    l.ReturnedAt,
+		BorrowKioskId: strPtr(l.BorrowKioskID),
+		ReturnKioskId: strPtr(l.ReturnKioskID),
+		BorrowActor:   l.BorrowActor,
+		ReturnActor:   strPtr(l.ReturnActor),
+		BorrowSource:  l.BorrowSource,
+		ReturnSource:  strPtr(l.ReturnSource),
+		ConditionOut:  strPtr(l.ConditionOut),
+		ConditionIn:   strPtr(l.ConditionIn),
+		Notes:         strPtr(l.Notes),
+		SessionId:     strPtr(l.SessionID),
+		PaperRef:      strPtr(l.PaperRef),
+		RecordedAt:    l.RecordedAt,
+		RecordedBy:    strPtr(l.RecordedBy),
+		BackfillNote:  strPtr(l.BackfillNote),
+		Disputed:      l.Disputed,
+	}
+}

@@ -126,25 +126,25 @@ func (e BackfillRowStatus) Valid() bool {
 
 // Defines values for CredentialKind.
 const (
-	Code128 CredentialKind = "code128"
-	Manual  CredentialKind = "manual"
-	Nfc     CredentialKind = "nfc"
-	Qr      CredentialKind = "qr"
-	Rfid    CredentialKind = "rfid"
+	CredentialKindCode128 CredentialKind = "code128"
+	CredentialKindManual  CredentialKind = "manual"
+	CredentialKindNfc     CredentialKind = "nfc"
+	CredentialKindQr      CredentialKind = "qr"
+	CredentialKindRfid    CredentialKind = "rfid"
 )
 
 // Valid indicates whether the value is a known member of the CredentialKind enum.
 func (e CredentialKind) Valid() bool {
 	switch e {
-	case Code128:
+	case CredentialKindCode128:
 		return true
-	case Manual:
+	case CredentialKindManual:
 		return true
-	case Nfc:
+	case CredentialKindNfc:
 		return true
-	case Qr:
+	case CredentialKindQr:
 		return true
-	case Rfid:
+	case CredentialKindRfid:
 		return true
 	default:
 		return false
@@ -235,6 +235,126 @@ func (e HealthStatusStatus) Valid() bool {
 	}
 }
 
+// Defines values for KioskStatus.
+const (
+	KioskStatusActive   KioskStatus = "active"
+	KioskStatusDisabled KioskStatus = "disabled"
+)
+
+// Valid indicates whether the value is a known member of the KioskStatus enum.
+func (e KioskStatus) Valid() bool {
+	switch e {
+	case KioskStatusActive:
+		return true
+	case KioskStatusDisabled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LoanOrigin.
+const (
+	LoanOriginAdmin  LoanOrigin = "admin"
+	LoanOriginImport LoanOrigin = "import"
+	LoanOriginKiosk  LoanOrigin = "kiosk"
+	LoanOriginPaper  LoanOrigin = "paper"
+)
+
+// Valid indicates whether the value is a known member of the LoanOrigin enum.
+func (e LoanOrigin) Valid() bool {
+	switch e {
+	case LoanOriginAdmin:
+		return true
+	case LoanOriginImport:
+		return true
+	case LoanOriginKiosk:
+		return true
+	case LoanOriginPaper:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LoanStatus.
+const (
+	LoanStatusOpen       LoanStatus = "open"
+	LoanStatusReturned   LoanStatus = "returned"
+	LoanStatusWrittenOff LoanStatus = "written_off"
+)
+
+// Valid indicates whether the value is a known member of the LoanStatus enum.
+func (e LoanStatus) Valid() bool {
+	switch e {
+	case LoanStatusOpen:
+		return true
+	case LoanStatusReturned:
+		return true
+	case LoanStatusWrittenOff:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MessageTone.
+const (
+	Error   MessageTone = "error"
+	Info    MessageTone = "info"
+	Success MessageTone = "success"
+	Warning MessageTone = "warning"
+)
+
+// Valid indicates whether the value is a known member of the MessageTone enum.
+func (e MessageTone) Valid() bool {
+	switch e {
+	case Error:
+		return true
+	case Info:
+		return true
+	case Success:
+		return true
+	case Warning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OutcomeKind.
+const (
+	OutcomeKindBorrowed       OutcomeKind = "borrowed"
+	OutcomeKindDevicePending  OutcomeKind = "device_pending"
+	OutcomeKindDuplicate      OutcomeKind = "duplicate"
+	OutcomeKindRejected       OutcomeKind = "rejected"
+	OutcomeKindReturned       OutcomeKind = "returned"
+	OutcomeKindUserIdentified OutcomeKind = "user_identified"
+	OutcomeKindUserSwitched   OutcomeKind = "user_switched"
+)
+
+// Valid indicates whether the value is a known member of the OutcomeKind enum.
+func (e OutcomeKind) Valid() bool {
+	switch e {
+	case OutcomeKindBorrowed:
+		return true
+	case OutcomeKindDevicePending:
+		return true
+	case OutcomeKindDuplicate:
+		return true
+	case OutcomeKindRejected:
+		return true
+	case OutcomeKindReturned:
+		return true
+	case OutcomeKindUserIdentified:
+		return true
+	case OutcomeKindUserSwitched:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ResolvedCredentialType.
 const (
 	ResolvedCredentialTypeDevice  ResolvedCredentialType = "device"
@@ -250,6 +370,60 @@ func (e ResolvedCredentialType) Valid() bool {
 	case ResolvedCredentialTypeUnbound:
 		return true
 	case ResolvedCredentialTypeUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ScanSource.
+const (
+	ScanSourceCamera  ScanSource = "camera"
+	ScanSourceManual  ScanSource = "manual"
+	ScanSourceScanner ScanSource = "scanner"
+)
+
+// Valid indicates whether the value is a known member of the ScanSource enum.
+func (e ScanSource) Valid() bool {
+	switch e {
+	case ScanSourceCamera:
+		return true
+	case ScanSourceManual:
+		return true
+	case ScanSourceScanner:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SessionState.
+const (
+	AwaitingDevice SessionState = "awaiting_device"
+	AwaitingUser   SessionState = "awaiting_user"
+	Cancelled      SessionState = "cancelled"
+	Completed      SessionState = "completed"
+	Expired        SessionState = "expired"
+	Idle           SessionState = "idle"
+	Ready          SessionState = "ready"
+)
+
+// Valid indicates whether the value is a known member of the SessionState enum.
+func (e SessionState) Valid() bool {
+	switch e {
+	case AwaitingDevice:
+		return true
+	case AwaitingUser:
+		return true
+	case Cancelled:
+		return true
+	case Completed:
+		return true
+	case Expired:
+		return true
+	case Idle:
+		return true
+	case Ready:
 		return true
 	default:
 		return false
@@ -463,6 +637,14 @@ type Category struct {
 	RequiresApproval         bool      `json:"requiresApproval"`
 }
 
+// CategoryAvailability defines model for CategoryAvailability.
+type CategoryAvailability struct {
+	AvailableCount int    `json:"availableCount"`
+	CategoryId     string `json:"categoryId"`
+	CategoryName   string `json:"categoryName"`
+	TotalCount     int    `json:"totalCount"`
+}
+
 // CategoryList defines model for CategoryList.
 type CategoryList struct {
 	Items []Category `json:"items"`
@@ -486,6 +668,12 @@ type CreateDeviceRequest struct {
 	Name         string              `json:"name"`
 	Notes        *string             `json:"notes,omitempty"`
 	SerialNo     *string             `json:"serialNo,omitempty"`
+}
+
+// CreateKioskRequest defines model for CreateKioskRequest.
+type CreateKioskRequest struct {
+	Location *string `json:"location,omitempty"`
+	Name     string  `json:"name"`
 }
 
 // CreateUserRequest defines model for CreateUserRequest.
@@ -544,6 +732,17 @@ type CredentialList struct {
 // CredentialStatus defines model for CredentialStatus.
 type CredentialStatus string
 
+// Dashboard defines model for Dashboard.
+type Dashboard struct {
+	AvailabilityByCategory []CategoryAvailability `json:"availabilityByCategory"`
+	AvailableCount         int                    `json:"availableCount"`
+	LastPaperEntry         *BackfillLastEntry     `json:"lastPaperEntry,omitempty"`
+	MaintenanceCount       int                    `json:"maintenanceCount"`
+	OnLoanCount            int                    `json:"onLoanCount"`
+	OverdueCount           int                    `json:"overdueCount"`
+	TurnedAwayCounts       []ScanRejectionSummary `json:"turnedAwayCounts"`
+}
+
 // Department defines model for Department.
 type Department struct {
 	Id   string `json:"id"`
@@ -584,6 +783,13 @@ type DeviceList struct {
 
 // DeviceStatus defines model for DeviceStatus.
 type DeviceStatus string
+
+// ForceReturnLoanRequest defines model for ForceReturnLoanRequest.
+type ForceReturnLoanRequest struct {
+	ConditionIn *DeviceCondition `json:"conditionIn,omitempty"`
+	Reason      string           `json:"reason"`
+	ReturnedAt  *time.Time       `json:"returnedAt,omitempty"`
+}
 
 // HealthStatus defines model for HealthStatus.
 type HealthStatus struct {
@@ -642,11 +848,116 @@ type IssuedCredential struct {
 	TokenPreview *string `json:"tokenPreview,omitempty"`
 }
 
+// Kiosk defines model for Kiosk.
+type Kiosk struct {
+	CreatedAt      time.Time   `json:"createdAt"`
+	EnabledSources []string    `json:"enabledSources"`
+	Id             string      `json:"id"`
+	LastSeenAt     *time.Time  `json:"lastSeenAt,omitempty"`
+	Location       *string     `json:"location,omitempty"`
+	Name           string      `json:"name"`
+	Status         KioskStatus `json:"status"`
+}
+
+// KioskList defines model for KioskList.
+type KioskList struct {
+	Items []Kiosk `json:"items"`
+}
+
+// KioskPairingCode defines model for KioskPairingCode.
+type KioskPairingCode struct {
+	Code      string    `json:"code"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// KioskStatus defines model for KioskStatus.
+type KioskStatus string
+
+// KioskWithToken defines model for KioskWithToken.
+type KioskWithToken struct {
+	CreatedAt      time.Time   `json:"createdAt"`
+	EnabledSources []string    `json:"enabledSources"`
+	Id             string      `json:"id"`
+	LastSeenAt     *time.Time  `json:"lastSeenAt,omitempty"`
+	Location       *string     `json:"location,omitempty"`
+	Name           string      `json:"name"`
+	Status         KioskStatus `json:"status"`
+
+	// Token Plaintext bearer token. Returned exactly once, at creation or rotation.
+	Token string `json:"token"`
+}
+
+// Loan defines model for Loan.
+type Loan struct {
+	BackfillNote  *string    `json:"backfillNote,omitempty"`
+	BorrowActor   string     `json:"borrowActor"`
+	BorrowKioskId *string    `json:"borrowKioskId,omitempty"`
+	BorrowSource  string     `json:"borrowSource"`
+	BorrowedAt    time.Time  `json:"borrowedAt"`
+	ConditionIn   *string    `json:"conditionIn,omitempty"`
+	ConditionOut  *string    `json:"conditionOut,omitempty"`
+	DeviceId      string     `json:"deviceId"`
+	Disputed      bool       `json:"disputed"`
+	DueAt         *time.Time `json:"dueAt,omitempty"`
+	Id            string     `json:"id"`
+	Notes         *string    `json:"notes,omitempty"`
+	Origin        LoanOrigin `json:"origin"`
+	PaperRef      *string    `json:"paperRef,omitempty"`
+	RecordedAt    *time.Time `json:"recordedAt,omitempty"`
+	RecordedBy    *string    `json:"recordedBy,omitempty"`
+	ReturnActor   *string    `json:"returnActor,omitempty"`
+	ReturnKioskId *string    `json:"returnKioskId,omitempty"`
+	ReturnSource  *string    `json:"returnSource,omitempty"`
+	ReturnedAt    *time.Time `json:"returnedAt,omitempty"`
+	SessionId     *string    `json:"sessionId,omitempty"`
+	Status        LoanStatus `json:"status"`
+	UserId        string     `json:"userId"`
+}
+
+// LoanList defines model for LoanList.
+type LoanList struct {
+	Items      []Loan  `json:"items"`
+	NextCursor *string `json:"nextCursor,omitempty"`
+}
+
+// LoanOrigin defines model for LoanOrigin.
+type LoanOrigin string
+
+// LoanStatus defines model for LoanStatus.
+type LoanStatus string
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	TotpCode string `json:"totpCode"`
+}
+
+// MessageTone defines model for MessageTone.
+type MessageTone string
+
+// Outcome defines model for Outcome.
+type Outcome struct {
+	Device       *SessionDevice `json:"device,omitempty"`
+	DueAt        *time.Time     `json:"dueAt,omitempty"`
+	Kind         OutcomeKind    `json:"kind"`
+	LoanId       *string        `json:"loanId,omitempty"`
+	NewSessionId *string        `json:"newSessionId,omitempty"`
+}
+
+// OutcomeKind defines model for OutcomeKind.
+type OutcomeKind string
+
+// PairKioskRequest defines model for PairKioskRequest.
+type PairKioskRequest struct {
+	Code string `json:"code"`
+}
+
+// PairKioskResponse defines model for PairKioskResponse.
+type PairKioskResponse struct {
+	KioskId string `json:"kioskId"`
+	Name    string `json:"name"`
+	Token   string `json:"token"`
 }
 
 // Problem defines model for Problem.
@@ -703,9 +1014,85 @@ type ResolvedCredential struct {
 // ResolvedCredentialType Resolve's subject discriminator. "unbound" is a successful resolution of a real, unbound blank card (INV-12) — not an error.
 type ResolvedCredentialType string
 
+// ReturnSessionLoanRequest defines model for ReturnSessionLoanRequest.
+type ReturnSessionLoanRequest struct {
+	LoanId string `json:"loanId"`
+}
+
 // RevokeCredentialRequest defines model for RevokeCredentialRequest.
 type RevokeCredentialRequest struct {
 	Reason string `json:"reason"`
+}
+
+// ScanRejectionSummary defines model for ScanRejectionSummary.
+type ScanRejectionSummary struct {
+	DistinctTokens int    `json:"distinctTokens"`
+	ResolvedType   string `json:"resolvedType"`
+	TotalScans     int    `json:"totalScans"`
+}
+
+// ScanRequest defines model for ScanRequest.
+type ScanRequest struct {
+	ScannedAt *time.Time `json:"scannedAt,omitempty"`
+	Source    ScanSource `json:"source"`
+	Token     string     `json:"token"`
+}
+
+// ScanResult defines model for ScanResult.
+type ScanResult struct {
+	Message   SessionMessage    `json:"message"`
+	OpenLoans []SessionOpenLoan `json:"openLoans"`
+	Outcome   Outcome           `json:"outcome"`
+	Session   Session           `json:"session"`
+}
+
+// ScanSource defines model for ScanSource.
+type ScanSource string
+
+// Session defines model for Session.
+type Session struct {
+	ExpiresAt     time.Time      `json:"expiresAt"`
+	Id            string         `json:"id"`
+	KioskId       string         `json:"kioskId"`
+	PendingDevice *SessionDevice `json:"pendingDevice,omitempty"`
+	StartedAt     time.Time      `json:"startedAt"`
+	State         SessionState   `json:"state"`
+	User          *SessionUser   `json:"user,omitempty"`
+}
+
+// SessionDevice defines model for SessionDevice.
+type SessionDevice struct {
+	AssetTag string `json:"assetTag"`
+	Id       string `json:"id"`
+	Name     string `json:"name"`
+}
+
+// SessionMessage defines model for SessionMessage.
+type SessionMessage struct {
+	Detail string      `json:"detail"`
+	Title  string      `json:"title"`
+	Tone   MessageTone `json:"tone"`
+}
+
+// SessionOpenLoan defines model for SessionOpenLoan.
+type SessionOpenLoan struct {
+	AssetTag   string     `json:"assetTag"`
+	BorrowedAt time.Time  `json:"borrowedAt"`
+	DeviceId   string     `json:"deviceId"`
+	DeviceName string     `json:"deviceName"`
+	DueAt      *time.Time `json:"dueAt,omitempty"`
+	Id         string     `json:"id"`
+}
+
+// SessionState defines model for SessionState.
+type SessionState string
+
+// SessionUser defines model for SessionUser.
+type SessionUser struct {
+	Department    string `json:"department"`
+	FullName      string `json:"fullName"`
+	Id            string `json:"id"`
+	OpenLoanCount int    `json:"openLoanCount"`
 }
 
 // SetDeviceStatusRequest defines model for SetDeviceStatusRequest.
@@ -780,6 +1167,11 @@ type UserList struct {
 // UserStatus defines model for UserStatus.
 type UserStatus string
 
+// WriteOffLoanRequest defines model for WriteOffLoanRequest.
+type WriteOffLoanRequest struct {
+	Reason string `json:"reason"`
+}
+
 // CategoryFilter defines model for CategoryFilter.
 type CategoryFilter = string
 
@@ -843,6 +1235,97 @@ type ListDevicesParams struct {
 	Limit    *LimitParam         `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListDeviceLoansParams defines parameters for ListDeviceLoans.
+type ListDeviceLoansParams struct {
+	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetEventsStreamParams defines parameters for GetEventsStream.
+type GetEventsStreamParams struct {
+	// LastEventID Outbox event ID to replay missed events from.
+	LastEventID *string `json:"Last-Event-ID,omitempty"`
+}
+
+// CreateKioskParams defines parameters for CreateKiosk.
+type CreateKioskParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// PairKioskParams defines parameters for PairKiosk.
+type PairKioskParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DisableKioskParams defines parameters for DisableKiosk.
+type DisableKioskParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateKioskPairingCodeParams defines parameters for CreateKioskPairingCode.
+type CreateKioskPairingCodeParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// RotateKioskTokenParams defines parameters for RotateKioskToken.
+type RotateKioskTokenParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ListLoansParams defines parameters for ListLoans.
+type ListLoansParams struct {
+	Status   *LoanStatus  `form:"status,omitempty" json:"status,omitempty"`
+	Origin   *LoanOrigin  `form:"origin,omitempty" json:"origin,omitempty"`
+	UserId   *string      `form:"userId,omitempty" json:"userId,omitempty"`
+	DeviceId *string      `form:"deviceId,omitempty" json:"deviceId,omitempty"`
+	From     *time.Time   `form:"from,omitempty" json:"from,omitempty"`
+	To       *time.Time   `form:"to,omitempty" json:"to,omitempty"`
+	Disputed *bool        `form:"disputed,omitempty" json:"disputed,omitempty"`
+	Cursor   *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit    *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ForceReturnLoanParams defines parameters for ForceReturnLoan.
+type ForceReturnLoanParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// WriteOffLoanParams defines parameters for WriteOffLoan.
+type WriteOffLoanParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateSessionParams defines parameters for CreateSession.
+type CreateSessionParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CloseSessionParams defines parameters for CloseSession.
+type CloseSessionParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ReturnSessionLoanParams defines parameters for ReturnSessionLoan.
+type ReturnSessionLoanParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// SubmitScanParams defines parameters for SubmitScan.
+type SubmitScanParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListUsersParams defines parameters for ListUsers.
 type ListUsersParams struct {
 	Status     *UserStatusFilter `form:"status,omitempty" json:"status,omitempty"`
@@ -850,6 +1333,12 @@ type ListUsersParams struct {
 	Q          *QueryFilter      `form:"q,omitempty" json:"q,omitempty"`
 	Cursor     *CursorParam      `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit      *LimitParam       `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListUserLoansParams defines parameters for ListUserLoans.
+type ListUserLoansParams struct {
+	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
@@ -890,6 +1379,24 @@ type UpdateDeviceJSONRequestBody = UpdateDeviceRequest
 
 // SetDeviceStatusJSONRequestBody defines body for SetDeviceStatus for application/json ContentType.
 type SetDeviceStatusJSONRequestBody = SetDeviceStatusRequest
+
+// CreateKioskJSONRequestBody defines body for CreateKiosk for application/json ContentType.
+type CreateKioskJSONRequestBody = CreateKioskRequest
+
+// PairKioskJSONRequestBody defines body for PairKiosk for application/json ContentType.
+type PairKioskJSONRequestBody = PairKioskRequest
+
+// ForceReturnLoanJSONRequestBody defines body for ForceReturnLoan for application/json ContentType.
+type ForceReturnLoanJSONRequestBody = ForceReturnLoanRequest
+
+// WriteOffLoanJSONRequestBody defines body for WriteOffLoan for application/json ContentType.
+type WriteOffLoanJSONRequestBody = WriteOffLoanRequest
+
+// ReturnSessionLoanJSONRequestBody defines body for ReturnSessionLoan for application/json ContentType.
+type ReturnSessionLoanJSONRequestBody = ReturnSessionLoanRequest
+
+// SubmitScanJSONRequestBody defines body for SubmitScan for application/json ContentType.
+type SubmitScanJSONRequestBody = ScanRequest
 
 // CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
 type CreateUserJSONRequestBody = CreateUserRequest
@@ -962,6 +1469,9 @@ type ServerInterface interface {
 	// RevokeCredential Kill a token permanently, with no replacement minted.
 	// (POST /credentials/{id}/revoke)
 	RevokeCredential(w http.ResponseWriter, r *http.Request, id IDParam)
+	// GetDashboard Dashboard summary counts, overdue loans, availability by category, scan rejections, and paper backfill nag.
+	// (GET /dashboard)
+	GetDashboard(w http.ResponseWriter, r *http.Request)
 	// ListDepartments List departments, for the department picker on user forms.
 	// (GET /departments)
 	ListDepartments(w http.ResponseWriter, r *http.Request)
@@ -977,15 +1487,69 @@ type ServerInterface interface {
 	// UpdateDevice Edit a device's fields, including its condition.
 	// (PATCH /devices/{id})
 	UpdateDevice(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ListDeviceLoans List loan history for one device.
+	// (GET /devices/{id}/loans)
+	ListDeviceLoans(w http.ResponseWriter, r *http.Request, id IDParam, params ListDeviceLoansParams)
 	// SetDeviceStatus Drive the device status lifecycle. Requires a reason for every transition except registration.
 	// (POST /devices/{id}/status)
 	SetDeviceStatus(w http.ResponseWriter, r *http.Request, id IDParam)
+	// GetEventsStream Server-Sent Events stream of domain events for live dashboard and admin updates.
+	// (GET /events/stream)
+	GetEventsStream(w http.ResponseWriter, r *http.Request, params GetEventsStreamParams)
 	// GetHealthz Liveness probe. No auth.
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
+	// ListKiosks List registered kiosks.
+	// (GET /kiosks)
+	ListKiosks(w http.ResponseWriter, r *http.Request)
+	// CreateKiosk Register a new kiosk. The bearer token is returned exactly once.
+	// (POST /kiosks)
+	CreateKiosk(w http.ResponseWriter, r *http.Request, params CreateKioskParams)
+	// PairKiosk Redeem a pairing code for a working kiosk bearer token. Unauthenticated, rate-limited to 5 attempts/min per IP.
+	// (POST /kiosks/pair)
+	PairKiosk(w http.ResponseWriter, r *http.Request, params PairKioskParams)
+	// DisableKiosk Disable a kiosk, immediately rejecting any future requests from it.
+	// (POST /kiosks/{id}/disable)
+	DisableKiosk(w http.ResponseWriter, r *http.Request, id IDParam, params DisableKioskParams)
+	// CreateKioskPairingCode Generate a short-lived single-use pairing code for an iPad kiosk.
+	// (POST /kiosks/{id}/pairing-code)
+	CreateKioskPairingCode(w http.ResponseWriter, r *http.Request, id IDParam, params CreateKioskPairingCodeParams)
+	// RotateKioskToken Mint a fresh bearer token for a kiosk, invalidating the previous one.
+	// (POST /kiosks/{id}/rotate-token)
+	RotateKioskToken(w http.ResponseWriter, r *http.Request, id IDParam, params RotateKioskTokenParams)
+	// ListLoans List loans with optional filters and cursor pagination.
+	// (GET /loans)
+	ListLoans(w http.ResponseWriter, r *http.Request, params ListLoansParams)
+	// GetLoan Fetch one loan by id.
+	// (GET /loans/{id})
+	GetLoan(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ForceReturnLoan Administratively close an open loan. Requires a reason.
+	// (POST /loans/{id}/force-return)
+	ForceReturnLoan(w http.ResponseWriter, r *http.Request, id IDParam, params ForceReturnLoanParams)
+	// WriteOffLoan Close an open loan as written-off (declared lost or destroyed).
+	// (POST /loans/{id}/write-off)
+	WriteOffLoan(w http.ResponseWriter, r *http.Request, id IDParam, params WriteOffLoanParams)
 	// GetReadyz Readiness probe, including the database. No auth.
 	// (GET /readyz)
 	GetReadyz(w http.ResponseWriter, r *http.Request)
+	// CreateSession Create a scan session.
+	// (POST /sessions)
+	CreateSession(w http.ResponseWriter, r *http.Request, params CreateSessionParams)
+	// CancelSession Cancel a scan session.
+	// (DELETE /sessions/{id})
+	CancelSession(w http.ResponseWriter, r *http.Request, id IDParam)
+	// GetSession Current state of a scan session (recovery after reload).
+	// (GET /sessions/{id})
+	GetSession(w http.ResponseWriter, r *http.Request, id IDParam)
+	// CloseSession Finish a scan session ("Done").
+	// (POST /sessions/{id}/close)
+	CloseSession(w http.ResponseWriter, r *http.Request, id IDParam, params CloseSessionParams)
+	// ReturnSessionLoan Return an open loan by selecting it directly rather than scanning.
+	// (POST /sessions/{id}/return-loan)
+	ReturnSessionLoan(w http.ResponseWriter, r *http.Request, id IDParam, params ReturnSessionLoanParams)
+	// SubmitScan Submit a scanned token.
+	// (POST /sessions/{id}/scan)
+	SubmitScan(w http.ResponseWriter, r *http.Request, id IDParam, params SubmitScanParams)
 	// ListUsers List users.
 	// (GET /users)
 	ListUsers(w http.ResponseWriter, r *http.Request, params ListUsersParams)
@@ -1001,6 +1565,9 @@ type ServerInterface interface {
 	// UpdateUser Edit a user's fields. Employee number is not editable — it is the bulk-import matching key.
 	// (PATCH /users/{id})
 	UpdateUser(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ListUserLoans List loan history for one user.
+	// (GET /users/{id}/loans)
+	ListUserLoans(w http.ResponseWriter, r *http.Request, id IDParam, params ListUserLoansParams)
 	// SuspendUser Suspend a borrower, recording why.
 	// (POST /users/{id}/suspend)
 	SuspendUser(w http.ResponseWriter, r *http.Request, id IDParam)
@@ -1471,6 +2038,20 @@ func (siw *ServerInterfaceWrapper) RevokeCredential(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// GetDashboard operation middleware
+func (siw *ServerInterfaceWrapper) GetDashboard(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDashboard(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListDepartments operation middleware
 func (siw *ServerInterfaceWrapper) ListDepartments(w http.ResponseWriter, r *http.Request) {
 
@@ -1636,6 +2217,61 @@ func (siw *ServerInterfaceWrapper) UpdateDevice(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListDeviceLoans operation middleware
+func (siw *ServerInterfaceWrapper) ListDeviceLoans(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDeviceLoansParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDeviceLoans(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetDeviceStatus operation middleware
 func (siw *ServerInterfaceWrapper) SetDeviceStatus(w http.ResponseWriter, r *http.Request) {
 
@@ -1662,6 +2298,47 @@ func (siw *ServerInterfaceWrapper) SetDeviceStatus(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// GetEventsStream operation middleware
+func (siw *ServerInterfaceWrapper) GetEventsStream(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetEventsStreamParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Last-Event-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Last-Event-ID")]; found {
+		var LastEventID string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Last-Event-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Last-Event-ID", valueList[0], &LastEventID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Last-Event-ID", Err: err})
+			return
+		}
+
+		params.LastEventID = &LastEventID
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEventsStream(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealthz operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Request) {
 
@@ -1676,11 +2353,763 @@ func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListKiosks operation middleware
+func (siw *ServerInterfaceWrapper) ListKiosks(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListKiosks(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateKiosk operation middleware
+func (siw *ServerInterfaceWrapper) CreateKiosk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateKioskParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateKiosk(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PairKiosk operation middleware
+func (siw *ServerInterfaceWrapper) PairKiosk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PairKioskParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PairKiosk(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableKiosk operation middleware
+func (siw *ServerInterfaceWrapper) DisableKiosk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DisableKioskParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableKiosk(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateKioskPairingCode operation middleware
+func (siw *ServerInterfaceWrapper) CreateKioskPairingCode(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateKioskPairingCodeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateKioskPairingCode(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateKioskToken operation middleware
+func (siw *ServerInterfaceWrapper) RotateKioskToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateKioskTokenParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateKioskToken(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLoans operation middleware
+func (siw *ServerInterfaceWrapper) ListLoans(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListLoansParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "origin" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "origin", r.URL.Query(), &params.Origin, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "origin"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "origin", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "userId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "userId", r.URL.Query(), &params.UserId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "userId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "deviceId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "deviceId", r.URL.Query(), &params.DeviceId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "deviceId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "deviceId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "disputed" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "disputed", r.URL.Query(), &params.Disputed, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "disputed"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "disputed", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLoans(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetLoan operation middleware
+func (siw *ServerInterfaceWrapper) GetLoan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLoan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ForceReturnLoan operation middleware
+func (siw *ServerInterfaceWrapper) ForceReturnLoan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ForceReturnLoanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForceReturnLoan(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WriteOffLoan operation middleware
+func (siw *ServerInterfaceWrapper) WriteOffLoan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params WriteOffLoanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WriteOffLoan(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetReadyz operation middleware
 func (siw *ServerInterfaceWrapper) GetReadyz(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetReadyz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSession operation middleware
+func (siw *ServerInterfaceWrapper) CreateSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateSessionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSession(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelSession operation middleware
+func (siw *ServerInterfaceWrapper) CancelSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelSession(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSession operation middleware
+func (siw *ServerInterfaceWrapper) GetSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSession(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CloseSession operation middleware
+func (siw *ServerInterfaceWrapper) CloseSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CloseSessionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CloseSession(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReturnSessionLoan operation middleware
+func (siw *ServerInterfaceWrapper) ReturnSessionLoan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReturnSessionLoanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReturnSessionLoan(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitScan operation middleware
+func (siw *ServerInterfaceWrapper) SubmitScan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SubmitScanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitScan(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1846,6 +3275,61 @@ func (siw *ServerInterfaceWrapper) UpdateUser(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateUser(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListUserLoans operation middleware
+func (siw *ServerInterfaceWrapper) ListUserLoans(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListUserLoansParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUserLoans(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2034,6 +3518,26 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backfill/preview", wrapper.PreviewBackfillBatch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backfill", wrapper.RecordBackfillBatch)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backfill/last-entry", wrapper.GetBackfillLastEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sessions", wrapper.CreateSession)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sessions/{id}", wrapper.CancelSession)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sessions/{id}", wrapper.GetSession)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sessions/{id}/scan", wrapper.SubmitScan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sessions/{id}/return-loan", wrapper.ReturnSessionLoan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sessions/{id}/close", wrapper.CloseSession)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/loans", wrapper.ListLoans)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/loans/{id}", wrapper.GetLoan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/loans/{id}/force-return", wrapper.ForceReturnLoan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/loans/{id}/write-off", wrapper.WriteOffLoan)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/devices/{id}/loans", wrapper.ListDeviceLoans)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/users/{id}/loans", wrapper.ListUserLoans)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboard", wrapper.GetDashboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/events/stream", wrapper.GetEventsStream)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/kiosks", wrapper.ListKiosks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks", wrapper.CreateKiosk)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/{id}/rotate-token", wrapper.RotateKioskToken)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/{id}/disable", wrapper.DisableKiosk)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/{id}/pairing-code", wrapper.CreateKioskPairingCode)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/pair", wrapper.PairKiosk)
 
 	return m
 }
@@ -2043,108 +3547,143 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -416,6 +416,219 @@ export const zBackfillLastEntry = z.object({
     recordedBy: z.string().optional()
 });
 
+export const zSessionState = z.enum([
+    'idle',
+    'awaiting_user',
+    'awaiting_device',
+    'ready',
+    'completed',
+    'expired',
+    'cancelled'
+]);
+
+export const zSessionUser = z.object({
+    id: z.string(),
+    fullName: z.string(),
+    department: z.string(),
+    openLoanCount: z.int()
+});
+
+export const zSessionDevice = z.object({
+    id: z.string(),
+    assetTag: z.string(),
+    name: z.string()
+});
+
+export const zSessionOpenLoan = z.object({
+    id: z.string(),
+    deviceId: z.string(),
+    assetTag: z.string(),
+    deviceName: z.string(),
+    borrowedAt: z.iso.datetime(),
+    dueAt: z.iso.datetime().optional()
+});
+
+export const zSession = z.object({
+    id: z.string(),
+    kioskId: z.string(),
+    state: zSessionState,
+    user: zSessionUser.optional(),
+    pendingDevice: zSessionDevice.optional(),
+    startedAt: z.iso.datetime(),
+    expiresAt: z.iso.datetime()
+});
+
+export const zOutcomeKind = z.enum([
+    'device_pending',
+    'user_identified',
+    'borrowed',
+    'returned',
+    'rejected',
+    'duplicate',
+    'user_switched'
+]);
+
+export const zMessageTone = z.enum([
+    'success',
+    'info',
+    'warning',
+    'error'
+]);
+
+export const zSessionMessage = z.object({
+    title: z.string(),
+    detail: z.string(),
+    tone: zMessageTone
+});
+
+export const zOutcome = z.object({
+    kind: zOutcomeKind,
+    loanId: z.string().optional(),
+    device: zSessionDevice.optional(),
+    dueAt: z.iso.datetime().optional(),
+    newSessionId: z.string().optional()
+});
+
+export const zScanResult = z.object({
+    session: zSession,
+    outcome: zOutcome,
+    openLoans: z.array(zSessionOpenLoan),
+    message: zSessionMessage
+});
+
+export const zScanSource = z.enum([
+    'scanner',
+    'camera',
+    'manual'
+]);
+
+export const zScanRequest = z.object({
+    token: z.string(),
+    source: zScanSource,
+    scannedAt: z.iso.datetime().optional()
+});
+
+export const zReturnSessionLoanRequest = z.object({
+    loanId: z.string()
+});
+
+export const zLoanStatus = z.enum([
+    'open',
+    'returned',
+    'written_off'
+]);
+
+export const zLoanOrigin = z.enum([
+    'kiosk',
+    'admin',
+    'paper',
+    'import'
+]);
+
+export const zLoan = z.object({
+    id: z.string(),
+    deviceId: z.string(),
+    userId: z.string(),
+    status: zLoanStatus,
+    origin: zLoanOrigin,
+    borrowedAt: z.iso.datetime(),
+    dueAt: z.iso.datetime().optional(),
+    returnedAt: z.iso.datetime().optional(),
+    borrowKioskId: z.string().optional(),
+    returnKioskId: z.string().optional(),
+    borrowActor: z.string(),
+    returnActor: z.string().optional(),
+    borrowSource: z.string(),
+    returnSource: z.string().optional(),
+    conditionOut: z.string().optional(),
+    conditionIn: z.string().optional(),
+    notes: z.string().optional(),
+    sessionId: z.string().optional(),
+    paperRef: z.string().optional(),
+    recordedAt: z.iso.datetime().optional(),
+    recordedBy: z.string().optional(),
+    backfillNote: z.string().optional(),
+    disputed: z.boolean()
+});
+
+export const zLoanList = z.object({
+    items: z.array(zLoan),
+    nextCursor: z.string().optional()
+});
+
+export const zForceReturnLoanRequest = z.object({
+    reason: z.string(),
+    conditionIn: zDeviceCondition.optional(),
+    returnedAt: z.iso.datetime().optional()
+});
+
+export const zWriteOffLoanRequest = z.object({
+    reason: z.string()
+});
+
+export const zCategoryAvailability = z.object({
+    categoryId: z.string(),
+    categoryName: z.string(),
+    availableCount: z.int(),
+    totalCount: z.int()
+});
+
+export const zScanRejectionSummary = z.object({
+    resolvedType: z.string(),
+    distinctTokens: z.int(),
+    totalScans: z.int()
+});
+
+export const zDashboard = z.object({
+    onLoanCount: z.int(),
+    overdueCount: z.int(),
+    availableCount: z.int(),
+    maintenanceCount: z.int(),
+    availabilityByCategory: z.array(zCategoryAvailability),
+    turnedAwayCounts: z.array(zScanRejectionSummary),
+    lastPaperEntry: zBackfillLastEntry.optional()
+});
+
+export const zKioskStatus = z.enum(['active', 'disabled']);
+
+export const zKiosk = z.object({
+    id: z.string(),
+    name: z.string(),
+    location: z.string().optional(),
+    enabledSources: z.array(z.string()),
+    status: zKioskStatus,
+    lastSeenAt: z.iso.datetime().optional(),
+    createdAt: z.iso.datetime()
+});
+
+export const zKioskWithToken = zKiosk.and(z.object({
+    token: z.string()
+}));
+
+export const zKioskList = z.object({
+    items: z.array(zKiosk)
+});
+
+export const zCreateKioskRequest = z.object({
+    name: z.string(),
+    location: z.string().optional()
+});
+
+export const zKioskPairingCode = z.object({
+    code: z.string(),
+    expiresAt: z.iso.datetime()
+});
+
+export const zPairKioskRequest = z.object({
+    code: z.string()
+});
+
+export const zPairKioskResponse = z.object({
+    kioskId: z.string(),
+    name: z.string(),
+    token: z.string()
+});
+
 export const zIdParam = z.string();
 
 export const zCursorParam = z.string();
@@ -718,3 +931,237 @@ export const zGetBackfillLastEntryResponse = z.union([
     zBackfillLastEntry,
     z.void()
 ]);
+
+export const zCreateSessionHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+/**
+ * Created.
+ */
+export const zCreateSessionResponse = zSession;
+
+export const zCancelSessionPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Session cancelled.
+ */
+export const zCancelSessionResponse = zSession;
+
+export const zGetSessionPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetSessionResponse = zSession;
+
+export const zSubmitScanBody = zScanRequest;
+
+export const zSubmitScanHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zSubmitScanPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Complete session state and outcome. Rejections are 200 with outcome.kind = "rejected".
+ */
+export const zSubmitScanResponse = zScanResult;
+
+export const zReturnSessionLoanBody = zReturnSessionLoanRequest;
+
+export const zReturnSessionLoanHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zReturnSessionLoanPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Complete session state and outcome.
+ */
+export const zReturnSessionLoanResponse = zScanResult;
+
+export const zCloseSessionHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zCloseSessionPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Session closed.
+ */
+export const zCloseSessionResponse = zSession;
+
+export const zListLoansQuery = z.object({
+    status: zLoanStatus.optional(),
+    origin: zLoanOrigin.optional(),
+    userId: z.string().optional(),
+    deviceId: z.string().optional(),
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional(),
+    disputed: z.boolean().optional(),
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListLoansResponse = zLoanList;
+
+export const zGetLoanPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetLoanResponse = zLoan;
+
+export const zForceReturnLoanBody = zForceReturnLoanRequest;
+
+export const zForceReturnLoanHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zForceReturnLoanPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zForceReturnLoanResponse = zLoan;
+
+export const zWriteOffLoanBody = zWriteOffLoanRequest;
+
+export const zWriteOffLoanHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zWriteOffLoanPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zWriteOffLoanResponse = zLoan;
+
+export const zListDeviceLoansPath = z.object({
+    id: z.string()
+});
+
+export const zListDeviceLoansQuery = z.object({
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListDeviceLoansResponse = zLoanList;
+
+export const zListUserLoansPath = z.object({
+    id: z.string()
+});
+
+export const zListUserLoansQuery = z.object({
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListUserLoansResponse = zLoanList;
+
+/**
+ * OK.
+ */
+export const zGetDashboardResponse = zDashboard;
+
+export const zGetEventsStreamHeaders = z.object({
+    'Last-Event-ID': z.string().optional()
+});
+
+/**
+ * Server-Sent Events stream.
+ */
+export const zGetEventsStreamResponse = z.string();
+
+/**
+ * OK.
+ */
+export const zListKiosksResponse = zKioskList;
+
+export const zCreateKioskBody = zCreateKioskRequest;
+
+export const zCreateKioskHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+/**
+ * Created. Never cached.
+ */
+export const zCreateKioskResponse = zKioskWithToken;
+
+export const zRotateKioskTokenHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zRotateKioskTokenPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK. Never cached.
+ */
+export const zRotateKioskTokenResponse = zKioskWithToken;
+
+export const zDisableKioskHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zDisableKioskPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zDisableKioskResponse = zKiosk;
+
+export const zCreateKioskPairingCodeHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zCreateKioskPairingCodePath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK. Never cached.
+ */
+export const zCreateKioskPairingCodeResponse = zKioskPairingCode;
+
+export const zPairKioskBody = zPairKioskRequest;
+
+export const zPairKioskHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+/**
+ * OK. Never cached.
+ */
+export const zPairKioskResponse2 = zPairKioskResponse;

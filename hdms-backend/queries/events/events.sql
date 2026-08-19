@@ -55,3 +55,10 @@ SELECT count(*) FROM outbox WHERE failed_at IS NOT NULL;
 -- Only ever deletes rows that were successfully published: a dead-lettered
 -- row is evidence of a bug and is kept until someone deals with it.
 DELETE FROM outbox WHERE published_at IS NOT NULL AND published_at < now() - interval '7 days';
+
+-- name: GetPublishedEventsAfter :many
+SELECT id, topic, payload, created_at, published_at
+FROM outbox
+WHERE id > $1 AND published_at IS NOT NULL
+ORDER BY id ASC
+LIMIT $2;

@@ -19,9 +19,10 @@ const (
 // generator (no strict-server/security-options config), so this is a plain
 // path allowlist rather than something derived from the spec.
 var unauthenticatedPaths = map[string]struct{}{
-	"/v1/healthz":    {},
-	"/v1/readyz":     {},
-	"/v1/auth/login": {},
+	"/v1/healthz":     {},
+	"/v1/readyz":      {},
+	"/v1/auth/login":  {},
+	"/v1/kiosks/pair": {},
 }
 
 // Middleware validates the admin session cookie (or, failing that, a kiosk
@@ -50,7 +51,9 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 			if refuseOutOfScopeKiosk(w, r) {
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(contextWithKiosk(r.Context(), kiosk)))
+			ctx := contextWithKiosk(r.Context(), kiosk)
+			ctx = httpx.ContextWithActor(ctx, "kiosk:"+kiosk.ID)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
@@ -77,7 +80,9 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 			}
 		}
 
-		next.ServeHTTP(w, r.WithContext(contextWithAdmin(r.Context(), validated.Admin)))
+		ctx := contextWithAdmin(r.Context(), validated.Admin)
+		ctx = httpx.ContextWithActor(ctx, "admin:"+validated.Admin.ID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

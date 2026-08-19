@@ -83,3 +83,19 @@ UPDATE kiosks
 SET token_hash = $2, pairing_code_hash = NULL, pairing_code_expires_at = NULL
 WHERE id = $1 AND pairing_code_hash = $3
 RETURNING id, name;
+
+-- name: ListKiosks :many
+SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+FROM kiosks
+ORDER BY created_at ASC;
+
+-- name: GetKioskByID :one
+SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+FROM kiosks
+WHERE id = $1;
+
+-- name: DisableKiosk :one
+UPDATE kiosks
+SET status = 'disabled'
+WHERE id = $1
+RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at;

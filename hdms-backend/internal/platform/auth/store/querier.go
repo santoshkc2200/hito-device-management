@@ -15,11 +15,13 @@ type Querier interface {
 	CreateKiosk(ctx context.Context, arg CreateKioskParams) (CreateKioskRow, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (AdminSession, error)
 	DeleteSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) error
+	DisableKiosk(ctx context.Context, id pgtype.UUID) (DisableKioskRow, error)
 	// Only used at login, where a non-existent email must fail the same way a
 	// wrong password does (no user enumeration) — the caller compares errors,
 	// not this query's behaviour, to keep that response uniform.
 	GetAdminAccountByEmail(ctx context.Context, lower string) (AdminAccount, error)
 	GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (AdminAccount, error)
+	GetKioskByID(ctx context.Context, id pgtype.UUID) (GetKioskByIDRow, error)
 	// Scoped to active kiosks so a disabled kiosk's stale pairing code (if any)
 	// cannot be redeemed.
 	GetKioskByPairingCodeHash(ctx context.Context, pairingCodeHash []byte) (GetKioskByPairingCodeHashRow, error)
@@ -27,6 +29,7 @@ type Querier interface {
 	// Joins the owning account so the middleware can reject a disabled account
 	// on every request without a second round trip.
 	GetSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) (GetSessionByTokenHashRow, error)
+	ListKiosks(ctx context.Context) ([]ListKiosksRow, error)
 	// Consumes the code and installs the freshly minted token in one statement,
 	// so a redeemed code can never be replayed. The pairing_code_hash predicate
 	// is what makes that true under concurrency as well as sequentially: two

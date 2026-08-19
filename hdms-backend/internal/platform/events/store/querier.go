@@ -25,6 +25,7 @@ type Querier interface {
 	// and folding them in would make a permanent failure look like a growing
 	// backlog forever.
 	CountUnpublished(ctx context.Context) (int64, error)
+	GetPublishedEventsAfter(ctx context.Context, arg GetPublishedEventsAfterParams) ([]GetPublishedEventsAfterRow, error)
 	MarkPublished(ctx context.Context, id int64) error
 	PublishEvent(ctx context.Context, arg PublishEventParams) error
 	// Counts one failed dispatch against a row and pushes its next attempt out

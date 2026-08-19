@@ -11,6 +11,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // pairingCodeTTL is how long a pairing code minted by IssuePairingCode stays
@@ -22,9 +23,84 @@ var (
 	ErrPairingCodeInvalid = errors.New("auth: pairing code invalid or expired")
 )
 
+// Kiosk is the read model for a registered kiosk.
+type Kiosk struct {
+	ID             string
+	Name           string
+	Location       string
+	EnabledSources []string
+	Status         string // "active" | "disabled"
+	LastSeenAt     *time.Time
+	CreatedAt      time.Time
+}
+
+func mapKioskRow(id pgtype.UUID, name string, location pgtype.Text, sources []string, status authstore.KioskStatus, lastSeen pgtype.Timestamptz, createdAt pgtype.Timestamptz) Kiosk {
+	var lastSeenAt *time.Time
+	if lastSeen.Valid {
+		t := pgtypeconv.Time(lastSeen)
+		lastSeenAt = &t
+	}
+	return Kiosk{
+		ID:             pgtypeconv.UUIDString(id),
+		Name:           name,
+		Location:       pgtypeconv.TextString(location),
+		EnabledSources: sources,
+		Status:         string(status),
+		LastSeenAt:     lastSeenAt,
+		CreatedAt:      pgtypeconv.Time(createdAt),
+	}
+}
+
+// ListKiosks returns all kiosks ordered by creation time.
+func (s *Service) ListKiosks(ctx context.Context) ([]Kiosk, error) {
+	q := authstore.New(db.Conn(ctx, s.pool))
+	rows, err := q.ListKiosks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("auth: list kiosks: %w", err)
+	}
+	items := make([]Kiosk, len(rows))
+	for i, r := range rows {
+		items[i] = mapKioskRow(r.ID, r.Name, r.Location, r.EnabledSources, r.Status, r.LastSeenAt, r.CreatedAt)
+	}
+	return items, nil
+}
+
+// GetKiosk fetches a kiosk by its ID.
+func (s *Service) GetKiosk(ctx context.Context, kioskID string) (Kiosk, error) {
+	pid, err := pgtypeconv.UUID(kioskID)
+	if err != nil {
+		return Kiosk{}, fmt.Errorf("auth: invalid kiosk id: %w", err)
+	}
+	q := authstore.New(db.Conn(ctx, s.pool))
+	row, err := q.GetKioskByID(ctx, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Kiosk{}, ErrKioskNotFound
+		}
+		return Kiosk{}, fmt.Errorf("auth: get kiosk: %w", err)
+	}
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+}
+
+// DisableKiosk marks a kiosk as disabled.
+func (s *Service) DisableKiosk(ctx context.Context, kioskID string) (Kiosk, error) {
+	pid, err := pgtypeconv.UUID(kioskID)
+	if err != nil {
+		return Kiosk{}, fmt.Errorf("auth: invalid kiosk id: %w", err)
+	}
+	q := authstore.New(db.Conn(ctx, s.pool))
+	row, err := q.DisableKiosk(ctx, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Kiosk{}, ErrKioskNotFound
+		}
+		return Kiosk{}, fmt.Errorf("auth: disable kiosk: %w", err)
+	}
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+}
+
 // RegisterKiosk mints a new kiosk row and its bearer token, returning the
-// plaintext token — the only time it is ever available again. There is no
-// HTTP endpoint for this in Phase 2; only hdms-cli kiosk register calls it.
+// plaintext token — the only time it is ever available again.
 func (s *Service) RegisterKiosk(ctx context.Context, name, location string) (id, plainToken string, err error) {
 	plainToken, err = randomToken(32)
 	if err != nil {

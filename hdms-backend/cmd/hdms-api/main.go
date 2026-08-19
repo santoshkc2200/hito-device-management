@@ -107,7 +107,8 @@ func run() error {
 		sweeper.Stop(stopCtx)
 	}()
 
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc)
+	sseHub := events.NewSSEHub(pool, bus, logger)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, sseHub)
 
 	// actorOf scopes an idempotency key to the caller (2.5): a kiosk's key
 	// never collides with an admin's. httpx cannot import auth directly

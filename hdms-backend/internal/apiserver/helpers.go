@@ -7,11 +7,18 @@ import (
 	"strings"
 
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
+	"github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi"
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
+	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 )
+
+// setNoStore sets Cache-Control: no-store on sensitive responses containing tokens.
+func setNoStore(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
+}
 
 // actorFrom derives the audit/registeredBy actor string from the
 // authenticated admin on the request's context — "admin:<id>", never a
@@ -20,11 +27,13 @@ import (
 // is always present; the empty-string fallback only matters for tests that
 // call a handler directly without going through the middleware chain.
 func actorFrom(r *http.Request) string {
-	admin, ok := auth.AdminFromContext(r.Context())
-	if !ok {
-		return ""
+	if admin, ok := auth.AdminFromContext(r.Context()); ok {
+		return "admin:" + admin.ID
 	}
-	return "admin:" + admin.ID
+	if kiosk, ok := auth.KioskFromContext(r.Context()); ok {
+		return "kiosk:" + kiosk.ID
+	}
+	return ""
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -86,8 +95,71 @@ func fromPtr(s *string) string {
 // admin-API-specific ones documented alongside them. Unrecognised errors
 // fall back to a generic 500 — nothing here should mask a real bug as a
 // well-formed client error.
-func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
+func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
+	var devOnLoanErr *lendingapi.DeviceAlreadyOnLoanError
+	if errors.As(err, &devOnLoanErr) {
+		p := httpx.NewProblem("device-on-loan", "Device is already on loan", http.StatusConflict)
+		p.Detail = "This device is currently held by another staff member."
+		ext := map[string]any{"deviceId": devOnLoanErr.Existing.DeviceID}
+		if s.identity != nil {
+			if u, uErr := s.identity.LookupUser(r.Context(), devOnLoanErr.Existing.UserID); uErr == nil && u.DepartmentID != "" {
+				if dept, dErr := s.identity.LookupDepartment(r.Context(), u.DepartmentID); dErr == nil {
+					ext["holderDepartment"] = dept.Name
+				}
+			}
+		}
+		p.Extensions = ext
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+
+	var overlapErr *lendingapi.OverlappingCustodyError
+	if errors.As(err, &overlapErr) {
+		p := httpx.NewProblem("overlapping-custody", "Overlapping custody period", http.StatusConflict)
+		p.Detail = "The loan would overlap an existing custody window for this device."
+		p.Extensions = map[string]any{"deviceId": overlapErr.Existing.DeviceID}
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+
 	switch {
+	// Lending module errors
+	case errors.Is(err, lendingapi.ErrLoanNotFound):
+		httpx.WriteProblem(w, r, httpx.NewProblem("loan-not-found", "Loan not found", http.StatusNotFound))
+	case errors.Is(err, lendingapi.ErrLoanNotOpen):
+		httpx.WriteProblem(w, r, httpx.NewProblem("loan-not-open", "Loan is not open", http.StatusConflict))
+	case errors.Is(err, lendingapi.ErrDeviceAlreadyOnLoan):
+		httpx.WriteProblem(w, r, httpx.NewProblem("device-on-loan", "Device is already on loan", http.StatusConflict))
+	case errors.Is(err, lendingapi.ErrOverlappingCustody):
+		httpx.WriteProblem(w, r, httpx.NewProblem("overlapping-custody", "Overlapping custody period", http.StatusConflict))
+	case errors.Is(err, lendingapi.ErrBackdatedNotPermitted):
+		httpx.WriteProblem(w, r, httpx.NewProblem("backdated-not-permitted", "Backdated timestamps are only permitted via historical backfill", http.StatusUnprocessableEntity))
+	case errors.Is(err, lendingapi.ErrInvalidReturnTime):
+		writeValidationFailed(w, r, "returnedAt must be after borrowedAt", []string{"returnedAt"})
+	case errors.Is(err, lendingapi.ErrPaperProvenanceRequired):
+		writeValidationFailed(w, r, "paper loans require paperRef, recordedAt and recordedBy", nil)
+
+	// Checkout module errors
+	case errors.Is(err, checkoutapi.ErrSessionNotFound):
+		httpx.WriteProblem(w, r, httpx.NewProblem("session-not-found", "Session not found", http.StatusNotFound))
+	case errors.Is(err, checkoutapi.ErrSessionExpired):
+		httpx.WriteProblem(w, r, httpx.NewProblem("session-expired", "Session has expired", http.StatusGone))
+	case errors.Is(err, checkoutapi.ErrSessionClosed):
+		httpx.WriteProblem(w, r, httpx.NewProblem("session-conflict", "Session is already closed", http.StatusConflict))
+	case errors.Is(err, checkoutapi.ErrSessionConflict):
+		httpx.WriteProblem(w, r, httpx.NewProblem("session-conflict", "Concurrent modification of session", http.StatusConflict))
+	case errors.Is(err, checkoutapi.ErrInvalidTokenFormat):
+		httpx.WriteProblem(w, r, httpx.NewProblem("invalid-token-format", "Invalid token format or checksum", http.StatusBadRequest))
+	case errors.Is(err, checkoutapi.ErrHistoricalTimeInFuture):
+		writeValidationFailed(w, r, "historical timestamps cannot be in the future", nil)
+	case errors.Is(err, checkoutapi.ErrPaperRefRequired):
+		writeValidationFailed(w, r, "paperRef is required", []string{"paperRef"})
+	case errors.Is(err, checkoutapi.ErrEmptyPaperBatch):
+		writeValidationFailed(w, r, "batch must contain at least one row", []string{"rows"})
+	case errors.Is(err, checkoutapi.ErrPaperRowMalformed):
+		writeValidationFailed(w, r, "paper row is malformed", nil)
+
+	// Identity module errors
 	case errors.Is(err, identityapi.ErrUserNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("user-not-found", "User not found", http.StatusNotFound))
 	case errors.Is(err, identityapi.ErrEmployeeNoTaken):
@@ -95,6 +167,7 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, identityapi.ErrIllegalTransition):
 		httpx.WriteProblem(w, r, httpx.NewProblem("illegal-transition", "Illegal user status transition", http.StatusConflict))
 
+	// Catalog module errors
 	case errors.Is(err, catalogapi.ErrDeviceNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("device-not-found", "Device not found", http.StatusNotFound))
 	case errors.Is(err, catalogapi.ErrAssetTagTaken):
@@ -104,6 +177,7 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, catalogapi.ErrIllegalTransition):
 		httpx.WriteProblem(w, r, httpx.NewProblem("illegal-transition", "Illegal device status transition", http.StatusConflict))
 
+	// Credentials module errors
 	case errors.Is(err, credentialsapi.ErrCredentialUnknown):
 		httpx.WriteProblem(w, r, httpx.NewProblem("credential-unknown", "Token does not match any credential", http.StatusNotFound))
 	case errors.Is(err, credentialsapi.ErrCredentialNotFound):
@@ -121,18 +195,26 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, credentialsapi.ErrTokenAlreadyRegistered):
 		httpx.WriteProblem(w, r, httpx.NewProblem("credential-token-taken", "That token is already registered to a credential", http.StatusConflict))
 
+	// Auth errors
 	case errors.Is(err, auth.ErrInvalidCredentials), errors.Is(err, auth.ErrSessionInvalid):
 		httpx.WriteProblem(w, r, httpx.NewProblem("unauthorized", "Unauthorized", http.StatusUnauthorized))
 	case errors.Is(err, auth.ErrAccountDisabled):
 		httpx.WriteProblem(w, r, httpx.NewProblem("forbidden", "Account disabled", http.StatusForbidden))
 	case errors.Is(err, auth.ErrEmailTaken):
 		httpx.WriteProblem(w, r, httpx.NewProblem("email-taken", "Email already registered", http.StatusConflict))
+	case errors.Is(err, auth.ErrKioskNotFound):
+		httpx.WriteProblem(w, r, httpx.NewProblem("kiosk-not-found", "Kiosk not found", http.StatusNotFound))
+	case errors.Is(err, auth.ErrPairingCodeInvalid):
+		httpx.WriteProblem(w, r, httpx.NewProblem("pairing-code-invalid", "Pairing code is invalid or expired", http.StatusNotFound))
+	case errors.Is(err, auth.ErrKioskInvalid):
+		httpx.WriteProblem(w, r, httpx.NewProblem("unauthorized", "Kiosk token invalid or disabled", http.StatusUnauthorized))
 
 	default:
-		// Domain validation errors (bad employee number, empty name, …)
-		// surface as raw errors from module methods — there is no
-		// sentinel to match, but they are always caller-input problems,
-		// never a server fault, so 422 is the right status.
+		// Domain validation errors surface as raw errors from module methods
 		writeValidationFailed(w, r, err.Error(), nil)
 	}
+}
+
+func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
+	(&Server{}).writeServiceError(w, r, err)
 }

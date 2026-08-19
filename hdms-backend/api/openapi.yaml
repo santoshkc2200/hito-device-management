@@ -726,6 +726,480 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  # --- Sessions (Kiosk) ---------------------------------------------------
+
+  /sessions:
+    post:
+      operationId: createSession
+      summary: Create a scan session.
+      tags: [sessions]
+      security:
+        - kioskToken: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /sessions/{id}:
+    get:
+      operationId: getSession
+      summary: Current state of a scan session (recovery after reload).
+      tags: [sessions]
+      security:
+        - kioskToken: []
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    delete:
+      operationId: cancelSession
+      summary: Cancel a scan session.
+      tags: [sessions]
+      security:
+        - kioskToken: []
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: Session cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /sessions/{id}/scan:
+    post:
+      operationId: submitScan
+      summary: Submit a scanned token.
+      tags: [sessions]
+      security:
+        - kioskToken: []
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanRequest"
+      responses:
+        "200":
+          description: Complete session state and outcome. Rejections are 200 with outcome.kind = "rejected".
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /sessions/{id}/return-loan:
+    post:
+      operationId: returnSessionLoan
+      summary: Return an open loan by selecting it directly rather than scanning.
+      tags: [sessions]
+      security:
+        - kioskToken: []
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnSessionLoanRequest"
+      responses:
+        "200":
+          description: Complete session state and outcome.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /sessions/{id}/close:
+    post:
+      operationId: closeSession
+      summary: Finish a scan session ("Done").
+      tags: [sessions]
+      security:
+        - kioskToken: []
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Session closed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Loans --------------------------------------------------------------
+
+  /loans:
+    get:
+      operationId: listLoans
+      summary: List loans with optional filters and cursor pagination.
+      tags: [loans]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/LoanStatus"
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/LoanOrigin"
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: deviceId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: disputed
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /loans/{id}:
+    get:
+      operationId: getLoan
+      summary: Fetch one loan by id.
+      tags: [loans]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /loans/{id}/force-return:
+    post:
+      operationId: forceReturnLoan
+      summary: Administratively close an open loan. Requires a reason.
+      tags: [loans]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForceReturnLoanRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /loans/{id}/write-off:
+    post:
+      operationId: writeOffLoan
+      summary: Close an open loan as written-off (declared lost or destroyed).
+      tags: [loans]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WriteOffLoanRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /devices/{id}/loans:
+    get:
+      operationId: listDeviceLoans
+      summary: List loan history for one device.
+      tags: [devices, loans]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /users/{id}/loans:
+    get:
+      operationId: listUserLoans
+      summary: List loan history for one user.
+      tags: [users, loans]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Dashboard & Events -------------------------------------------------
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      summary: Dashboard summary counts, overdue loans, availability by category, scan rejections, and paper backfill nag.
+      tags: [dashboard]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /events/stream:
+    get:
+      operationId: getEventsStream
+      summary: Server-Sent Events stream of domain events for live dashboard and admin updates.
+      tags: [events]
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Outbox event ID to replay missed events from.
+      responses:
+        "200":
+          description: Server-Sent Events stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Kiosks -------------------------------------------------------------
+
+  /kiosks:
+    get:
+      operationId: listKiosks
+      summary: List registered kiosks.
+      tags: [kiosks]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KioskList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createKiosk
+      summary: Register a new kiosk. The bearer token is returned exactly once.
+      tags: [kiosks]
+      x-sensitive: true
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateKioskRequest"
+      responses:
+        "201":
+          description: Created. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KioskWithToken"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /kiosks/{id}/rotate-token:
+    post:
+      operationId: rotateKioskToken
+      summary: Mint a fresh bearer token for a kiosk, invalidating the previous one.
+      tags: [kiosks]
+      x-sensitive: true
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: OK. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KioskWithToken"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /kiosks/{id}/disable:
+    post:
+      operationId: disableKiosk
+      summary: Disable a kiosk, immediately rejecting any future requests from it.
+      tags: [kiosks]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kiosk"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /kiosks/{id}/pairing-code:
+    post:
+      operationId: createKioskPairingCode
+      summary: Generate a short-lived single-use pairing code for an iPad kiosk.
+      tags: [kiosks]
+      x-sensitive: true
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: OK. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KioskPairingCode"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /kiosks/pair:
+    post:
+      operationId: pairKiosk
+      summary: Redeem a pairing code for a working kiosk bearer token. Unauthenticated, rate-limited to 5 attempts/min per IP.
+      tags: [kiosks]
+      security: []
+      x-sensitive: true
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PairKioskRequest"
+      responses:
+        "200":
+          description: OK. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairKioskResponse"
+        "404":
+          description: Pairing code is invalid, expired, or already consumed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -737,7 +1211,31 @@ components:
           enum: [ok]
 
     # RFC 9457 application/problem+json, the error shape for the whole API.
-    # See docs/06-api-contract.md for the registered `type` values.
+    # Registered types (docs/06-api-contract.md):
+    # - invalid-token-format (400)
+    # - credential-revoked (409)
+    # - credential-unknown (404)
+    # - credential-unbound (409)
+    # - credential-already-bound (409)
+    # - credential-not-active (409)
+    # - credential-not-reprintable (409)
+    # - credential-token-taken (409)
+    # - device-on-loan (409)
+    # - overlapping-custody (409)
+    # - backdated-not-permitted (422)
+    # - device-unavailable (409)
+    # - user-suspended (403)
+    # - session-expired (410)
+    # - session-conflict (409)
+    # - idempotency-mismatch (422)
+    # - validation-failed (422)
+    # - unauthorized (401)
+    # - forbidden (403)
+    # - rate-limited (429)
+    # - pairing-code-invalid (404)
+    # - loan-not-found (404)
+    # - loan-not-open (409)
+    # - kiosk-not-found (404)
     Problem:
       type: object
       required: [type, title, status]
@@ -1349,6 +1847,289 @@ components:
         paperRef: { type: string }
         recordedAt: { type: string, format: date-time }
         recordedBy: { type: string }
+
+    # --- Sessions & Checkout (Kiosk) ----------------------------------------
+
+    SessionState:
+      type: string
+      enum: [idle, awaiting_user, awaiting_device, ready, completed, expired, cancelled]
+
+    SessionUser:
+      type: object
+      required: [id, fullName, department, openLoanCount]
+      properties:
+        id: { type: string }
+        fullName: { type: string }
+        department: { type: string }
+        openLoanCount: { type: integer }
+
+    SessionDevice:
+      type: object
+      required: [id, assetTag, name]
+      properties:
+        id: { type: string }
+        assetTag: { type: string }
+        name: { type: string }
+
+    SessionOpenLoan:
+      type: object
+      required: [id, deviceId, assetTag, deviceName, borrowedAt]
+      properties:
+        id: { type: string }
+        deviceId: { type: string }
+        assetTag: { type: string }
+        deviceName: { type: string }
+        borrowedAt: { type: string, format: date-time }
+        dueAt: { type: string, format: date-time }
+
+    Session:
+      type: object
+      required: [id, kioskId, state, startedAt, expiresAt]
+      properties:
+        id: { type: string }
+        kioskId: { type: string }
+        state:
+          $ref: "#/components/schemas/SessionState"
+        user:
+          $ref: "#/components/schemas/SessionUser"
+        pendingDevice:
+          $ref: "#/components/schemas/SessionDevice"
+        startedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+
+    OutcomeKind:
+      type: string
+      enum: [device_pending, user_identified, borrowed, returned, rejected, duplicate, user_switched]
+
+    MessageTone:
+      type: string
+      enum: [success, info, warning, error]
+
+    SessionMessage:
+      type: object
+      required: [title, detail, tone]
+      properties:
+        title: { type: string }
+        detail: { type: string }
+        tone:
+          $ref: "#/components/schemas/MessageTone"
+
+    Outcome:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: "#/components/schemas/OutcomeKind"
+        loanId: { type: string }
+        device:
+          $ref: "#/components/schemas/SessionDevice"
+        dueAt: { type: string, format: date-time }
+        newSessionId: { type: string }
+
+    ScanResult:
+      type: object
+      required: [session, outcome, openLoans, message]
+      properties:
+        session:
+          $ref: "#/components/schemas/Session"
+        outcome:
+          $ref: "#/components/schemas/Outcome"
+        openLoans:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionOpenLoan"
+        message:
+          $ref: "#/components/schemas/SessionMessage"
+
+    ScanSource:
+      type: string
+      enum: [scanner, camera, manual]
+
+    ScanRequest:
+      type: object
+      required: [token, source]
+      properties:
+        token: { type: string }
+        source:
+          $ref: "#/components/schemas/ScanSource"
+        scannedAt: { type: string, format: date-time }
+
+    ReturnSessionLoanRequest:
+      type: object
+      required: [loanId]
+      properties:
+        loanId: { type: string }
+
+    # --- Loans --------------------------------------------------------------
+
+    LoanStatus:
+      type: string
+      enum: [open, returned, written_off]
+
+    LoanOrigin:
+      type: string
+      enum: [kiosk, admin, paper, import]
+
+    Loan:
+      type: object
+      required: [id, deviceId, userId, status, origin, borrowedAt, borrowActor, borrowSource, disputed]
+      properties:
+        id: { type: string }
+        deviceId: { type: string }
+        userId: { type: string }
+        status:
+          $ref: "#/components/schemas/LoanStatus"
+        origin:
+          $ref: "#/components/schemas/LoanOrigin"
+        borrowedAt: { type: string, format: date-time }
+        dueAt: { type: string, format: date-time }
+        returnedAt: { type: string, format: date-time }
+        borrowKioskId: { type: string }
+        returnKioskId: { type: string }
+        borrowActor: { type: string }
+        returnActor: { type: string }
+        borrowSource: { type: string }
+        returnSource: { type: string }
+        conditionOut: { type: string }
+        conditionIn: { type: string }
+        notes: { type: string }
+        sessionId: { type: string }
+        paperRef: { type: string }
+        recordedAt: { type: string, format: date-time }
+        recordedBy: { type: string }
+        backfillNote: { type: string }
+        disputed: { type: boolean }
+
+    LoanList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Loan"
+        nextCursor: { type: string }
+
+    ForceReturnLoanRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+        conditionIn:
+          $ref: "#/components/schemas/DeviceCondition"
+        returnedAt: { type: string, format: date-time }
+
+    WriteOffLoanRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+
+    # --- Dashboard ----------------------------------------------------------
+
+    CategoryAvailability:
+      type: object
+      required: [categoryId, categoryName, availableCount, totalCount]
+      properties:
+        categoryId: { type: string }
+        categoryName: { type: string }
+        availableCount: { type: integer }
+        totalCount: { type: integer }
+
+    ScanRejectionSummary:
+      type: object
+      required: [resolvedType, distinctTokens, totalScans]
+      properties:
+        resolvedType: { type: string }
+        distinctTokens: { type: integer }
+        totalScans: { type: integer }
+
+    Dashboard:
+      type: object
+      required: [onLoanCount, overdueCount, availableCount, maintenanceCount, availabilityByCategory, turnedAwayCounts]
+      properties:
+        onLoanCount: { type: integer }
+        overdueCount: { type: integer }
+        availableCount: { type: integer }
+        maintenanceCount: { type: integer }
+        availabilityByCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryAvailability"
+        turnedAwayCounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanRejectionSummary"
+        lastPaperEntry:
+          $ref: "#/components/schemas/BackfillLastEntry"
+
+    # --- Kiosks -------------------------------------------------------------
+
+    KioskStatus:
+      type: string
+      enum: [active, disabled]
+
+    Kiosk:
+      type: object
+      required: [id, name, enabledSources, status, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        location: { type: string }
+        enabledSources:
+          type: array
+          items: { type: string }
+        status:
+          $ref: "#/components/schemas/KioskStatus"
+        lastSeenAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    KioskWithToken:
+      allOf:
+        - $ref: "#/components/schemas/Kiosk"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: Plaintext bearer token. Returned exactly once, at creation or rotation.
+
+    KioskList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Kiosk"
+
+    CreateKioskRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        location: { type: string }
+
+    KioskPairingCode:
+      type: object
+      required: [code, expiresAt]
+      properties:
+        code: { type: string }
+        expiresAt: { type: string, format: date-time }
+
+    PairKioskRequest:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string }
+
+    PairKioskResponse:
+      type: object
+      required: [kioskId, name, token]
+      properties:
+        kioskId: { type: string }
+        name: { type: string }
+        token: { type: string }
 
   parameters:
     IDParam:

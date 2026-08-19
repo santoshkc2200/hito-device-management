@@ -139,6 +139,38 @@ func (q *Queries) DeleteSessionByTokenHash(ctx context.Context, sessionTokenHash
 	return err
 }
 
+const disableKiosk = `-- name: DisableKiosk :one
+UPDATE kiosks
+SET status = 'disabled'
+WHERE id = $1
+RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at
+`
+
+type DisableKioskRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) DisableKiosk(ctx context.Context, id pgtype.UUID) (DisableKioskRow, error) {
+	row := q.db.QueryRow(ctx, disableKiosk, id)
+	var i DisableKioskRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Location,
+		&i.EnabledSources,
+		&i.Status,
+		&i.LastSeenAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getAdminAccountByEmail = `-- name: GetAdminAccountByEmail :one
 SELECT id, email, full_name, password_hash, totp_secret_enc, role, status, created_at, updated_at
 FROM admin_accounts WHERE lower(email) = lower($1)
@@ -182,6 +214,37 @@ func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (Admi
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getKioskByID = `-- name: GetKioskByID :one
+SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+FROM kiosks
+WHERE id = $1
+`
+
+type GetKioskByIDRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetKioskByID(ctx context.Context, id pgtype.UUID) (GetKioskByIDRow, error) {
+	row := q.db.QueryRow(ctx, getKioskByID, id)
+	var i GetKioskByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Location,
+		&i.EnabledSources,
+		&i.Status,
+		&i.LastSeenAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -281,6 +344,50 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, sessionTokenHash []
 		&i.AdminStatus,
 	)
 	return i, err
+}
+
+const listKiosks = `-- name: ListKiosks :many
+SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+FROM kiosks
+ORDER BY created_at ASC
+`
+
+type ListKiosksRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListKiosks(ctx context.Context) ([]ListKiosksRow, error) {
+	rows, err := q.db.Query(ctx, listKiosks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListKiosksRow
+	for rows.Next() {
+		var i ListKiosksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Location,
+			&i.EnabledSources,
+			&i.Status,
+			&i.LastSeenAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const redeemKioskPairingCode = `-- name: RedeemKioskPairingCode :one

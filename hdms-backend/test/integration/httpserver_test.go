@@ -19,10 +19,12 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
 	"github.com/hito-hospital/hdms/internal/modules/checkout"
+	"github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending"
+	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
@@ -44,11 +46,16 @@ import (
 // from run order, which tests nothing this package is meant to verify.
 type testHarness struct {
 	server    *httptest.Server
-	client    *http.Client
-	csrfToken string
-	identity  identityapi.Service
-	auth      *auth.Service
-	pool      *db.Pool
+	client      *http.Client
+	csrfToken   string
+	identity    identityapi.Service
+	catalog     *catalog.Service
+	credentials *credentials.Service
+	lending     lendingapi.Service
+	checkout    checkoutapi.Service
+	auth        *auth.Service
+	bus         *events.Bus
+	pool        *db.Pool
 }
 
 func newTestHarness(t *testing.T) *testHarness {
@@ -66,11 +73,15 @@ func newTestHarness(t *testing.T) *testHarness {
 	lendingSvc := lending.New(pool, auditSvc, clock.System{})
 
 	discardLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	bus := events.NewBus(discardLogger)
+	auditSvc.Subscribe(bus)
+
 	checkoutSvc := checkout.New(pool, clock.System{}, checkout.Deps{
 		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc,
-	}, auditSvc, events.NewBus(discardLogger))
+	}, auditSvc, bus)
 
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc)
+	sseHub := events.NewSSEHub(pool, bus, discardLogger)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, sseHub)
 	mux := http.NewServeMux()
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
 	handler := httpx.Chain(
@@ -91,7 +102,18 @@ func newTestHarness(t *testing.T) *testHarness {
 		t.Fatalf("cookiejar.New: %v", err)
 	}
 
-	h := &testHarness{server: ts, client: &http.Client{Jar: jar}, identity: identitySvc, auth: authSvc, pool: pool}
+	h := &testHarness{
+		server:      ts,
+		client:      &http.Client{Jar: jar},
+		identity:    identitySvc,
+		catalog:     catalogSvc,
+		credentials: credentialsSvc,
+		lending:     lendingSvc,
+		checkout:    checkoutSvc,
+		auth:        authSvc,
+		bus:         bus,
+		pool:        pool,
+	}
 	h.bootstrapAndLogin(t, authSvc)
 	return h
 }
@@ -175,6 +197,10 @@ func (h *testHarness) doJSON(t *testing.T, method, path, csrfOverride string, bo
 		t.Fatalf("do request: %v", err)
 	}
 	return resp
+}
+
+func (h *testHarness) post(t *testing.T, path string, body any) *http.Response {
+	return h.doJSON(t, http.MethodPost, path, "", body)
 }
 
 func decodeBody[T any](t *testing.T, resp *http.Response) T {

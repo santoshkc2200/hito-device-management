@@ -440,6 +440,188 @@ export type BackfillLastEntry = {
     recordedBy?: string;
 };
 
+export type SessionState = 'idle' | 'awaiting_user' | 'awaiting_device' | 'ready' | 'completed' | 'expired' | 'cancelled';
+
+export type SessionUser = {
+    id: string;
+    fullName: string;
+    department: string;
+    openLoanCount: number;
+};
+
+export type SessionDevice = {
+    id: string;
+    assetTag: string;
+    name: string;
+};
+
+export type SessionOpenLoan = {
+    id: string;
+    deviceId: string;
+    assetTag: string;
+    deviceName: string;
+    borrowedAt: string;
+    dueAt?: string;
+};
+
+export type Session = {
+    id: string;
+    kioskId: string;
+    state: SessionState;
+    user?: SessionUser;
+    pendingDevice?: SessionDevice;
+    startedAt: string;
+    expiresAt: string;
+};
+
+export type OutcomeKind = 'device_pending' | 'user_identified' | 'borrowed' | 'returned' | 'rejected' | 'duplicate' | 'user_switched';
+
+export type MessageTone = 'success' | 'info' | 'warning' | 'error';
+
+export type SessionMessage = {
+    title: string;
+    detail: string;
+    tone: MessageTone;
+};
+
+export type Outcome = {
+    kind: OutcomeKind;
+    loanId?: string;
+    device?: SessionDevice;
+    dueAt?: string;
+    newSessionId?: string;
+};
+
+export type ScanResult = {
+    session: Session;
+    outcome: Outcome;
+    openLoans: Array<SessionOpenLoan>;
+    message: SessionMessage;
+};
+
+export type ScanSource = 'scanner' | 'camera' | 'manual';
+
+export type ScanRequest = {
+    token: string;
+    source: ScanSource;
+    scannedAt?: string;
+};
+
+export type ReturnSessionLoanRequest = {
+    loanId: string;
+};
+
+export type LoanStatus = 'open' | 'returned' | 'written_off';
+
+export type LoanOrigin = 'kiosk' | 'admin' | 'paper' | 'import';
+
+export type Loan = {
+    id: string;
+    deviceId: string;
+    userId: string;
+    status: LoanStatus;
+    origin: LoanOrigin;
+    borrowedAt: string;
+    dueAt?: string;
+    returnedAt?: string;
+    borrowKioskId?: string;
+    returnKioskId?: string;
+    borrowActor: string;
+    returnActor?: string;
+    borrowSource: string;
+    returnSource?: string;
+    conditionOut?: string;
+    conditionIn?: string;
+    notes?: string;
+    sessionId?: string;
+    paperRef?: string;
+    recordedAt?: string;
+    recordedBy?: string;
+    backfillNote?: string;
+    disputed: boolean;
+};
+
+export type LoanList = {
+    items: Array<Loan>;
+    nextCursor?: string;
+};
+
+export type ForceReturnLoanRequest = {
+    reason: string;
+    conditionIn?: DeviceCondition;
+    returnedAt?: string;
+};
+
+export type WriteOffLoanRequest = {
+    reason: string;
+};
+
+export type CategoryAvailability = {
+    categoryId: string;
+    categoryName: string;
+    availableCount: number;
+    totalCount: number;
+};
+
+export type ScanRejectionSummary = {
+    resolvedType: string;
+    distinctTokens: number;
+    totalScans: number;
+};
+
+export type Dashboard = {
+    onLoanCount: number;
+    overdueCount: number;
+    availableCount: number;
+    maintenanceCount: number;
+    availabilityByCategory: Array<CategoryAvailability>;
+    turnedAwayCounts: Array<ScanRejectionSummary>;
+    lastPaperEntry?: BackfillLastEntry;
+};
+
+export type KioskStatus = 'active' | 'disabled';
+
+export type Kiosk = {
+    id: string;
+    name: string;
+    location?: string;
+    enabledSources: Array<string>;
+    status: KioskStatus;
+    lastSeenAt?: string;
+    createdAt: string;
+};
+
+export type KioskWithToken = Kiosk & {
+    /**
+     * Plaintext bearer token. Returned exactly once, at creation or rotation.
+     */
+    token: string;
+};
+
+export type KioskList = {
+    items: Array<Kiosk>;
+};
+
+export type CreateKioskRequest = {
+    name: string;
+    location?: string;
+};
+
+export type KioskPairingCode = {
+    code: string;
+    expiresAt: string;
+};
+
+export type PairKioskRequest = {
+    code: string;
+};
+
+export type PairKioskResponse = {
+    kioskId: string;
+    name: string;
+    token: string;
+};
+
 export type IdParam = string;
 
 export type CursorParam = string;
@@ -1341,3 +1523,632 @@ export type GetBackfillLastEntryResponses = {
 };
 
 export type GetBackfillLastEntryResponse = GetBackfillLastEntryResponses[keyof GetBackfillLastEntryResponses];
+
+export type CreateSessionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/sessions';
+};
+
+export type CreateSessionErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateSessionError = CreateSessionErrors[keyof CreateSessionErrors];
+
+export type CreateSessionResponses = {
+    /**
+     * Created.
+     */
+    201: Session;
+};
+
+export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];
+
+export type CancelSessionData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/sessions/{id}';
+};
+
+export type CancelSessionErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CancelSessionError = CancelSessionErrors[keyof CancelSessionErrors];
+
+export type CancelSessionResponses = {
+    /**
+     * Session cancelled.
+     */
+    200: Session;
+};
+
+export type CancelSessionResponse = CancelSessionResponses[keyof CancelSessionResponses];
+
+export type GetSessionData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/sessions/{id}';
+};
+
+export type GetSessionErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
+
+export type GetSessionResponses = {
+    /**
+     * OK.
+     */
+    200: Session;
+};
+
+export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type SubmitScanData = {
+    body: ScanRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/sessions/{id}/scan';
+};
+
+export type SubmitScanErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type SubmitScanError = SubmitScanErrors[keyof SubmitScanErrors];
+
+export type SubmitScanResponses = {
+    /**
+     * Complete session state and outcome. Rejections are 200 with outcome.kind = "rejected".
+     */
+    200: ScanResult;
+};
+
+export type SubmitScanResponse = SubmitScanResponses[keyof SubmitScanResponses];
+
+export type ReturnSessionLoanData = {
+    body: ReturnSessionLoanRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/sessions/{id}/return-loan';
+};
+
+export type ReturnSessionLoanErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ReturnSessionLoanError = ReturnSessionLoanErrors[keyof ReturnSessionLoanErrors];
+
+export type ReturnSessionLoanResponses = {
+    /**
+     * Complete session state and outcome.
+     */
+    200: ScanResult;
+};
+
+export type ReturnSessionLoanResponse = ReturnSessionLoanResponses[keyof ReturnSessionLoanResponses];
+
+export type CloseSessionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/sessions/{id}/close';
+};
+
+export type CloseSessionErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CloseSessionError = CloseSessionErrors[keyof CloseSessionErrors];
+
+export type CloseSessionResponses = {
+    /**
+     * Session closed.
+     */
+    200: Session;
+};
+
+export type CloseSessionResponse = CloseSessionResponses[keyof CloseSessionResponses];
+
+export type ListLoansData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: LoanStatus;
+        origin?: LoanOrigin;
+        userId?: string;
+        deviceId?: string;
+        from?: string;
+        to?: string;
+        disputed?: boolean;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/loans';
+};
+
+export type ListLoansErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListLoansError = ListLoansErrors[keyof ListLoansErrors];
+
+export type ListLoansResponses = {
+    /**
+     * OK.
+     */
+    200: LoanList;
+};
+
+export type ListLoansResponse = ListLoansResponses[keyof ListLoansResponses];
+
+export type GetLoanData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/loans/{id}';
+};
+
+export type GetLoanErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetLoanError = GetLoanErrors[keyof GetLoanErrors];
+
+export type GetLoanResponses = {
+    /**
+     * OK.
+     */
+    200: Loan;
+};
+
+export type GetLoanResponse = GetLoanResponses[keyof GetLoanResponses];
+
+export type ForceReturnLoanData = {
+    body: ForceReturnLoanRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/loans/{id}/force-return';
+};
+
+export type ForceReturnLoanErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ForceReturnLoanError = ForceReturnLoanErrors[keyof ForceReturnLoanErrors];
+
+export type ForceReturnLoanResponses = {
+    /**
+     * OK.
+     */
+    200: Loan;
+};
+
+export type ForceReturnLoanResponse = ForceReturnLoanResponses[keyof ForceReturnLoanResponses];
+
+export type WriteOffLoanData = {
+    body: WriteOffLoanRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/loans/{id}/write-off';
+};
+
+export type WriteOffLoanErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type WriteOffLoanError = WriteOffLoanErrors[keyof WriteOffLoanErrors];
+
+export type WriteOffLoanResponses = {
+    /**
+     * OK.
+     */
+    200: Loan;
+};
+
+export type WriteOffLoanResponse = WriteOffLoanResponses[keyof WriteOffLoanResponses];
+
+export type ListDeviceLoansData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/devices/{id}/loans';
+};
+
+export type ListDeviceLoansErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListDeviceLoansError = ListDeviceLoansErrors[keyof ListDeviceLoansErrors];
+
+export type ListDeviceLoansResponses = {
+    /**
+     * OK.
+     */
+    200: LoanList;
+};
+
+export type ListDeviceLoansResponse = ListDeviceLoansResponses[keyof ListDeviceLoansResponses];
+
+export type ListUserLoansData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/users/{id}/loans';
+};
+
+export type ListUserLoansErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListUserLoansError = ListUserLoansErrors[keyof ListUserLoansErrors];
+
+export type ListUserLoansResponses = {
+    /**
+     * OK.
+     */
+    200: LoanList;
+};
+
+export type ListUserLoansResponse = ListUserLoansResponses[keyof ListUserLoansResponses];
+
+export type GetDashboardData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/dashboard';
+};
+
+export type GetDashboardErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetDashboardError = GetDashboardErrors[keyof GetDashboardErrors];
+
+export type GetDashboardResponses = {
+    /**
+     * OK.
+     */
+    200: Dashboard;
+};
+
+export type GetDashboardResponse = GetDashboardResponses[keyof GetDashboardResponses];
+
+export type GetEventsStreamData = {
+    body?: never;
+    headers?: {
+        /**
+         * Outbox event ID to replay missed events from.
+         */
+        'Last-Event-ID'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/events/stream';
+};
+
+export type GetEventsStreamErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetEventsStreamError = GetEventsStreamErrors[keyof GetEventsStreamErrors];
+
+export type GetEventsStreamResponses = {
+    /**
+     * Server-Sent Events stream.
+     */
+    200: string;
+};
+
+export type GetEventsStreamResponse = GetEventsStreamResponses[keyof GetEventsStreamResponses];
+
+export type ListKiosksData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/kiosks';
+};
+
+export type ListKiosksErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListKiosksError = ListKiosksErrors[keyof ListKiosksErrors];
+
+export type ListKiosksResponses = {
+    /**
+     * OK.
+     */
+    200: KioskList;
+};
+
+export type ListKiosksResponse = ListKiosksResponses[keyof ListKiosksResponses];
+
+export type CreateKioskData = {
+    body: CreateKioskRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/kiosks';
+};
+
+export type CreateKioskErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateKioskError = CreateKioskErrors[keyof CreateKioskErrors];
+
+export type CreateKioskResponses = {
+    /**
+     * Created. Never cached.
+     */
+    201: KioskWithToken;
+};
+
+export type CreateKioskResponse = CreateKioskResponses[keyof CreateKioskResponses];
+
+export type RotateKioskTokenData = {
+    body?: never;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/kiosks/{id}/rotate-token';
+};
+
+export type RotateKioskTokenErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RotateKioskTokenError = RotateKioskTokenErrors[keyof RotateKioskTokenErrors];
+
+export type RotateKioskTokenResponses = {
+    /**
+     * OK. Never cached.
+     */
+    200: KioskWithToken;
+};
+
+export type RotateKioskTokenResponse = RotateKioskTokenResponses[keyof RotateKioskTokenResponses];
+
+export type DisableKioskData = {
+    body?: never;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/kiosks/{id}/disable';
+};
+
+export type DisableKioskErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type DisableKioskError = DisableKioskErrors[keyof DisableKioskErrors];
+
+export type DisableKioskResponses = {
+    /**
+     * OK.
+     */
+    200: Kiosk;
+};
+
+export type DisableKioskResponse = DisableKioskResponses[keyof DisableKioskResponses];
+
+export type CreateKioskPairingCodeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/kiosks/{id}/pairing-code';
+};
+
+export type CreateKioskPairingCodeErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateKioskPairingCodeError = CreateKioskPairingCodeErrors[keyof CreateKioskPairingCodeErrors];
+
+export type CreateKioskPairingCodeResponses = {
+    /**
+     * OK. Never cached.
+     */
+    200: KioskPairingCode;
+};
+
+export type CreateKioskPairingCodeResponse = CreateKioskPairingCodeResponses[keyof CreateKioskPairingCodeResponses];
+
+export type PairKioskData = {
+    body: PairKioskRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/kiosks/pair';
+};
+
+export type PairKioskErrors = {
+    /**
+     * Pairing code is invalid, expired, or already consumed.
+     */
+    404: Problem;
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type PairKioskError = PairKioskErrors[keyof PairKioskErrors];
+
+export type PairKioskResponses = {
+    /**
+     * OK. Never cached.
+     */
+    200: PairKioskResponse;
+};
+
+export type PairKioskResponse2 = PairKioskResponses[keyof PairKioskResponses];

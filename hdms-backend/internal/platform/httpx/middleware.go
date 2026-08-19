@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -96,42 +97,72 @@ func WithRecovery(logger *slog.Logger) Middleware {
 	}
 }
 
-// clientLimiters holds one token bucket per client IP, created lazily and
-// kept for the life of the process. An internal single-instance tool has no
-// need for a distributed limiter (Redis etc.) — in-memory is deliberate,
-// not a shortcut.
-var clientLimiters sync.Map // map[string]*rate.Limiter
+type actorContextKey struct{}
 
-// loginLimiters is a second, stricter bucket keyed the same way but scoped
-// to POST /v1/auth/login, to blunt password-guessing (docs/09's T6) — a
-// stolen-but-rate-limited login form is a much smaller problem than an
-// unlimited one.
+// ContextWithActor attaches an actor string to the context.
+func ContextWithActor(ctx context.Context, actor string) context.Context {
+	return context.WithValue(ctx, actorContextKey{}, actor)
+}
+
+// ActorFromContext returns the actor string attached to ctx, or "".
+func ActorFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(actorContextKey{}).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// principalLimiters holds token buckets keyed by actor ("admin:<id>", "kiosk:<id>") or client IP.
+var principalLimiters sync.Map // map[string]*rate.Limiter
+
+// loginLimiters is scoped to POST /v1/auth/login to blunt password-guessing.
 var loginLimiters sync.Map // map[string]*rate.Limiter
 
+// pairLimiters is scoped to POST /v1/kiosks/pair (5 attempts per minute per IP).
+var pairLimiters sync.Map // map[string]*rate.Limiter
+
 const (
-	generalRateLimit = 10 // requests/sec, sustained
-	generalBurst     = 30
+	generalRateLimit = 1.0 // 60 requests/minute sustained
+	generalBurst     = 60
 	loginRateLimit   = 0.1 // ~1 attempt per 10s, sustained
 	loginBurst       = 5
+	pairRateLimit    = 5.0 / 60.0 // 5 attempts per minute
+	pairBurst        = 5
 )
 
-// WithRateLimit applies a general per-client-IP limit to every request, and
-// a much stricter one to POST /v1/auth/login specifically
-// (docs/06-api-contract.md's per-principal limits; login has no
-// authenticated principal yet, so it is keyed on IP instead).
+// WithRateLimit applies per-principal / per-IP rate limits (docs/06-api-contract.md, 2.6.5):
+// - 60 req/min per kiosk token and per admin session
+// - 5 req/min per IP on POST /v1/kiosks/pair
+// - 1 attempt per 10s per IP on POST /v1/auth/login
+// Denials return 429 with Retry-After header and RFC 9457 problem JSON.
 func WithRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := clientIP(r)
 
 		if r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login" {
 			if !allow(&loginLimiters, ip, loginRateLimit, loginBurst) {
+				w.Header().Set("Retry-After", "60")
 				WriteProblem(w, r, NewProblem("rate-limited", "Too many login attempts", http.StatusTooManyRequests))
 				return
 			}
 		}
 
-		if !allow(&clientLimiters, ip, generalRateLimit, generalBurst) {
-			WriteProblem(w, r, NewProblem("rate-limited", "Too many requests", http.StatusTooManyRequests))
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/kiosks/pair" {
+			if !allow(&pairLimiters, ip, pairRateLimit, pairBurst) {
+				w.Header().Set("Retry-After", "60")
+				WriteProblem(w, r, NewProblem("rate-limited", "Too many pairing attempts", http.StatusTooManyRequests))
+				return
+			}
+		}
+
+		key := ActorFromContext(r.Context())
+		if key == "" {
+			key = ip
+		}
+
+		if !allow(&principalLimiters, key, generalRateLimit, generalBurst) {
+			w.Header().Set("Retry-After", "60")
+			WriteProblem(w, r, NewProblem("rate-limited", "Rate limit exceeded", http.StatusTooManyRequests))
 			return
 		}
 
@@ -142,6 +173,22 @@ func WithRateLimit(next http.Handler) http.Handler {
 func allow(limiters *sync.Map, key string, r rate.Limit, burst int) bool {
 	v, _ := limiters.LoadOrStore(key, rate.NewLimiter(r, burst))
 	return v.(*rate.Limiter).Allow()
+}
+
+// ResetRateLimiters clears all rate limiter state (used in testing).
+func ResetRateLimiters() {
+	principalLimiters.Range(func(key, value any) bool {
+		principalLimiters.Delete(key)
+		return true
+	})
+	loginLimiters.Range(func(key, value any) bool {
+		loginLimiters.Delete(key)
+		return true
+	})
+	pairLimiters.Range(func(key, value any) bool {
+		pairLimiters.Delete(key)
+		return true
+	})
 }
 
 // clientIP prefers the first hop of X-Forwarded-For (Caddy sets this in
