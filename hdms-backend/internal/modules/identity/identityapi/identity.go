@@ -14,9 +14,10 @@ import (
 // are returned wrapped around the identity/internal/domain error that
 // caused them, not one of these.
 var (
-	ErrUserNotFound      = errors.New("identity: user not found")
-	ErrEmployeeNoTaken   = errors.New("identity: employee number is already in use")
-	ErrIllegalTransition = errors.New("identity: illegal user status transition")
+	ErrUserNotFound       = errors.New("identity: user not found")
+	ErrDepartmentNotFound = errors.New("identity: department not found")
+	ErrEmployeeNoTaken    = errors.New("identity: employee number is already in use")
+	ErrIllegalTransition  = errors.New("identity: illegal user status transition")
 )
 
 // UserStatus mirrors the user_status Postgres enum.
@@ -124,6 +125,10 @@ type Service interface {
 	// GetOrCreateDepartment resolves a department by name, creating it if
 	// it does not already exist. Used by bulk import.
 	GetOrCreateDepartment(ctx context.Context, name string) (Department, error)
+
+	// LookupDepartment fetches one department by ID — how a caller holding
+	// only a UserSummary's DepartmentID turns it into a name to display.
+	LookupDepartment(ctx context.Context, id string) (Department, error)
 
 	// ListDepartments returns every department, for admin console pickers.
 	ListDepartments(ctx context.Context) ([]Department, error)

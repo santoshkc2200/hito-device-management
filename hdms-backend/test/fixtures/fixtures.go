@@ -58,6 +58,26 @@ func User(t *testing.T, pool *db.Pool) string {
 	return createUser(t, pool).ID
 }
 
+// UserInDepartment creates an active user attached to department (created
+// by name if it does not exist) and returns the user id. Distinct from
+// User because most tests do not care about departments, and the ones that
+// do — the "held by someone else" message names the holder's department —
+// need a real one rather than the empty default.
+func UserInDepartment(t *testing.T, pool *db.Pool, department string) (id, fullName string) {
+	t.Helper()
+	svc := identity.New(pool, audit.New(pool))
+	deptID := Department(t, pool, department)
+	u := createUserWith(t, svc)
+	updated, err := svc.UpdateUser(context.Background(), u.ID, identityapi.UpdateUserParams{
+		FullName:     u.FullName,
+		DepartmentID: deptID,
+	}, fixtureActor)
+	if err != nil {
+		t.Fatalf("fixtures: attach user %s to department %q: %v", u.ID, department, err)
+	}
+	return updated.ID, updated.FullName
+}
+
 // SuspendedUser creates a user and immediately suspends it, returning its
 // id.
 func SuspendedUser(t *testing.T, pool *db.Pool) string {

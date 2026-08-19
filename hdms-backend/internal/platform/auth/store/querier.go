@@ -27,9 +27,14 @@ type Querier interface {
 	// Joins the owning account so the middleware can reject a disabled account
 	// on every request without a second round trip.
 	GetSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) (GetSessionByTokenHashRow, error)
-	// Consumes the code and installs the freshly minted token in one
-	// statement, so a redeemed code can never be replayed.
-	RedeemKioskPairingCode(ctx context.Context, arg RedeemKioskPairingCodeParams) error
+	// Consumes the code and installs the freshly minted token in one statement,
+	// so a redeemed code can never be replayed. The pairing_code_hash predicate
+	// is what makes that true under concurrency as well as sequentially: two
+	// simultaneous redemptions of the same code both pass the preceding SELECT,
+	// but the row lock this UPDATE takes serialises them and the loser matches
+	// nothing (the winner has already nulled the hash), returning no rows
+	// instead of overwriting the token the winner was just handed.
+	RedeemKioskPairingCode(ctx context.Context, arg RedeemKioskPairingCodeParams) (RedeemKioskPairingCodeRow, error)
 	// Sliding expiry: called on every valid use with a freshly computed
 	// expires_at (now + TTL), matching docs/09's "12-hour expiry with sliding
 	// renewal".

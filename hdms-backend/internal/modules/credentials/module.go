@@ -193,6 +193,10 @@ func (s *Service) Resolve(ctx context.Context, token string) (credentialsapi.Sub
 		CredentialStatus: credentialsapi.Status(row.Status),
 		Kind:             credentialsapi.Kind(row.Kind),
 	}
+	if row.RevokedAt.Valid {
+		revoked := pgtypeconv.Time(row.RevokedAt)
+		ref.RevokedAt = &revoked
+	}
 	if !row.SubjectID.Valid {
 		ref.Type = credentialsapi.RefUnbound
 		return ref, nil

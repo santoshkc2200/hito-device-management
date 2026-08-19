@@ -679,11 +679,15 @@ type Loan struct {
 }
 
 type Outbox struct {
-	ID          int64              `json:"id"`
-	Topic       string             `json:"topic"`
-	Payload     []byte             `json:"payload"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	PublishedAt pgtype.Timestamptz `json:"published_at"`
+	ID            int64              `json:"id"`
+	Topic         string             `json:"topic"`
+	Payload       []byte             `json:"payload"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	PublishedAt   pgtype.Timestamptz `json:"published_at"`
+	Attempts      int32              `json:"attempts"`
+	NextAttemptAt pgtype.Timestamptz `json:"next_attempt_at"`
+	LastError     pgtype.Text        `json:"last_error"`
+	FailedAt      pgtype.Timestamptz `json:"failed_at"`
 }
 
 type ScanEvent struct {

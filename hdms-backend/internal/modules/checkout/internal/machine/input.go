@@ -1,5 +1,7 @@
 package machine
 
+import "time"
+
 // Input is one resolved scan. Token resolution and subject loading have
 // already happened by the time this is built — 2.3c's job — so Decide
 // performs no lookups of its own.
@@ -10,10 +12,21 @@ type Input struct {
 	DeviceStatus string // catalogapi.DeviceStatus's values, as a plain string — machine imports no sibling api package
 	HolderUserID string // the device's current holder, "" if not on loan
 
+	// HolderBorrowedAt is when that holder took it, zero if not on loan.
+	// Carried here rather than looked up at render time because 2.3c
+	// already has the open loan in hand when it resolves HolderUserID —
+	// the "out since …" half of the held-by-someone-else message.
+	HolderBorrowedAt time.Time
+
 	UserID     string
 	UserStatus string // identityapi.UserStatus's values, as a plain string
 
 	TokenPreview string // last 4 characters only, for the message/log — never the raw token
+
+	// RevokedAt is when the scanned credential stopped being valid, zero
+	// unless Kind is KindRevoked — the date the "this card was replaced
+	// on …" message names.
+	RevokedAt time.Time
 
 	// SameAsPendingWithin3s is server-side duplicate detection
 	// (2.3c): true when this scan's token hash matches the session's
@@ -38,6 +51,11 @@ type Snapshot struct {
 	// PendingDeviceStatus is always "available" or "on_loan" here.
 	PendingDeviceStatus   string
 	PendingDeviceHolderID string
+
+	// PendingDeviceBorrowedAt is when PendingDeviceHolderID took it, zero
+	// when the pending device is not on loan. Same reason as
+	// Input.HolderBorrowedAt: the reject message needs it and 2.3c has it.
+	PendingDeviceBorrowedAt time.Time
 }
 
 // Decision is Decide's total output for one (state, snapshot, input)

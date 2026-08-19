@@ -254,6 +254,22 @@ func (s *Service) GetOrCreateDepartment(ctx context.Context, name string) (ident
 	return identityapi.Department{ID: pgtypeconv.UUIDString(row.ID), Name: row.Name}, nil
 }
 
+func (s *Service) LookupDepartment(ctx context.Context, id string) (identityapi.Department, error) {
+	did, err := pgtypeconv.UUID(id)
+	if err != nil {
+		return identityapi.Department{}, fmt.Errorf("identity: invalid department id: %w", err)
+	}
+	q := identitystore.New(db.Conn(ctx, s.pool))
+	row, err := q.GetDepartmentByID(ctx, did)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return identityapi.Department{}, identityapi.ErrDepartmentNotFound
+		}
+		return identityapi.Department{}, fmt.Errorf("identity: lookup department: %w", err)
+	}
+	return identityapi.Department{ID: pgtypeconv.UUIDString(row.ID), Name: row.Name}, nil
+}
+
 func (s *Service) ListDepartments(ctx context.Context) ([]identityapi.Department, error) {
 	q := identitystore.New(db.Conn(ctx, s.pool))
 	rows, err := q.ListDepartments(ctx)

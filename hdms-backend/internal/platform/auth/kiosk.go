@@ -82,7 +82,7 @@ func (s *Service) IssuePairingCode(ctx context.Context, kioskID string) (code st
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	expiresAt = time.Now().Add(pairingCodeTTL)
+	expiresAt = s.clock.Now().Add(pairingCodeTTL)
 
 	q := authstore.New(db.Conn(ctx, s.pool))
 	if _, err := q.SetKioskPairingCode(ctx, authstore.SetKioskPairingCodeParams{
@@ -105,14 +105,15 @@ func (s *Service) IssuePairingCode(ctx context.Context, kioskID string) (code st
 // codes exist.
 func (s *Service) RedeemPairingCode(ctx context.Context, code string) (kioskID, name, plainToken string, err error) {
 	q := authstore.New(db.Conn(ctx, s.pool))
-	row, err := q.GetKioskByPairingCodeHash(ctx, hashToken(code, s.pepper))
+	codeHash := hashToken(code, s.pepper)
+	row, err := q.GetKioskByPairingCodeHash(ctx, codeHash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", "", "", ErrPairingCodeInvalid
 		}
 		return "", "", "", fmt.Errorf("auth: redeem pairing code: %w", err)
 	}
-	if !row.PairingCodeExpiresAt.Valid || time.Now().After(pgtypeconv.Time(row.PairingCodeExpiresAt)) {
+	if !row.PairingCodeExpiresAt.Valid || s.clock.Now().After(pgtypeconv.Time(row.PairingCodeExpiresAt)) {
 		return "", "", "", ErrPairingCodeInvalid
 	}
 
@@ -120,13 +121,22 @@ func (s *Service) RedeemPairingCode(ctx context.Context, code string) (kioskID, 
 	if err != nil {
 		return "", "", "", err
 	}
-	if err := q.RedeemKioskPairingCode(ctx, authstore.RedeemKioskPairingCodeParams{
-		ID:        row.ID,
-		TokenHash: hashToken(plainToken, s.pepper),
-	}); err != nil {
+	// The UPDATE re-checks the pairing hash it just read, so two
+	// simultaneous redemptions of one code cannot both succeed: the loser
+	// matches no row and is told the code is invalid, rather than being
+	// handed a token the winner's UPDATE has already replaced.
+	redeemed, err := q.RedeemKioskPairingCode(ctx, authstore.RedeemKioskPairingCodeParams{
+		ID:              row.ID,
+		TokenHash:       hashToken(plainToken, s.pepper),
+		PairingCodeHash: codeHash,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", "", "", ErrPairingCodeInvalid
+		}
 		return "", "", "", fmt.Errorf("auth: redeem pairing code: %w", err)
 	}
-	return pgtypeconv.UUIDString(row.ID), row.Name, plainToken, nil
+	return pgtypeconv.UUIDString(redeemed.ID), redeemed.Name, plainToken, nil
 }
 
 // randomDigits returns a base-10 string of n random digits from a

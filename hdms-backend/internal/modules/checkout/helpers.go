@@ -3,6 +3,7 @@ package checkout
 import (
 	"context"
 	"maps"
+	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi"
 	"github.com/hito-hospital/hdms/internal/modules/checkout/internal/machine"
@@ -51,12 +52,38 @@ func mergeArgs(argMaps ...map[string]any) map[string]any {
 	return out
 }
 
+// firstString returns the first of keys present in args as a non-empty
+// string, or "". firstTime is the same for a time.Time. Both exist
+// because a message about custody names its subject through one of two
+// arg pairs depending on which side of the scan the machine was looking
+// at — the scanned device (holderUserId/borrowedAt) or the one already
+// pending (pendingDeviceHolderId/pendingDeviceBorrowedAt) — and every
+// template is written in terms of the first.
+func firstString(args map[string]any, keys ...string) string {
+	for _, k := range keys {
+		if v, _ := args[k].(string); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func firstTime(args map[string]any, keys ...string) time.Time {
+	for _, k := range keys {
+		if v, ok := args[k].(time.Time); ok && !v.IsZero() {
+			return v
+		}
+	}
+	return time.Time{}
+}
+
 // renderMessage enriches decision's raw args with resolved display data
-// (names, statuses) before handing off to the catalogue — Decide has no
-// identity or catalog dependency to look these up itself, so this is
-// where that happens. A lookup failure is treated as "leave the arg
-// unset" rather than aborting the scan over what is, at worst, slightly
-// blander wording.
+// (names, statuses) and formats its timestamps before handing off to the
+// catalogue — Decide has no identity or catalog dependency to look these
+// up itself, so this is where that happens. A lookup failure is treated
+// as "leave the arg unset" rather than aborting the scan over what is, at
+// worst, slightly blander wording: every template degrades to a generic
+// noun rather than showing a gap.
 func (s *Service) renderMessage(ctx context.Context, decision machine.Decision, extra map[string]any) checkoutapi.Message {
 	args := mergeArgs(decision.MessageArgs, extra)
 
@@ -81,11 +108,32 @@ func (s *Service) renderMessage(ctx context.Context, decision machine.Decision, 
 			}
 		}
 	}
-	if id, _ := args["holderUserId"].(string); id != "" {
+	if id := firstString(args, "holderUserId", "pendingDeviceHolderId"); id != "" {
 		if u, err := s.deps.Users.LookupUser(ctx, id); err == nil {
 			args["holderName"] = u.FullName
-			args["holderDepartment"] = u.DepartmentID
+			// The department is shown by name ("Radiology"), never by id:
+			// FR-23 is about telling the person at the kiosk who to go
+			// and ask, which a UUID cannot do.
+			if u.DepartmentID != "" {
+				if d, err := s.deps.Users.LookupDepartment(ctx, u.DepartmentID); err == nil {
+					args["holderDepartment"] = d.Name
+				}
+			}
 		}
+	}
+
+	// Timestamps arrive as time.Time and leave as display strings — and
+	// leave entirely if there is none, so a template's {{with}} can drop
+	// the clause rather than render a formatted zero time.
+	if t := firstTime(args, "borrowedAt", "pendingDeviceBorrowedAt"); !t.IsZero() {
+		args["borrowedAt"] = t.Format(displayTimeLayout)
+	} else {
+		delete(args, "borrowedAt")
+	}
+	if t := firstTime(args, "revokedAt"); !t.IsZero() {
+		args["revokedAt"] = t.Format(displayTimeLayout)
+	} else {
+		delete(args, "revokedAt")
 	}
 
 	return messages.Render(decision.MessageKey, args)

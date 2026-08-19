@@ -19,6 +19,14 @@ const DefaultPollInterval = 500 * time.Millisecond
 const (
 	defaultBatchSize = 100
 	sweepInterval    = time.Hour
+
+	// maxDispatchAttempts is how many times a row is redelivered before it
+	// is dead-lettered (failed_at set) and stops being claimed. With the
+	// query's 1s/2s/4s… backoff capped at 5 minutes, ten attempts spans
+	// roughly half an hour — long enough to ride out a subscriber that is
+	// merely restarting, short enough that a genuinely poisonous row stops
+	// consuming a claim slot the same working day.
+	maxDispatchAttempts = 10
 )
 
 // Dispatcher polls the outbox and fans each unpublished row out to the Bus.
@@ -136,7 +144,13 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 			}
 			if err := d.bus.Dispatch(context.Background(), ev); err != nil {
 				// Already logged by Bus.Dispatch with topic/event detail.
-				// Leave published_at unset so this row is retried next poll.
+				// published_at stays unset so the row is retried — but its
+				// failure is counted here, so a row that can never succeed
+				// backs off and is eventually retired instead of being
+				// re-claimed every 500ms and starving the queue behind it.
+				if rerr := d.recordFailure(ctx, q, row.ID, err); rerr != nil {
+					return rerr
+				}
 				continue
 			}
 			if err := q.MarkPublished(ctx, row.ID); err != nil {
@@ -159,8 +173,36 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 	return nil
 }
 
+// recordFailure counts one failed dispatch against a row inside the
+// claiming transaction, and logs the moment a row crosses into the
+// dead-letter state — the one transition in this loop that needs a human
+// to look at it, since nothing will retry that event again.
+func (d *Dispatcher) recordFailure(ctx context.Context, q *eventsstore.Queries, id int64, cause error) error {
+	res, err := q.RecordDispatchFailure(ctx, eventsstore.RecordDispatchFailureParams{
+		ID:          id,
+		LastError:   pgtypeconv.Text(cause.Error()),
+		MaxAttempts: maxDispatchAttempts,
+	})
+	if err != nil {
+		return fmt.Errorf("record dispatch failure for event %d: %w", id, err)
+	}
+	if res.FailedAt.Valid {
+		d.logger.Error("outbox event dead-lettered after repeated dispatch failures",
+			"event_id", id, "attempts", res.Attempts, "error", cause)
+	}
+	return nil
+}
+
 func (d *Dispatcher) unpublishedCount(ctx context.Context) (int64, error) {
 	return eventsstore.New(d.pool.Pool).CountUnpublished(ctx)
+}
+
+// DeadLetteredCount reports how many outbox rows have exhausted their
+// dispatch attempts. Nothing retries these; it is the number an operator
+// (and 2.6's health surface) should watch, and it only ever goes up
+// without intervention.
+func (d *Dispatcher) DeadLetteredCount(ctx context.Context) (int64, error) {
+	return eventsstore.New(d.pool.Pool).CountDeadLettered(ctx)
 }
 
 func (d *Dispatcher) sweep(ctx context.Context) error {

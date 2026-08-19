@@ -157,7 +157,7 @@ func (s *Service) executeConcurrentBorrowLoss(
 	if err := s.insertScanEvent(ctx, q, session.ID, params, in, "rejected", "device_already_on_loan"); err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
 	}
-	msg := s.renderMessage(ctx, reject, map[string]any{"borrowedAt": existing.BorrowedAt.Format(displayTimeLayout)})
+	msg := s.renderMessage(ctx, reject, map[string]any{"borrowedAt": existing.BorrowedAt})
 	return checkoutapi.Outcome{Kind: checkoutapi.OutcomeRejected}, msg, newSession, nil
 }
 

@@ -76,6 +76,12 @@ type SubjectRef struct {
 	CredentialID     string
 	CredentialStatus Status
 	Kind             Kind
+
+	// RevokedAt is when the credential stopped being valid, nil while it
+	// still is. The kiosk's "this card was replaced on …" message is the
+	// only caller: a scan of a dead card is worth explaining, and the date
+	// is what tells someone whether it was replaced today or last year.
+	RevokedAt *time.Time
 }
 
 // Credential is the credentials module's read model for one credential

@@ -71,9 +71,15 @@ SELECT id, name, pairing_code_expires_at
 FROM kiosks
 WHERE pairing_code_hash = $1 AND status = 'active';
 
--- name: RedeemKioskPairingCode :exec
--- Consumes the code and installs the freshly minted token in one
--- statement, so a redeemed code can never be replayed.
+-- name: RedeemKioskPairingCode :one
+-- Consumes the code and installs the freshly minted token in one statement,
+-- so a redeemed code can never be replayed. The pairing_code_hash predicate
+-- is what makes that true under concurrency as well as sequentially: two
+-- simultaneous redemptions of the same code both pass the preceding SELECT,
+-- but the row lock this UPDATE takes serialises them and the loser matches
+-- nothing (the winner has already nulled the hash), returning no rows
+-- instead of overwriting the token the winner was just handed.
 UPDATE kiosks
 SET token_hash = $2, pairing_code_hash = NULL, pairing_code_expires_at = NULL
-WHERE id = $1;
+WHERE id = $1 AND pairing_code_hash = $3
+RETURNING id, name;

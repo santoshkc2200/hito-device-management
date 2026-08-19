@@ -20,6 +20,9 @@ import (
 // UserLookup is the subset of identityapi.Service checkout needs.
 type UserLookup interface {
 	LookupUser(ctx context.Context, id string) (identityapi.UserSummary, error)
+	// LookupDepartment turns a UserSummary's DepartmentID into a name, for
+	// the "…is with Dr. Karki (Radiology)" half of FR-23's message.
+	LookupDepartment(ctx context.Context, id string) (identityapi.Department, error)
 }
 
 // DeviceLookup is the subset of catalogapi.Service checkout needs.

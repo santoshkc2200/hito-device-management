@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -214,7 +215,7 @@ func TestScenario5_DeviceHeldBySomeoneElse_Rejected(t *testing.T) {
 	ctx := context.Background()
 	kioskID, _ := fixtures.Kiosk(t, pool)
 	deviceID := fixtures.AvailableDevice(t, pool)
-	holderUser := fixtures.User(t, pool)
+	holderUser, holderName := fixtures.UserInDepartment(t, pool, "Radiology")
 	otherUser := fixtures.User(t, pool)
 	_, deviceToken := fixtures.ActiveCredentialFor(t, pool, credentialsapi.SubjectDevice, deviceID)
 	_, holderUserToken := fixtures.ActiveCredentialFor(t, pool, credentialsapi.SubjectUser, holderUser)
@@ -231,8 +232,18 @@ func TestScenario5_DeviceHeldBySomeoneElse_Rejected(t *testing.T) {
 	if r.Session.State != checkoutapi.StateIdle || r.Session.PendingDevice != nil {
 		t.Fatalf("session after rejection = %+v, want idle with no pendingDevice", r.Session)
 	}
-	if r.Message.Detail == "" {
-		t.Fatal("rejection message has no detail")
+	// docs/04 scenario 5 and FR-23: the message has to say who has it, from
+	// which department, and since when. The device is the *pending* one
+	// here, so every one of those facts reaches the catalogue through the
+	// pendingDevice* args rather than the scanned-subject ones — the path
+	// that used to render "<no value>".
+	for _, want := range []string{"(Radiology)", "out since ", holderName} {
+		if !strings.Contains(r.Message.Detail, want) {
+			t.Errorf("rejection detail = %q, want it to contain %q", r.Message.Detail, want)
+		}
+	}
+	if strings.Contains(r.Message.Detail, "<no value>") {
+		t.Errorf("rejection detail has an unrendered gap: %q", r.Message.Detail)
 	}
 }
 
@@ -424,5 +435,24 @@ func TestExpiredSessionScanReturnsExpiredNotPanic(t *testing.T) {
 	_, err := svc.Scan(ctx, checkoutapi.ScanParams{SessionID: session.ID, Token: deviceToken, Source: "scanner"})
 	if !errors.Is(err, checkoutapi.ErrSessionExpired) {
 		t.Fatalf("Scan on expired session error = %v, want ErrSessionExpired", err)
+	}
+
+	// The inline expiry must have been *committed*, not rolled back with
+	// the sentinel: returning the error from inside the transaction would
+	// discard the close and leave the session live — reporting "expired"
+	// to the kiosk while the row said otherwise until the sweeper ran.
+	var state string
+	var closedAt *time.Time
+	var outcome *string
+	if err := pool.QueryRow(ctx,
+		`SELECT state::text, closed_at, outcome FROM scan_sessions WHERE id = $1`, session.ID,
+	).Scan(&state, &closedAt, &outcome); err != nil {
+		t.Fatalf("query expired session: %v", err)
+	}
+	if state != "expired" || closedAt == nil {
+		t.Fatalf("session after expired scan: state=%q closedAt=%v, want expired/non-nil", state, closedAt)
+	}
+	if outcome == nil || *outcome != "expired" {
+		t.Fatalf("session outcome after expired scan = %v, want \"expired\"", outcome)
 	}
 }

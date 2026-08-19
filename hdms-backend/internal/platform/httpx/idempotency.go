@@ -97,27 +97,56 @@ func WithIdempotency(pool *db.Pool, actorOf ActorOf, logger *slog.Logger) Middle
 }
 
 // runAndStore executes the handler once this request has won the race to
-// own key, then stores its response if it was a 2xx under the size cap, or
-// discards the placeholder row otherwise so a genuine retry can start
-// fresh.
+// own key, then stores its response if it was a storable 2xx, or discards
+// the placeholder row otherwise so a genuine retry can start fresh.
+//
+// Both of those writes run on a context detached from the request's
+// (context.WithoutCancel), because the case idempotency exists for is
+// exactly the one that cancels it: a kiosk whose network drops mid-request
+// retries, and if the client's disconnect had killed the completion write
+// the row would sit with completed_at NULL and answer every retry with
+// "already in progress" until the 24h sweep — the retry path dead at the
+// moment it is needed. The handler itself still runs on the request
+// context and is still cancelled with it; only the bookkeeping outlives it.
 func runAndStore(ctx context.Context, q *idempotencystore.Queries, logger *slog.Logger, next http.Handler, w http.ResponseWriter, r *http.Request, key, actor string) {
 	rec := &idempotencyRecorder{ResponseWriter: w, status: http.StatusOK}
 	next.ServeHTTP(rec, r)
 
-	if rec.status >= 200 && rec.status < 300 && rec.body.Len() <= maxStoredIdempotencyBody {
-		if err := q.CompleteIdempotencyKey(ctx, idempotencystore.CompleteIdempotencyKeyParams{
+	bookkeeping := context.WithoutCancel(ctx)
+
+	if rec.status >= 200 && rec.status < 300 && storableBody(rec.body.Bytes()) {
+		if err := q.CompleteIdempotencyKey(bookkeeping, idempotencystore.CompleteIdempotencyKeyParams{
 			Key: key, Actor: actor,
 			StatusCode:   pgtype.Int4{Int32: int32(rec.status), Valid: true},
 			ResponseBody: rec.body.Bytes(),
 		}); err != nil {
-			logger.ErrorContext(ctx, "idempotency complete failed", "error", err)
+			logger.ErrorContext(bookkeeping, "idempotency complete failed", "error", err)
+			// The row is now stuck in flight and would 409 every retry, so
+			// clear it and let a retry re-execute instead.
+			deleteKey(bookkeeping, q, logger, key, actor)
 		}
 		return
 	}
 
 	if rec.body.Len() > maxStoredIdempotencyBody {
-		logger.WarnContext(ctx, "idempotency response too large to store, not stored", "key", key, "bytes", rec.body.Len())
+		logger.WarnContext(bookkeeping, "idempotency response too large to store, not stored", "key", key, "bytes", rec.body.Len())
 	}
+	deleteKey(bookkeeping, q, logger, key, actor)
+}
+
+// storableBody reports whether a 2xx body can go into the store's jsonb
+// response_body column. An empty body is stored as SQL NULL and replays as
+// an empty body; anything that is not valid JSON would fail the insert
+// with 22P02, so it is treated the same as an oversized one — not stored,
+// and the key released rather than left in flight.
+func storableBody(body []byte) bool {
+	if len(body) > maxStoredIdempotencyBody {
+		return false
+	}
+	return len(body) == 0 || json.Valid(body)
+}
+
+func deleteKey(ctx context.Context, q *idempotencystore.Queries, logger *slog.Logger, key, actor string) {
 	if err := q.DeleteIdempotencyKey(ctx, idempotencystore.DeleteIdempotencyKeyParams{Key: key, Actor: actor}); err != nil {
 		logger.ErrorContext(ctx, "idempotency delete failed", "error", err)
 	}

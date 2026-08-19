@@ -13,10 +13,28 @@ type Querier interface {
 	// replicas) poll concurrently without double-dispatching: a row already
 	// locked by one dispatcher's open transaction is simply skipped by the
 	// other's claim, not blocked on.
-	ClaimUnpublishedBatch(ctx context.Context, limit int32) ([]Outbox, error)
+	//
+	// failed_at and next_attempt_at keep a repeatedly failing row from holding
+	// up the ones behind it (migration 0010): a row that just failed is not due
+	// again until its backoff elapses, and one that has exhausted its attempts
+	// is out of the queue for good.
+	ClaimUnpublishedBatch(ctx context.Context, limit int32) ([]ClaimUnpublishedBatchRow, error)
+	CountDeadLettered(ctx context.Context) (int64, error)
+	// The dispatch backlog: rows still owed a delivery. Dead-lettered rows are
+	// excluded — they are a separate, non-decreasing number (CountDeadLettered)
+	// and folding them in would make a permanent failure look like a growing
+	// backlog forever.
 	CountUnpublished(ctx context.Context) (int64, error)
 	MarkPublished(ctx context.Context, id int64) error
 	PublishEvent(ctx context.Context, arg PublishEventParams) error
+	// Counts one failed dispatch against a row and pushes its next attempt out
+	// by an exponential backoff (1s, 2s, 4s … capped at 5 minutes), or
+	// dead-letters it once it has burned through max_attempts. Runs in the
+	// claiming transaction, so the accounting commits with the batch that
+	// observed the failure.
+	RecordDispatchFailure(ctx context.Context, arg RecordDispatchFailureParams) (RecordDispatchFailureRow, error)
+	// Only ever deletes rows that were successfully published: a dead-lettered
+	// row is evidence of a bug and is kept until someone deals with it.
 	SweepOldPublished(ctx context.Context) error
 }
 

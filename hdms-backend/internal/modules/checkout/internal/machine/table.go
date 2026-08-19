@@ -18,9 +18,15 @@ func (r Rule) Apply(snap Snapshot, in Input) Decision { return r.decide(snap, in
 
 // baseArgs is the standard set of primitive values every rendered message
 // might need, built once here rather than duplicated per cell. 2.3c adds
-// resolved display data (names, departments, formatted dates) before
-// calling messages.Render — Decide has no identity or catalog dependency
-// to look those up itself.
+// resolved display data (names, departments) and formats the timestamps
+// before calling messages.Render — Decide has no identity or catalog
+// dependency to look those up itself, and no business deciding how a date
+// is written on a screen, so times go in as time.Time.
+//
+// Where a fact is available from both the scanned subject and the pending
+// device, both are emitted under distinct keys (holderUserId /
+// pendingDeviceHolderId, borrowedAt / pendingDeviceBorrowedAt); it is
+// renderMessage's job to pick whichever of the two this message is about.
 func baseArgs(snap Snapshot, in Input) map[string]any {
 	args := map[string]any{}
 	if in.DeviceID != "" {
@@ -32,6 +38,12 @@ func baseArgs(snap Snapshot, in Input) map[string]any {
 	if in.HolderUserID != "" {
 		args["holderUserId"] = in.HolderUserID
 	}
+	if !in.HolderBorrowedAt.IsZero() {
+		args["borrowedAt"] = in.HolderBorrowedAt
+	}
+	if !in.RevokedAt.IsZero() {
+		args["revokedAt"] = in.RevokedAt
+	}
 	if in.TokenPreview != "" {
 		args["tokenPreview"] = in.TokenPreview
 	}
@@ -40,6 +52,9 @@ func baseArgs(snap Snapshot, in Input) map[string]any {
 	}
 	if snap.PendingDeviceHolderID != "" {
 		args["pendingDeviceHolderId"] = snap.PendingDeviceHolderID
+	}
+	if !snap.PendingDeviceBorrowedAt.IsZero() {
+		args["pendingDeviceBorrowedAt"] = snap.PendingDeviceBorrowedAt
 	}
 	return args
 }

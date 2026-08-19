@@ -16,6 +16,7 @@ import (
 	"time"
 
 	authstore "github.com/hito-hospital/hdms/internal/platform/auth/store"
+	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5"
@@ -38,11 +39,29 @@ type Service struct {
 	pepper     []byte // HMAC key for session/kiosk token hashing — config.TokenPepper, same pepper credential tokens use
 	totpEncKey []byte // AES-256-GCM key for admin_accounts.totp_secret_enc — config.TOTPSecretEncKey
 	sessionTTL time.Duration
+	clock      clock.Clock
+}
+
+// Option customises a Service at construction.
+type Option func(*Service)
+
+// WithClock replaces the wall clock this service reads "now" from, so a
+// test can drive admin-session and pairing-code expiry with clock.Fake
+// instead of sleeping.
+func WithClock(c clock.Clock) Option {
+	return func(s *Service) { s.clock = c }
 }
 
 // New constructs the auth service.
-func New(pool *db.Pool, pepper string, totpEncKey []byte, adminSessionTTL time.Duration) *Service {
-	return &Service{pool: pool, pepper: []byte(pepper), totpEncKey: totpEncKey, sessionTTL: adminSessionTTL}
+func New(pool *db.Pool, pepper string, totpEncKey []byte, adminSessionTTL time.Duration, opts ...Option) *Service {
+	s := &Service{
+		pool: pool, pepper: []byte(pepper), totpEncKey: totpEncKey,
+		sessionTTL: adminSessionTTL, clock: clock.System{},
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // SessionTTL returns the configured admin session TTL, for handlers that
@@ -148,7 +167,7 @@ func (s *Service) createSession(ctx context.Context, adminID pgtype.UUID) (sessi
 		AdminID:          adminID,
 		SessionTokenHash: hashToken(plainToken, s.pepper),
 		CsrfToken:        csrfToken,
-		ExpiresAt:        pgtypeconv.Timestamptz(time.Now().Add(s.sessionTTL)),
+		ExpiresAt:        pgtypeconv.Timestamptz(s.clock.Now().Add(s.sessionTTL)),
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("auth: create session: %w", err)
@@ -179,13 +198,13 @@ func (s *Service) ValidateSession(ctx context.Context, plainToken string) (Valid
 	if row.AdminStatus != authstore.AdminStatusActive {
 		return ValidatedSession{}, ErrAccountDisabled
 	}
-	if time.Now().After(pgtypeconv.Time(row.ExpiresAt)) {
+	if s.clock.Now().After(pgtypeconv.Time(row.ExpiresAt)) {
 		return ValidatedSession{}, ErrSessionInvalid
 	}
 
 	if _, err := q.RenewSession(ctx, authstore.RenewSessionParams{
 		ID:        row.ID,
-		ExpiresAt: pgtypeconv.Timestamptz(time.Now().Add(s.sessionTTL)),
+		ExpiresAt: pgtypeconv.Timestamptz(s.clock.Now().Add(s.sessionTTL)),
 	}); err != nil {
 		return ValidatedSession{}, fmt.Errorf("auth: renew session: %w", err)
 	}

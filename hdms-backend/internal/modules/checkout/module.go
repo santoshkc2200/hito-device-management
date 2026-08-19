@@ -178,7 +178,6 @@ func (s *Service) closeAs(ctx context.Context, id string, state checkoutstore.Se
 	}
 
 	var row checkoutstore.ScanSession
-	var alreadyClosed bool
 	txErr := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
 		q := checkoutstore.New(db.Conn(ctx, s.pool))
 		current, err := q.GetSessionForUpdate(ctx, sid)
@@ -188,9 +187,10 @@ func (s *Service) closeAs(ctx context.Context, id string, state checkoutstore.Se
 			}
 			return fmt.Errorf("checkout: get session: %w", err)
 		}
+		// Idempotent: an already-closed session keeps the outcome it was
+		// closed with, and this call neither rewrites it nor re-audits it.
 		if current.ClosedAt.Valid {
 			row = current
-			alreadyClosed = true
 			return nil
 		}
 
@@ -210,9 +210,6 @@ func (s *Service) closeAs(ctx context.Context, id string, state checkoutstore.Se
 	})
 	if txErr != nil {
 		return checkoutapi.Session{}, txErr
-	}
-	if alreadyClosed {
-		return s.assembleSession(ctx, row)
 	}
 	return s.assembleSession(ctx, row)
 }

@@ -7,36 +7,53 @@ package eventsstore
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const claimUnpublishedBatch = `-- name: ClaimUnpublishedBatch :many
-SELECT id, topic, payload, created_at, published_at
+SELECT id, topic, payload, created_at, published_at, attempts
 FROM outbox
-WHERE published_at IS NULL
+WHERE published_at IS NULL AND failed_at IS NULL AND next_attempt_at <= now()
 ORDER BY id
 FOR UPDATE SKIP LOCKED
 LIMIT $1
 `
 
+type ClaimUnpublishedBatchRow struct {
+	ID          int64              `json:"id"`
+	Topic       string             `json:"topic"`
+	Payload     []byte             `json:"payload"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
+	Attempts    int32              `json:"attempts"`
+}
+
 // FOR UPDATE SKIP LOCKED is what lets two dispatcher instances (two API
 // replicas) poll concurrently without double-dispatching: a row already
 // locked by one dispatcher's open transaction is simply skipped by the
 // other's claim, not blocked on.
-func (q *Queries) ClaimUnpublishedBatch(ctx context.Context, limit int32) ([]Outbox, error) {
+//
+// failed_at and next_attempt_at keep a repeatedly failing row from holding
+// up the ones behind it (migration 0010): a row that just failed is not due
+// again until its backoff elapses, and one that has exhausted its attempts
+// is out of the queue for good.
+func (q *Queries) ClaimUnpublishedBatch(ctx context.Context, limit int32) ([]ClaimUnpublishedBatchRow, error) {
 	rows, err := q.db.Query(ctx, claimUnpublishedBatch, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Outbox
+	var items []ClaimUnpublishedBatchRow
 	for rows.Next() {
-		var i Outbox
+		var i ClaimUnpublishedBatchRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Topic,
 			&i.Payload,
 			&i.CreatedAt,
 			&i.PublishedAt,
+			&i.Attempts,
 		); err != nil {
 			return nil, err
 		}
@@ -48,10 +65,25 @@ func (q *Queries) ClaimUnpublishedBatch(ctx context.Context, limit int32) ([]Out
 	return items, nil
 }
 
-const countUnpublished = `-- name: CountUnpublished :one
-SELECT count(*) FROM outbox WHERE published_at IS NULL
+const countDeadLettered = `-- name: CountDeadLettered :one
+SELECT count(*) FROM outbox WHERE failed_at IS NOT NULL
 `
 
+func (q *Queries) CountDeadLettered(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countDeadLettered)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUnpublished = `-- name: CountUnpublished :one
+SELECT count(*) FROM outbox WHERE published_at IS NULL AND failed_at IS NULL
+`
+
+// The dispatch backlog: rows still owed a delivery. Dead-lettered rows are
+// excluded — they are a separate, non-decreasing number (CountDeadLettered)
+// and folding them in would make a permanent failure look like a growing
+// backlog forever.
 func (q *Queries) CountUnpublished(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countUnpublished)
 	var count int64
@@ -82,10 +114,52 @@ func (q *Queries) PublishEvent(ctx context.Context, arg PublishEventParams) erro
 	return err
 }
 
+const recordDispatchFailure = `-- name: RecordDispatchFailure :one
+UPDATE outbox
+SET attempts        = attempts + 1,
+    last_error      = $1,
+    next_attempt_at = now() + LEAST(
+        interval '5 minutes',
+        interval '1 second' * power(2, LEAST(attempts, 8))
+    ),
+    failed_at       = CASE
+        WHEN attempts + 1 >= $2::int THEN now()
+        ELSE NULL
+    END
+WHERE id = $3
+RETURNING id, attempts, failed_at
+`
+
+type RecordDispatchFailureParams struct {
+	LastError   pgtype.Text `json:"last_error"`
+	MaxAttempts int32       `json:"max_attempts"`
+	ID          int64       `json:"id"`
+}
+
+type RecordDispatchFailureRow struct {
+	ID       int64              `json:"id"`
+	Attempts int32              `json:"attempts"`
+	FailedAt pgtype.Timestamptz `json:"failed_at"`
+}
+
+// Counts one failed dispatch against a row and pushes its next attempt out
+// by an exponential backoff (1s, 2s, 4s … capped at 5 minutes), or
+// dead-letters it once it has burned through max_attempts. Runs in the
+// claiming transaction, so the accounting commits with the batch that
+// observed the failure.
+func (q *Queries) RecordDispatchFailure(ctx context.Context, arg RecordDispatchFailureParams) (RecordDispatchFailureRow, error) {
+	row := q.db.QueryRow(ctx, recordDispatchFailure, arg.LastError, arg.MaxAttempts, arg.ID)
+	var i RecordDispatchFailureRow
+	err := row.Scan(&i.ID, &i.Attempts, &i.FailedAt)
+	return i, err
+}
+
 const sweepOldPublished = `-- name: SweepOldPublished :exec
 DELETE FROM outbox WHERE published_at IS NOT NULL AND published_at < now() - interval '7 days'
 `
 
+// Only ever deletes rows that were successfully published: a dead-lettered
+// row is evidence of a bug and is kept until someone deals with it.
 func (q *Queries) SweepOldPublished(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, sweepOldPublished)
 	return err

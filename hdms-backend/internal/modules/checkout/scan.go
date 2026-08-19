@@ -41,6 +41,7 @@ func (s *Service) Scan(ctx context.Context, params checkoutapi.ScanParams) (chec
 		outcome       checkoutapi.Outcome
 		message       checkoutapi.Message
 		resultSession checkoutstore.ScanSession
+		expired       bool
 	)
 
 	txErr := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
@@ -63,7 +64,12 @@ func (s *Service) Scan(ctx context.Context, params checkoutapi.ScanParams) (chec
 			}); err != nil {
 				return fmt.Errorf("checkout: expire session: %w", err)
 			}
-			return checkoutapi.ErrSessionExpired
+			// Returned as a sentinel *after* the commit, not from here: an
+			// error out of this function rolls the transaction back, which
+			// would discard the CloseSession above and leave the session
+			// open until the sweeper reached it (GetSession does the same).
+			expired = true
+			return nil
 		}
 
 		in, err := s.resolveInput(ctx, params.Token)
@@ -96,6 +102,9 @@ func (s *Service) Scan(ctx context.Context, params checkoutapi.ScanParams) (chec
 	if txErr != nil {
 		return checkoutapi.ScanResult{}, txErr
 	}
+	if expired {
+		return checkoutapi.ScanResult{}, checkoutapi.ErrSessionExpired
+	}
 
 	session, err := s.assembleSession(ctx, resultSession)
 	if err != nil {
@@ -121,7 +130,11 @@ func (s *Service) resolveInput(ctx context.Context, token string) (machine.Input
 	case sr.Type == credentialsapi.RefUnbound:
 		return machine.Input{Kind: machine.KindUnbound, TokenPreview: preview}, nil
 	case sr.CredentialStatus != credentialsapi.StatusActive:
-		return machine.Input{Kind: machine.KindRevoked, TokenPreview: preview}, nil
+		in := machine.Input{Kind: machine.KindRevoked, TokenPreview: preview}
+		if sr.RevokedAt != nil {
+			in.RevokedAt = *sr.RevokedAt
+		}
+		return in, nil
 	case sr.Type == credentialsapi.RefUser:
 		u, err := s.deps.Users.LookupUser(ctx, sr.SubjectID)
 		if err != nil {
@@ -140,6 +153,7 @@ func (s *Service) resolveInput(ctx context.Context, token string) (machine.Input
 				return machine.Input{}, fmt.Errorf("checkout: holder of scanned device: %w", err)
 			}
 			in.HolderUserID = holder.UserID
+			in.HolderBorrowedAt = holder.BorrowedAt
 		}
 		return in, nil
 	default:
@@ -169,6 +183,7 @@ func (s *Service) snapshotFor(ctx context.Context, session checkoutstore.ScanSes
 			return machine.Snapshot{}, fmt.Errorf("checkout: holder of pending device: %w", err)
 		}
 		snap.PendingDeviceHolderID = holder.UserID
+		snap.PendingDeviceBorrowedAt = holder.BorrowedAt
 	}
 	return snap, nil
 }

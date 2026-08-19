@@ -254,3 +254,137 @@ func TestAuditReceivesEveryTopic(t *testing.T) {
 		}
 	}
 }
+
+// TestPoisonEventBacksOffThenDeadLetters covers the failure mode the
+// retry columns exist for: a handler that can never succeed used to be
+// re-claimed every tick forever, and because a batch is claimed
+// `ORDER BY id LIMIT 100`, enough such rows at the head would starve every
+// newer event behind them. Now each failure is counted and backed off, and
+// the row eventually leaves the queue for good.
+func TestPoisonEventBacksOffThenDeadLetters(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+
+	if err := db.NewTxManager(pool).Do(ctx, func(ctx context.Context) error {
+		return events.Publish(ctx, pool, events.TopicUserRegistered, map[string]any{"userId": "poison"})
+	}); err != nil {
+		t.Fatalf("publish poison event: %v", err)
+	}
+
+	var attempted int
+	bus := events.NewBus(discardLogger())
+	bus.Subscribe(events.TopicUserRegistered, func(ctx context.Context, ev events.Event) error {
+		attempted++
+		return errors.New("handler is permanently broken")
+	})
+	dispatcher := events.NewDispatcher(pool, bus, discardLogger(), time.Hour)
+
+	if err := dispatcher.Tick(ctx); err != nil {
+		t.Fatalf("first Tick: %v", err)
+	}
+	if attempted != 1 {
+		t.Fatalf("attempts after one tick = %d, want 1", attempted)
+	}
+
+	// Immediately ticking again must not touch the row: its backoff has
+	// not elapsed, which is what keeps a poison row off the hot path.
+	if err := dispatcher.Tick(ctx); err != nil {
+		t.Fatalf("second Tick: %v", err)
+	}
+	if attempted != 1 {
+		t.Fatalf("attempts after an immediate re-tick = %d, want 1 (still backing off)", attempted)
+	}
+
+	// Burn through the remaining attempts, skipping the backoff wait the
+	// way real elapsed time would.
+	for range 20 {
+		if _, err := pool.Exec(ctx, `UPDATE outbox SET next_attempt_at = now() WHERE published_at IS NULL AND failed_at IS NULL`); err != nil {
+			t.Fatalf("age the backoff: %v", err)
+		}
+		if err := dispatcher.Tick(ctx); err != nil {
+			t.Fatalf("Tick: %v", err)
+		}
+	}
+
+	var attempts int
+	var failedAt *time.Time
+	var lastErr *string
+	if err := pool.QueryRow(ctx, `SELECT attempts, failed_at, last_error FROM outbox`).Scan(&attempts, &failedAt, &lastErr); err != nil {
+		t.Fatalf("query poison row: %v", err)
+	}
+	if failedAt == nil {
+		t.Fatalf("poison row after %d attempts: failed_at is nil, want dead-lettered", attempts)
+	}
+	if lastErr == nil || *lastErr == "" {
+		t.Fatal("dead-lettered row has no last_error recorded")
+	}
+
+	// Dead-lettered means dead: no further tick re-attempts it, and it no
+	// longer counts as backlog.
+	before := attempted
+	if _, err := pool.Exec(ctx, `UPDATE outbox SET next_attempt_at = now()`); err != nil {
+		t.Fatalf("age the backoff: %v", err)
+	}
+	if err := dispatcher.Tick(ctx); err != nil {
+		t.Fatalf("Tick after dead-letter: %v", err)
+	}
+	if attempted != before {
+		t.Fatalf("dead-lettered row was re-attempted (%d -> %d)", before, attempted)
+	}
+	dead, err := dispatcher.DeadLetteredCount(ctx)
+	if err != nil {
+		t.Fatalf("DeadLetteredCount: %v", err)
+	}
+	if dead != 1 {
+		t.Fatalf("DeadLetteredCount = %d, want 1", dead)
+	}
+}
+
+// TestDeadLetteredEventDoesNotBlockNewerOnes is the same failure from the
+// queue's point of view: an event published behind a poison one must still
+// get delivered, which is exactly what `ORDER BY id` made impossible while
+// the poison row stayed claimable forever.
+func TestDeadLetteredEventDoesNotBlockNewerOnes(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+
+	if err := db.NewTxManager(pool).Do(ctx, func(ctx context.Context) error {
+		return events.Publish(ctx, pool, events.TopicUserRegistered, map[string]any{"userId": "poison"})
+	}); err != nil {
+		t.Fatalf("publish poison event: %v", err)
+	}
+
+	var delivered int
+	bus := events.NewBus(discardLogger())
+	bus.Subscribe(events.TopicUserRegistered, func(ctx context.Context, ev events.Event) error {
+		return errors.New("handler is permanently broken")
+	})
+	bus.Subscribe(events.TopicDeviceStatusChanged, func(ctx context.Context, ev events.Event) error {
+		delivered++
+		return nil
+	})
+	dispatcher := events.NewDispatcher(pool, bus, discardLogger(), time.Hour)
+
+	// The good event is published *after* the poison one, so it sorts
+	// behind it in every claim.
+	if err := db.NewTxManager(pool).Do(ctx, func(ctx context.Context) error {
+		return events.Publish(ctx, pool, events.TopicDeviceStatusChanged, map[string]any{"deviceId": "d1", "status": "available"})
+	}); err != nil {
+		t.Fatalf("publish good event: %v", err)
+	}
+
+	if err := dispatcher.Tick(ctx); err != nil {
+		t.Fatalf("Tick: %v", err)
+	}
+	if delivered != 1 {
+		t.Fatalf("good event delivered %d times in the same batch as a failing one, want 1", delivered)
+	}
+
+	var unpublished int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM outbox WHERE published_at IS NULL`).Scan(&unpublished); err != nil {
+		t.Fatalf("count unpublished: %v", err)
+	}
+	if unpublished != 1 {
+		t.Fatalf("unpublished rows = %d, want 1 (only the poison one)", unpublished)
+	}
+}

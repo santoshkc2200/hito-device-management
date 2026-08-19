@@ -7,10 +7,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/hito-hospital/hdms/internal/platform/auth"
+	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/test/testdb"
 )
@@ -186,5 +188,88 @@ func TestKioskTokenAuthenticatesAgainstAPI(t *testing.T) {
 	}
 	if !sawKiosk {
 		t.Fatal("expected a kiosk identity attached to the request context")
+	}
+}
+
+// TestKioskPairingCodeConcurrentRedemptionYieldsOneWorkingToken is the
+// race the single-statement redeem exists for: several devices redeeming
+// the same code at once (an operator reading it out, a retry crossing the
+// original) must produce exactly one winner. Before the UPDATE re-checked
+// the pairing hash, every caller read the row, minted a token and wrote
+// it, so all of them "succeeded" while only the last write authenticated
+// — the others held a token that silently never worked.
+func TestKioskPairingCodeConcurrentRedemptionYieldsOneWorkingToken(t *testing.T) {
+	svc, _ := newKioskAuthService(t)
+	ctx := context.Background()
+
+	id, _, err := svc.RegisterKiosk(ctx, "Contended Kiosk", "")
+	if err != nil {
+		t.Fatalf("RegisterKiosk: %v", err)
+	}
+	code, _, err := svc.IssuePairingCode(ctx, id)
+	if err != nil {
+		t.Fatalf("IssuePairingCode: %v", err)
+	}
+
+	const racers = 8
+	var wg sync.WaitGroup
+	tokens := make([]string, racers)
+	errs := make([]error, racers)
+	start := make(chan struct{})
+	for i := range racers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, _, tok, err := svc.RedeemPairingCode(ctx, code)
+			tokens[i], errs[i] = tok, err
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	var winners []string
+	for i, err := range errs {
+		switch {
+		case err == nil:
+			winners = append(winners, tokens[i])
+		case errors.Is(err, auth.ErrPairingCodeInvalid):
+			// The expected answer for every loser.
+		default:
+			t.Fatalf("racer %d: unexpected error %v", i, err)
+		}
+	}
+	if len(winners) != 1 {
+		t.Fatalf("%d racers redeemed the code successfully, want exactly 1", len(winners))
+	}
+	if _, err := svc.ValidateKioskToken(ctx, winners[0]); err != nil {
+		t.Fatalf("ValidateKioskToken(winning token): %v", err)
+	}
+}
+
+// TestKioskPairingCodeExpiryFollowsTheInjectedClock proves the pairing TTL
+// is driven by auth's clock rather than the wall clock, so a test can age
+// a code out instead of back-dating the column by hand.
+func TestKioskPairingCodeExpiryFollowsTheInjectedClock(t *testing.T) {
+	pool := testdb.New(t)
+	fake := clock.NewFake(time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC))
+	svc := auth.New(pool, "kiosk-clock-pepper", make([]byte, 32), time.Hour, auth.WithClock(fake))
+	ctx := context.Background()
+
+	id, _, err := svc.RegisterKiosk(ctx, "Clocked Kiosk", "")
+	if err != nil {
+		t.Fatalf("RegisterKiosk: %v", err)
+	}
+	code, expiresAt, err := svc.IssuePairingCode(ctx, id)
+	if err != nil {
+		t.Fatalf("IssuePairingCode: %v", err)
+	}
+	if want := fake.Now().Add(10 * time.Minute); !expiresAt.Equal(want) {
+		t.Fatalf("expiresAt = %v, want %v (10m after the fake now)", expiresAt, want)
+	}
+
+	fake.Advance(11 * time.Minute)
+	if _, _, _, err := svc.RedeemPairingCode(ctx, code); !errors.Is(err, auth.ErrPairingCodeInvalid) {
+		t.Fatalf("redeem after the clock passed expiry = %v, want ErrPairingCodeInvalid", err)
 	}
 }
