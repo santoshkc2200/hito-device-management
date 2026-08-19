@@ -36,8 +36,14 @@ func TestMessagesNeverContainRawTokens(t *testing.T) {
 	}
 }
 
+// TestRejectionMessagesAllNamePaperFallback asserts, over all three
+// unrecognised-card templates, that each mentions the attendant or the
+// register. Blunt, and exactly the product rule (2.4): a refusal that
+// only says "no" sends a person away holding a device they need, which
+// makes the system worse than the paper register it replaces — this test
+// is what stops a copy review from quietly "tightening" that away.
 func TestRejectionMessagesAllNamePaperFallback(t *testing.T) {
-	for _, key := range []machine.MessageKey{machine.MsgUnbound, machine.MsgUnknown} {
+	for _, key := range []machine.MessageKey{machine.MsgUnbound, machine.MsgUnknown, machine.MsgRevoked} {
 		t.Run(string(key), func(t *testing.T) {
 			msg := Render(key, nil)
 			if !strings.Contains(msg.Detail, "attendant") && !strings.Contains(msg.Detail, "register") {
@@ -122,7 +128,8 @@ func TestRevokedNamesTheDateOnlyWhenItHasOne(t *testing.T) {
 	if !strings.Contains(with.Detail, "replaced on 2026-08-12 10:00 NPT") {
 		t.Errorf("Detail = %q, want it to name the revocation date", with.Detail)
 	}
-	if got, want := Render(machine.MsgRevoked, nil).Detail, "This card was replaced. Please use your current card."; got != want {
+	if got, want := Render(machine.MsgRevoked, nil).Detail,
+		"This card was replaced. Please use your current card — the attendant can record the item in the register meanwhile."; got != want {
 		t.Errorf("Detail with no date = %q, want %q", got, want)
 	}
 }

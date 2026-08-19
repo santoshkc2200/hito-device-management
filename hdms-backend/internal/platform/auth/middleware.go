@@ -43,7 +43,12 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 				writeUnauthorized(w, r, "Invalid or disabled kiosk token")
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(contextWithKiosk(r.Context(), kiosk)))
+			// Authenticated is not authorised: a validated kiosk token still
+			// only reaches KioskAllowedOperations (FR-45, INV-11). The 2.4
+			// scope test enumerates the embedded OpenAPI spec against this
+			// gate, so a newly added endpoint cannot silently escape it.
+			scoped := enforceKioskScope(next)
+			scoped.ServeHTTP(w, r.WithContext(contextWithKiosk(r.Context(), kiosk)))
 			return
 		}
 

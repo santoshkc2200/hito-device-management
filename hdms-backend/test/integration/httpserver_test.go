@@ -25,6 +25,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
+	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
@@ -46,6 +47,8 @@ type testHarness struct {
 	client    *http.Client
 	csrfToken string
 	identity  identityapi.Service
+	auth      *auth.Service
+	pool      *db.Pool
 }
 
 func newTestHarness(t *testing.T) *testHarness {
@@ -84,7 +87,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		t.Fatalf("cookiejar.New: %v", err)
 	}
 
-	h := &testHarness{server: ts, client: &http.Client{Jar: jar}, identity: identitySvc}
+	h := &testHarness{server: ts, client: &http.Client{Jar: jar}, identity: identitySvc, auth: authSvc, pool: pool}
 	h.bootstrapAndLogin(t, authSvc)
 	return h
 }

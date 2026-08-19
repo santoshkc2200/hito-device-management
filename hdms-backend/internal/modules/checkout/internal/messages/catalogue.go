@@ -72,9 +72,10 @@ var catalogue = map[machine.MessageKey]Template{
 		Tone: checkoutapi.ToneWarning,
 	},
 	machine.MsgRevoked: {
-		Title:  "Card replaced",
-		Detail: `This card was replaced{{with .revokedAt}} on {{.}}{{end}}. Please use your current card.`,
-		Tone:   checkoutapi.ToneWarning,
+		Title: "Card replaced",
+		Detail: `This card was replaced{{with .revokedAt}} on {{.}}{{end}}. Please use your current card — ` +
+			`the attendant can record the item in the register meanwhile.`,
+		Tone: checkoutapi.ToneWarning,
 	},
 	machine.MsgBorrowed: {
 		Title: "Borrowed", Detail: "{{if .dueAt}}Due {{.dueAt}}{{else}}✓ Borrowed{{end}}", Tone: checkoutapi.ToneSuccess,

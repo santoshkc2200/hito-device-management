@@ -160,10 +160,10 @@ func TestKioskPairingCodeConsumedAndExpiredAreIndistinguishable(t *testing.T) {
 
 func TestKioskTokenAuthenticatesAgainstAPI(t *testing.T) {
 	// Exit criterion: a kiosk token minted by registration authenticates
-	// against a running API. This does not assert a 200 for /v1/devices —
-	// scope enforcement is 2.6's job (docs/phases/phase-2/README.md gap 1)
-	// — only that Middleware accepts the token and attaches a kiosk
-	// identity rather than rejecting it as unauthenticated.
+	// against a running API and reaches a handler with a kiosk identity
+	// attached. Since 2.4 the middleware also enforces scope, so the probe
+	// path must be one of auth.KioskAllowedOperations — the full
+	// spec-enumeration proof lives in kiosk_scope_test.go.
 	authSvc, _ := newKioskAuthService(t)
 	ctx := context.Background()
 	_, token, err := authSvc.RegisterKiosk(ctx, "API Test Kiosk", "")
@@ -178,7 +178,7 @@ func TestKioskTokenAuthenticatesAgainstAPI(t *testing.T) {
 	})
 	handler := authSvc.Middleware(next)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/devices", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/sessions/01923e5c-0000-7000-8000-000000000000", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

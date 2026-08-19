@@ -174,4 +174,20 @@ type Service interface {
 
 	// Cancel explicitly cancels a session, idempotently.
 	Cancel(ctx context.Context, id, actor string) (Session, error)
+
+	// CountScanRejectionsSince returns how many people were turned away
+	// since the given time, grouped by resolved type (unbound / unknown /
+	// revoked) — the administrator's "go register some cards" signal, not
+	// an attack metric. DistinctTokens counts distinct token previews, an
+	// honest proxy for distinct people: the same person re-scanning three
+	// times is one person to go and register.
+	CountScanRejectionsSince(ctx context.Context, since time.Time) ([]ScanRejectionCount, error)
+}
+
+// ScanRejectionCount is one resolved type's slice of the turned-away
+// count.
+type ScanRejectionCount struct {
+	ResolvedType   string // "unbound" | "unknown" | "revoked" | ...
+	DistinctTokens int
+	TotalScans     int
 }
