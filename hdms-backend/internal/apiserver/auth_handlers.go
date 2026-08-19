@@ -15,7 +15,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	sessionToken, csrfToken, admin, err := s.auth.Login(r.Context(), req.Email, req.Password, req.TotpCode)
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 
@@ -38,7 +38,7 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetCurrentAdmin(w http.ResponseWriter, r *http.Request) {
 	admin, ok := auth.AdminFromContext(r.Context())
 	if !ok {
-		writeServiceError(w, r, auth.ErrSessionInvalid)
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
 		return
 	}
 	writeJSON(w, http.StatusOK, adminToGen(admin))

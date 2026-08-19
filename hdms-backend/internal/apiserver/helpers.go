@@ -214,7 +214,3 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		writeValidationFailed(w, r, err.Error(), nil)
 	}
 }
-
-func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
-	(&Server{}).writeServiceError(w, r, err)
-}

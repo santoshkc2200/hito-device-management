@@ -100,7 +100,16 @@ func (h *SSEHub) Stream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Replay missed events from outbox if lastEventID > 0
+	// Subscribe before replaying the outbox: an event dispatched while the
+	// replay query runs must not be lost. Registering first means such an
+	// event arrives twice (once from the replay, once live off ch) rather
+	// than not at all — watermark below drops the live duplicate.
+	ch := make(chan Event, 128)
+	h.addClient(ch)
+	defer h.removeClient(ch)
+
+	// Replay missed events from outbox if lastEventID > 0.
+	watermark := lastEventID
 	if lastEventID > 0 && h.pool != nil {
 		q := eventsstore.New(db.Conn(r.Context(), h.pool))
 		missed, err := q.GetPublishedEventsAfter(r.Context(), eventsstore.GetPublishedEventsAfterParams{
@@ -109,19 +118,20 @@ func (h *SSEHub) Stream(w http.ResponseWriter, r *http.Request) {
 		})
 		if err == nil {
 			for _, m := range missed {
-				_ = writeSSEEvent(w, flusher, Event{
+				if err := writeSSEEvent(w, flusher, Event{
 					ID:        m.ID,
 					Topic:     Topic(m.Topic),
 					Payload:   json.RawMessage(m.Payload),
 					CreatedAt: pgtypeconv.Time(m.CreatedAt),
-				})
+				}); err != nil {
+					return
+				}
+				if m.ID > watermark {
+					watermark = m.ID
+				}
 			}
 		}
 	}
-
-	ch := make(chan Event, 128)
-	h.addClient(ch)
-	defer h.removeClient(ch)
 
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
@@ -138,6 +148,10 @@ func (h *SSEHub) Stream(w http.ResponseWriter, r *http.Request) {
 		case ev, ok := <-ch:
 			if !ok {
 				return
+			}
+			if ev.ID <= watermark {
+				// Already sent by the replay above.
+				continue
 			}
 			if err := writeSSEEvent(w, flusher, ev); err != nil {
 				return

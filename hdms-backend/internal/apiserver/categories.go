@@ -11,7 +11,7 @@ import (
 func (s *Server) ListCategories(w http.ResponseWriter, r *http.Request) {
 	categories, err := s.catalog.ListCategories(r.Context())
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	items := make([]gen.Category, 0, len(categories))
@@ -32,7 +32,7 @@ func (s *Server) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		RequiresApproval:  boolFromPtr(req.RequiresApproval),
 	})
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, categoryToGen(category))
@@ -49,7 +49,7 @@ func (s *Server) UpdateCategory(w http.ResponseWriter, r *http.Request, id gen.I
 		RequiresApproval:  boolFromPtr(req.RequiresApproval),
 	})
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, categoryToGen(category))

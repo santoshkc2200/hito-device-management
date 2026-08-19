@@ -10,7 +10,7 @@ import (
 func (s *Server) ListCredentialsBySubject(w http.ResponseWriter, r *http.Request, params gen.ListCredentialsBySubjectParams) {
 	credentials, err := s.credentials.ListBySubject(r.Context(), credentialsapi.SubjectType(params.SubjectType), params.SubjectId)
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	items := make([]gen.Credential, 0, len(credentials))
@@ -37,7 +37,7 @@ func (s *Server) IssueCredential(w http.ResponseWriter, r *http.Request) {
 		IssuedBy:    actorFrom(r),
 	})
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -51,7 +51,7 @@ func (s *Server) IssueBlankBatch(w http.ResponseWriter, r *http.Request) {
 	}
 	batch, err := s.credentials.IssueBlankBatch(r.Context(), req.Count, credentialsapi.Kind(req.Kind), actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	items := make([]gen.IssuedCredential, 0, len(batch))
@@ -69,7 +69,7 @@ func (s *Server) BindCredential(w http.ResponseWriter, r *http.Request, id gen.I
 	}
 	credential, err := s.credentials.Bind(r.Context(), id, req.SubjectId, actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, credentialToGen(credential))
@@ -78,7 +78,7 @@ func (s *Server) BindCredential(w http.ResponseWriter, r *http.Request, id gen.I
 func (s *Server) ReprintCredential(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
 	issued, err := s.credentials.Reprint(r.Context(), id, actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -95,7 +95,7 @@ func (s *Server) RevokeCredential(w http.ResponseWriter, r *http.Request, id gen
 	}
 	credential, err := s.credentials.Revoke(r.Context(), id, req.Reason, actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, credentialToGen(credential))
@@ -111,7 +111,7 @@ func (s *Server) ReissueCredential(w http.ResponseWriter, r *http.Request, id ge
 	}
 	issued, err := s.credentials.Reissue(r.Context(), id, req.Reason, actorFrom(r), fromPtr(req.ManualToken))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -121,7 +121,7 @@ func (s *Server) ReissueCredential(w http.ResponseWriter, r *http.Request, id ge
 func (s *Server) GetUnboundCredentialCount(w http.ResponseWriter, r *http.Request) {
 	count, err := s.credentials.CountUnbound(r.Context())
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, gen.UnboundCountResponse{Count: count})
@@ -130,7 +130,7 @@ func (s *Server) GetUnboundCredentialCount(w http.ResponseWriter, r *http.Reques
 func (s *Server) ResolveCredential(w http.ResponseWriter, r *http.Request, params gen.ResolveCredentialParams) {
 	ref, err := s.credentials.Resolve(r.Context(), params.Token)
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, gen.ResolvedCredential{
@@ -145,7 +145,7 @@ func (s *Server) ResolveCredential(w http.ResponseWriter, r *http.Request, param
 func (s *Server) GetCredentialHistory(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
 	events, err := s.credentials.ListEvents(r.Context(), id)
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	items := make([]gen.CredentialEvent, 0, len(events))

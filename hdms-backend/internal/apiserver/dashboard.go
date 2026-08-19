@@ -51,18 +51,28 @@ func (s *Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 		FROM devices
 		GROUP BY category_id
 	`)
-	if err == nil {
-		for rows.Next() {
-			var catID string
-			var total, avail int
-			if err := rows.Scan(&catID, &total, &avail); err == nil {
-				catAvailMap[catID] = struct {
-					available int
-					total     int
-				}{available: avail, total: total}
-			}
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	for rows.Next() {
+		var catID string
+		var total, avail int
+		if err := rows.Scan(&catID, &total, &avail); err != nil {
+			rows.Close()
+			s.writeServiceError(w, r, err)
+			return
 		}
-		rows.Close()
+		catAvailMap[catID] = struct {
+			available int
+			total     int
+		}{available: avail, total: total}
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		s.writeServiceError(w, r, rowsErr)
+		return
 	}
 
 	categoryAvailabilities := make([]gen.CategoryAvailability, len(categories))

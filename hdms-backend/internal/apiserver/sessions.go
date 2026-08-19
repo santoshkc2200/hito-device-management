@@ -14,7 +14,7 @@ import (
 func (s *Server) CreateSession(w http.ResponseWriter, r *http.Request, _ gen.CreateSessionParams) {
 	kiosk, ok := auth.KioskFromContext(r.Context())
 	if !ok {
-		writeServiceError(w, r, auth.ErrKioskInvalid)
+		s.writeServiceError(w, r, auth.ErrKioskInvalid)
 		return
 	}
 
@@ -32,7 +32,7 @@ func (s *Server) CreateSession(w http.ResponseWriter, r *http.Request, _ gen.Cre
 
 // GetSession retrieves the current state of a scan session.
 func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
-	sess, err := s.checkout.GetSession(r.Context(), id)
+	sess, err := s.sessionForRequest(r, id)
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
@@ -42,6 +42,10 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, id gen.IDPar
 
 // CancelSession explicitly cancels a scan session.
 func (s *Server) CancelSession(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	if _, err := s.sessionForRequest(r, id); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
 	actor := actorFrom(r)
 	sess, err := s.checkout.Cancel(r.Context(), id, actor)
 	if err != nil {
@@ -53,6 +57,10 @@ func (s *Server) CancelSession(w http.ResponseWriter, r *http.Request, id gen.ID
 
 // CloseSession closes a scan session ("Done").
 func (s *Server) CloseSession(w http.ResponseWriter, r *http.Request, id gen.IDParam, _ gen.CloseSessionParams) {
+	if _, err := s.sessionForRequest(r, id); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
 	actor := actorFrom(r)
 	sess, err := s.checkout.Close(r.Context(), id, actor)
 	if err != nil {
@@ -66,6 +74,11 @@ func (s *Server) CloseSession(w http.ResponseWriter, r *http.Request, id gen.IDP
 func (s *Server) SubmitScan(w http.ResponseWriter, r *http.Request, id gen.IDParam, _ gen.SubmitScanParams) {
 	body, ok := decodeJSON[gen.ScanRequest](w, r)
 	if !ok {
+		return
+	}
+
+	if _, err := s.sessionForRequest(r, id); err != nil {
+		s.writeServiceError(w, r, err)
 		return
 	}
 
@@ -97,6 +110,11 @@ func (s *Server) ReturnSessionLoan(w http.ResponseWriter, r *http.Request, id ge
 		return
 	}
 
+	if _, err := s.sessionForRequest(r, id); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
 	actor := actorFrom(r)
 	result, err := s.checkout.ReturnLoan(r.Context(), id, body.LoanId, actor)
 	if err != nil {
@@ -105,6 +123,26 @@ func (s *Server) ReturnSessionLoan(w http.ResponseWriter, r *http.Request, id ge
 	}
 
 	writeJSON(w, http.StatusOK, s.mapScanResult(r.Context(), result))
+}
+
+// sessionForRequest fetches the session and, when the caller authenticated
+// with a kiosk bearer token, refuses it unless the session belongs to that
+// same kiosk. A kiosk's token is scoped to the six session operations
+// (auth.KioskAllowedOperations) but nothing below the HTTP layer ties a
+// session id to the kiosk that opened it, so without this check any kiosk
+// token could read or act on any other kiosk's session — including the
+// borrower's name held on it (docs/09 T7/T9). Reports the session as not
+// found rather than forbidden, so a kiosk cannot use the distinction to
+// probe for other kiosks' session ids. An admin principal is unrestricted.
+func (s *Server) sessionForRequest(r *http.Request, id string) (checkoutapi.Session, error) {
+	sess, err := s.checkout.GetSession(r.Context(), id)
+	if err != nil {
+		return checkoutapi.Session{}, err
+	}
+	if kiosk, ok := auth.KioskFromContext(r.Context()); ok && sess.KioskID != kiosk.ID {
+		return checkoutapi.Session{}, checkoutapi.ErrSessionNotFound
+	}
+	return sess, nil
 }
 
 func (s *Server) mapSession(ctx context.Context, sess checkoutapi.Session) gen.Session {

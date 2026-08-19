@@ -19,7 +19,7 @@ func (s *Server) ListDevices(w http.ResponseWriter, r *http.Request, params gen.
 		Limit:      fromLimitPtr(params.Limit),
 	})
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 
@@ -48,7 +48,7 @@ func (s *Server) CreateDevice(w http.ResponseWriter, r *http.Request) {
 		AcquiredOn:   dateToTimePtr(req.AcquiredOn),
 	}, actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, deviceToGen(device))
@@ -57,7 +57,7 @@ func (s *Server) CreateDevice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetDevice(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
 	device, err := s.catalog.LookupDevice(r.Context(), id)
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, deviceToGen(device))
@@ -81,14 +81,14 @@ func (s *Server) UpdateDevice(w http.ResponseWriter, r *http.Request, id gen.IDP
 		AcquiredOn:   dateToTimePtr(req.AcquiredOn),
 	}, actor)
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 
 	if req.Condition != nil {
 		device, err = s.catalog.SetCondition(r.Context(), id, catalogapi.DeviceCondition(*req.Condition), actor)
 		if err != nil {
-			writeServiceError(w, r, err)
+			s.writeServiceError(w, r, err)
 			return
 		}
 	}
@@ -104,7 +104,7 @@ func (s *Server) SetDeviceStatus(w http.ResponseWriter, r *http.Request, id gen.
 
 	device, err := s.catalog.SetStatus(r.Context(), id, catalogapi.DeviceStatus(req.Status), fromPtr(req.Reason), actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, deviceToGen(device))

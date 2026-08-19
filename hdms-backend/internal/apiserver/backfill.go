@@ -24,7 +24,7 @@ func (s *Server) PreviewBackfillBatch(w http.ResponseWriter, r *http.Request, _ 
 	}
 	result, err := s.checkout.PreviewPaperBatch(r.Context(), backfillBatchFromHTTP(body), actorFrom(r))
 	if err != nil {
-		writeBackfillError(w, r, err)
+		s.writeBackfillError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, backfillResultToHTTP(result, false))
@@ -40,7 +40,7 @@ func (s *Server) RecordBackfillBatch(w http.ResponseWriter, r *http.Request, _ g
 	}
 	result, err := s.checkout.RecordPaperBatch(r.Context(), backfillBatchFromHTTP(body), actorFrom(r))
 	if err != nil {
-		writeBackfillError(w, r, err)
+		s.writeBackfillError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, backfillResultToHTTP(result, result.Committed))
@@ -51,7 +51,7 @@ func (s *Server) RecordBackfillBatch(w http.ResponseWriter, r *http.Request, _ g
 func (s *Server) GetBackfillLastEntry(w http.ResponseWriter, r *http.Request) {
 	entry, err := s.lending.LastPaperEntry(r.Context())
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	if entry == nil {
@@ -69,7 +69,7 @@ func (s *Server) GetBackfillLastEntry(w http.ResponseWriter, r *http.Request) {
 // problems (docs/06): a rejected batch distinguishes conflicts (409
 // overlapping-custody) from unresolved rows (422 validation-failed), with
 // the offending client row ids in extensions either way.
-func writeBackfillError(w http.ResponseWriter, r *http.Request, err error) {
+func (s *Server) writeBackfillError(w http.ResponseWriter, r *http.Request, err error) {
 	var rejected *checkoutapi.PaperBatchError
 	if errors.As(err, &rejected) {
 		var conflicting, unresolved []string
@@ -107,7 +107,7 @@ func writeBackfillError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, checkoutapi.ErrPaperRowMalformed):
 		writeValidationFailed(w, r, err.Error(), nil)
 	default:
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 	}
 }
 

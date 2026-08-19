@@ -19,7 +19,7 @@ func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, params gen.Li
 		Limit:        fromLimitPtr(params.Limit),
 	})
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	items := make([]gen.User, 0, len(result.Items))
@@ -44,7 +44,7 @@ func (s *Server) CreateUser(w http.ResponseWriter, r *http.Request) {
 		RegisteredBy: actorFrom(r),
 	})
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, userToGen(user))
@@ -102,7 +102,7 @@ func (s *Server) RegisterUserWithCard(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (s *Server) RegisterUserWithCard(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetUser(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
 	user, err := s.identity.LookupUser(r.Context(), id)
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, userToGen(user))
@@ -138,7 +138,7 @@ func (s *Server) UpdateUser(w http.ResponseWriter, r *http.Request, id gen.IDPar
 		Notes:        fromPtr(req.Notes),
 	}, actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, userToGen(user))
@@ -154,7 +154,7 @@ func (s *Server) SuspendUser(w http.ResponseWriter, r *http.Request, id gen.IDPa
 	}
 	user, err := s.identity.SuspendUser(r.Context(), id, req.Reason, actorFrom(r))
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, userToGen(user))
@@ -186,7 +186,7 @@ func fromUserStatusFilter(f *gen.UserStatusFilter) string {
 func (s *Server) ListDepartments(w http.ResponseWriter, r *http.Request) {
 	departments, err := s.identity.ListDepartments(r.Context())
 	if err != nil {
-		writeServiceError(w, r, err)
+		s.writeServiceError(w, r, err)
 		return
 	}
 	items := make([]gen.Department, 0, len(departments))
