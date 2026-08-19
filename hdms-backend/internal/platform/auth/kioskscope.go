@@ -18,14 +18,14 @@ import (
 // newly added endpoint fails the scope suite until it is classified,
 // regardless of what this map says.
 var KioskAllowedOperations = map[string]struct{}{
-	"POST /v1/sessions":                   {},
-	"GET /v1/sessions/{id}":               {},
-	"POST /v1/sessions/{id}/scan":         {},
-	"POST /v1/sessions/{id}/return-loan":  {},
-	"POST /v1/sessions/{id}/close":        {},
-	"DELETE /v1/sessions/{id}":            {},
-	"GET /v1/healthz":                     {},
-	"GET /v1/readyz":                      {},
+	"POST /v1/sessions":                  {},
+	"GET /v1/sessions/{id}":              {},
+	"POST /v1/sessions/{id}/scan":        {},
+	"POST /v1/sessions/{id}/return-loan": {},
+	"POST /v1/sessions/{id}/close":       {},
+	"DELETE /v1/sessions/{id}":           {},
+	"GET /v1/healthz":                    {},
+	"GET /v1/readyz":                     {},
 }
 
 // KioskMayCall reports whether a concrete request (method + request path,
@@ -66,16 +66,15 @@ func pathMatchesTemplate(path, tmpl string) bool {
 	return true
 }
 
-// enforceKioskScope is the gate Middleware applies after a kiosk bearer
-// token validates: authenticated is not authorised, and a kiosk calling
-// anything outside KioskAllowedOperations is refused before the request
-// reaches a handler (docs/phases/phase-2/2.4-unrecognised-cards.md, 2.4.3).
-func enforceKioskScope(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !KioskMayCall(r.Method, r.URL.Path) {
-			writeForbidden(w, r, "Kiosk tokens may only call kiosk operations")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+// refuseOutOfScopeKiosk is the gate Middleware applies after a kiosk
+// bearer token validates: authenticated is not authorised, and a kiosk
+// calling anything outside KioskAllowedOperations is refused before the
+// request reaches a handler (docs/phases/phase-2/2.4-unrecognised-cards.md,
+// 2.4.3). It reports whether the request was refused.
+func refuseOutOfScopeKiosk(w http.ResponseWriter, r *http.Request) bool {
+	if KioskMayCall(r.Method, r.URL.Path) {
+		return false
+	}
+	writeForbidden(w, r, "Kiosk tokens may only call kiosk operations")
+	return true
 }

@@ -37,8 +37,8 @@ func TestMessagesNeverContainRawTokens(t *testing.T) {
 }
 
 // TestRejectionMessagesAllNamePaperFallback asserts, over all three
-// unrecognised-card templates, that each mentions the attendant or the
-// register. Blunt, and exactly the product rule (2.4): a refusal that
+// unrecognised-card templates, that each mentions the attendant *and*
+// the register. Blunt, and exactly the product rule (2.4): a refusal that
 // only says "no" sends a person away holding a device they need, which
 // makes the system worse than the paper register it replaces — this test
 // is what stops a copy review from quietly "tightening" that away.
@@ -46,8 +46,12 @@ func TestRejectionMessagesAllNamePaperFallback(t *testing.T) {
 	for _, key := range []machine.MessageKey{machine.MsgUnbound, machine.MsgUnknown, machine.MsgRevoked} {
 		t.Run(string(key), func(t *testing.T) {
 			msg := Render(key, nil)
-			if !strings.Contains(msg.Detail, "attendant") && !strings.Contains(msg.Detail, "register") {
-				t.Errorf("message for %q = %q, want it to name the paper fallback (attendant/register)", key, msg.Detail)
+			// Both words, not either: "register" alone is satisfied by
+			// "not registered", which is a pure refusal — exactly the copy
+			// this test exists to forbid. The fallback is only named when
+			// the message points at a person *and* at the paper register.
+			if !strings.Contains(msg.Detail, "attendant") || !strings.Contains(msg.Detail, "register") {
+				t.Errorf("message for %q = %q, want it to name the paper fallback (both \"attendant\" and \"register\")", key, msg.Detail)
 			}
 		})
 	}

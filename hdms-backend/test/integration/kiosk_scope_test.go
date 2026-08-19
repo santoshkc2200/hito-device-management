@@ -31,7 +31,12 @@ func kioskTokenFor(t *testing.T, h *testHarness) string {
 }
 
 // kioskRequest sends one request with only a kiosk bearer token — no
-// admin cookies, no CSRF header — and returns the response status.
+// admin cookies, no CSRF header — and returns the response status. It
+// deliberately does NOT use h.client: that client's jar holds the
+// harness's admin hdms_session/hdms_csrf cookies, and a request carrying
+// them would let an allowlist assertion pass on admin credentials rather
+// than on kiosk scope. A bare client is the only way this suite proves
+// what its name claims.
 func kioskRequest(t *testing.T, h *testHarness, method, path, token string) int {
 	t.Helper()
 	req, err := http.NewRequest(method, h.server.URL+path, nil)
@@ -39,7 +44,7 @@ func kioskRequest(t *testing.T, h *testHarness, method, path, token string) int 
 		t.Fatalf("new request: %v", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := h.client.Do(req)
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		t.Fatalf("do request: %v", err)
 	}
@@ -158,6 +163,13 @@ func TestINV11_RegisteredByNeverKiosk(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("identity.CreateUser accepted a kiosk: registeredBy — INV-11 is not enforced at the module boundary")
+	}
+	// CreateUser validates employee number and full name *before*
+	// registered_by, so "some error came back" is not proof: name the
+	// rejection, or a future tightening of an earlier validation would
+	// keep this test green while INV-11 silently lapsed.
+	if !strings.Contains(err.Error(), "registered_by") {
+		t.Fatalf("CreateUser error = %v, want the registered_by validation (INV-11), not an unrelated rejection", err)
 	}
 
 	// Belt and braces: after a kiosk token has tried every user-creating
