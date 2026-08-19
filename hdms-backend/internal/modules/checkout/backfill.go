@@ -244,6 +244,23 @@ func (s *Service) resolvePaperRow(
 ) (*paperRowWork, bool) {
 	work := &paperRowWork{row: row}
 
+	// Times are checked first, before resolving device/user, because
+	// resolving a newUser reference can create a person (a real write): a
+	// row with an invalid time range should fail without that side effect.
+	switch {
+	case row.BorrowedAt.IsZero():
+		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "borrowedAt", "the out-time is required"
+	case row.BorrowedAt.After(now):
+		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "borrowedAt", "the out-time is in the future"
+	case row.ReturnedAt != nil && !row.ReturnedAt.After(row.BorrowedAt):
+		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "returnedAt", "the in-time must be after the out-time"
+	case row.ReturnedAt != nil && row.ReturnedAt.After(now):
+		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "returnedAt", "the in-time is in the future"
+	}
+	if res.Status == checkoutapi.PaperRowUnresolved {
+		return nil, false
+	}
+
 	device, devErr := s.resolvePaperDevice(ctx, row.DeviceRef)
 	if devErr != nil {
 		res.Status = checkoutapi.PaperRowUnresolved
@@ -260,19 +277,6 @@ func (s *Service) resolvePaperRow(
 	}
 	work.user, work.userID, work.creates = user, userID, creates
 
-	switch {
-	case row.BorrowedAt.IsZero():
-		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "borrowedAt", "the out-time is required"
-	case row.BorrowedAt.After(now):
-		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "borrowedAt", "the out-time is in the future"
-	case row.ReturnedAt != nil && !row.ReturnedAt.After(row.BorrowedAt):
-		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "returnedAt", "the in-time must be after the out-time"
-	case row.ReturnedAt != nil && row.ReturnedAt.After(now):
-		res.Status, res.Field, res.Reason = checkoutapi.PaperRowUnresolved, "returnedAt", "the in-time is in the future"
-	}
-	if res.Status == checkoutapi.PaperRowUnresolved {
-		return nil, false
-	}
 	return work, true
 }
 
@@ -373,7 +377,7 @@ func (s *Service) resolvePaperUser(
 			// atomic, so "earlier attempt" means a concurrent admin) is a
 			// person to reuse, not a duplicate to create.
 			if errors.Is(err, identityapi.ErrEmployeeNoTaken) {
-				if existing, lookupErr := s.deps.Users.LookupUserByEmployeeNo(ctx, nu.EmployeeNo); lookupErr == nil {
+				if existing, lookupErr := s.deps.Users.LookupUserByEmployeeNo(ctx, strings.TrimSpace(nu.EmployeeNo)); lookupErr == nil {
 					return existing, existing.ID, false, nil
 				}
 			}

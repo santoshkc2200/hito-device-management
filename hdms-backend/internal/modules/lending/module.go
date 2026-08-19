@@ -539,14 +539,19 @@ func (s *Service) translateLoanErr(ctx context.Context, err error, deviceID stri
 		// The unique index (INV-1) and the exclusion constraint (INV-13)
 		// both reject a second open loan, and which one reports first is an
 		// accident of index OIDs — a rebuilt index (0011 changed exactly
-		// that) reports later. The semantics are not accidental: if the
-		// device has an open loan right now, this is the
-		// device-already-on-loan condition whichever constraint said so;
-		// only a purely temporal overlap is ErrOverlappingCustody.
-		if open := s.currentOpenLoanOrZero(ctx, deviceID); open.ID != "" {
-			return &lendingapi.DeviceAlreadyOnLoanError{Existing: open}
+		// that) reports later. The semantics are not accidental: whichever
+		// constraint fired, the row to report is the one whose time range
+		// actually intersects [borrowedAt, returnedAt) — device-already-
+		// on-loan when that row is still open, ErrOverlappingCustody
+		// otherwise. RecordHistorical (paper backfill) can target an
+		// arbitrary past range, so the device's *current* open loan is not
+		// necessarily the row that conflicted — only OverlappingLoan's
+		// actual intersection query can say which one did.
+		existing := s.overlappingLoanOrZero(ctx, deviceID, borrowedAt, returnedAt)
+		if existing.Status == lendingapi.StatusOpen {
+			return &lendingapi.DeviceAlreadyOnLoanError{Existing: existing}
 		}
-		return &lendingapi.OverlappingCustodyError{Existing: s.overlappingLoanOrZero(ctx, deviceID, borrowedAt, returnedAt)}
+		return &lendingapi.OverlappingCustodyError{Existing: existing}
 	case "23514":
 		switch pgErr.ConstraintName {
 		case "loans_return_after_borrow":
