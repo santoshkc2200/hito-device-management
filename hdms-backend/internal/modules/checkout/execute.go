@@ -104,6 +104,12 @@ func (s *Service) executeBorrow(
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: release savepoint: %w", err)
 	}
 
+	if s.failAfterLoanInsert != nil {
+		if hookErr := s.failAfterLoanInsert(); hookErr != nil {
+			return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("injected failure after loan insert: %w", hookErr)
+		}
+	}
+
 	if _, err := s.deps.Devices.SetStatus(ctx, deviceID, catalogapi.StatusOnLoan, "", params.Actor); err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: set device on_loan: %w", err)
 	}

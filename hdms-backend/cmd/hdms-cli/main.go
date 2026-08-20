@@ -280,6 +280,9 @@ func runExport(args []string) error {
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
+	if *out != "" && target == "all" {
+		return fmt.Errorf("--out is not supported with target \"all\" (it writes two files); use --domain-dir or export machine/scenarios individually")
+	}
 
 	getDomainDir := func() string {
 		if *domainDir != "" {
@@ -300,7 +303,7 @@ func runExport(args []string) error {
 
 	exportFile := func(filename string, data []byte) error {
 		var outPath string
-		if *out != "" && target != "all" {
+		if *out != "" {
 			outPath = *out
 		} else {
 			outPath = filepath.Join(getDomainDir(), filename)

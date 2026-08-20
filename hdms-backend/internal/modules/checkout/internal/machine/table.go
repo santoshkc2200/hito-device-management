@@ -13,7 +13,6 @@ type Rule struct {
 	Action       Action
 	Target       SessionState
 	ClearPending bool
-	Dynamic      bool
 	decide       func(snap Snapshot, in Input) Decision
 }
 
@@ -71,7 +70,6 @@ func static(action Action, next SessionState, clearPending bool, key MessageKey)
 		Action:       action,
 		Target:       next,
 		ClearPending: clearPending,
-		Dynamic:      false,
 		decide: func(snap Snapshot, in Input) Decision {
 			return Decision{Action: action, NextState: next, ClearPending: clearPending, MessageKey: key, MessageArgs: baseArgs(snap, in)}
 		},
@@ -90,7 +88,6 @@ func resolvePendingAgainstUser() Rule {
 		Action:       ActionResolvePending,
 		Target:       Ready,
 		ClearPending: true,
-		Dynamic:      true,
 		decide: func(snap Snapshot, in Input) Decision {
 			args := baseArgs(snap, in)
 			switch ResolveAction(snap.PendingDeviceHolderID, in.UserID) {

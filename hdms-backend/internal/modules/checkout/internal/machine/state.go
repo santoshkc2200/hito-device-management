@@ -54,8 +54,10 @@ func (c InputClass) String() string { return string(c) }
 const Version = "1.0.0"
 
 // Timeout constants (docs/04 Timeouts table) for the machine and kiosk countdown timers.
+// IdleTimeoutMs is not part of that table (idle has no on-screen countdown);
+// it is the server-side sweep TTL for sessions that never receive a first scan.
 const (
-	IdleTimeoutMs           = 0
+	IdleTimeoutMs           = 45000
 	AwaitingUserTimeoutMs   = 45000
 	AwaitingDeviceTimeoutMs = 25000
 	ReadyTimeoutMs          = 25000
@@ -71,7 +73,7 @@ func TimeoutFor(state SessionState) time.Duration {
 	case Ready:
 		return ReadyTimeoutMs * time.Millisecond
 	default:
-		return 45 * time.Second // idle session TTL before sweep
+		return IdleTimeoutMs * time.Millisecond
 	}
 }
 

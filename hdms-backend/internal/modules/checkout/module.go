@@ -35,6 +35,15 @@ type Service struct {
 	deps  Deps
 	audit auditapi.Recorder
 	bus   *events.Bus
+
+	failAfterLoanInsert func() error
+}
+
+// SetFailAfterLoanInsertForTest configures a hook that fires immediately after
+// OpenLoan completes inside executeBorrow, before subsequent writes or commit.
+// Test-only (docs/phases/phase-2/2.8-testing.md § 2.8.3).
+func (s *Service) SetFailAfterLoanInsertForTest(fn func() error) {
+	s.failAfterLoanInsert = fn
 }
 
 // New constructs the checkout service.

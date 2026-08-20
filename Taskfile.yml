@@ -113,10 +113,15 @@ tasks:
       - go test ./...
 
   test:integration:
-    desc: Run backend integration tests against a real Postgres via testcontainers.
+    desc: Run backend integration tests against a real Postgres via testcontainers under -race.
     dir: "{{.BACKEND}}"
     cmds:
-      - go test -tags=integration ./test/...
+      - go test -race -tags=integration ./test/...
+
+  test:load:
+    desc: Run k6 load test at 50x expected peak against the local stack.
+    cmds:
+      - k6 run deploy/loadtest/scan-load.js
 
   test:frontend:
     dir: "{{.FRONTEND}}"
