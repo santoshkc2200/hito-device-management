@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import {
   ScanRouter,
+  HidWedgeSource,
   type ScanEvent,
   type ScanSource,
   type Unsubscribe,
@@ -9,8 +10,8 @@ import { getKioskConfig, type ScanSourceType } from "./kiosk-config";
 
 /**
  * Placeholder source implementation for uninitialized hardware sources.
- * Real sources (HidWedgeSource, CameraSource, ManualSource) will be plugged in
- * during subphases 3.1b, 3.1c, and 3.4.
+ * Real sources (CameraSource, ManualSource) will be plugged in
+ * during subphases 3.1c and 3.4.
  */
 class PlaceholderScanSource implements ScanSource {
   readonly id: string;
@@ -37,7 +38,7 @@ class PlaceholderScanSource implements ScanSource {
 function mapConfigTypeToSource(type: ScanSourceType): ScanSource {
   switch (type) {
     case "hid":
-      return new PlaceholderScanSource("scanner", "Barcode Scanner (HID)");
+      return new HidWedgeSource();
     case "camera":
       return new PlaceholderScanSource("camera", "Camera Scanner");
     case "manual":
