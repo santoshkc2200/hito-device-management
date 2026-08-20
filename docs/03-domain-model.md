@@ -215,6 +215,9 @@ CREATE TABLE loans (
     recorded_by       text,              -- which admin typed it
     backfill_note     text,
 
+    -- Disputed entries (2.4b): claims recorded outside custody facts
+    disputed          boolean NOT NULL DEFAULT false,
+
     CONSTRAINT loans_return_after_borrow
         CHECK (returned_at IS NULL OR returned_at > borrowed_at),
     CONSTRAINT loans_status_matches_return
@@ -226,8 +229,9 @@ CREATE TABLE loans (
 -- ═══ Invariant 1 — fast guard on the live path (FR-26) ═══
 -- A device can have at most one OPEN loan. Two concurrent borrows produce one
 -- success and one 23505, which maps cleanly to ErrDeviceAlreadyOnLoan.
+-- Disputed claims are excluded so they never block live borrows (0011).
 CREATE UNIQUE INDEX loans_one_open_per_device_uk
-    ON loans (device_id) WHERE status = 'open';
+    ON loans (device_id) WHERE status = 'open' AND NOT disputed;
 
 -- ═══ Invariant 13 — temporal custody, which backfill made necessary ═══
 -- No two loans of the same device may overlap IN TIME. The index above only
@@ -236,9 +240,9 @@ CREATE UNIQUE INDEX loans_one_open_per_device_uk
 -- An open loan is [borrowed_at, ∞), so this also subsumes the index above.
 ALTER TABLE loans ADD CONSTRAINT loans_no_overlapping_custody
     EXCLUDE USING gist (
-        device_id                              WITH =,
+        device_id                                 WITH =,
         tstzrange(borrowed_at, returned_at, '[)') WITH &&
-    ) WHERE (status <> 'written_off');
+    ) WHERE (status <> 'written_off' AND NOT disputed);
 
 CREATE INDEX loans_open_by_user_idx ON loans (user_id) WHERE status = 'open';
 CREATE INDEX loans_overdue_idx      ON loans (due_at)  WHERE status = 'open';
@@ -307,14 +311,19 @@ cannot be mined to clone a card.
 
 ```sql
 CREATE TABLE kiosks (
-    id            uuid PRIMARY KEY,
-    name          text NOT NULL,
-    location      text,
-    token_hash    bytea NOT NULL,
-    enabled_sources text[] NOT NULL DEFAULT '{scanner,camera}',
-    status        text NOT NULL DEFAULT 'active',
-    last_seen_at  timestamptz,
-    created_at    timestamptz NOT NULL DEFAULT now()
+    id                      uuid PRIMARY KEY,
+    name                    text NOT NULL,
+    location                text,
+    token_hash              bytea NOT NULL,
+    enabled_sources         text[] NOT NULL DEFAULT '{scanner,camera}',
+    status                  text NOT NULL DEFAULT 'active',
+    last_seen_at            timestamptz,
+    pairing_code_hash       bytea,
+    pairing_code_expires_at timestamptz,
+    created_at              timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT kiosks_pairing_code_both_or_neither
+        CHECK ((pairing_code_hash IS NULL) = (pairing_code_expires_at IS NULL))
 );
 
 CREATE TABLE audit_events (

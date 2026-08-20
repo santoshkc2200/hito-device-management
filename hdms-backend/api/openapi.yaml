@@ -6,7 +6,11 @@ info:
     see docs/06-api-contract.md. Go server interfaces are generated with
     oapi-codegen; the TypeScript client is generated with openapi-ts.
     Neither is hand-edited.
-  version: "0.1.0"
+
+    Contract Versioning Rule:
+    After the contract-v1 tag, a breaking change requires /v2, not a silent
+    field change — kiosks in the field may lag a deploy.
+  version: "1.0.0"
 servers:
   - url: /v1
 

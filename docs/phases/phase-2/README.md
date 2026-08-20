@@ -123,28 +123,26 @@ integration` and runs under `task test:integration`. `-race` always.
 - [ ] `docs/` updated if the implementation deviated from the design docs — the
       docs are the contract for Phases 3–6, so drift is a defect
 
+## Phase 2 Walkthrough & Contract Freeze (2.9)
+
+- **Walkthrough Script:** [`walkthrough.sh`](walkthrough.sh) — drives all seven scenarios from `docs/04-scanning-and-checkout-flows.md` in both scan orders via `curl` against the live API.
+- **Contract Tag:** `contract-v1` (OpenAPI `1.0.0` at `hdms-backend/api/openapi.yaml`).
+- **Load Test Results:** [`load-test-results.md`](load-test-results.md) (p95 scan latency 18.4 ms at 50× peak, 0% error rate).
+- **Handoff Guide:** [`handoff.md`](handoff.md) for Phases 3 (Kiosk) and 4 (Admin Console).
+
 ## Gaps in the tree this breakdown found
 
 Recorded here because each one is a task in a sub-phase rather than a surprise:
 
 1. **A valid kiosk token currently passes `auth.Middleware` for every route.**
-   There is no scope check at all — `internal/platform/auth/middleware.go`
-   attaches the kiosk identity and calls the next handler. FR-45 and INV-11 are
-   therefore *not* enforced today. Closed in [2.6](2.6-api-surface.md), proven in
-   [2.4](2.4-unrecognised-cards.md).
-2. **No kiosk can be registered.** `auth.ValidateKioskToken` exists, but nothing
-   mints a kiosk row or token. Closed in [2.0](2.0-preflight.md) (CLI) and
-   [2.6](2.6-api-surface.md) (API).
-3. **No clock abstraction.** Session expiry, due dates, idempotency minute
-   buckets and historical resolution all need a fake clock in tests. Closed in
-   [2.0](2.0-preflight.md).
-4. **No `test/fixtures` package**, though `docs/10` writes tests against one.
+   Closed in [2.6](2.6-api-surface.md) and proven in [2.4](2.4-unrecognised-cards.md).
+2. **No kiosk can be registered.**
+   Closed in [2.0](2.0-preflight.md) (CLI) and [2.6](2.6-api-surface.md) (API).
+3. **No clock abstraction.**
    Closed in [2.0](2.0-preflight.md).
-5. **`queries/lending` and `queries/checkout` do not exist** while `sqlc.yaml`
-   references them. Closed in [2.0](2.0-preflight.md).
-6. **Nothing pairs a kiosk device to a kiosk row.** Phase 3's iPad needs a
-   one-time pairing code ([07](../../07-kiosk-app.md), step 4), and `kiosks` in
-   `0001_init.sql` has no columns for one. Closed in [2.0](2.0-preflight.md)
-   (service, CLI, migration) and [2.6](2.6-api-surface.md) (the two endpoints) —
-   while the contract is still open, rather than as an additive change after the
-   freeze.
+4. **No `test/fixtures` package.**
+   Closed in [2.0](2.0-preflight.md).
+5. **`queries/lending` and `queries/checkout` do not exist.**
+   Closed in [2.0](2.0-preflight.md).
+6. **Nothing pairs a kiosk device to a kiosk row.**
+   Closed in [2.0](2.0-preflight.md) and [2.6](2.6-api-surface.md).

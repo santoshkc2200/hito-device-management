@@ -82,7 +82,7 @@ export default function () {
 
   // 2. Scan User card (identifies user -> awaiting_device)
   const userScanRes = http.post(
-    `${BASE_URL}/v1/sessions/${sessionID}/scans`,
+    `${BASE_URL}/v1/sessions/${sessionID}/scan`,
     JSON.stringify({ token: userToken, source: 'scanner' }),
     { headers: authHeaders, tags: { name: 'scan' } }
   );
@@ -97,7 +97,7 @@ export default function () {
 
   // 3. Scan Device (borrows device -> ready)
   const borrowScanRes = http.post(
-    `${BASE_URL}/v1/sessions/${sessionID}/scans`,
+    `${BASE_URL}/v1/sessions/${sessionID}/scan`,
     JSON.stringify({ token: devToken, source: 'scanner' }),
     { headers: authHeaders, tags: { name: 'scan' } }
   );
@@ -111,7 +111,7 @@ export default function () {
 
   // 4. Scan Device again (returns device -> ready)
   const returnScanRes = http.post(
-    `${BASE_URL}/v1/sessions/${sessionID}/scans`,
+    `${BASE_URL}/v1/sessions/${sessionID}/scan`,
     JSON.stringify({ token: devToken, source: 'scanner' }),
     { headers: authHeaders, tags: { name: 'scan' } }
   );
