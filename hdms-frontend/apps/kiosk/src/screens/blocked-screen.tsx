@@ -81,7 +81,9 @@ export function BlockedScreen({
         <div className="space-y-4 flex flex-col items-center">
           <div
             data-testid="blocked-icon-container"
-            className={`p-4 rounded-full shadow-md ${toneBg}`}
+            className={`p-4 rounded-full shadow-md ${toneBg} ${
+              isInfo ? "animate-feedback-info" : "animate-feedback-reject"
+            }`}
           >
             {isInfo ? (
               <Info className="size-16 stroke-[2.5]" aria-hidden="true" />

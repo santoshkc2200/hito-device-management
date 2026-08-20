@@ -1,50 +1,59 @@
 import * as React from "react";
-import { Clock } from "lucide-react";
 
-export interface CountdownTimerProps {
+export interface CountdownRingProps {
   expiresAt: string | null;
-  totalDurationSeconds?: number;
+  /** Max threshold under which the ring appears (defaults to 8s) */
+  thresholdSeconds?: number;
   className?: string;
+  showAlways?: boolean;
 }
+
+export type CountdownTimerProps = CountdownRingProps & {
+  totalDurationSeconds?: number;
+};
 
 function calculateDiff(expiresAt: string | null): number | null {
   if (!expiresAt) return null;
   const expiry = new Date(expiresAt).getTime();
+  if (Number.isNaN(expiry)) return null;
   const now = Date.now();
   return Math.max(0, Math.ceil((expiry - now) / 1000));
 }
 
-export function CountdownTimer({
+export function CountdownRing({
   expiresAt,
-  totalDurationSeconds = 25,
+  thresholdSeconds = 8,
   className = "",
-}: CountdownTimerProps) {
-  const [secondsRemaining, setSecondsRemaining] = React.useState<number | null>(() =>
-    calculateDiff(expiresAt)
-  );
+  showAlways = false,
+}: CountdownRingProps) {
+  const [, setTick] = React.useState(0);
 
   React.useEffect(() => {
     if (!expiresAt) return;
 
     const interval = setInterval(() => {
-      const remaining = calculateDiff(expiresAt);
-      setSecondsRemaining(remaining);
-      if (remaining !== null && remaining <= 0) {
-        clearInterval(interval);
-      }
-    }, 500);
-
+      setTick((t) => t + 1);
+    }, 250);
     return () => clearInterval(interval);
   }, [expiresAt]);
 
-  const currentSeconds = expiresAt ? secondsRemaining : null;
+  const currentSeconds = expiresAt ? calculateDiff(expiresAt) : null;
 
-  if (currentSeconds === null) {
+  // Only render when ≤ thresholdSeconds (defaults to 8s) and > 0, unless showAlways is set
+  if (currentSeconds === null || currentSeconds <= 0) {
     return null;
   }
 
-  const isUrgent = currentSeconds <= 8;
-  const percentage = Math.min(100, Math.max(0, (currentSeconds / totalDurationSeconds) * 100));
+  if (!showAlways && currentSeconds > thresholdSeconds) {
+    return null;
+  }
+
+  // SVG Circular Ring parameters
+  const radius = 14;
+  const strokeWidth = 3;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.min(1, Math.max(0, currentSeconds / thresholdSeconds));
+  const strokeDashoffset = circumference * (1 - progress);
 
   return (
     <div
@@ -52,20 +61,40 @@ export function CountdownTimer({
       aria-live="polite"
       aria-atomic="true"
       aria-label={`Session expires in ${currentSeconds} seconds`}
-      className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-sm font-semibold transition-colors duration-200 ${
-        isUrgent
-          ? "bg-warning/20 text-warning-foreground border border-warning/50 animate-pulse"
-          : "bg-muted text-muted-foreground border border-border"
-      } ${className}`}
+      data-testid="countdown-ring"
+      data-seconds-remaining={currentSeconds}
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-sm font-bold bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-500/40 shadow-xs ${className}`}
     >
-      <Clock className={`size-4 ${isUrgent ? "text-warning" : "text-muted-foreground"}`} />
-      <span>{currentSeconds}s</span>
-      <div
-        className="hidden"
+      <svg
+        className="size-6 -rotate-90 transform"
+        viewBox="0 0 36 36"
         aria-hidden="true"
-        data-testid="countdown-percentage"
-        data-percentage={percentage}
-      />
+      >
+        {/* Track circle */}
+        <circle
+          cx="18"
+          cy="18"
+          r={radius}
+          fill="none"
+          className="stroke-amber-500/20"
+          strokeWidth={strokeWidth}
+        />
+        {/* Animated countdown stroke */}
+        <circle
+          cx="18"
+          cy="18"
+          r={radius}
+          fill="none"
+          className="stroke-amber-600 dark:stroke-amber-400 transition-all duration-200 ease-linear"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="tabular-nums tracking-tight">{currentSeconds}s</span>
     </div>
   );
 }
+
+export const CountdownTimer = CountdownRing;

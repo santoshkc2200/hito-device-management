@@ -75,8 +75,8 @@ export function SuccessScreen({
             data-testid="success-icon-container"
             className={`p-4 rounded-full shadow-md ${
               isReturn
-                ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                : "bg-green-500/15 text-green-600 dark:text-green-400"
+                ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 animate-feedback-info"
+                : "bg-green-500/15 text-green-600 dark:text-green-400 animate-feedback-success"
             }`}
           >
             {isReturn ? (

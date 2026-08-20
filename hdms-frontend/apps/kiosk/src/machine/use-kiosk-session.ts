@@ -16,6 +16,8 @@ import {
 import { getKioskConfig, getSessionId } from "../lib/kiosk-config";
 import { parseProblem, type KioskProblem } from "../lib/problem";
 import { useScanRouter } from "../lib/scan";
+import { playFeedbackSound } from "../lib/audio";
+import { getOutcomeFeedback } from "../lib/feedback-config";
 
 export interface UseKioskSessionOptions {
   actor?: SessionMachineActor;
@@ -34,6 +36,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const config = getKioskConfig();
   const kioskName = config?.kioskName ?? "HDMS Kiosk";
   const kioskId = config?.kioskId ?? "unpaired-kiosk";
+  const isMuted = config?.muteEnabled ?? false;
 
   const { subscribe: subscribeScan, getRouter } = useScanRouter();
 
@@ -84,20 +87,45 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     };
   }, []);
 
+  const lastOutcome = snapshot.context.lastOutcome;
+  const lastProblem = snapshot.context.lastProblem;
+
   // Reset outcome dismissed flag whenever a new outcome or problem arrives
-  const lastOutcomeRef = React.useRef(snapshot.context.lastOutcome);
-  const lastProblemRef = React.useRef(snapshot.context.lastProblem);
+  const lastOutcomeRef = React.useRef(lastOutcome);
+  const lastProblemRef = React.useRef(lastProblem);
+  const lastSoundOutcomeRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (
-      snapshot.context.lastOutcome !== lastOutcomeRef.current ||
-      snapshot.context.lastProblem !== lastProblemRef.current
+      lastOutcome !== lastOutcomeRef.current ||
+      lastProblem !== lastProblemRef.current
     ) {
-      lastOutcomeRef.current = snapshot.context.lastOutcome;
-      lastProblemRef.current = snapshot.context.lastProblem;
+      lastOutcomeRef.current = lastOutcome;
+      lastProblemRef.current = lastProblem;
       setIsOutcomeDismissed(false);
     }
-  }, [snapshot.context.lastOutcome, snapshot.context.lastProblem]);
+  }, [lastOutcome, lastProblem]);
+
+  // Audio feedback triggered from machine transitions, fired once per outcome
+  React.useEffect(() => {
+    if (lastOutcome) {
+      if (lastOutcome.kind === "duplicate") {
+        return;
+      }
+      const outcomeKey = `outcome_${lastOutcome.kind}_${lastOutcome.device?.id ?? ""}_${lastOutcome.dueAt ?? ""}`;
+      if (lastSoundOutcomeRef.current !== outcomeKey) {
+        lastSoundOutcomeRef.current = outcomeKey;
+        const fb = getOutcomeFeedback(lastOutcome.kind);
+        playFeedbackSound(fb.soundId, isMuted);
+      }
+    } else if (lastProblem && lastProblem.kind !== "session-expired") {
+      const problemKey = `problem_${lastProblem.kind}_${lastProblem.supportCode ?? ""}`;
+      if (lastSoundOutcomeRef.current !== problemKey) {
+        lastSoundOutcomeRef.current = problemKey;
+        playFeedbackSound("reject", isMuted);
+      }
+    }
+  }, [lastOutcome, lastProblem, isMuted]);
 
   // Resume stored session on mount if one exists
   React.useEffect(() => {
@@ -252,29 +280,29 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
       return { type: null };
     }
 
-    const { lastOutcome, lastMessage, lastProblem } = snapshot.context;
+    const { lastOutcome: currentOutcome, lastMessage, lastProblem: currentProblem } = snapshot.context;
 
-    if (lastOutcome?.kind === "borrowed" || lastOutcome?.kind === "returned") {
+    if (currentOutcome?.kind === "borrowed" || currentOutcome?.kind === "returned") {
       return {
         type: "success",
-        outcome: lastOutcome,
+        outcome: currentOutcome,
         message: lastMessage,
       };
     }
 
-    if (lastOutcome?.kind === "rejected") {
+    if (currentOutcome?.kind === "rejected") {
       return {
         type: "blocked",
-        outcome: lastOutcome,
+        outcome: currentOutcome,
         message: lastMessage,
-        problem: lastProblem,
+        problem: currentProblem,
       };
     }
 
-    if (lastProblem && lastProblem.kind !== "session-expired") {
+    if (currentProblem && currentProblem.kind !== "session-expired") {
       return {
         type: "blocked",
-        problem: lastProblem,
+        problem: currentProblem,
         message: lastMessage,
       };
     }
@@ -307,4 +335,3 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     cancel: handleCancel,
   };
 }
-
