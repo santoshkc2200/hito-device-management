@@ -4,8 +4,16 @@
 iPad, a failed disk, and a fortnight of actual staff using it.
 **Duration:** ~2 weeks plus a 2-week pilot · **Depends on:** Phases 3 and 4
 
+**Detailed breakdown:** [`phase-5/`](phase-5/) splits the tasks below into nine
+sub-phases and forty executable units, each with its file paths, tests and
+exit criteria, plus the build order that puts deployment ahead of everything it
+gates and the two tracks that let the offline queue run in parallel. Start there;
+this page stays the summary.
+
 **Blocking input:** Q6 (hosting — on-premise VM or cloud) must be answered before
-5.3.
+5.3 — it is the first task of [5.0](phase-5/5.0-preflight.md). Q7 (data-protection
+rules) blocks the retention job from deleting anything; until it is answered that
+job ships in report-only mode.
 
 ## Tasks
 

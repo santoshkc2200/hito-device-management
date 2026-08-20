@@ -4,6 +4,13 @@
 each one small, because the architecture anticipated it.
 **Duration:** ongoing, prioritised by demand · **Depends on:** Phase 5
 
+**Detailed breakdown:** [`phase-6/`](phase-6/) splits the items below into ten
+sub-phases and forty-odd executable units, each with its file paths, tests and
+exit criteria — plus the intake gate that keeps this list from being built
+speculatively, the additive-change rules for extending a frozen contract on a
+live system, and the couplings that matter if two items are scheduled together.
+Start there; this page stays the summary.
+
 Nothing here is required for go-live. Everything here is scheduled only when
 someone actually asks for it.
 
@@ -41,11 +48,13 @@ borrowing card at my desk" disappears.
 - [ ] Optionally retire the QR cards once adoption is complete — or keep both,
       since a user may hold several active credentials (FR-16)
 
-**Expected code change: none.** An HID reader types the UID and presses Enter,
-which `HidWedgeSource` already handles, and `Resolve` does not care how a string
-arrived. The `rfid` credential kind, the UID normaliser and the reader-test screen
-were all built in Phases 1 and 4 precisely so this phase is procurement and data
-entry rather than development.
+**Expected code change: about a day, not none** — corrected by
+[6.1](phase-6/6.1-rfid-staff-cards.md) after reading the tree. `HidWedgeSource`
+does handle the reader and the groundwork from Phases 1 and 4 is real, but three
+things reject an RFID card today: `mintToken` returns `ErrKindNotIssuableInV1` for
+`rfid`/`nfc`, `canonicalToken` never calls the `NormalizeUID` that Phase 1 wrote,
+and the contract has no field for a caller-supplied token on a non-manual kind.
+This is still the cheapest item on the list and still the first.
 
 **Note that we never need the access-control system's database.** A card's UID is
 broadcast to any reader in range; reading protected sectors would require their
@@ -137,8 +146,10 @@ reusing `identity`, `credentials` and the kiosk, rather than by contorting
 
 ## 6.9 Second language
 
-The strings are externalised from Phase 3, so this is translation work plus a
-language toggle on the kiosk — no code restructuring.
+The strings are **not** externalised — the kiosk's copy is inline in JSX and
+there is no catalogue. [6.9a](phase-6/6.9-second-language.md) does the extraction
+first, and should run before any new kiosk screen in 6.4 or 6.7 so the same
+strings are not extracted twice.
 
 ## Prioritisation guidance
 
