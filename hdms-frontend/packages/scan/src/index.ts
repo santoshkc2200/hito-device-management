@@ -1,4 +1,9 @@
-// @hdms/scan will hold the ScanSource abstraction and its HID / camera /
-// manual implementations (docs/07-kiosk-app.md, FR-64). Phase 3 gives it a
-// kiosk to run inside.
-export {};
+export { ScanRouter } from "./router";
+export type { ScanRouterOptions } from "./router";
+export { FakeSource } from "./fake-source";
+export type {
+  Scan,
+  ScanSource,
+  ScanEvent,
+  Unsubscribe,
+} from "./types";

@@ -7,9 +7,10 @@
   "types": "./src/index.ts",
   "scripts": {
     "lint": "oxlint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
+    "@hdms/domain": "workspace:*",
     "barcode-detector": "^3.2.2"
   },
   "devDependencies": {
