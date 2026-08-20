@@ -20,19 +20,37 @@ export type Problem = {
     };
 };
 
-export type AdminRole = 'superadmin' | 'admin' | 'operator';
+/**
+ * `admin` — everything. `technician` — devices, their status and condition, credential reprints, force-return; never staff, kiosks or other admins. `viewer` — read-only dashboard, loans and reports, for managers who want visibility without risk (docs/08-admin-console.md). `superadmin` and `operator` are the v1.0.0 names, accepted until v2 so an older client still parses; the server stops emitting them once the 4.1a migration lands.
+ *
+ */
+export type AdminRole = 'admin' | 'technician' | 'viewer' | 'superadmin' | 'operator';
 
 export type Admin = {
     id: string;
     email: string;
     fullName: string;
     role: AdminRole;
+    status?: AdminStatus;
+    lastLoginAt?: string;
+    /**
+     * Set while a lockout from repeated failed logins is in force.
+     */
+    lockedUntil?: string;
 };
 
 export type LoginRequest = {
     email: string;
     password: string;
-    totpCode: string;
+    /**
+     * Required unless recoveryCode is supplied instead.
+     */
+    totpCode?: string;
+    /**
+     * One of the admin's recovery codes, standing in for the TOTP code when the authenticator is unavailable. Single use.
+     *
+     */
+    recoveryCode?: string;
 };
 
 export type DeviceStatus = 'available' | 'on_loan' | 'maintenance' | 'retired' | 'lost';
@@ -577,6 +595,26 @@ export type Dashboard = {
     availabilityByCategory: Array<CategoryAvailability>;
     turnedAwayCounts: Array<ScanRejectionSummary>;
     lastPaperEntry?: BackfillLastEntry;
+    /**
+     * Worst first, so the list needs no client-side sort to be actionable.
+     */
+    overdueLoans?: Array<OverdueLoanSummary>;
+    /**
+     * Blank cards printed but not yet bound. Warn below policy.lowStockThreshold.
+     */
+    unboundCredentialCount?: number;
+    /**
+     * The kiosk status strip, with last-seen times.
+     */
+    kiosks?: Array<Kiosk>;
+    /**
+     * Echoed from settings so the strip renders in one call.
+     */
+    lowStockThreshold?: number;
+    /**
+     * Echoed from settings, for the paper backlog warning.
+     */
+    paperBacklogHours?: number;
 };
 
 export type KioskStatus = 'active' | 'disabled';
@@ -622,6 +660,326 @@ export type PairKioskResponse = {
     token: string;
 };
 
+export type AdminStatus = 'active' | 'disabled' | 'locked';
+
+export type AdminList = {
+    items: Array<Admin>;
+};
+
+export type CreateAdminRequest = {
+    email: string;
+    fullName: string;
+    role: AdminRole;
+    password: string;
+};
+
+export type UpdateAdminRequest = {
+    fullName?: string;
+    role?: AdminRole;
+    status?: AdminStatus;
+};
+
+export type ResetAdminPasswordRequest = {
+    password: string;
+    reason: string;
+};
+
+export type ChangePasswordRequest = {
+    currentPassword: string;
+    newPassword: string;
+};
+
+export type TotpEnrolment = {
+    /**
+     * otpauth:// URI for the authenticator app's QR code. Returned once.
+     */
+    otpauthUrl: string;
+    /**
+     * Base32 secret, for manual entry. Returned once.
+     */
+    totpSecret: string;
+};
+
+export type ConfirmTotpRequest = {
+    totpCode: string;
+};
+
+export type RecoveryCodes = {
+    /**
+     * Plaintext, returned once, stored hashed, redeemable once each.
+     */
+    codes: Array<string>;
+};
+
+export type AdminEnrolment = {
+    admin: Admin;
+    enrolment: TotpEnrolment;
+    recoveryCodes: RecoveryCodes;
+};
+
+export type ReasonRequest = {
+    reason: string;
+};
+
+export type EmployeeNoAvailability = {
+    employeeNo: string;
+    available: boolean;
+    /**
+     * Present only when the number is taken and the caller may view the holder — enough to offer "open that record", not a data leak.
+     *
+     */
+    existingUserId?: string;
+};
+
+export type CorrectAttributionRequest = {
+    /**
+     * The borrower who actually holds the device.
+     */
+    userId: string;
+    reason: string;
+};
+
+export type ReportBucket = 'day' | 'week' | 'month';
+
+export type CategoryUtilisation = {
+    categoryId: string;
+    categoryName: string;
+    deviceCount: number;
+    loanCount: number;
+    /**
+     * Share of the window during which devices in this category were on loan, 0–100.
+     */
+    utilisationPct: number;
+    averageDurationHours?: number;
+};
+
+export type TopBorrower = {
+    userId: string;
+    fullName: string;
+    employeeNo: string;
+    loanCount: number;
+};
+
+export type ReportSummary = {
+    from: string;
+    to: string;
+    totalLoans: number;
+    openLoans: number;
+    overdueCount: number;
+    /**
+     * Overdue loans as a share of all loans in the window, 0–1.
+     */
+    overdueRate: number;
+    averageLoanDurationHours?: number;
+    utilisationByCategory: Array<CategoryUtilisation>;
+    topBorrowers: Array<TopBorrower>;
+};
+
+export type OriginCount = {
+    origin: LoanOrigin;
+    count: number;
+};
+
+export type OriginBucket = {
+    periodStart: string;
+    total: number;
+    counts: Array<OriginCount>;
+};
+
+export type OriginReport = {
+    from: string;
+    to: string;
+    bucket: ReportBucket;
+    buckets: Array<OriginBucket>;
+};
+
+export type ScanSourceCount = {
+    source: ScanSource;
+    count: number;
+};
+
+export type ScanRejectionReasonCount = {
+    /**
+     * Absent when the rejection carried no reason code.
+     */
+    reason?: string;
+    resolvedType?: string;
+    count: number;
+};
+
+export type OperationalHealth = {
+    from: string;
+    to: string;
+    totalScans: number;
+    manualEntryCount: number;
+    cameraFallbackCount: number;
+    scansBySource: Array<ScanSourceCount>;
+    rejectionReasons: Array<ScanRejectionReasonCount>;
+};
+
+export type AuditEvent = {
+    id: string;
+    at: string;
+    /**
+     * 'admin:<id>' | 'kiosk:<id>' | 'import' | 'system'.
+     */
+    actor: string;
+    actorIp?: string;
+    /**
+     * 'user.created', 'credential.reissued', …
+     */
+    action: string;
+    /**
+     * 'user:<uuid>', 'device:<uuid>', …
+     */
+    subject: string;
+    payload: {
+        [key: string]: unknown;
+    };
+    requestId?: string;
+};
+
+export type AuditEventList = {
+    items: Array<AuditEvent>;
+    nextCursor?: string;
+};
+
+/**
+ * What committing would do with this row. "invalid" rather than "error" because oapi-codegen disambiguates colliding enum member names package wide, and an "error" member here would rename MessageTone's constants for no benefit — the word is also more accurate: the row is unusable, nothing has failed.
+ *
+ */
+export type ImportRowAction = 'create' | 'update' | 'skip' | 'invalid';
+
+export type ImportProblem = {
+    field?: string;
+    code: string;
+    message: string;
+};
+
+export type ImportRowPreview = {
+    /**
+     * 1-based line in the uploaded file, so a problem points at a line the admin can find.
+     */
+    lineNo: number;
+    action: ImportRowAction;
+    values: {
+        [key: string]: string;
+    };
+    problems?: Array<ImportProblem>;
+};
+
+export type ImportSummary = {
+    totalRows: number;
+    createCount: number;
+    updateCount: number;
+    skipCount: number;
+    invalidCount: number;
+};
+
+export type ImportPreview = {
+    /**
+     * Identifies the validated batch the server is holding. Commit takes this, not the file again, so the rows confirmed are exactly the rows previewed.
+     *
+     */
+    previewId: string;
+    expiresAt: string;
+    columns: Array<string>;
+    rows: Array<ImportRowPreview>;
+    summary: ImportSummary;
+};
+
+export type CommitImportRequest = {
+    previewId: string;
+};
+
+export type ImportResult = {
+    /**
+     * Recorded as provenance on every row it created, so a user detail page can say which import produced the record.
+     *
+     */
+    importId: string;
+    createdCount: number;
+    updatedCount: number;
+    skippedCount: number;
+    /**
+     * Ids of the rows created, in file order — what the follow-up "issue cards to the N new people" step (FR-77) works from.
+     *
+     */
+    createdSubjectIds?: Array<string>;
+};
+
+export type PolicySettings = {
+    blockOnOverdue: boolean;
+    sessionIdleTimeoutSeconds: number;
+    kioskSoundEnabled: boolean;
+    /**
+     * The dashboard warns when the unbound blank-card count falls below this.
+     */
+    lowStockThreshold: number;
+    /**
+     * Hours since the last recorded paper page before the dashboard warns. Default 48.
+     */
+    paperBacklogHours: number;
+};
+
+export type LabelTemplateSettings = {
+    sheetWidthMm: number;
+    sheetHeightMm: number;
+    columns: number;
+    rows: number;
+    marginTopMm: number;
+    marginLeftMm: number;
+    gutterXMm: number;
+    gutterYMm: number;
+    labelWidthMm: number;
+    labelHeightMm: number;
+};
+
+export type SlipTemplateSettings = {
+    hospitalName: string;
+    /**
+     * Format of the printed page reference the backfill screen types back in (FR-72).
+     */
+    pageRefFormat: string;
+    rowsPerPage: number;
+    columns: Array<string>;
+};
+
+export type Settings = {
+    policy: PolicySettings;
+    labelTemplate: LabelTemplateSettings;
+    slipTemplate: SlipTemplateSettings;
+    updatedAt: string;
+    updatedBy?: string;
+};
+
+/**
+ * Each section present replaces that section wholesale.
+ */
+export type UpdateSettingsRequest = {
+    policy?: PolicySettings;
+    labelTemplate?: LabelTemplateSettings;
+    slipTemplate?: SlipTemplateSettings;
+};
+
+export type UpdateKioskRequest = {
+    name?: string;
+    location?: string;
+    enabledSources?: Array<string>;
+};
+
+export type OverdueLoanSummary = {
+    loanId: string;
+    deviceId: string;
+    assetTag: string;
+    deviceName: string;
+    userId: string;
+    userFullName: string;
+    userEmployeeNo?: string;
+    dueAt: string;
+    daysOverdue: number;
+};
+
 export type IdParam = string;
 
 export type CursorParam = string;
@@ -643,6 +1001,18 @@ export type DepartmentFilter = string;
  *
  */
 export type IdempotencyKey = string;
+
+/**
+ * Filter by whether the user has an active credential. `false` is the registration console's "registered but no card issued" list — each row is someone who cannot use the kiosk yet.
+ *
+ */
+export type HasCredentialFilter = boolean;
+
+export type FromParam = string;
+
+export type ToParam = string;
+
+export type BucketParam = ReportBucket;
 
 export type GetHealthzData = {
     body?: never;
@@ -979,6 +1349,11 @@ export type ListUsersData = {
     path?: never;
     query?: {
         status?: UserStatus;
+        /**
+         * Filter by whether the user has an active credential. `false` is the registration console's "registered but no card issued" list — each row is someone who cannot use the kiosk yet.
+         *
+         */
+        hasCredential?: boolean;
         department?: string;
         q?: string;
         cursor?: string;
@@ -2152,3 +2527,894 @@ export type PairKioskResponses = {
 };
 
 export type PairKioskResponse2 = PairKioskResponses[keyof PairKioskResponses];
+
+export type ChangeOwnPasswordData = {
+    body: ChangePasswordRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/password';
+};
+
+export type ChangeOwnPasswordErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ChangeOwnPasswordError = ChangeOwnPasswordErrors[keyof ChangeOwnPasswordErrors];
+
+export type ChangeOwnPasswordResponses = {
+    /**
+     * Password changed. Other sessions for this admin are revoked.
+     */
+    204: void;
+};
+
+export type ChangeOwnPasswordResponse = ChangeOwnPasswordResponses[keyof ChangeOwnPasswordResponses];
+
+export type BeginTotpReenrolmentData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/totp/reenrol';
+};
+
+export type BeginTotpReenrolmentErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type BeginTotpReenrolmentError = BeginTotpReenrolmentErrors[keyof BeginTotpReenrolmentErrors];
+
+export type BeginTotpReenrolmentResponses = {
+    /**
+     * New secret, returned once.
+     */
+    200: TotpEnrolment;
+};
+
+export type BeginTotpReenrolmentResponse = BeginTotpReenrolmentResponses[keyof BeginTotpReenrolmentResponses];
+
+export type ConfirmTotpReenrolmentData = {
+    body: ConfirmTotpRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/totp/confirm';
+};
+
+export type ConfirmTotpReenrolmentErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ConfirmTotpReenrolmentError = ConfirmTotpReenrolmentErrors[keyof ConfirmTotpReenrolmentErrors];
+
+export type ConfirmTotpReenrolmentResponses = {
+    /**
+     * Confirmed. The previous secret is now dead.
+     */
+    204: void;
+};
+
+export type ConfirmTotpReenrolmentResponse = ConfirmTotpReenrolmentResponses[keyof ConfirmTotpReenrolmentResponses];
+
+export type RegenerateRecoveryCodesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/recovery-codes';
+};
+
+export type RegenerateRecoveryCodesErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RegenerateRecoveryCodesError = RegenerateRecoveryCodesErrors[keyof RegenerateRecoveryCodesErrors];
+
+export type RegenerateRecoveryCodesResponses = {
+    /**
+     * New codes, returned once.
+     */
+    200: RecoveryCodes;
+};
+
+export type RegenerateRecoveryCodesResponse = RegenerateRecoveryCodesResponses[keyof RegenerateRecoveryCodesResponses];
+
+export type ListAdminsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admins';
+};
+
+export type ListAdminsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListAdminsError = ListAdminsErrors[keyof ListAdminsErrors];
+
+export type ListAdminsResponses = {
+    /**
+     * OK.
+     */
+    200: AdminList;
+};
+
+export type ListAdminsResponse = ListAdminsResponses[keyof ListAdminsResponses];
+
+export type CreateAdminData = {
+    body: CreateAdminRequest;
+    path?: never;
+    query?: never;
+    url: '/admins';
+};
+
+export type CreateAdminErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateAdminError = CreateAdminErrors[keyof CreateAdminErrors];
+
+export type CreateAdminResponses = {
+    /**
+     * Created.
+     */
+    201: AdminEnrolment;
+};
+
+export type CreateAdminResponse = CreateAdminResponses[keyof CreateAdminResponses];
+
+export type GetAdminData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admins/{id}';
+};
+
+export type GetAdminErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetAdminError = GetAdminErrors[keyof GetAdminErrors];
+
+export type GetAdminResponses = {
+    /**
+     * OK.
+     */
+    200: Admin;
+};
+
+export type GetAdminResponse = GetAdminResponses[keyof GetAdminResponses];
+
+export type UpdateAdminData = {
+    body: UpdateAdminRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admins/{id}';
+};
+
+export type UpdateAdminErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateAdminError = UpdateAdminErrors[keyof UpdateAdminErrors];
+
+export type UpdateAdminResponses = {
+    /**
+     * OK.
+     */
+    200: Admin;
+};
+
+export type UpdateAdminResponse = UpdateAdminResponses[keyof UpdateAdminResponses];
+
+export type ResetAdminPasswordData = {
+    body: ResetAdminPasswordRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admins/{id}/reset-password';
+};
+
+export type ResetAdminPasswordErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ResetAdminPasswordError = ResetAdminPasswordErrors[keyof ResetAdminPasswordErrors];
+
+export type ResetAdminPasswordResponses = {
+    /**
+     * Reset.
+     */
+    204: void;
+};
+
+export type ResetAdminPasswordResponse = ResetAdminPasswordResponses[keyof ResetAdminPasswordResponses];
+
+export type ForceAdminTotpReenrolmentData = {
+    body: ReasonRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admins/{id}/reset-totp';
+};
+
+export type ForceAdminTotpReenrolmentErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ForceAdminTotpReenrolmentError = ForceAdminTotpReenrolmentErrors[keyof ForceAdminTotpReenrolmentErrors];
+
+export type ForceAdminTotpReenrolmentResponses = {
+    /**
+     * New secret, returned once.
+     */
+    200: TotpEnrolment;
+};
+
+export type ForceAdminTotpReenrolmentResponse = ForceAdminTotpReenrolmentResponses[keyof ForceAdminTotpReenrolmentResponses];
+
+export type UnlockAdminData = {
+    body: ReasonRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admins/{id}/unlock';
+};
+
+export type UnlockAdminErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UnlockAdminError = UnlockAdminErrors[keyof UnlockAdminErrors];
+
+export type UnlockAdminResponses = {
+    /**
+     * Unlocked.
+     */
+    204: void;
+};
+
+export type UnlockAdminResponse = UnlockAdminResponses[keyof UnlockAdminResponses];
+
+export type CheckEmployeeNoData = {
+    body?: never;
+    path?: never;
+    query: {
+        employeeNo: string;
+    };
+    url: '/users/check-employee-no';
+};
+
+export type CheckEmployeeNoErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CheckEmployeeNoError = CheckEmployeeNoErrors[keyof CheckEmployeeNoErrors];
+
+export type CheckEmployeeNoResponses = {
+    /**
+     * OK.
+     */
+    200: EmployeeNoAvailability;
+};
+
+export type CheckEmployeeNoResponse = CheckEmployeeNoResponses[keyof CheckEmployeeNoResponses];
+
+export type ArchiveUserData = {
+    body: ReasonRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/archive';
+};
+
+export type ArchiveUserErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ArchiveUserError = ArchiveUserErrors[keyof ArchiveUserErrors];
+
+export type ArchiveUserResponses = {
+    /**
+     * OK.
+     */
+    200: User;
+};
+
+export type ArchiveUserResponse = ArchiveUserResponses[keyof ArchiveUserResponses];
+
+export type CorrectLoanAttributionData = {
+    body: CorrectAttributionRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/loans/{id}/correct-attribution';
+};
+
+export type CorrectLoanAttributionErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CorrectLoanAttributionError = CorrectLoanAttributionErrors[keyof CorrectLoanAttributionErrors];
+
+export type CorrectLoanAttributionResponses = {
+    /**
+     * OK.
+     */
+    200: Loan;
+};
+
+export type CorrectLoanAttributionResponse = CorrectLoanAttributionResponses[keyof CorrectLoanAttributionResponses];
+
+export type GetReportSummaryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        from?: string;
+        to?: string;
+    };
+    url: '/reports/summary';
+};
+
+export type GetReportSummaryErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetReportSummaryError = GetReportSummaryErrors[keyof GetReportSummaryErrors];
+
+export type GetReportSummaryResponses = {
+    /**
+     * OK.
+     */
+    200: ReportSummary;
+};
+
+export type GetReportSummaryResponse = GetReportSummaryResponses[keyof GetReportSummaryResponses];
+
+export type GetTransactionsByOriginData = {
+    body?: never;
+    path?: never;
+    query?: {
+        from?: string;
+        to?: string;
+        bucket?: ReportBucket;
+    };
+    url: '/reports/by-origin';
+};
+
+export type GetTransactionsByOriginErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetTransactionsByOriginError = GetTransactionsByOriginErrors[keyof GetTransactionsByOriginErrors];
+
+export type GetTransactionsByOriginResponses = {
+    /**
+     * OK.
+     */
+    200: OriginReport;
+};
+
+export type GetTransactionsByOriginResponse = GetTransactionsByOriginResponses[keyof GetTransactionsByOriginResponses];
+
+export type GetOperationalHealthData = {
+    body?: never;
+    path?: never;
+    query?: {
+        from?: string;
+        to?: string;
+    };
+    url: '/reports/operational-health';
+};
+
+export type GetOperationalHealthErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetOperationalHealthError = GetOperationalHealthErrors[keyof GetOperationalHealthErrors];
+
+export type GetOperationalHealthResponses = {
+    /**
+     * OK.
+     */
+    200: OperationalHealth;
+};
+
+export type GetOperationalHealthResponse = GetOperationalHealthResponses[keyof GetOperationalHealthResponses];
+
+export type ListDisputedLoansData = {
+    body?: never;
+    path?: never;
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/reports/disputed';
+};
+
+export type ListDisputedLoansErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListDisputedLoansError = ListDisputedLoansErrors[keyof ListDisputedLoansErrors];
+
+export type ListDisputedLoansResponses = {
+    /**
+     * OK.
+     */
+    200: LoanList;
+};
+
+export type ListDisputedLoansResponse = ListDisputedLoansResponses[keyof ListDisputedLoansResponses];
+
+export type ExportLoansCsvData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: LoanStatus;
+        origin?: LoanOrigin;
+        userId?: string;
+        deviceId?: string;
+        from?: string;
+        to?: string;
+        disputed?: boolean;
+    };
+    url: '/reports/loans.csv';
+};
+
+export type ExportLoansCsvErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ExportLoansCsvError = ExportLoansCsvErrors[keyof ExportLoansCsvErrors];
+
+export type ExportLoansCsvResponses = {
+    /**
+     * CSV stream.
+     */
+    200: string;
+};
+
+export type ExportLoansCsvResponse = ExportLoansCsvResponses[keyof ExportLoansCsvResponses];
+
+export type ExportDevicesCsvData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: DeviceStatus;
+        category?: string;
+        q?: string;
+    };
+    url: '/reports/devices.csv';
+};
+
+export type ExportDevicesCsvErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ExportDevicesCsvError = ExportDevicesCsvErrors[keyof ExportDevicesCsvErrors];
+
+export type ExportDevicesCsvResponses = {
+    /**
+     * CSV stream.
+     */
+    200: string;
+};
+
+export type ExportDevicesCsvResponse = ExportDevicesCsvResponses[keyof ExportDevicesCsvResponses];
+
+export type ExportUsersCsvData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: UserStatus;
+        department?: string;
+        q?: string;
+        /**
+         * Filter by whether the user has an active credential. `false` is the registration console's "registered but no card issued" list — each row is someone who cannot use the kiosk yet.
+         *
+         */
+        hasCredential?: boolean;
+    };
+    url: '/reports/users.csv';
+};
+
+export type ExportUsersCsvErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ExportUsersCsvError = ExportUsersCsvErrors[keyof ExportUsersCsvErrors];
+
+export type ExportUsersCsvResponses = {
+    /**
+     * CSV stream.
+     */
+    200: string;
+};
+
+export type ExportUsersCsvResponse = ExportUsersCsvResponses[keyof ExportUsersCsvResponses];
+
+export type ListAuditEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        actor?: string;
+        action?: string;
+        subject?: string;
+        from?: string;
+        to?: string;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/audit';
+};
+
+export type ListAuditEventsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListAuditEventsError = ListAuditEventsErrors[keyof ListAuditEventsErrors];
+
+export type ListAuditEventsResponses = {
+    /**
+     * OK.
+     */
+    200: AuditEventList;
+};
+
+export type ListAuditEventsResponse = ListAuditEventsResponses[keyof ListAuditEventsResponses];
+
+export type ExportAuditCsvData = {
+    body?: never;
+    path?: never;
+    query?: {
+        actor?: string;
+        action?: string;
+        subject?: string;
+        from?: string;
+        to?: string;
+    };
+    url: '/audit.csv';
+};
+
+export type ExportAuditCsvErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ExportAuditCsvError = ExportAuditCsvErrors[keyof ExportAuditCsvErrors];
+
+export type ExportAuditCsvResponses = {
+    /**
+     * CSV stream.
+     */
+    200: string;
+};
+
+export type ExportAuditCsvResponse = ExportAuditCsvResponses[keyof ExportAuditCsvResponses];
+
+export type PreviewUserImportData = {
+    body: string;
+    path?: never;
+    query?: never;
+    url: '/imports/users/preview';
+};
+
+export type PreviewUserImportErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type PreviewUserImportError = PreviewUserImportErrors[keyof PreviewUserImportErrors];
+
+export type PreviewUserImportResponses = {
+    /**
+     * OK.
+     */
+    200: ImportPreview;
+};
+
+export type PreviewUserImportResponse = PreviewUserImportResponses[keyof PreviewUserImportResponses];
+
+export type CommitUserImportData = {
+    body: CommitImportRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/imports/users';
+};
+
+export type CommitUserImportErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CommitUserImportError = CommitUserImportErrors[keyof CommitUserImportErrors];
+
+export type CommitUserImportResponses = {
+    /**
+     * OK.
+     */
+    200: ImportResult;
+};
+
+export type CommitUserImportResponse = CommitUserImportResponses[keyof CommitUserImportResponses];
+
+export type PreviewDeviceImportData = {
+    body: string;
+    path?: never;
+    query?: never;
+    url: '/imports/devices/preview';
+};
+
+export type PreviewDeviceImportErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type PreviewDeviceImportError = PreviewDeviceImportErrors[keyof PreviewDeviceImportErrors];
+
+export type PreviewDeviceImportResponses = {
+    /**
+     * OK.
+     */
+    200: ImportPreview;
+};
+
+export type PreviewDeviceImportResponse = PreviewDeviceImportResponses[keyof PreviewDeviceImportResponses];
+
+export type CommitDeviceImportData = {
+    body: CommitImportRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/imports/devices';
+};
+
+export type CommitDeviceImportErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CommitDeviceImportError = CommitDeviceImportErrors[keyof CommitDeviceImportErrors];
+
+export type CommitDeviceImportResponses = {
+    /**
+     * OK.
+     */
+    200: ImportResult;
+};
+
+export type CommitDeviceImportResponse = CommitDeviceImportResponses[keyof CommitDeviceImportResponses];
+
+export type GetSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/settings';
+};
+
+export type GetSettingsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetSettingsError = GetSettingsErrors[keyof GetSettingsErrors];
+
+export type GetSettingsResponses = {
+    /**
+     * OK.
+     */
+    200: Settings;
+};
+
+export type GetSettingsResponse = GetSettingsResponses[keyof GetSettingsResponses];
+
+export type UpdateSettingsData = {
+    body: UpdateSettingsRequest;
+    path?: never;
+    query?: never;
+    url: '/settings';
+};
+
+export type UpdateSettingsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateSettingsError = UpdateSettingsErrors[keyof UpdateSettingsErrors];
+
+export type UpdateSettingsResponses = {
+    /**
+     * OK.
+     */
+    200: Settings;
+};
+
+export type UpdateSettingsResponse = UpdateSettingsResponses[keyof UpdateSettingsResponses];
+
+export type GetKioskData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/kiosks/{id}';
+};
+
+export type GetKioskErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetKioskError = GetKioskErrors[keyof GetKioskErrors];
+
+export type GetKioskResponses = {
+    /**
+     * OK.
+     */
+    200: Kiosk;
+};
+
+export type GetKioskResponse = GetKioskResponses[keyof GetKioskResponses];
+
+export type UpdateKioskData = {
+    body: UpdateKioskRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/kiosks/{id}';
+};
+
+export type UpdateKioskErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateKioskError = UpdateKioskErrors[keyof UpdateKioskErrors];
+
+export type UpdateKioskResponses = {
+    /**
+     * OK.
+     */
+    200: Kiosk;
+};
+
+export type UpdateKioskResponse = UpdateKioskResponses[keyof UpdateKioskResponses];
+
+export type EnableKioskData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/kiosks/{id}/enable';
+};
+
+export type EnableKioskErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type EnableKioskError = EnableKioskErrors[keyof EnableKioskErrors];
+
+export type EnableKioskResponses = {
+    /**
+     * OK.
+     */
+    200: Kiosk;
+};
+
+export type EnableKioskResponse = EnableKioskResponses[keyof EnableKioskResponses];

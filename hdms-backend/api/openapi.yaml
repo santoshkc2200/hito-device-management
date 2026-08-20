@@ -10,7 +10,16 @@ info:
     Contract Versioning Rule:
     After the contract-v1 tag, a breaking change requires /v2, not a silent
     field change — kiosks in the field may lag a deploy.
-  version: "1.0.0"
+
+    v1.1.0 (Phase 4, admin console) is additive only: new paths, new schemas,
+    new optional request parameters, and new response fields. Nothing was
+    removed, renamed or narrowed, so a client generated against v1.0.0 keeps
+    working — which is the point, because a kiosk in a ward may be a deploy
+    behind. The two relaxations are LoginRequest.totpCode becoming optional
+    (a recovery code may stand in for it) and AdminRole gaining the role names
+    docs/08-admin-console.md specifies; the v1.0.0 names remain accepted and
+    are removed at v2, not here.
+  version: "1.1.0"
 servers:
   - url: /v1
 
@@ -283,6 +292,7 @@ paths:
       tags: [users]
       parameters:
         - $ref: "#/components/parameters/UserStatusFilter"
+        - $ref: "#/components/parameters/HasCredentialFilter"
         - $ref: "#/components/parameters/DepartmentFilter"
         - $ref: "#/components/parameters/QueryFilter"
         - $ref: "#/components/parameters/CursorParam"
@@ -1204,6 +1214,723 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+
+  # --- Admin auth: self-service (4.1b) --------------------------------------
+
+  /auth/password:
+    post:
+      operationId: changeOwnPassword
+      summary: Change the authenticated admin's own password.
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: Password changed. Other sessions for this admin are revoked.
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /auth/totp/reenrol:
+    post:
+      operationId: beginTotpReenrolment
+      summary: >
+        Start TOTP re-enrolment for the authenticated admin. Returns the new
+        secret exactly once; the existing secret stays valid until
+        /auth/totp/confirm succeeds, so a half-finished enrolment cannot lock
+        the admin out.
+      tags: [auth]
+      responses:
+        "200":
+          description: New secret, returned once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpEnrolment"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /auth/totp/confirm:
+    post:
+      operationId: confirmTotpReenrolment
+      summary: Confirm a pending TOTP re-enrolment with a code from the new secret.
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmTotpRequest"
+      responses:
+        "204":
+          description: Confirmed. The previous secret is now dead.
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /auth/recovery-codes:
+    post:
+      operationId: regenerateRecoveryCodes
+      summary: >
+        Replace the authenticated admin's recovery codes. Returned in
+        plaintext exactly once; stored hashed and redeemable once each.
+      tags: [auth]
+      responses:
+        "200":
+          description: New codes, returned once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodes"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Admin accounts (4.1b) ------------------------------------------------
+
+  /admins:
+    get:
+      operationId: listAdmins
+      summary: List admin accounts.
+      tags: [admins]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createAdmin
+      summary: >
+        Create an admin account. Returns the TOTP enrolment payload and
+        recovery codes exactly once — there is no way to read them again.
+      tags: [admins]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAdminRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminEnrolment"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /admins/{id}:
+    get:
+      operationId: getAdmin
+      summary: Fetch one admin account.
+      tags: [admins]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    patch:
+      operationId: updateAdmin
+      summary: Edit an admin's name, role or status. Email is not editable.
+      tags: [admins]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAdminRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /admins/{id}/reset-password:
+    post:
+      operationId: resetAdminPassword
+      summary: Set a new password for another admin and revoke their sessions.
+      tags: [admins]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetAdminPasswordRequest"
+      responses:
+        "204":
+          description: Reset.
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /admins/{id}/reset-totp:
+    post:
+      operationId: forceAdminTotpReenrolment
+      summary: >
+        Force another admin to re-enrol TOTP — the lost-phone path. Returns
+        the new secret once, for handing over in person.
+      tags: [admins]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasonRequest"
+      responses:
+        "200":
+          description: New secret, returned once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpEnrolment"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /admins/{id}/unlock:
+    post:
+      operationId: unlockAdmin
+      summary: Clear a lockout imposed by repeated failed logins.
+      tags: [admins]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasonRequest"
+      responses:
+        "204":
+          description: Unlocked.
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Registration support (4.4) -------------------------------------------
+
+  /users/check-employee-no:
+    get:
+      operationId: checkEmployeeNo
+      summary: >
+        Live duplicate check for the registration form, called as the employee
+        number is typed (FR-41). Cheap by design — it returns availability, not
+        the matching user's record.
+      tags: [users]
+      parameters:
+        - name: employeeNo
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeNoAvailability"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /users/{id}/archive:
+    post:
+      operationId: archiveUser
+      summary: Archive a borrower. Refused while they still hold a device.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasonRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Loan overrides (4.8c) ------------------------------------------------
+
+  /loans/{id}/correct-attribution:
+    post:
+      operationId: correctLoanAttribution
+      summary: >
+        Reassign a loan to the borrower who actually holds the device — the
+        backfill-typo and wrong-card path. Audited as an override; the original
+        borrower is preserved in the audit payload, not overwritten silently.
+      tags: [loans]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CorrectAttributionRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Reports (4.9) --------------------------------------------------------
+
+  /reports/summary:
+    get:
+      operationId: getReportSummary
+      summary: Utilisation, average loan duration, top borrowers, overdue rate.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSummary"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reports/by-origin:
+    get:
+      operationId: getTransactionsByOrigin
+      summary: >
+        Transactions by origin over time (FR-78) — the headline measure of
+        whether paper is actually receding.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+        - $ref: "#/components/parameters/BucketParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OriginReport"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reports/operational-health:
+    get:
+      operationId: getOperationalHealth
+      summary: >
+        Manual-entry count, camera-fallback count and rejection reasons. A
+        rising trend means labels or scanners need attention before they
+        become an outage.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationalHealth"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reports/disputed:
+    get:
+      operationId: listDisputedLoans
+      summary: Records forced past a custody conflict, permanently badged.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reports/loans.csv:
+    get:
+      operationId: exportLoansCsv
+      summary: >
+        Streaming CSV export of the loans list. Takes the same filters as
+        GET /loans so the export matches what is on screen, and is streamed
+        rather than buffered so a multi-year export does not hold memory.
+      tags: [reports]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/LoanStatus"
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/LoanOrigin"
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: deviceId
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+        - name: disputed
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: CSV stream.
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reports/devices.csv:
+    get:
+      operationId: exportDevicesCsv
+      summary: Streaming CSV export of the devices list, same filters as GET /devices.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/DeviceStatusFilter"
+        - $ref: "#/components/parameters/CategoryFilter"
+        - $ref: "#/components/parameters/QueryFilter"
+      responses:
+        "200":
+          description: CSV stream.
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reports/users.csv:
+    get:
+      operationId: exportUsersCsv
+      summary: Streaming CSV export of the users list, same filters as GET /users.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/UserStatusFilter"
+        - $ref: "#/components/parameters/DepartmentFilter"
+        - $ref: "#/components/parameters/QueryFilter"
+        - $ref: "#/components/parameters/HasCredentialFilter"
+      responses:
+        "200":
+          description: CSV stream.
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Audit log (4.9d) -----------------------------------------------------
+
+  /audit:
+    get:
+      operationId: listAuditEvents
+      summary: >
+        The append-only audit trail, filterable by actor, action, subject and
+        date. This is the screen that replaces "let me look through the
+        register".
+      tags: [audit]
+      parameters:
+        - name: actor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: subject
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /audit.csv:
+    get:
+      operationId: exportAuditCsv
+      summary: Streaming CSV export of the audit log, same filters as GET /audit.
+      tags: [audit]
+      parameters:
+        - name: actor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: subject
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+      responses:
+        "200":
+          description: CSV stream.
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- CSV import (4.3c, 4.4d) ----------------------------------------------
+
+  /imports/users/preview:
+    post:
+      operationId: previewUserImport
+      summary: >
+        Validate a users CSV and return the per-row outcome without writing
+        anything. The returned previewId is what POST /imports/users commits,
+        so "preview and confirm" cannot drift into "confirm something else".
+      tags: [imports]
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportPreview"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /imports/users:
+    post:
+      operationId: commitUserImport
+      summary: Commit a previewed users import.
+      tags: [imports]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommitImportRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /imports/devices/preview:
+    post:
+      operationId: previewDeviceImport
+      summary: Validate a devices CSV and return the per-row outcome without writing.
+      tags: [imports]
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportPreview"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /imports/devices:
+    post:
+      operationId: commitDeviceImport
+      summary: Commit a previewed devices import.
+      tags: [imports]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommitImportRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Settings (4.10) ------------------------------------------------------
+
+  /settings:
+    get:
+      operationId: getSettings
+      summary: Policy, label template and paper slip template.
+      tags: [settings]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    patch:
+      operationId: updateSettings
+      summary: >
+        Update one or more settings sections. Each section present in the body
+        replaces that section wholesale — there is no per-field merge, so a
+        partial write cannot leave a template half-configured.
+      tags: [settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Kiosk management (4.10b) ---------------------------------------------
+
+  /kiosks/{id}:
+    get:
+      operationId: getKiosk
+      summary: Fetch one kiosk.
+      tags: [kiosks]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kiosk"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    patch:
+      operationId: updateKiosk
+      summary: Edit a kiosk's name, location or enabled scan sources.
+      tags: [kiosks]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateKioskRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kiosk"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /kiosks/{id}/enable:
+    post:
+      operationId: enableKiosk
+      summary: Re-enable a disabled kiosk. Its token is unchanged.
+      tags: [kiosks]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kiosk"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1265,7 +1992,15 @@ components:
 
     AdminRole:
       type: string
-      enum: [superadmin, admin, operator]
+      description: >
+        `admin` — everything. `technician` — devices, their status and
+        condition, credential reprints, force-return; never staff, kiosks or
+        other admins. `viewer` — read-only dashboard, loans and reports, for
+        managers who want visibility without risk (docs/08-admin-console.md).
+        `superadmin` and `operator` are the v1.0.0 names, accepted until v2 so
+        an older client still parses; the server stops emitting them once the
+        4.1a migration lands.
+      enum: [admin, technician, viewer, superadmin, operator]
 
     Admin:
       type: object
@@ -1276,14 +2011,28 @@ components:
         fullName: { type: string }
         role:
           $ref: "#/components/schemas/AdminRole"
+        status:
+          $ref: "#/components/schemas/AdminStatus"
+        lastLoginAt: { type: string, format: date-time }
+        lockedUntil:
+          type: string
+          format: date-time
+          description: Set while a lockout from repeated failed logins is in force.
 
     LoginRequest:
       type: object
-      required: [email, password, totpCode]
+      required: [email, password]
       properties:
         email: { type: string }
         password: { type: string }
-        totpCode: { type: string }
+        totpCode:
+          type: string
+          description: Required unless recoveryCode is supplied instead.
+        recoveryCode:
+          type: string
+          description: >
+            One of the admin's recovery codes, standing in for the TOTP code
+            when the authenticator is unavailable. Single use.
 
     # --- Catalog --------------------------------------------------------------
 
@@ -2066,6 +2815,25 @@ components:
             $ref: "#/components/schemas/ScanRejectionSummary"
         lastPaperEntry:
           $ref: "#/components/schemas/BackfillLastEntry"
+        overdueLoans:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverdueLoanSummary"
+          description: Worst first, so the list needs no client-side sort to be actionable.
+        unboundCredentialCount:
+          type: integer
+          description: Blank cards printed but not yet bound. Warn below policy.lowStockThreshold.
+        kiosks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Kiosk"
+          description: The kiosk status strip, with last-seen times.
+        lowStockThreshold:
+          type: integer
+          description: Echoed from settings so the strip renders in one call.
+        paperBacklogHours:
+          type: integer
+          description: Echoed from settings, for the paper backlog warning.
 
     # --- Kiosks -------------------------------------------------------------
 
@@ -2134,6 +2902,462 @@ components:
         kioskId: { type: string }
         name: { type: string }
         token: { type: string }
+
+
+    # --- Admin accounts (4.1b) ------------------------------------------------
+
+    AdminStatus:
+      type: string
+      enum: [active, disabled, locked]
+
+    AdminList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Admin"
+
+    CreateAdminRequest:
+      type: object
+      required: [email, fullName, role, password]
+      properties:
+        email: { type: string }
+        fullName: { type: string }
+        role:
+          $ref: "#/components/schemas/AdminRole"
+        password: { type: string }
+
+    UpdateAdminRequest:
+      type: object
+      properties:
+        fullName: { type: string }
+        role:
+          $ref: "#/components/schemas/AdminRole"
+        status:
+          $ref: "#/components/schemas/AdminStatus"
+
+    ResetAdminPasswordRequest:
+      type: object
+      required: [password, reason]
+      properties:
+        password: { type: string }
+        reason: { type: string }
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string }
+
+    TotpEnrolment:
+      type: object
+      required: [otpauthUrl, totpSecret]
+      properties:
+        otpauthUrl:
+          type: string
+          description: otpauth:// URI for the authenticator app's QR code. Returned once.
+        totpSecret:
+          type: string
+          description: Base32 secret, for manual entry. Returned once.
+
+    ConfirmTotpRequest:
+      type: object
+      required: [totpCode]
+      properties:
+        totpCode: { type: string }
+
+    RecoveryCodes:
+      type: object
+      required: [codes]
+      properties:
+        codes:
+          type: array
+          items: { type: string }
+          description: Plaintext, returned once, stored hashed, redeemable once each.
+
+    AdminEnrolment:
+      type: object
+      required: [admin, enrolment, recoveryCodes]
+      properties:
+        admin:
+          $ref: "#/components/schemas/Admin"
+        enrolment:
+          $ref: "#/components/schemas/TotpEnrolment"
+        recoveryCodes:
+          $ref: "#/components/schemas/RecoveryCodes"
+
+    ReasonRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+
+    # --- Registration support (4.4) -------------------------------------------
+
+    EmployeeNoAvailability:
+      type: object
+      required: [employeeNo, available]
+      properties:
+        employeeNo: { type: string }
+        available: { type: boolean }
+        existingUserId:
+          type: string
+          description: >
+            Present only when the number is taken and the caller may view the
+            holder — enough to offer "open that record", not a data leak.
+
+    # --- Loan overrides (4.8c) ------------------------------------------------
+
+    CorrectAttributionRequest:
+      type: object
+      required: [userId, reason]
+      properties:
+        userId:
+          type: string
+          description: The borrower who actually holds the device.
+        reason: { type: string }
+
+    # --- Reports (4.9) --------------------------------------------------------
+
+    ReportBucket:
+      type: string
+      enum: [day, week, month]
+
+    CategoryUtilisation:
+      type: object
+      required: [categoryId, categoryName, deviceCount, loanCount, utilisationPct]
+      properties:
+        categoryId: { type: string }
+        categoryName: { type: string }
+        deviceCount: { type: integer }
+        loanCount: { type: integer }
+        utilisationPct:
+          type: number
+          description: Share of the window during which devices in this category were on loan, 0–100.
+        averageDurationHours: { type: number }
+
+    TopBorrower:
+      type: object
+      required: [userId, fullName, employeeNo, loanCount]
+      properties:
+        userId: { type: string }
+        fullName: { type: string }
+        employeeNo: { type: string }
+        loanCount: { type: integer }
+
+    ReportSummary:
+      type: object
+      required: [from, to, totalLoans, openLoans, overdueCount, overdueRate, utilisationByCategory, topBorrowers]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        totalLoans: { type: integer }
+        openLoans: { type: integer }
+        overdueCount: { type: integer }
+        overdueRate:
+          type: number
+          description: Overdue loans as a share of all loans in the window, 0–1.
+        averageLoanDurationHours: { type: number }
+        utilisationByCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryUtilisation"
+        topBorrowers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopBorrower"
+
+    OriginCount:
+      type: object
+      required: [origin, count]
+      properties:
+        origin:
+          $ref: "#/components/schemas/LoanOrigin"
+        count: { type: integer }
+
+    OriginBucket:
+      type: object
+      required: [periodStart, total, counts]
+      properties:
+        periodStart: { type: string, format: date-time }
+        total: { type: integer }
+        counts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OriginCount"
+
+    OriginReport:
+      type: object
+      required: [from, to, bucket, buckets]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        bucket:
+          $ref: "#/components/schemas/ReportBucket"
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/OriginBucket"
+
+    ScanSourceCount:
+      type: object
+      required: [source, count]
+      properties:
+        source:
+          $ref: "#/components/schemas/ScanSource"
+        count: { type: integer }
+
+    ScanRejectionReasonCount:
+      type: object
+      required: [count]
+      properties:
+        reason:
+          type: string
+          description: Absent when the rejection carried no reason code.
+        resolvedType: { type: string }
+        count: { type: integer }
+
+    OperationalHealth:
+      type: object
+      required: [from, to, totalScans, manualEntryCount, cameraFallbackCount, scansBySource, rejectionReasons]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        totalScans: { type: integer }
+        manualEntryCount: { type: integer }
+        cameraFallbackCount: { type: integer }
+        scansBySource:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanSourceCount"
+        rejectionReasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanRejectionReasonCount"
+
+    # --- Audit log (4.9d) -----------------------------------------------------
+
+    AuditEvent:
+      type: object
+      required: [id, at, actor, action, subject, payload]
+      properties:
+        id: { type: string }
+        at: { type: string, format: date-time }
+        actor:
+          type: string
+          description: "'admin:<id>' | 'kiosk:<id>' | 'import' | 'system'."
+        actorIp: { type: string }
+        action:
+          type: string
+          description: "'user.created', 'credential.reissued', …"
+        subject:
+          type: string
+          description: "'user:<uuid>', 'device:<uuid>', …"
+        payload:
+          type: object
+          additionalProperties: true
+        requestId: { type: string }
+
+    AuditEventList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        nextCursor: { type: string }
+
+    # --- CSV import (4.3c, 4.4d) ----------------------------------------------
+
+    ImportRowAction:
+      type: string
+      description: >
+        What committing would do with this row. "invalid" rather than "error"
+        because oapi-codegen disambiguates colliding enum member names package
+        wide, and an "error" member here would rename MessageTone's constants
+        for no benefit — the word is also more accurate: the row is unusable,
+        nothing has failed.
+      enum: [create, update, skip, invalid]
+
+    ImportProblem:
+      type: object
+      required: [code, message]
+      properties:
+        field: { type: string }
+        code: { type: string }
+        message: { type: string }
+
+    ImportRowPreview:
+      type: object
+      required: [lineNo, action, values]
+      properties:
+        lineNo:
+          type: integer
+          description: 1-based line in the uploaded file, so a problem points at a line the admin can find.
+        action:
+          $ref: "#/components/schemas/ImportRowAction"
+        values:
+          type: object
+          additionalProperties: { type: string }
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportProblem"
+
+    ImportSummary:
+      type: object
+      required: [totalRows, createCount, updateCount, skipCount, invalidCount]
+      properties:
+        totalRows: { type: integer }
+        createCount: { type: integer }
+        updateCount: { type: integer }
+        skipCount: { type: integer }
+        invalidCount: { type: integer }
+
+    ImportPreview:
+      type: object
+      required: [previewId, expiresAt, columns, rows, summary]
+      properties:
+        previewId:
+          type: string
+          description: >
+            Identifies the validated batch the server is holding. Commit takes
+            this, not the file again, so the rows confirmed are exactly the
+            rows previewed.
+        expiresAt: { type: string, format: date-time }
+        columns:
+          type: array
+          items: { type: string }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRowPreview"
+        summary:
+          $ref: "#/components/schemas/ImportSummary"
+
+    CommitImportRequest:
+      type: object
+      required: [previewId]
+      properties:
+        previewId: { type: string }
+
+    ImportResult:
+      type: object
+      required: [importId, createdCount, updatedCount, skippedCount]
+      properties:
+        importId:
+          type: string
+          description: >
+            Recorded as provenance on every row it created, so a user detail
+            page can say which import produced the record.
+        createdCount: { type: integer }
+        updatedCount: { type: integer }
+        skippedCount: { type: integer }
+        createdSubjectIds:
+          type: array
+          items: { type: string }
+          description: >
+            Ids of the rows created, in file order — what the follow-up
+            "issue cards to the N new people" step (FR-77) works from.
+
+    # --- Settings (4.10) ------------------------------------------------------
+
+    PolicySettings:
+      type: object
+      required: [blockOnOverdue, sessionIdleTimeoutSeconds, kioskSoundEnabled, lowStockThreshold, paperBacklogHours]
+      properties:
+        blockOnOverdue: { type: boolean }
+        sessionIdleTimeoutSeconds: { type: integer }
+        kioskSoundEnabled: { type: boolean }
+        lowStockThreshold:
+          type: integer
+          description: The dashboard warns when the unbound blank-card count falls below this.
+        paperBacklogHours:
+          type: integer
+          description: Hours since the last recorded paper page before the dashboard warns. Default 48.
+
+    LabelTemplateSettings:
+      type: object
+      required: [sheetWidthMm, sheetHeightMm, columns, rows, marginTopMm, marginLeftMm, gutterXMm, gutterYMm, labelWidthMm, labelHeightMm]
+      properties:
+        sheetWidthMm: { type: number }
+        sheetHeightMm: { type: number }
+        columns: { type: integer }
+        rows: { type: integer }
+        marginTopMm: { type: number }
+        marginLeftMm: { type: number }
+        gutterXMm: { type: number }
+        gutterYMm: { type: number }
+        labelWidthMm: { type: number }
+        labelHeightMm: { type: number }
+
+    SlipTemplateSettings:
+      type: object
+      required: [hospitalName, pageRefFormat, rowsPerPage, columns]
+      properties:
+        hospitalName: { type: string }
+        pageRefFormat:
+          type: string
+          description: Format of the printed page reference the backfill screen types back in (FR-72).
+        rowsPerPage: { type: integer }
+        columns:
+          type: array
+          items: { type: string }
+
+    Settings:
+      type: object
+      required: [policy, labelTemplate, slipTemplate, updatedAt]
+      properties:
+        policy:
+          $ref: "#/components/schemas/PolicySettings"
+        labelTemplate:
+          $ref: "#/components/schemas/LabelTemplateSettings"
+        slipTemplate:
+          $ref: "#/components/schemas/SlipTemplateSettings"
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+
+    UpdateSettingsRequest:
+      type: object
+      description: Each section present replaces that section wholesale.
+      properties:
+        policy:
+          $ref: "#/components/schemas/PolicySettings"
+        labelTemplate:
+          $ref: "#/components/schemas/LabelTemplateSettings"
+        slipTemplate:
+          $ref: "#/components/schemas/SlipTemplateSettings"
+
+    # --- Kiosk management (4.10b) ---------------------------------------------
+
+    UpdateKioskRequest:
+      type: object
+      properties:
+        name: { type: string }
+        location: { type: string }
+        enabledSources:
+          type: array
+          items: { type: string }
+
+    # --- Dashboard support (4.7) ----------------------------------------------
+
+    OverdueLoanSummary:
+      type: object
+      required: [loanId, deviceId, assetTag, deviceName, userId, userFullName, dueAt, daysOverdue]
+      properties:
+        loanId: { type: string }
+        deviceId: { type: string }
+        assetTag: { type: string }
+        deviceName: { type: string }
+        userId: { type: string }
+        userFullName: { type: string }
+        userEmployeeNo: { type: string }
+        dueAt: { type: string, format: date-time }
+        daysOverdue: { type: integer }
 
   parameters:
     IDParam:
@@ -2205,6 +3429,41 @@ components:
         minute_bucket) — the minute bucket is what makes a deliberate
         re-borrow a minute later a new transaction rather than a replay. The
         admin console may send any stable per-action value or omit the header.
+
+
+    HasCredentialFilter:
+      name: hasCredential
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: >
+        Filter by whether the user has an active credential. `false` is the
+        registration console's "registered but no card issued" list — each row
+        is someone who cannot use the kiosk yet.
+
+    FromParam:
+      name: from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+
+    ToParam:
+      name: to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+
+    BucketParam:
+      name: bucket
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/ReportBucket"
 
   responses:
     ProblemResponse:

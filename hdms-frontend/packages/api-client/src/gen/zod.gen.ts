@@ -16,23 +16,23 @@ export const zProblem = z.object({
     extensions: z.record(z.string(), z.unknown()).optional()
 });
 
+/**
+ * `admin` — everything. `technician` — devices, their status and condition, credential reprints, force-return; never staff, kiosks or other admins. `viewer` — read-only dashboard, loans and reports, for managers who want visibility without risk (docs/08-admin-console.md). `superadmin` and `operator` are the v1.0.0 names, accepted until v2 so an older client still parses; the server stops emitting them once the 4.1a migration lands.
+ *
+ */
 export const zAdminRole = z.enum([
-    'superadmin',
     'admin',
+    'technician',
+    'viewer',
+    'superadmin',
     'operator'
 ]);
-
-export const zAdmin = z.object({
-    id: z.string(),
-    email: z.string(),
-    fullName: z.string(),
-    role: zAdminRole
-});
 
 export const zLoginRequest = z.object({
     email: z.string(),
     password: z.string(),
-    totpCode: z.string()
+    totpCode: z.string().optional(),
+    recoveryCode: z.string().optional()
 });
 
 export const zDeviceStatus = z.enum([
@@ -579,16 +579,6 @@ export const zScanRejectionSummary = z.object({
     totalScans: z.int()
 });
 
-export const zDashboard = z.object({
-    onLoanCount: z.int(),
-    overdueCount: z.int(),
-    availableCount: z.int(),
-    maintenanceCount: z.int(),
-    availabilityByCategory: z.array(zCategoryAvailability),
-    turnedAwayCounts: z.array(zScanRejectionSummary),
-    lastPaperEntry: zBackfillLastEntry.optional()
-});
-
 export const zKioskStatus = z.enum(['active', 'disabled']);
 
 export const zKiosk = z.object({
@@ -629,6 +619,302 @@ export const zPairKioskResponse = z.object({
     token: z.string()
 });
 
+export const zAdminStatus = z.enum([
+    'active',
+    'disabled',
+    'locked'
+]);
+
+export const zAdmin = z.object({
+    id: z.string(),
+    email: z.string(),
+    fullName: z.string(),
+    role: zAdminRole,
+    status: zAdminStatus.optional(),
+    lastLoginAt: z.iso.datetime().optional(),
+    lockedUntil: z.iso.datetime().optional()
+});
+
+export const zAdminList = z.object({
+    items: z.array(zAdmin)
+});
+
+export const zCreateAdminRequest = z.object({
+    email: z.string(),
+    fullName: z.string(),
+    role: zAdminRole,
+    password: z.string()
+});
+
+export const zUpdateAdminRequest = z.object({
+    fullName: z.string().optional(),
+    role: zAdminRole.optional(),
+    status: zAdminStatus.optional()
+});
+
+export const zResetAdminPasswordRequest = z.object({
+    password: z.string(),
+    reason: z.string()
+});
+
+export const zChangePasswordRequest = z.object({
+    currentPassword: z.string(),
+    newPassword: z.string()
+});
+
+export const zTotpEnrolment = z.object({
+    otpauthUrl: z.string(),
+    totpSecret: z.string()
+});
+
+export const zConfirmTotpRequest = z.object({
+    totpCode: z.string()
+});
+
+export const zRecoveryCodes = z.object({
+    codes: z.array(z.string())
+});
+
+export const zAdminEnrolment = z.object({
+    admin: zAdmin,
+    enrolment: zTotpEnrolment,
+    recoveryCodes: zRecoveryCodes
+});
+
+export const zReasonRequest = z.object({
+    reason: z.string()
+});
+
+export const zEmployeeNoAvailability = z.object({
+    employeeNo: z.string(),
+    available: z.boolean(),
+    existingUserId: z.string().optional()
+});
+
+export const zCorrectAttributionRequest = z.object({
+    userId: z.string(),
+    reason: z.string()
+});
+
+export const zReportBucket = z.enum([
+    'day',
+    'week',
+    'month'
+]);
+
+export const zCategoryUtilisation = z.object({
+    categoryId: z.string(),
+    categoryName: z.string(),
+    deviceCount: z.int(),
+    loanCount: z.int(),
+    utilisationPct: z.number(),
+    averageDurationHours: z.number().optional()
+});
+
+export const zTopBorrower = z.object({
+    userId: z.string(),
+    fullName: z.string(),
+    employeeNo: z.string(),
+    loanCount: z.int()
+});
+
+export const zReportSummary = z.object({
+    from: z.iso.datetime(),
+    to: z.iso.datetime(),
+    totalLoans: z.int(),
+    openLoans: z.int(),
+    overdueCount: z.int(),
+    overdueRate: z.number(),
+    averageLoanDurationHours: z.number().optional(),
+    utilisationByCategory: z.array(zCategoryUtilisation),
+    topBorrowers: z.array(zTopBorrower)
+});
+
+export const zOriginCount = z.object({
+    origin: zLoanOrigin,
+    count: z.int()
+});
+
+export const zOriginBucket = z.object({
+    periodStart: z.iso.datetime(),
+    total: z.int(),
+    counts: z.array(zOriginCount)
+});
+
+export const zOriginReport = z.object({
+    from: z.iso.datetime(),
+    to: z.iso.datetime(),
+    bucket: zReportBucket,
+    buckets: z.array(zOriginBucket)
+});
+
+export const zScanSourceCount = z.object({
+    source: zScanSource,
+    count: z.int()
+});
+
+export const zScanRejectionReasonCount = z.object({
+    reason: z.string().optional(),
+    resolvedType: z.string().optional(),
+    count: z.int()
+});
+
+export const zOperationalHealth = z.object({
+    from: z.iso.datetime(),
+    to: z.iso.datetime(),
+    totalScans: z.int(),
+    manualEntryCount: z.int(),
+    cameraFallbackCount: z.int(),
+    scansBySource: z.array(zScanSourceCount),
+    rejectionReasons: z.array(zScanRejectionReasonCount)
+});
+
+export const zAuditEvent = z.object({
+    id: z.string(),
+    at: z.iso.datetime(),
+    actor: z.string(),
+    actorIp: z.string().optional(),
+    action: z.string(),
+    subject: z.string(),
+    payload: z.record(z.string(), z.unknown()),
+    requestId: z.string().optional()
+});
+
+export const zAuditEventList = z.object({
+    items: z.array(zAuditEvent),
+    nextCursor: z.string().optional()
+});
+
+/**
+ * What committing would do with this row. "invalid" rather than "error" because oapi-codegen disambiguates colliding enum member names package wide, and an "error" member here would rename MessageTone's constants for no benefit — the word is also more accurate: the row is unusable, nothing has failed.
+ *
+ */
+export const zImportRowAction = z.enum([
+    'create',
+    'update',
+    'skip',
+    'invalid'
+]);
+
+export const zImportProblem = z.object({
+    field: z.string().optional(),
+    code: z.string(),
+    message: z.string()
+});
+
+export const zImportRowPreview = z.object({
+    lineNo: z.int(),
+    action: zImportRowAction,
+    values: z.record(z.string(), z.string()),
+    problems: z.array(zImportProblem).optional()
+});
+
+export const zImportSummary = z.object({
+    totalRows: z.int(),
+    createCount: z.int(),
+    updateCount: z.int(),
+    skipCount: z.int(),
+    invalidCount: z.int()
+});
+
+export const zImportPreview = z.object({
+    previewId: z.string(),
+    expiresAt: z.iso.datetime(),
+    columns: z.array(z.string()),
+    rows: z.array(zImportRowPreview),
+    summary: zImportSummary
+});
+
+export const zCommitImportRequest = z.object({
+    previewId: z.string()
+});
+
+export const zImportResult = z.object({
+    importId: z.string(),
+    createdCount: z.int(),
+    updatedCount: z.int(),
+    skippedCount: z.int(),
+    createdSubjectIds: z.array(z.string()).optional()
+});
+
+export const zPolicySettings = z.object({
+    blockOnOverdue: z.boolean(),
+    sessionIdleTimeoutSeconds: z.int(),
+    kioskSoundEnabled: z.boolean(),
+    lowStockThreshold: z.int(),
+    paperBacklogHours: z.int()
+});
+
+export const zLabelTemplateSettings = z.object({
+    sheetWidthMm: z.number(),
+    sheetHeightMm: z.number(),
+    columns: z.int(),
+    rows: z.int(),
+    marginTopMm: z.number(),
+    marginLeftMm: z.number(),
+    gutterXMm: z.number(),
+    gutterYMm: z.number(),
+    labelWidthMm: z.number(),
+    labelHeightMm: z.number()
+});
+
+export const zSlipTemplateSettings = z.object({
+    hospitalName: z.string(),
+    pageRefFormat: z.string(),
+    rowsPerPage: z.int(),
+    columns: z.array(z.string())
+});
+
+export const zSettings = z.object({
+    policy: zPolicySettings,
+    labelTemplate: zLabelTemplateSettings,
+    slipTemplate: zSlipTemplateSettings,
+    updatedAt: z.iso.datetime(),
+    updatedBy: z.string().optional()
+});
+
+/**
+ * Each section present replaces that section wholesale.
+ */
+export const zUpdateSettingsRequest = z.object({
+    policy: zPolicySettings.optional(),
+    labelTemplate: zLabelTemplateSettings.optional(),
+    slipTemplate: zSlipTemplateSettings.optional()
+});
+
+export const zUpdateKioskRequest = z.object({
+    name: z.string().optional(),
+    location: z.string().optional(),
+    enabledSources: z.array(z.string()).optional()
+});
+
+export const zOverdueLoanSummary = z.object({
+    loanId: z.string(),
+    deviceId: z.string(),
+    assetTag: z.string(),
+    deviceName: z.string(),
+    userId: z.string(),
+    userFullName: z.string(),
+    userEmployeeNo: z.string().optional(),
+    dueAt: z.iso.datetime(),
+    daysOverdue: z.int()
+});
+
+export const zDashboard = z.object({
+    onLoanCount: z.int(),
+    overdueCount: z.int(),
+    availableCount: z.int(),
+    maintenanceCount: z.int(),
+    availabilityByCategory: z.array(zCategoryAvailability),
+    turnedAwayCounts: z.array(zScanRejectionSummary),
+    lastPaperEntry: zBackfillLastEntry.optional(),
+    overdueLoans: z.array(zOverdueLoanSummary).optional(),
+    unboundCredentialCount: z.int().optional(),
+    kiosks: z.array(zKiosk).optional(),
+    lowStockThreshold: z.int().optional(),
+    paperBacklogHours: z.int().optional()
+});
+
 export const zIdParam = z.string();
 
 export const zCursorParam = z.string();
@@ -650,6 +936,18 @@ export const zDepartmentFilter = z.string();
  *
  */
 export const zIdempotencyKey = z.string();
+
+/**
+ * Filter by whether the user has an active credential. `false` is the registration console's "registered but no card issued" list — each row is someone who cannot use the kiosk yet.
+ *
+ */
+export const zHasCredentialFilter = z.boolean();
+
+export const zFromParam = z.iso.datetime();
+
+export const zToParam = z.iso.datetime();
+
+export const zBucketParam = zReportBucket;
 
 /**
  * The process is up.
@@ -754,6 +1052,7 @@ export const zUpdateCategoryResponse = zCategory;
 
 export const zListUsersQuery = z.object({
     status: zUserStatus.optional(),
+    hasCredential: z.boolean().optional(),
     department: z.string().optional(),
     q: z.string().optional(),
     cursor: z.string().optional(),
@@ -1165,3 +1464,311 @@ export const zPairKioskHeaders = z.object({
  * OK. Never cached.
  */
 export const zPairKioskResponse2 = zPairKioskResponse;
+
+export const zChangeOwnPasswordBody = zChangePasswordRequest;
+
+/**
+ * Password changed. Other sessions for this admin are revoked.
+ */
+export const zChangeOwnPasswordResponse = z.void();
+
+/**
+ * New secret, returned once.
+ */
+export const zBeginTotpReenrolmentResponse = zTotpEnrolment;
+
+export const zConfirmTotpReenrolmentBody = zConfirmTotpRequest;
+
+/**
+ * Confirmed. The previous secret is now dead.
+ */
+export const zConfirmTotpReenrolmentResponse = z.void();
+
+/**
+ * New codes, returned once.
+ */
+export const zRegenerateRecoveryCodesResponse = zRecoveryCodes;
+
+/**
+ * OK.
+ */
+export const zListAdminsResponse = zAdminList;
+
+export const zCreateAdminBody = zCreateAdminRequest;
+
+/**
+ * Created.
+ */
+export const zCreateAdminResponse = zAdminEnrolment;
+
+export const zGetAdminPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetAdminResponse = zAdmin;
+
+export const zUpdateAdminBody = zUpdateAdminRequest;
+
+export const zUpdateAdminPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateAdminResponse = zAdmin;
+
+export const zResetAdminPasswordBody = zResetAdminPasswordRequest;
+
+export const zResetAdminPasswordPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Reset.
+ */
+export const zResetAdminPasswordResponse = z.void();
+
+export const zForceAdminTotpReenrolmentBody = zReasonRequest;
+
+export const zForceAdminTotpReenrolmentPath = z.object({
+    id: z.string()
+});
+
+/**
+ * New secret, returned once.
+ */
+export const zForceAdminTotpReenrolmentResponse = zTotpEnrolment;
+
+export const zUnlockAdminBody = zReasonRequest;
+
+export const zUnlockAdminPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Unlocked.
+ */
+export const zUnlockAdminResponse = z.void();
+
+export const zCheckEmployeeNoQuery = z.object({
+    employeeNo: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zCheckEmployeeNoResponse = zEmployeeNoAvailability;
+
+export const zArchiveUserBody = zReasonRequest;
+
+export const zArchiveUserPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zArchiveUserResponse = zUser;
+
+export const zCorrectLoanAttributionBody = zCorrectAttributionRequest;
+
+export const zCorrectLoanAttributionHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zCorrectLoanAttributionPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zCorrectLoanAttributionResponse = zLoan;
+
+export const zGetReportSummaryQuery = z.object({
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional()
+});
+
+/**
+ * OK.
+ */
+export const zGetReportSummaryResponse = zReportSummary;
+
+export const zGetTransactionsByOriginQuery = z.object({
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional(),
+    bucket: zReportBucket.optional()
+});
+
+/**
+ * OK.
+ */
+export const zGetTransactionsByOriginResponse = zOriginReport;
+
+export const zGetOperationalHealthQuery = z.object({
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional()
+});
+
+/**
+ * OK.
+ */
+export const zGetOperationalHealthResponse = zOperationalHealth;
+
+export const zListDisputedLoansQuery = z.object({
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListDisputedLoansResponse = zLoanList;
+
+export const zExportLoansCsvQuery = z.object({
+    status: zLoanStatus.optional(),
+    origin: zLoanOrigin.optional(),
+    userId: z.string().optional(),
+    deviceId: z.string().optional(),
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional(),
+    disputed: z.boolean().optional()
+});
+
+/**
+ * CSV stream.
+ */
+export const zExportLoansCsvResponse = z.string();
+
+export const zExportDevicesCsvQuery = z.object({
+    status: zDeviceStatus.optional(),
+    category: z.string().optional(),
+    q: z.string().optional()
+});
+
+/**
+ * CSV stream.
+ */
+export const zExportDevicesCsvResponse = z.string();
+
+export const zExportUsersCsvQuery = z.object({
+    status: zUserStatus.optional(),
+    department: z.string().optional(),
+    q: z.string().optional(),
+    hasCredential: z.boolean().optional()
+});
+
+/**
+ * CSV stream.
+ */
+export const zExportUsersCsvResponse = z.string();
+
+export const zListAuditEventsQuery = z.object({
+    actor: z.string().optional(),
+    action: z.string().optional(),
+    subject: z.string().optional(),
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional(),
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListAuditEventsResponse = zAuditEventList;
+
+export const zExportAuditCsvQuery = z.object({
+    actor: z.string().optional(),
+    action: z.string().optional(),
+    subject: z.string().optional(),
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional()
+});
+
+/**
+ * CSV stream.
+ */
+export const zExportAuditCsvResponse = z.string();
+
+export const zPreviewUserImportBody = z.string();
+
+/**
+ * OK.
+ */
+export const zPreviewUserImportResponse = zImportPreview;
+
+export const zCommitUserImportBody = zCommitImportRequest;
+
+export const zCommitUserImportHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+/**
+ * OK.
+ */
+export const zCommitUserImportResponse = zImportResult;
+
+export const zPreviewDeviceImportBody = z.string();
+
+/**
+ * OK.
+ */
+export const zPreviewDeviceImportResponse = zImportPreview;
+
+export const zCommitDeviceImportBody = zCommitImportRequest;
+
+export const zCommitDeviceImportHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+/**
+ * OK.
+ */
+export const zCommitDeviceImportResponse = zImportResult;
+
+/**
+ * OK.
+ */
+export const zGetSettingsResponse = zSettings;
+
+export const zUpdateSettingsBody = zUpdateSettingsRequest;
+
+/**
+ * OK.
+ */
+export const zUpdateSettingsResponse = zSettings;
+
+export const zGetKioskPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetKioskResponse = zKiosk;
+
+export const zUpdateKioskBody = zUpdateKioskRequest;
+
+export const zUpdateKioskPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateKioskResponse = zKiosk;
+
+export const zEnableKioskPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zEnableKioskResponse = zKiosk;

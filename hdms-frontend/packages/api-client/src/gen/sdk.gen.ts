@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BindCredentialData, BindCredentialErrors, BindCredentialResponses, CancelSessionData, CancelSessionErrors, CancelSessionResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateKioskData, CreateKioskErrors, CreateKioskPairingCodeData, CreateKioskPairingCodeErrors, CreateKioskPairingCodeResponses, CreateKioskResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DisableKioskData, DisableKioskErrors, DisableKioskResponses, ForceReturnLoanData, ForceReturnLoanErrors, ForceReturnLoanResponses, GetBackfillLastEntryData, GetBackfillLastEntryErrors, GetBackfillLastEntryResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEventsStreamData, GetEventsStreamErrors, GetEventsStreamResponse, GetEventsStreamResponses, GetHealthzData, GetHealthzResponses, GetLoanData, GetLoanErrors, GetLoanResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDeviceLoansData, ListDeviceLoansErrors, ListDeviceLoansResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListKiosksData, ListKiosksErrors, ListKiosksResponses, ListLoansData, ListLoansErrors, ListLoansResponses, ListUserLoansData, ListUserLoansErrors, ListUserLoansResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, PairKioskData, PairKioskErrors, PairKioskResponses, PreviewBackfillBatchData, PreviewBackfillBatchErrors, PreviewBackfillBatchResponses, RecordBackfillBatchData, RecordBackfillBatchErrors, RecordBackfillBatchResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, ReturnSessionLoanData, ReturnSessionLoanErrors, ReturnSessionLoanResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, RotateKioskTokenData, RotateKioskTokenErrors, RotateKioskTokenResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, SubmitScanData, SubmitScanErrors, SubmitScanResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses, WriteOffLoanData, WriteOffLoanErrors, WriteOffLoanResponses } from './types.gen';
+import type { ArchiveUserData, ArchiveUserErrors, ArchiveUserResponses, BeginTotpReenrolmentData, BeginTotpReenrolmentErrors, BeginTotpReenrolmentResponses, BindCredentialData, BindCredentialErrors, BindCredentialResponses, CancelSessionData, CancelSessionErrors, CancelSessionResponses, ChangeOwnPasswordData, ChangeOwnPasswordErrors, ChangeOwnPasswordResponses, CheckEmployeeNoData, CheckEmployeeNoErrors, CheckEmployeeNoResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, CommitDeviceImportData, CommitDeviceImportErrors, CommitDeviceImportResponses, CommitUserImportData, CommitUserImportErrors, CommitUserImportResponses, ConfirmTotpReenrolmentData, ConfirmTotpReenrolmentErrors, ConfirmTotpReenrolmentResponses, CorrectLoanAttributionData, CorrectLoanAttributionErrors, CorrectLoanAttributionResponses, CreateAdminData, CreateAdminErrors, CreateAdminResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateKioskData, CreateKioskErrors, CreateKioskPairingCodeData, CreateKioskPairingCodeErrors, CreateKioskPairingCodeResponses, CreateKioskResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DisableKioskData, DisableKioskErrors, DisableKioskResponses, EnableKioskData, EnableKioskErrors, EnableKioskResponses, ExportAuditCsvData, ExportAuditCsvErrors, ExportAuditCsvResponses, ExportDevicesCsvData, ExportDevicesCsvErrors, ExportDevicesCsvResponses, ExportLoansCsvData, ExportLoansCsvErrors, ExportLoansCsvResponses, ExportUsersCsvData, ExportUsersCsvErrors, ExportUsersCsvResponses, ForceAdminTotpReenrolmentData, ForceAdminTotpReenrolmentErrors, ForceAdminTotpReenrolmentResponses, ForceReturnLoanData, ForceReturnLoanErrors, ForceReturnLoanResponses, GetAdminData, GetAdminErrors, GetAdminResponses, GetBackfillLastEntryData, GetBackfillLastEntryErrors, GetBackfillLastEntryResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEventsStreamData, GetEventsStreamErrors, GetEventsStreamResponse, GetEventsStreamResponses, GetHealthzData, GetHealthzResponses, GetKioskData, GetKioskErrors, GetKioskResponses, GetLoanData, GetLoanErrors, GetLoanResponses, GetOperationalHealthData, GetOperationalHealthErrors, GetOperationalHealthResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetReportSummaryData, GetReportSummaryErrors, GetReportSummaryResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetTransactionsByOriginData, GetTransactionsByOriginErrors, GetTransactionsByOriginResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListAdminsData, ListAdminsErrors, ListAdminsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDeviceLoansData, ListDeviceLoansErrors, ListDeviceLoansResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListDisputedLoansData, ListDisputedLoansErrors, ListDisputedLoansResponses, ListKiosksData, ListKiosksErrors, ListKiosksResponses, ListLoansData, ListLoansErrors, ListLoansResponses, ListUserLoansData, ListUserLoansErrors, ListUserLoansResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, PairKioskData, PairKioskErrors, PairKioskResponses, PreviewBackfillBatchData, PreviewBackfillBatchErrors, PreviewBackfillBatchResponses, PreviewDeviceImportData, PreviewDeviceImportErrors, PreviewDeviceImportResponses, PreviewUserImportData, PreviewUserImportErrors, PreviewUserImportResponses, RecordBackfillBatchData, RecordBackfillBatchErrors, RecordBackfillBatchResponses, RegenerateRecoveryCodesData, RegenerateRecoveryCodesErrors, RegenerateRecoveryCodesResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResetAdminPasswordData, ResetAdminPasswordErrors, ResetAdminPasswordResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, ReturnSessionLoanData, ReturnSessionLoanErrors, ReturnSessionLoanResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, RotateKioskTokenData, RotateKioskTokenErrors, RotateKioskTokenResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, SubmitScanData, SubmitScanErrors, SubmitScanResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UnlockAdminData, UnlockAdminErrors, UnlockAdminResponses, UpdateAdminData, UpdateAdminErrors, UpdateAdminResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateKioskData, UpdateKioskErrors, UpdateKioskResponses, UpdateSettingsData, UpdateSettingsErrors, UpdateSettingsResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses, WriteOffLoanData, WriteOffLoanErrors, WriteOffLoanResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -773,4 +773,494 @@ export const pairKiosk = <ThrowOnError extends boolean = false>(options: Options
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Change the authenticated admin's own password.
+ */
+export const changeOwnPassword = <ThrowOnError extends boolean = false>(options: Options<ChangeOwnPasswordData, ThrowOnError>): RequestResult<ChangeOwnPasswordResponses, ChangeOwnPasswordErrors, ThrowOnError> => (options.client ?? client).post<ChangeOwnPasswordResponses, ChangeOwnPasswordErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/auth/password',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Start TOTP re-enrolment for the authenticated admin. Returns the new secret exactly once; the existing secret stays valid until /auth/totp/confirm succeeds, so a half-finished enrolment cannot lock the admin out.
+ *
+ */
+export const beginTotpReenrolment = <ThrowOnError extends boolean = false>(options?: Options<BeginTotpReenrolmentData, ThrowOnError>): RequestResult<BeginTotpReenrolmentResponses, BeginTotpReenrolmentErrors, ThrowOnError> => (options?.client ?? client).post<BeginTotpReenrolmentResponses, BeginTotpReenrolmentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/auth/totp/reenrol',
+    ...options
+});
+
+/**
+ * Confirm a pending TOTP re-enrolment with a code from the new secret.
+ */
+export const confirmTotpReenrolment = <ThrowOnError extends boolean = false>(options: Options<ConfirmTotpReenrolmentData, ThrowOnError>): RequestResult<ConfirmTotpReenrolmentResponses, ConfirmTotpReenrolmentErrors, ThrowOnError> => (options.client ?? client).post<ConfirmTotpReenrolmentResponses, ConfirmTotpReenrolmentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/auth/totp/confirm',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Replace the authenticated admin's recovery codes. Returned in plaintext exactly once; stored hashed and redeemable once each.
+ *
+ */
+export const regenerateRecoveryCodes = <ThrowOnError extends boolean = false>(options?: Options<RegenerateRecoveryCodesData, ThrowOnError>): RequestResult<RegenerateRecoveryCodesResponses, RegenerateRecoveryCodesErrors, ThrowOnError> => (options?.client ?? client).post<RegenerateRecoveryCodesResponses, RegenerateRecoveryCodesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/auth/recovery-codes',
+    ...options
+});
+
+/**
+ * List admin accounts.
+ */
+export const listAdmins = <ThrowOnError extends boolean = false>(options?: Options<ListAdminsData, ThrowOnError>): RequestResult<ListAdminsResponses, ListAdminsErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminsResponses, ListAdminsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/admins',
+    ...options
+});
+
+/**
+ * Create an admin account. Returns the TOTP enrolment payload and recovery codes exactly once — there is no way to read them again.
+ *
+ */
+export const createAdmin = <ThrowOnError extends boolean = false>(options: Options<CreateAdminData, ThrowOnError>): RequestResult<CreateAdminResponses, CreateAdminErrors, ThrowOnError> => (options.client ?? client).post<CreateAdminResponses, CreateAdminErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/admins',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Fetch one admin account.
+ */
+export const getAdmin = <ThrowOnError extends boolean = false>(options: Options<GetAdminData, ThrowOnError>): RequestResult<GetAdminResponses, GetAdminErrors, ThrowOnError> => (options.client ?? client).get<GetAdminResponses, GetAdminErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/admins/{id}',
+    ...options
+});
+
+/**
+ * Edit an admin's name, role or status. Email is not editable.
+ */
+export const updateAdmin = <ThrowOnError extends boolean = false>(options: Options<UpdateAdminData, ThrowOnError>): RequestResult<UpdateAdminResponses, UpdateAdminErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAdminResponses, UpdateAdminErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/admins/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set a new password for another admin and revoke their sessions.
+ */
+export const resetAdminPassword = <ThrowOnError extends boolean = false>(options: Options<ResetAdminPasswordData, ThrowOnError>): RequestResult<ResetAdminPasswordResponses, ResetAdminPasswordErrors, ThrowOnError> => (options.client ?? client).post<ResetAdminPasswordResponses, ResetAdminPasswordErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/admins/{id}/reset-password',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Force another admin to re-enrol TOTP — the lost-phone path. Returns the new secret once, for handing over in person.
+ *
+ */
+export const forceAdminTotpReenrolment = <ThrowOnError extends boolean = false>(options: Options<ForceAdminTotpReenrolmentData, ThrowOnError>): RequestResult<ForceAdminTotpReenrolmentResponses, ForceAdminTotpReenrolmentErrors, ThrowOnError> => (options.client ?? client).post<ForceAdminTotpReenrolmentResponses, ForceAdminTotpReenrolmentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/admins/{id}/reset-totp',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Clear a lockout imposed by repeated failed logins.
+ */
+export const unlockAdmin = <ThrowOnError extends boolean = false>(options: Options<UnlockAdminData, ThrowOnError>): RequestResult<UnlockAdminResponses, UnlockAdminErrors, ThrowOnError> => (options.client ?? client).post<UnlockAdminResponses, UnlockAdminErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/admins/{id}/unlock',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Live duplicate check for the registration form, called as the employee number is typed (FR-41). Cheap by design — it returns availability, not the matching user's record.
+ *
+ */
+export const checkEmployeeNo = <ThrowOnError extends boolean = false>(options: Options<CheckEmployeeNoData, ThrowOnError>): RequestResult<CheckEmployeeNoResponses, CheckEmployeeNoErrors, ThrowOnError> => (options.client ?? client).get<CheckEmployeeNoResponses, CheckEmployeeNoErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users/check-employee-no',
+    ...options
+});
+
+/**
+ * Archive a borrower. Refused while they still hold a device.
+ */
+export const archiveUser = <ThrowOnError extends boolean = false>(options: Options<ArchiveUserData, ThrowOnError>): RequestResult<ArchiveUserResponses, ArchiveUserErrors, ThrowOnError> => (options.client ?? client).post<ArchiveUserResponses, ArchiveUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/users/{id}/archive',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reassign a loan to the borrower who actually holds the device — the backfill-typo and wrong-card path. Audited as an override; the original borrower is preserved in the audit payload, not overwritten silently.
+ *
+ */
+export const correctLoanAttribution = <ThrowOnError extends boolean = false>(options: Options<CorrectLoanAttributionData, ThrowOnError>): RequestResult<CorrectLoanAttributionResponses, CorrectLoanAttributionErrors, ThrowOnError> => (options.client ?? client).post<CorrectLoanAttributionResponses, CorrectLoanAttributionErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/loans/{id}/correct-attribution',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Utilisation, average loan duration, top borrowers, overdue rate.
+ */
+export const getReportSummary = <ThrowOnError extends boolean = false>(options?: Options<GetReportSummaryData, ThrowOnError>): RequestResult<GetReportSummaryResponses, GetReportSummaryErrors, ThrowOnError> => (options?.client ?? client).get<GetReportSummaryResponses, GetReportSummaryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/reports/summary',
+    ...options
+});
+
+/**
+ * Transactions by origin over time (FR-78) — the headline measure of whether paper is actually receding.
+ *
+ */
+export const getTransactionsByOrigin = <ThrowOnError extends boolean = false>(options?: Options<GetTransactionsByOriginData, ThrowOnError>): RequestResult<GetTransactionsByOriginResponses, GetTransactionsByOriginErrors, ThrowOnError> => (options?.client ?? client).get<GetTransactionsByOriginResponses, GetTransactionsByOriginErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/reports/by-origin',
+    ...options
+});
+
+/**
+ * Manual-entry count, camera-fallback count and rejection reasons. A rising trend means labels or scanners need attention before they become an outage.
+ *
+ */
+export const getOperationalHealth = <ThrowOnError extends boolean = false>(options?: Options<GetOperationalHealthData, ThrowOnError>): RequestResult<GetOperationalHealthResponses, GetOperationalHealthErrors, ThrowOnError> => (options?.client ?? client).get<GetOperationalHealthResponses, GetOperationalHealthErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/reports/operational-health',
+    ...options
+});
+
+/**
+ * Records forced past a custody conflict, permanently badged.
+ */
+export const listDisputedLoans = <ThrowOnError extends boolean = false>(options?: Options<ListDisputedLoansData, ThrowOnError>): RequestResult<ListDisputedLoansResponses, ListDisputedLoansErrors, ThrowOnError> => (options?.client ?? client).get<ListDisputedLoansResponses, ListDisputedLoansErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/reports/disputed',
+    ...options
+});
+
+/**
+ * Streaming CSV export of the loans list. Takes the same filters as GET /loans so the export matches what is on screen, and is streamed rather than buffered so a multi-year export does not hold memory.
+ *
+ */
+export const exportLoansCsv = <ThrowOnError extends boolean = false>(options?: Options<ExportLoansCsvData, ThrowOnError>): RequestResult<ExportLoansCsvResponses, ExportLoansCsvErrors, ThrowOnError> => (options?.client ?? client).get<ExportLoansCsvResponses, ExportLoansCsvErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/reports/loans.csv',
+    ...options
+});
+
+/**
+ * Streaming CSV export of the devices list, same filters as GET /devices.
+ */
+export const exportDevicesCsv = <ThrowOnError extends boolean = false>(options?: Options<ExportDevicesCsvData, ThrowOnError>): RequestResult<ExportDevicesCsvResponses, ExportDevicesCsvErrors, ThrowOnError> => (options?.client ?? client).get<ExportDevicesCsvResponses, ExportDevicesCsvErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/reports/devices.csv',
+    ...options
+});
+
+/**
+ * Streaming CSV export of the users list, same filters as GET /users.
+ */
+export const exportUsersCsv = <ThrowOnError extends boolean = false>(options?: Options<ExportUsersCsvData, ThrowOnError>): RequestResult<ExportUsersCsvResponses, ExportUsersCsvErrors, ThrowOnError> => (options?.client ?? client).get<ExportUsersCsvResponses, ExportUsersCsvErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/reports/users.csv',
+    ...options
+});
+
+/**
+ * The append-only audit trail, filterable by actor, action, subject and date. This is the screen that replaces "let me look through the register".
+ *
+ */
+export const listAuditEvents = <ThrowOnError extends boolean = false>(options?: Options<ListAuditEventsData, ThrowOnError>): RequestResult<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/audit',
+    ...options
+});
+
+/**
+ * Streaming CSV export of the audit log, same filters as GET /audit.
+ */
+export const exportAuditCsv = <ThrowOnError extends boolean = false>(options?: Options<ExportAuditCsvData, ThrowOnError>): RequestResult<ExportAuditCsvResponses, ExportAuditCsvErrors, ThrowOnError> => (options?.client ?? client).get<ExportAuditCsvResponses, ExportAuditCsvErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/audit.csv',
+    ...options
+});
+
+/**
+ * Validate a users CSV and return the per-row outcome without writing anything. The returned previewId is what POST /imports/users commits, so "preview and confirm" cannot drift into "confirm something else".
+ *
+ */
+export const previewUserImport = <ThrowOnError extends boolean = false>(options: Options<PreviewUserImportData, ThrowOnError>): RequestResult<PreviewUserImportResponses, PreviewUserImportErrors, ThrowOnError> => (options.client ?? client).post<PreviewUserImportResponses, PreviewUserImportErrors, ThrowOnError>({
+    bodySerializer: null,
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/imports/users/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'text/csv',
+        ...options.headers
+    }
+});
+
+/**
+ * Commit a previewed users import.
+ */
+export const commitUserImport = <ThrowOnError extends boolean = false>(options: Options<CommitUserImportData, ThrowOnError>): RequestResult<CommitUserImportResponses, CommitUserImportErrors, ThrowOnError> => (options.client ?? client).post<CommitUserImportResponses, CommitUserImportErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/imports/users',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Validate a devices CSV and return the per-row outcome without writing.
+ */
+export const previewDeviceImport = <ThrowOnError extends boolean = false>(options: Options<PreviewDeviceImportData, ThrowOnError>): RequestResult<PreviewDeviceImportResponses, PreviewDeviceImportErrors, ThrowOnError> => (options.client ?? client).post<PreviewDeviceImportResponses, PreviewDeviceImportErrors, ThrowOnError>({
+    bodySerializer: null,
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/imports/devices/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'text/csv',
+        ...options.headers
+    }
+});
+
+/**
+ * Commit a previewed devices import.
+ */
+export const commitDeviceImport = <ThrowOnError extends boolean = false>(options: Options<CommitDeviceImportData, ThrowOnError>): RequestResult<CommitDeviceImportResponses, CommitDeviceImportErrors, ThrowOnError> => (options.client ?? client).post<CommitDeviceImportResponses, CommitDeviceImportErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/imports/devices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Policy, label template and paper slip template.
+ */
+export const getSettings = <ThrowOnError extends boolean = false>(options?: Options<GetSettingsData, ThrowOnError>): RequestResult<GetSettingsResponses, GetSettingsErrors, ThrowOnError> => (options?.client ?? client).get<GetSettingsResponses, GetSettingsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/settings',
+    ...options
+});
+
+/**
+ * Update one or more settings sections. Each section present in the body replaces that section wholesale — there is no per-field merge, so a partial write cannot leave a template half-configured.
+ *
+ */
+export const updateSettings = <ThrowOnError extends boolean = false>(options: Options<UpdateSettingsData, ThrowOnError>): RequestResult<UpdateSettingsResponses, UpdateSettingsErrors, ThrowOnError> => (options.client ?? client).patch<UpdateSettingsResponses, UpdateSettingsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/settings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Fetch one kiosk.
+ */
+export const getKiosk = <ThrowOnError extends boolean = false>(options: Options<GetKioskData, ThrowOnError>): RequestResult<GetKioskResponses, GetKioskErrors, ThrowOnError> => (options.client ?? client).get<GetKioskResponses, GetKioskErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/kiosks/{id}',
+    ...options
+});
+
+/**
+ * Edit a kiosk's name, location or enabled scan sources.
+ */
+export const updateKiosk = <ThrowOnError extends boolean = false>(options: Options<UpdateKioskData, ThrowOnError>): RequestResult<UpdateKioskResponses, UpdateKioskErrors, ThrowOnError> => (options.client ?? client).patch<UpdateKioskResponses, UpdateKioskErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/kiosks/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Re-enable a disabled kiosk. Its token is unchanged.
+ */
+export const enableKiosk = <ThrowOnError extends boolean = false>(options: Options<EnableKioskData, ThrowOnError>): RequestResult<EnableKioskResponses, EnableKioskErrors, ThrowOnError> => (options.client ?? client).post<EnableKioskResponses, EnableKioskErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/kiosks/{id}/enable',
+    ...options
 });

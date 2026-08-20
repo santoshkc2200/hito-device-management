@@ -13,7 +13,16 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionToken, csrfToken, admin, err := s.auth.Login(r.Context(), req.Email, req.Password, req.TotpCode)
+	// totpCode became optional at contract v1.1.0 because a recovery code may
+	// stand in for it (4.1b). Until that path is implemented, an omitted code
+	// is an empty code, which auth.Login already refuses — the same answer a
+	// wrong code gets, and deliberately indistinguishable from one.
+	var totpCode string
+	if req.TotpCode != nil {
+		totpCode = *req.TotpCode
+	}
+
+	sessionToken, csrfToken, admin, err := s.auth.Login(r.Context(), req.Email, req.Password, totpCode)
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return

@@ -38,10 +38,27 @@ none at all. A stolen kiosk cannot manufacture a borrower.
 ### Admin auth
 
 ```
-POST   /v1/auth/login     { email, password, totpCode } → admin identity; sets hdms_session (HttpOnly) + hdms_csrf cookies
+POST   /v1/auth/login     { email, password, totpCode | recoveryCode } → admin identity; sets hdms_session (HttpOnly) + hdms_csrf cookies
 POST   /v1/auth/logout    revoke the current session
 GET    /v1/auth/me        the identity of the currently authenticated admin
+
+POST   /v1/auth/password        { currentPassword, newPassword }  own password; revokes other sessions
+POST   /v1/auth/totp/reenrol    → new secret ONCE; the old one stays valid until confirm
+POST   /v1/auth/totp/confirm    { totpCode }   kills the previous secret
+POST   /v1/auth/recovery-codes  → new codes ONCE, stored hashed, single use each
+
+GET    /v1/admins
+POST   /v1/admins                    → account + TOTP enrolment + recovery codes, ONCE
+GET    /v1/admins/{id}
+PATCH  /v1/admins/{id}               name, role, status; email is not editable
+POST   /v1/admins/{id}/reset-password { password, reason }
+POST   /v1/admins/{id}/reset-totp     { reason } → new secret ONCE — the lost-phone path
+POST   /v1/admins/{id}/unlock         { reason } clear a failed-login lockout
 ```
+
+`recoveryCode` stands in for `totpCode` when the authenticator is gone, which is
+why `totpCode` is optional in the schema rather than required — one of the two
+must be present, and the server says the same thing either way when neither is.
 
 No self-service enrollment endpoint: the first admin account (and its TOTP
 secret) is created by `hdms-cli admin bootstrap`, run once by whoever deploys
@@ -133,13 +150,15 @@ PATCH  /v1/devices/{id}
 POST   /v1/devices/{id}/status      { status, reason }
 GET    /v1/devices/{id}/loans
 
-GET    /v1/users                    ?status= &department= &q= &cursor=
+GET    /v1/users                    ?status= &department= &q= &hasCredential= &cursor=
 POST   /v1/users                    register a borrower; admin-only
 POST   /v1/users/register-with-card  register + bind a card atomically; admin-only
 GET    /v1/users/{id}
 PATCH  /v1/users/{id}
 POST   /v1/users/{id}/suspend       { reason }
+POST   /v1/users/{id}/archive       { reason }   refused while they still hold a device
 GET    /v1/users/{id}/loans
+GET    /v1/users/check-employee-no  ?employeeNo= → { available, existingUserId? }   live duplicate check (FR-41)
 
 GET    /v1/departments              picker for the registration form's department field
 
@@ -175,11 +194,19 @@ GET    /v1/loans                    ?status= &origin= &userId= &deviceId= &from=
 GET    /v1/loans/{id}
 POST   /v1/loans/{id}/force-return  { reason, conditionIn, returnedAt? }  admin override
 POST   /v1/loans/{id}/write-off     { reason }                device declared lost
+POST   /v1/loans/{id}/correct-attribution { userId, reason }  reassign to who actually holds it
 GET    /v1/reports/summary          counts by status, overdue, utilisation
-GET    /v1/reports/by-origin        transactions by origin over time   (FR-78)
+GET    /v1/reports/by-origin        ?from= &to= &bucket=day|week|month   (FR-78)
 GET    /v1/reports/disputed         records forced past a custody conflict
-GET    /v1/reports/loans.csv        streaming CSV export
+GET    /v1/reports/operational-health  manual-entry, camera-fallback and rejection counts
+GET    /v1/reports/loans.csv        streaming CSV export, same filters as GET /loans
+GET    /v1/reports/devices.csv      streaming CSV export, same filters as GET /devices
+GET    /v1/reports/users.csv        streaming CSV export, same filters as GET /users
 ```
+
+Every export takes the same filters as the list it mirrors, so what is exported
+is what is on screen, and each is streamed rather than buffered — a multi-year
+export must not hold memory.
 
 ### Paper backfill
 
@@ -252,11 +279,23 @@ Backfill is `admin`-only. The kiosk token cannot reach it.
 ```
 GET    /v1/dashboard                on-loan now, overdue, availability by category
 GET    /v1/events/stream            Server-Sent Events: live loan + device changes
-GET    /v1/audit                    ?actor= &subject= &action= &from= &to=
+GET    /v1/audit                    ?actor= &subject= &action= &from= &to= &cursor=
+GET    /v1/audit.csv                streaming CSV export, same filters
 GET    /v1/kiosks
 POST   /v1/kiosks                   register a kiosk → returns its token ONCE
+GET    /v1/kiosks/{id}
+PATCH  /v1/kiosks/{id}              name, location, enabled scan sources
 POST   /v1/kiosks/{id}/rotate-token
 POST   /v1/kiosks/{id}/disable
+POST   /v1/kiosks/{id}/enable       token unchanged
+
+GET    /v1/settings                 policy, label template, paper slip template
+PATCH  /v1/settings                 each section present replaces that section wholesale
+
+POST   /v1/imports/users/preview    text/csv → per-row outcome + previewId; writes nothing
+POST   /v1/imports/users            { previewId }
+POST   /v1/imports/devices/preview  text/csv → per-row outcome + previewId; writes nothing
+POST   /v1/imports/devices          { previewId }
 GET    /v1/healthz                  liveness (no auth)
 GET    /v1/readyz                   readiness incl. DB (no auth)
 ```
@@ -360,3 +399,31 @@ implement, test, commit spec + generated code together
 Generated code **is committed** so a checkout builds without a codegen step, and
 CI verifies `make generate` produces no diff. A contract change that someone
 forgot to regenerate is then a red build, not a runtime surprise.
+
+### Versions
+
+| Version | Shipped with | What changed |
+|---|---|---|
+| 1.0.0 | Phase 2.9 (`contract-v1`) | The frozen kiosk-facing contract |
+| 1.1.0 | Phase 4.0a | The admin console's surface, additive only |
+
+v1.1.0 adds paths, schemas, optional query parameters and response fields, and
+removes, renames or narrows nothing — a client generated against v1.0.0 keeps
+working, which is the point, because a kiosk in a ward may be a deploy behind.
+Two entries deserve naming because they look like changes and are not:
+
+- `LoginRequest.totpCode` moved from required to optional so a recovery code can
+  stand in for it. Relaxing a request requirement never breaks a caller that
+  still sends the field.
+- `AdminRole` gained `admin` / `technician` / `viewer`, the names
+  [08](08-admin-console.md) specifies. `superadmin` and `operator` stay in the
+  enum until v2 so an older generated client still parses a response; the server
+  stops emitting them once 4.1a's migration lands.
+
+The whole admin surface landed in one pass rather than endpoint-by-endpoint so
+that no feature task has to reopen the spec mid-flight, and so the kiosk scope
+suite classifies every new operation the moment its spec exists — a new endpoint
+fails that suite until it is classified, whether or not anyone remembered to
+think about it. The handlers behind the not-yet-built endpoints answer 501 with
+the task number that fills them in, in
+`internal/apiserver/phase4_stubs.go`; that file is empty when Phase 4 is done.

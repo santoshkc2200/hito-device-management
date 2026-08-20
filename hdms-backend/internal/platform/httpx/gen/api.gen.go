@@ -27,6 +27,8 @@ const (
 	AdminRoleAdmin      AdminRole = "admin"
 	AdminRoleOperator   AdminRole = "operator"
 	AdminRoleSuperadmin AdminRole = "superadmin"
+	AdminRoleTechnician AdminRole = "technician"
+	AdminRoleViewer     AdminRole = "viewer"
 )
 
 // Valid indicates whether the value is a known member of the AdminRole enum.
@@ -37,6 +39,31 @@ func (e AdminRole) Valid() bool {
 	case AdminRoleOperator:
 		return true
 	case AdminRoleSuperadmin:
+		return true
+	case AdminRoleTechnician:
+		return true
+	case AdminRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminStatus.
+const (
+	AdminStatusActive   AdminStatus = "active"
+	AdminStatusDisabled AdminStatus = "disabled"
+	AdminStatusLocked   AdminStatus = "locked"
+)
+
+// Valid indicates whether the value is a known member of the AdminStatus enum.
+func (e AdminStatus) Valid() bool {
+	switch e {
+	case AdminStatusActive:
+		return true
+	case AdminStatusDisabled:
+		return true
+	case AdminStatusLocked:
 		return true
 	default:
 		return false
@@ -235,6 +262,30 @@ func (e HealthStatusStatus) Valid() bool {
 	}
 }
 
+// Defines values for ImportRowAction.
+const (
+	Create  ImportRowAction = "create"
+	Invalid ImportRowAction = "invalid"
+	Skip    ImportRowAction = "skip"
+	Update  ImportRowAction = "update"
+)
+
+// Valid indicates whether the value is a known member of the ImportRowAction enum.
+func (e ImportRowAction) Valid() bool {
+	switch e {
+	case Create:
+		return true
+	case Invalid:
+		return true
+	case Skip:
+		return true
+	case Update:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for KioskStatus.
 const (
 	KioskStatusActive   KioskStatus = "active"
@@ -349,6 +400,27 @@ func (e OutcomeKind) Valid() bool {
 	case OutcomeKindUserIdentified:
 		return true
 	case OutcomeKindUserSwitched:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReportBucket.
+const (
+	Day   ReportBucket = "day"
+	Month ReportBucket = "month"
+	Week  ReportBucket = "week"
+)
+
+// Valid indicates whether the value is a known member of the ReportBucket enum.
+func (e ReportBucket) Valid() bool {
+	switch e {
+	case Day:
+		return true
+	case Month:
+		return true
+	case Week:
 		return true
 	default:
 		return false
@@ -471,14 +543,59 @@ func (e UserStatus) Valid() bool {
 
 // Admin defines model for Admin.
 type Admin struct {
-	Email    string    `json:"email"`
-	FullName string    `json:"fullName"`
-	Id       string    `json:"id"`
-	Role     AdminRole `json:"role"`
+	Email       string     `json:"email"`
+	FullName    string     `json:"fullName"`
+	Id          string     `json:"id"`
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+
+	// LockedUntil Set while a lockout from repeated failed logins is in force.
+	LockedUntil *time.Time `json:"lockedUntil,omitempty"`
+
+	// Role `admin` — everything. `technician` — devices, their status and condition, credential reprints, force-return; never staff, kiosks or other admins. `viewer` — read-only dashboard, loans and reports, for managers who want visibility without risk (docs/08-admin-console.md). `superadmin` and `operator` are the v1.0.0 names, accepted until v2 so an older client still parses; the server stops emitting them once the 4.1a migration lands.
+	Role   AdminRole    `json:"role"`
+	Status *AdminStatus `json:"status,omitempty"`
 }
 
-// AdminRole defines model for AdminRole.
+// AdminEnrolment defines model for AdminEnrolment.
+type AdminEnrolment struct {
+	Admin         Admin         `json:"admin"`
+	Enrolment     TotpEnrolment `json:"enrolment"`
+	RecoveryCodes RecoveryCodes `json:"recoveryCodes"`
+}
+
+// AdminList defines model for AdminList.
+type AdminList struct {
+	Items []Admin `json:"items"`
+}
+
+// AdminRole `admin` — everything. `technician` — devices, their status and condition, credential reprints, force-return; never staff, kiosks or other admins. `viewer` — read-only dashboard, loans and reports, for managers who want visibility without risk (docs/08-admin-console.md). `superadmin` and `operator` are the v1.0.0 names, accepted until v2 so an older client still parses; the server stops emitting them once the 4.1a migration lands.
 type AdminRole string
+
+// AdminStatus defines model for AdminStatus.
+type AdminStatus string
+
+// AuditEvent defines model for AuditEvent.
+type AuditEvent struct {
+	// Action 'user.created', 'credential.reissued', …
+	Action string `json:"action"`
+
+	// Actor 'admin:<id>' | 'kiosk:<id>' | 'import' | 'system'.
+	Actor     string                 `json:"actor"`
+	ActorIp   *string                `json:"actorIp,omitempty"`
+	At        time.Time              `json:"at"`
+	Id        string                 `json:"id"`
+	Payload   map[string]interface{} `json:"payload"`
+	RequestId *string                `json:"requestId,omitempty"`
+
+	// Subject 'user:<uuid>', 'device:<uuid>', …
+	Subject string `json:"subject"`
+}
+
+// AuditEventList defines model for AuditEventList.
+type AuditEventList struct {
+	Items      []AuditEvent `json:"items"`
+	NextCursor *string      `json:"nextCursor,omitempty"`
+}
 
 // BackfillAction defines model for BackfillAction.
 type BackfillAction string
@@ -650,6 +767,52 @@ type CategoryList struct {
 	Items []Category `json:"items"`
 }
 
+// CategoryUtilisation defines model for CategoryUtilisation.
+type CategoryUtilisation struct {
+	AverageDurationHours *float32 `json:"averageDurationHours,omitempty"`
+	CategoryId           string   `json:"categoryId"`
+	CategoryName         string   `json:"categoryName"`
+	DeviceCount          int      `json:"deviceCount"`
+	LoanCount            int      `json:"loanCount"`
+
+	// UtilisationPct Share of the window during which devices in this category were on loan, 0–100.
+	UtilisationPct float32 `json:"utilisationPct"`
+}
+
+// ChangePasswordRequest defines model for ChangePasswordRequest.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// CommitImportRequest defines model for CommitImportRequest.
+type CommitImportRequest struct {
+	PreviewId string `json:"previewId"`
+}
+
+// ConfirmTotpRequest defines model for ConfirmTotpRequest.
+type ConfirmTotpRequest struct {
+	TotpCode string `json:"totpCode"`
+}
+
+// CorrectAttributionRequest defines model for CorrectAttributionRequest.
+type CorrectAttributionRequest struct {
+	Reason string `json:"reason"`
+
+	// UserId The borrower who actually holds the device.
+	UserId string `json:"userId"`
+}
+
+// CreateAdminRequest defines model for CreateAdminRequest.
+type CreateAdminRequest struct {
+	Email    string `json:"email"`
+	FullName string `json:"fullName"`
+	Password string `json:"password"`
+
+	// Role `admin` — everything. `technician` — devices, their status and condition, credential reprints, force-return; never staff, kiosks or other admins. `viewer` — read-only dashboard, loans and reports, for managers who want visibility without risk (docs/08-admin-console.md). `superadmin` and `operator` are the v1.0.0 names, accepted until v2 so an older client still parses; the server stops emitting them once the 4.1a migration lands.
+	Role AdminRole `json:"role"`
+}
+
 // CreateCategoryRequest defines model for CreateCategoryRequest.
 type CreateCategoryRequest struct {
 	DefaultLoanPeriodSeconds *int64 `json:"defaultLoanPeriodSeconds,omitempty"`
@@ -736,11 +899,26 @@ type CredentialStatus string
 type Dashboard struct {
 	AvailabilityByCategory []CategoryAvailability `json:"availabilityByCategory"`
 	AvailableCount         int                    `json:"availableCount"`
-	LastPaperEntry         *BackfillLastEntry     `json:"lastPaperEntry,omitempty"`
-	MaintenanceCount       int                    `json:"maintenanceCount"`
-	OnLoanCount            int                    `json:"onLoanCount"`
-	OverdueCount           int                    `json:"overdueCount"`
-	TurnedAwayCounts       []ScanRejectionSummary `json:"turnedAwayCounts"`
+
+	// Kiosks The kiosk status strip, with last-seen times.
+	Kiosks         *[]Kiosk           `json:"kiosks,omitempty"`
+	LastPaperEntry *BackfillLastEntry `json:"lastPaperEntry,omitempty"`
+
+	// LowStockThreshold Echoed from settings so the strip renders in one call.
+	LowStockThreshold *int `json:"lowStockThreshold,omitempty"`
+	MaintenanceCount  int  `json:"maintenanceCount"`
+	OnLoanCount       int  `json:"onLoanCount"`
+	OverdueCount      int  `json:"overdueCount"`
+
+	// OverdueLoans Worst first, so the list needs no client-side sort to be actionable.
+	OverdueLoans *[]OverdueLoanSummary `json:"overdueLoans,omitempty"`
+
+	// PaperBacklogHours Echoed from settings, for the paper backlog warning.
+	PaperBacklogHours *int                   `json:"paperBacklogHours,omitempty"`
+	TurnedAwayCounts  []ScanRejectionSummary `json:"turnedAwayCounts"`
+
+	// UnboundCredentialCount Blank cards printed but not yet bound. Warn below policy.lowStockThreshold.
+	UnboundCredentialCount *int `json:"unboundCredentialCount,omitempty"`
 }
 
 // Department defines model for Department.
@@ -784,6 +962,15 @@ type DeviceList struct {
 // DeviceStatus defines model for DeviceStatus.
 type DeviceStatus string
 
+// EmployeeNoAvailability defines model for EmployeeNoAvailability.
+type EmployeeNoAvailability struct {
+	Available  bool   `json:"available"`
+	EmployeeNo string `json:"employeeNo"`
+
+	// ExistingUserId Present only when the number is taken and the caller may view the holder — enough to offer "open that record", not a data leak.
+	ExistingUserId *string `json:"existingUserId,omitempty"`
+}
+
 // ForceReturnLoanRequest defines model for ForceReturnLoanRequest.
 type ForceReturnLoanRequest struct {
 	ConditionIn *DeviceCondition `json:"conditionIn,omitempty"`
@@ -798,6 +985,60 @@ type HealthStatus struct {
 
 // HealthStatusStatus defines model for HealthStatus.Status.
 type HealthStatusStatus string
+
+// ImportPreview defines model for ImportPreview.
+type ImportPreview struct {
+	Columns   []string  `json:"columns"`
+	ExpiresAt time.Time `json:"expiresAt"`
+
+	// PreviewId Identifies the validated batch the server is holding. Commit takes this, not the file again, so the rows confirmed are exactly the rows previewed.
+	PreviewId string             `json:"previewId"`
+	Rows      []ImportRowPreview `json:"rows"`
+	Summary   ImportSummary      `json:"summary"`
+}
+
+// ImportProblem defines model for ImportProblem.
+type ImportProblem struct {
+	Code    string  `json:"code"`
+	Field   *string `json:"field,omitempty"`
+	Message string  `json:"message"`
+}
+
+// ImportResult defines model for ImportResult.
+type ImportResult struct {
+	CreatedCount int `json:"createdCount"`
+
+	// CreatedSubjectIds Ids of the rows created, in file order — what the follow-up "issue cards to the N new people" step (FR-77) works from.
+	CreatedSubjectIds *[]string `json:"createdSubjectIds,omitempty"`
+
+	// ImportId Recorded as provenance on every row it created, so a user detail page can say which import produced the record.
+	ImportId     string `json:"importId"`
+	SkippedCount int    `json:"skippedCount"`
+	UpdatedCount int    `json:"updatedCount"`
+}
+
+// ImportRowAction What committing would do with this row. "invalid" rather than "error" because oapi-codegen disambiguates colliding enum member names package wide, and an "error" member here would rename MessageTone's constants for no benefit — the word is also more accurate: the row is unusable, nothing has failed.
+type ImportRowAction string
+
+// ImportRowPreview defines model for ImportRowPreview.
+type ImportRowPreview struct {
+	// Action What committing would do with this row. "invalid" rather than "error" because oapi-codegen disambiguates colliding enum member names package wide, and an "error" member here would rename MessageTone's constants for no benefit — the word is also more accurate: the row is unusable, nothing has failed.
+	Action ImportRowAction `json:"action"`
+
+	// LineNo 1-based line in the uploaded file, so a problem points at a line the admin can find.
+	LineNo   int               `json:"lineNo"`
+	Problems *[]ImportProblem  `json:"problems,omitempty"`
+	Values   map[string]string `json:"values"`
+}
+
+// ImportSummary defines model for ImportSummary.
+type ImportSummary struct {
+	CreateCount  int `json:"createCount"`
+	InvalidCount int `json:"invalidCount"`
+	SkipCount    int `json:"skipCount"`
+	TotalRows    int `json:"totalRows"`
+	UpdateCount  int `json:"updateCount"`
+}
 
 // IssueBlankBatchRequest defines model for IssueBlankBatchRequest.
 type IssueBlankBatchRequest struct {
@@ -887,6 +1128,20 @@ type KioskWithToken struct {
 	Token string `json:"token"`
 }
 
+// LabelTemplateSettings defines model for LabelTemplateSettings.
+type LabelTemplateSettings struct {
+	Columns       int     `json:"columns"`
+	GutterXMm     float32 `json:"gutterXMm"`
+	GutterYMm     float32 `json:"gutterYMm"`
+	LabelHeightMm float32 `json:"labelHeightMm"`
+	LabelWidthMm  float32 `json:"labelWidthMm"`
+	MarginLeftMm  float32 `json:"marginLeftMm"`
+	MarginTopMm   float32 `json:"marginTopMm"`
+	Rows          int     `json:"rows"`
+	SheetHeightMm float32 `json:"sheetHeightMm"`
+	SheetWidthMm  float32 `json:"sheetWidthMm"`
+}
+
 // Loan defines model for Loan.
 type Loan struct {
 	BackfillNote  *string    `json:"backfillNote,omitempty"`
@@ -930,11 +1185,48 @@ type LoanStatus string
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
-	TotpCode string `json:"totpCode"`
+
+	// RecoveryCode One of the admin's recovery codes, standing in for the TOTP code when the authenticator is unavailable. Single use.
+	RecoveryCode *string `json:"recoveryCode,omitempty"`
+
+	// TotpCode Required unless recoveryCode is supplied instead.
+	TotpCode *string `json:"totpCode,omitempty"`
 }
 
 // MessageTone defines model for MessageTone.
 type MessageTone string
+
+// OperationalHealth defines model for OperationalHealth.
+type OperationalHealth struct {
+	CameraFallbackCount int                        `json:"cameraFallbackCount"`
+	From                time.Time                  `json:"from"`
+	ManualEntryCount    int                        `json:"manualEntryCount"`
+	RejectionReasons    []ScanRejectionReasonCount `json:"rejectionReasons"`
+	ScansBySource       []ScanSourceCount          `json:"scansBySource"`
+	To                  time.Time                  `json:"to"`
+	TotalScans          int                        `json:"totalScans"`
+}
+
+// OriginBucket defines model for OriginBucket.
+type OriginBucket struct {
+	Counts      []OriginCount `json:"counts"`
+	PeriodStart time.Time     `json:"periodStart"`
+	Total       int           `json:"total"`
+}
+
+// OriginCount defines model for OriginCount.
+type OriginCount struct {
+	Count  int        `json:"count"`
+	Origin LoanOrigin `json:"origin"`
+}
+
+// OriginReport defines model for OriginReport.
+type OriginReport struct {
+	Bucket  ReportBucket   `json:"bucket"`
+	Buckets []OriginBucket `json:"buckets"`
+	From    time.Time      `json:"from"`
+	To      time.Time      `json:"to"`
+}
 
 // Outcome defines model for Outcome.
 type Outcome struct {
@@ -948,6 +1240,19 @@ type Outcome struct {
 // OutcomeKind defines model for OutcomeKind.
 type OutcomeKind string
 
+// OverdueLoanSummary defines model for OverdueLoanSummary.
+type OverdueLoanSummary struct {
+	AssetTag       string    `json:"assetTag"`
+	DaysOverdue    int       `json:"daysOverdue"`
+	DeviceId       string    `json:"deviceId"`
+	DeviceName     string    `json:"deviceName"`
+	DueAt          time.Time `json:"dueAt"`
+	LoanId         string    `json:"loanId"`
+	UserEmployeeNo *string   `json:"userEmployeeNo,omitempty"`
+	UserFullName   string    `json:"userFullName"`
+	UserId         string    `json:"userId"`
+}
+
 // PairKioskRequest defines model for PairKioskRequest.
 type PairKioskRequest struct {
 	Code string `json:"code"`
@@ -960,6 +1265,19 @@ type PairKioskResponse struct {
 	Token   string `json:"token"`
 }
 
+// PolicySettings defines model for PolicySettings.
+type PolicySettings struct {
+	BlockOnOverdue    bool `json:"blockOnOverdue"`
+	KioskSoundEnabled bool `json:"kioskSoundEnabled"`
+
+	// LowStockThreshold The dashboard warns when the unbound blank-card count falls below this.
+	LowStockThreshold int `json:"lowStockThreshold"`
+
+	// PaperBacklogHours Hours since the last recorded paper page before the dashboard warns. Default 48.
+	PaperBacklogHours         int `json:"paperBacklogHours"`
+	SessionIdleTimeoutSeconds int `json:"sessionIdleTimeoutSeconds"`
+}
+
 // Problem defines model for Problem.
 type Problem struct {
 	Detail     *string                 `json:"detail,omitempty"`
@@ -969,6 +1287,17 @@ type Problem struct {
 	Status     int                     `json:"status"`
 	Title      string                  `json:"title"`
 	Type       string                  `json:"type"`
+}
+
+// ReasonRequest defines model for ReasonRequest.
+type ReasonRequest struct {
+	Reason string `json:"reason"`
+}
+
+// RecoveryCodes defines model for RecoveryCodes.
+type RecoveryCodes struct {
+	// Codes Plaintext, returned once, stored hashed, redeemable once each.
+	Codes []string `json:"codes"`
 }
 
 // RegisterWithCardRequest defines model for RegisterWithCardRequest.
@@ -998,6 +1327,30 @@ type ReissueCredentialRequest struct {
 	Reason      string  `json:"reason"`
 }
 
+// ReportBucket defines model for ReportBucket.
+type ReportBucket string
+
+// ReportSummary defines model for ReportSummary.
+type ReportSummary struct {
+	AverageLoanDurationHours *float32  `json:"averageLoanDurationHours,omitempty"`
+	From                     time.Time `json:"from"`
+	OpenLoans                int       `json:"openLoans"`
+	OverdueCount             int       `json:"overdueCount"`
+
+	// OverdueRate Overdue loans as a share of all loans in the window, 0–1.
+	OverdueRate           float32               `json:"overdueRate"`
+	To                    time.Time             `json:"to"`
+	TopBorrowers          []TopBorrower         `json:"topBorrowers"`
+	TotalLoans            int                   `json:"totalLoans"`
+	UtilisationByCategory []CategoryUtilisation `json:"utilisationByCategory"`
+}
+
+// ResetAdminPasswordRequest defines model for ResetAdminPasswordRequest.
+type ResetAdminPasswordRequest struct {
+	Password string `json:"password"`
+	Reason   string `json:"reason"`
+}
+
 // ResolvedCredential defines model for ResolvedCredential.
 type ResolvedCredential struct {
 	CredentialId     string           `json:"credentialId"`
@@ -1024,6 +1377,15 @@ type RevokeCredentialRequest struct {
 	Reason string `json:"reason"`
 }
 
+// ScanRejectionReasonCount defines model for ScanRejectionReasonCount.
+type ScanRejectionReasonCount struct {
+	Count int `json:"count"`
+
+	// Reason Absent when the rejection carried no reason code.
+	Reason       *string `json:"reason,omitempty"`
+	ResolvedType *string `json:"resolvedType,omitempty"`
+}
+
 // ScanRejectionSummary defines model for ScanRejectionSummary.
 type ScanRejectionSummary struct {
 	DistinctTokens int    `json:"distinctTokens"`
@@ -1048,6 +1410,12 @@ type ScanResult struct {
 
 // ScanSource defines model for ScanSource.
 type ScanSource string
+
+// ScanSourceCount defines model for ScanSourceCount.
+type ScanSourceCount struct {
+	Count  int        `json:"count"`
+	Source ScanSource `json:"source"`
+}
 
 // Session defines model for Session.
 type Session struct {
@@ -1101,6 +1469,25 @@ type SetDeviceStatusRequest struct {
 	Status DeviceStatus `json:"status"`
 }
 
+// Settings defines model for Settings.
+type Settings struct {
+	LabelTemplate LabelTemplateSettings `json:"labelTemplate"`
+	Policy        PolicySettings        `json:"policy"`
+	SlipTemplate  SlipTemplateSettings  `json:"slipTemplate"`
+	UpdatedAt     time.Time             `json:"updatedAt"`
+	UpdatedBy     *string               `json:"updatedBy,omitempty"`
+}
+
+// SlipTemplateSettings defines model for SlipTemplateSettings.
+type SlipTemplateSettings struct {
+	Columns      []string `json:"columns"`
+	HospitalName string   `json:"hospitalName"`
+
+	// PageRefFormat Format of the printed page reference the backfill screen types back in (FR-72).
+	PageRefFormat string `json:"pageRefFormat"`
+	RowsPerPage   int    `json:"rowsPerPage"`
+}
+
 // SubjectType defines model for SubjectType.
 type SubjectType string
 
@@ -1109,9 +1496,35 @@ type SuspendUserRequest struct {
 	Reason string `json:"reason"`
 }
 
+// TopBorrower defines model for TopBorrower.
+type TopBorrower struct {
+	EmployeeNo string `json:"employeeNo"`
+	FullName   string `json:"fullName"`
+	LoanCount  int    `json:"loanCount"`
+	UserId     string `json:"userId"`
+}
+
+// TotpEnrolment defines model for TotpEnrolment.
+type TotpEnrolment struct {
+	// OtpauthUrl otpauth:// URI for the authenticator app's QR code. Returned once.
+	OtpauthUrl string `json:"otpauthUrl"`
+
+	// TotpSecret Base32 secret, for manual entry. Returned once.
+	TotpSecret string `json:"totpSecret"`
+}
+
 // UnboundCountResponse defines model for UnboundCountResponse.
 type UnboundCountResponse struct {
 	Count int `json:"count"`
+}
+
+// UpdateAdminRequest defines model for UpdateAdminRequest.
+type UpdateAdminRequest struct {
+	FullName *string `json:"fullName,omitempty"`
+
+	// Role `admin` — everything. `technician` — devices, their status and condition, credential reprints, force-return; never staff, kiosks or other admins. `viewer` — read-only dashboard, loans and reports, for managers who want visibility without risk (docs/08-admin-console.md). `superadmin` and `operator` are the v1.0.0 names, accepted until v2 so an older client still parses; the server stops emitting them once the 4.1a migration lands.
+	Role   *AdminRole   `json:"role,omitempty"`
+	Status *AdminStatus `json:"status,omitempty"`
 }
 
 // UpdateCategoryRequest defines model for UpdateCategoryRequest.
@@ -1132,6 +1545,20 @@ type UpdateDeviceRequest struct {
 	Name         string              `json:"name"`
 	Notes        *string             `json:"notes,omitempty"`
 	SerialNo     *string             `json:"serialNo,omitempty"`
+}
+
+// UpdateKioskRequest defines model for UpdateKioskRequest.
+type UpdateKioskRequest struct {
+	EnabledSources *[]string `json:"enabledSources,omitempty"`
+	Location       *string   `json:"location,omitempty"`
+	Name           *string   `json:"name,omitempty"`
+}
+
+// UpdateSettingsRequest Each section present replaces that section wholesale.
+type UpdateSettingsRequest struct {
+	LabelTemplate *LabelTemplateSettings `json:"labelTemplate,omitempty"`
+	Policy        *PolicySettings        `json:"policy,omitempty"`
+	SlipTemplate  *SlipTemplateSettings  `json:"slipTemplate,omitempty"`
 }
 
 // UpdateUserRequest defines model for UpdateUserRequest.
@@ -1172,6 +1599,9 @@ type WriteOffLoanRequest struct {
 	Reason string `json:"reason"`
 }
 
+// BucketParam defines model for BucketParam.
+type BucketParam = ReportBucket
+
 // CategoryFilter defines model for CategoryFilter.
 type CategoryFilter = string
 
@@ -1183,6 +1613,12 @@ type DepartmentFilter = string
 
 // DeviceStatusFilter defines model for DeviceStatusFilter.
 type DeviceStatusFilter = DeviceStatus
+
+// FromParam defines model for FromParam.
+type FromParam = time.Time
+
+// HasCredentialFilter defines model for HasCredentialFilter.
+type HasCredentialFilter = bool
 
 // IDParam defines model for IDParam.
 type IDParam = string
@@ -1196,11 +1632,34 @@ type LimitParam = int
 // QueryFilter defines model for QueryFilter.
 type QueryFilter = string
 
+// ToParam defines model for ToParam.
+type ToParam = time.Time
+
 // UserStatusFilter defines model for UserStatusFilter.
 type UserStatusFilter = UserStatus
 
 // ProblemResponse defines model for ProblemResponse.
 type ProblemResponse = Problem
+
+// ListAuditEventsParams defines parameters for ListAuditEvents.
+type ListAuditEventsParams struct {
+	Actor   *string      `form:"actor,omitempty" json:"actor,omitempty"`
+	Action  *string      `form:"action,omitempty" json:"action,omitempty"`
+	Subject *string      `form:"subject,omitempty" json:"subject,omitempty"`
+	From    *FromParam   `form:"from,omitempty" json:"from,omitempty"`
+	To      *ToParam     `form:"to,omitempty" json:"to,omitempty"`
+	Cursor  *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit   *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ExportAuditCsvParams defines parameters for ExportAuditCsv.
+type ExportAuditCsvParams struct {
+	Actor   *string    `form:"actor,omitempty" json:"actor,omitempty"`
+	Action  *string    `form:"action,omitempty" json:"action,omitempty"`
+	Subject *string    `form:"subject,omitempty" json:"subject,omitempty"`
+	From    *FromParam `form:"from,omitempty" json:"from,omitempty"`
+	To      *ToParam   `form:"to,omitempty" json:"to,omitempty"`
+}
 
 // RecordBackfillBatchParams defines parameters for RecordBackfillBatch.
 type RecordBackfillBatchParams struct {
@@ -1247,6 +1706,18 @@ type GetEventsStreamParams struct {
 	LastEventID *string `json:"Last-Event-ID,omitempty"`
 }
 
+// CommitDeviceImportParams defines parameters for CommitDeviceImport.
+type CommitDeviceImportParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CommitUserImportParams defines parameters for CommitUserImport.
+type CommitUserImportParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CreateKioskParams defines parameters for CreateKiosk.
 type CreateKioskParams struct {
 	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
@@ -1290,6 +1761,12 @@ type ListLoansParams struct {
 	Limit    *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// CorrectLoanAttributionParams defines parameters for CorrectLoanAttribution.
+type CorrectLoanAttributionParams struct {
+	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ForceReturnLoanParams defines parameters for ForceReturnLoan.
 type ForceReturnLoanParams struct {
 	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
@@ -1300,6 +1777,59 @@ type ForceReturnLoanParams struct {
 type WriteOffLoanParams struct {
 	// IdempotencyKey Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// GetTransactionsByOriginParams defines parameters for GetTransactionsByOrigin.
+type GetTransactionsByOriginParams struct {
+	From   *FromParam   `form:"from,omitempty" json:"from,omitempty"`
+	To     *ToParam     `form:"to,omitempty" json:"to,omitempty"`
+	Bucket *BucketParam `form:"bucket,omitempty" json:"bucket,omitempty"`
+}
+
+// ExportDevicesCsvParams defines parameters for ExportDevicesCsv.
+type ExportDevicesCsvParams struct {
+	Status   *DeviceStatusFilter `form:"status,omitempty" json:"status,omitempty"`
+	Category *CategoryFilter     `form:"category,omitempty" json:"category,omitempty"`
+	Q        *QueryFilter        `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// ListDisputedLoansParams defines parameters for ListDisputedLoans.
+type ListDisputedLoansParams struct {
+	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ExportLoansCsvParams defines parameters for ExportLoansCsv.
+type ExportLoansCsvParams struct {
+	Status   *LoanStatus `form:"status,omitempty" json:"status,omitempty"`
+	Origin   *LoanOrigin `form:"origin,omitempty" json:"origin,omitempty"`
+	UserId   *string     `form:"userId,omitempty" json:"userId,omitempty"`
+	DeviceId *string     `form:"deviceId,omitempty" json:"deviceId,omitempty"`
+	From     *FromParam  `form:"from,omitempty" json:"from,omitempty"`
+	To       *ToParam    `form:"to,omitempty" json:"to,omitempty"`
+	Disputed *bool       `form:"disputed,omitempty" json:"disputed,omitempty"`
+}
+
+// GetOperationalHealthParams defines parameters for GetOperationalHealth.
+type GetOperationalHealthParams struct {
+	From *FromParam `form:"from,omitempty" json:"from,omitempty"`
+	To   *ToParam   `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// GetReportSummaryParams defines parameters for GetReportSummary.
+type GetReportSummaryParams struct {
+	From *FromParam `form:"from,omitempty" json:"from,omitempty"`
+	To   *ToParam   `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// ExportUsersCsvParams defines parameters for ExportUsersCsv.
+type ExportUsersCsvParams struct {
+	Status     *UserStatusFilter `form:"status,omitempty" json:"status,omitempty"`
+	Department *DepartmentFilter `form:"department,omitempty" json:"department,omitempty"`
+	Q          *QueryFilter      `form:"q,omitempty" json:"q,omitempty"`
+
+	// HasCredential Filter by whether the user has an active credential. `false` is the registration console's "registered but no card issued" list — each row is someone who cannot use the kiosk yet.
+	HasCredential *HasCredentialFilter `form:"hasCredential,omitempty" json:"hasCredential,omitempty"`
 }
 
 // CreateSessionParams defines parameters for CreateSession.
@@ -1328,11 +1858,19 @@ type SubmitScanParams struct {
 
 // ListUsersParams defines parameters for ListUsers.
 type ListUsersParams struct {
-	Status     *UserStatusFilter `form:"status,omitempty" json:"status,omitempty"`
-	Department *DepartmentFilter `form:"department,omitempty" json:"department,omitempty"`
-	Q          *QueryFilter      `form:"q,omitempty" json:"q,omitempty"`
-	Cursor     *CursorParam      `form:"cursor,omitempty" json:"cursor,omitempty"`
-	Limit      *LimitParam       `form:"limit,omitempty" json:"limit,omitempty"`
+	Status *UserStatusFilter `form:"status,omitempty" json:"status,omitempty"`
+
+	// HasCredential Filter by whether the user has an active credential. `false` is the registration console's "registered but no card issued" list — each row is someone who cannot use the kiosk yet.
+	HasCredential *HasCredentialFilter `form:"hasCredential,omitempty" json:"hasCredential,omitempty"`
+	Department    *DepartmentFilter    `form:"department,omitempty" json:"department,omitempty"`
+	Q             *QueryFilter         `form:"q,omitempty" json:"q,omitempty"`
+	Cursor        *CursorParam         `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit         *LimitParam          `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// CheckEmployeeNoParams defines parameters for CheckEmployeeNo.
+type CheckEmployeeNoParams struct {
+	EmployeeNo string `form:"employeeNo" json:"employeeNo"`
 }
 
 // ListUserLoansParams defines parameters for ListUserLoans.
@@ -1341,8 +1879,29 @@ type ListUserLoansParams struct {
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// CreateAdminJSONRequestBody defines body for CreateAdmin for application/json ContentType.
+type CreateAdminJSONRequestBody = CreateAdminRequest
+
+// UpdateAdminJSONRequestBody defines body for UpdateAdmin for application/json ContentType.
+type UpdateAdminJSONRequestBody = UpdateAdminRequest
+
+// ResetAdminPasswordJSONRequestBody defines body for ResetAdminPassword for application/json ContentType.
+type ResetAdminPasswordJSONRequestBody = ResetAdminPasswordRequest
+
+// ForceAdminTotpReenrolmentJSONRequestBody defines body for ForceAdminTotpReenrolment for application/json ContentType.
+type ForceAdminTotpReenrolmentJSONRequestBody = ReasonRequest
+
+// UnlockAdminJSONRequestBody defines body for UnlockAdmin for application/json ContentType.
+type UnlockAdminJSONRequestBody = ReasonRequest
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
+
+// ChangeOwnPasswordJSONRequestBody defines body for ChangeOwnPassword for application/json ContentType.
+type ChangeOwnPasswordJSONRequestBody = ChangePasswordRequest
+
+// ConfirmTotpReenrolmentJSONRequestBody defines body for ConfirmTotpReenrolment for application/json ContentType.
+type ConfirmTotpReenrolmentJSONRequestBody = ConfirmTotpRequest
 
 // RecordBackfillBatchJSONRequestBody defines body for RecordBackfillBatch for application/json ContentType.
 type RecordBackfillBatchJSONRequestBody = BackfillBatch
@@ -1380,11 +1939,23 @@ type UpdateDeviceJSONRequestBody = UpdateDeviceRequest
 // SetDeviceStatusJSONRequestBody defines body for SetDeviceStatus for application/json ContentType.
 type SetDeviceStatusJSONRequestBody = SetDeviceStatusRequest
 
+// CommitDeviceImportJSONRequestBody defines body for CommitDeviceImport for application/json ContentType.
+type CommitDeviceImportJSONRequestBody = CommitImportRequest
+
+// CommitUserImportJSONRequestBody defines body for CommitUserImport for application/json ContentType.
+type CommitUserImportJSONRequestBody = CommitImportRequest
+
 // CreateKioskJSONRequestBody defines body for CreateKiosk for application/json ContentType.
 type CreateKioskJSONRequestBody = CreateKioskRequest
 
 // PairKioskJSONRequestBody defines body for PairKiosk for application/json ContentType.
 type PairKioskJSONRequestBody = PairKioskRequest
+
+// UpdateKioskJSONRequestBody defines body for UpdateKiosk for application/json ContentType.
+type UpdateKioskJSONRequestBody = UpdateKioskRequest
+
+// CorrectLoanAttributionJSONRequestBody defines body for CorrectLoanAttribution for application/json ContentType.
+type CorrectLoanAttributionJSONRequestBody = CorrectAttributionRequest
 
 // ForceReturnLoanJSONRequestBody defines body for ForceReturnLoan for application/json ContentType.
 type ForceReturnLoanJSONRequestBody = ForceReturnLoanRequest
@@ -1398,6 +1969,9 @@ type ReturnSessionLoanJSONRequestBody = ReturnSessionLoanRequest
 // SubmitScanJSONRequestBody defines body for SubmitScan for application/json ContentType.
 type SubmitScanJSONRequestBody = ScanRequest
 
+// UpdateSettingsJSONRequestBody defines body for UpdateSettings for application/json ContentType.
+type UpdateSettingsJSONRequestBody = UpdateSettingsRequest
+
 // CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
 type CreateUserJSONRequestBody = CreateUserRequest
 
@@ -1407,11 +1981,41 @@ type RegisterUserWithCardJSONRequestBody = RegisterWithCardRequest
 // UpdateUserJSONRequestBody defines body for UpdateUser for application/json ContentType.
 type UpdateUserJSONRequestBody = UpdateUserRequest
 
+// ArchiveUserJSONRequestBody defines body for ArchiveUser for application/json ContentType.
+type ArchiveUserJSONRequestBody = ReasonRequest
+
 // SuspendUserJSONRequestBody defines body for SuspendUser for application/json ContentType.
 type SuspendUserJSONRequestBody = SuspendUserRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListAdmins List admin accounts.
+	// (GET /admins)
+	ListAdmins(w http.ResponseWriter, r *http.Request)
+	// CreateAdmin Create an admin account. Returns the TOTP enrolment payload and recovery codes exactly once — there is no way to read them again.
+	// (POST /admins)
+	CreateAdmin(w http.ResponseWriter, r *http.Request)
+	// GetAdmin Fetch one admin account.
+	// (GET /admins/{id})
+	GetAdmin(w http.ResponseWriter, r *http.Request, id IDParam)
+	// UpdateAdmin Edit an admin's name, role or status. Email is not editable.
+	// (PATCH /admins/{id})
+	UpdateAdmin(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ResetAdminPassword Set a new password for another admin and revoke their sessions.
+	// (POST /admins/{id}/reset-password)
+	ResetAdminPassword(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ForceAdminTotpReenrolment Force another admin to re-enrol TOTP — the lost-phone path. Returns the new secret once, for handing over in person.
+	// (POST /admins/{id}/reset-totp)
+	ForceAdminTotpReenrolment(w http.ResponseWriter, r *http.Request, id IDParam)
+	// UnlockAdmin Clear a lockout imposed by repeated failed logins.
+	// (POST /admins/{id}/unlock)
+	UnlockAdmin(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ListAuditEvents The append-only audit trail, filterable by actor, action, subject and date. This is the screen that replaces "let me look through the register".
+	// (GET /audit)
+	ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams)
+	// ExportAuditCsv Streaming CSV export of the audit log, same filters as GET /audit.
+	// (GET /audit.csv)
+	ExportAuditCsv(w http.ResponseWriter, r *http.Request, params ExportAuditCsvParams)
 	// Login Admin login with password + TOTP. Sets the session and CSRF cookies.
 	// (POST /auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -1421,6 +2025,18 @@ type ServerInterface interface {
 	// GetCurrentAdmin The identity of the currently authenticated admin.
 	// (GET /auth/me)
 	GetCurrentAdmin(w http.ResponseWriter, r *http.Request)
+	// ChangeOwnPassword Change the authenticated admin's own password.
+	// (POST /auth/password)
+	ChangeOwnPassword(w http.ResponseWriter, r *http.Request)
+	// RegenerateRecoveryCodes Replace the authenticated admin's recovery codes. Returned in plaintext exactly once; stored hashed and redeemable once each.
+	// (POST /auth/recovery-codes)
+	RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request)
+	// ConfirmTotpReenrolment Confirm a pending TOTP re-enrolment with a code from the new secret.
+	// (POST /auth/totp/confirm)
+	ConfirmTotpReenrolment(w http.ResponseWriter, r *http.Request)
+	// BeginTotpReenrolment Start TOTP re-enrolment for the authenticated admin. Returns the new secret exactly once; the existing secret stays valid until /auth/totp/confirm succeeds, so a half-finished enrolment cannot lock the admin out.
+	// (POST /auth/totp/reenrol)
+	BeginTotpReenrolment(w http.ResponseWriter, r *http.Request)
 	// RecordBackfillBatch Commit a validated batch atomically — all rows or none. The same server-side validation the preview runs is re-run here; a preview is a convenience, never a grant. Returns the created loan ids and the ids of any users created, which the "issue cards to the new people" step (FR-77) is driven from. Admin-only; the kiosk token cannot reach it.
 	// (POST /backfill)
 	RecordBackfillBatch(w http.ResponseWriter, r *http.Request, params RecordBackfillBatchParams)
@@ -1499,6 +2115,18 @@ type ServerInterface interface {
 	// GetHealthz Liveness probe. No auth.
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
+	// CommitDeviceImport Commit a previewed devices import.
+	// (POST /imports/devices)
+	CommitDeviceImport(w http.ResponseWriter, r *http.Request, params CommitDeviceImportParams)
+	// PreviewDeviceImport Validate a devices CSV and return the per-row outcome without writing.
+	// (POST /imports/devices/preview)
+	PreviewDeviceImport(w http.ResponseWriter, r *http.Request)
+	// CommitUserImport Commit a previewed users import.
+	// (POST /imports/users)
+	CommitUserImport(w http.ResponseWriter, r *http.Request, params CommitUserImportParams)
+	// PreviewUserImport Validate a users CSV and return the per-row outcome without writing anything. The returned previewId is what POST /imports/users commits, so "preview and confirm" cannot drift into "confirm something else".
+	// (POST /imports/users/preview)
+	PreviewUserImport(w http.ResponseWriter, r *http.Request)
 	// ListKiosks List registered kiosks.
 	// (GET /kiosks)
 	ListKiosks(w http.ResponseWriter, r *http.Request)
@@ -1508,9 +2136,18 @@ type ServerInterface interface {
 	// PairKiosk Redeem a pairing code for a working kiosk bearer token. Unauthenticated, rate-limited to 5 attempts/min per IP.
 	// (POST /kiosks/pair)
 	PairKiosk(w http.ResponseWriter, r *http.Request, params PairKioskParams)
+	// GetKiosk Fetch one kiosk.
+	// (GET /kiosks/{id})
+	GetKiosk(w http.ResponseWriter, r *http.Request, id IDParam)
+	// UpdateKiosk Edit a kiosk's name, location or enabled scan sources.
+	// (PATCH /kiosks/{id})
+	UpdateKiosk(w http.ResponseWriter, r *http.Request, id IDParam)
 	// DisableKiosk Disable a kiosk, immediately rejecting any future requests from it.
 	// (POST /kiosks/{id}/disable)
 	DisableKiosk(w http.ResponseWriter, r *http.Request, id IDParam, params DisableKioskParams)
+	// EnableKiosk Re-enable a disabled kiosk. Its token is unchanged.
+	// (POST /kiosks/{id}/enable)
+	EnableKiosk(w http.ResponseWriter, r *http.Request, id IDParam)
 	// CreateKioskPairingCode Generate a short-lived single-use pairing code for an iPad kiosk.
 	// (POST /kiosks/{id}/pairing-code)
 	CreateKioskPairingCode(w http.ResponseWriter, r *http.Request, id IDParam, params CreateKioskPairingCodeParams)
@@ -1523,6 +2160,9 @@ type ServerInterface interface {
 	// GetLoan Fetch one loan by id.
 	// (GET /loans/{id})
 	GetLoan(w http.ResponseWriter, r *http.Request, id IDParam)
+	// CorrectLoanAttribution Reassign a loan to the borrower who actually holds the device — the backfill-typo and wrong-card path. Audited as an override; the original borrower is preserved in the audit payload, not overwritten silently.
+	// (POST /loans/{id}/correct-attribution)
+	CorrectLoanAttribution(w http.ResponseWriter, r *http.Request, id IDParam, params CorrectLoanAttributionParams)
 	// ForceReturnLoan Administratively close an open loan. Requires a reason.
 	// (POST /loans/{id}/force-return)
 	ForceReturnLoan(w http.ResponseWriter, r *http.Request, id IDParam, params ForceReturnLoanParams)
@@ -1532,6 +2172,27 @@ type ServerInterface interface {
 	// GetReadyz Readiness probe, including the database. No auth.
 	// (GET /readyz)
 	GetReadyz(w http.ResponseWriter, r *http.Request)
+	// GetTransactionsByOrigin Transactions by origin over time (FR-78) — the headline measure of whether paper is actually receding.
+	// (GET /reports/by-origin)
+	GetTransactionsByOrigin(w http.ResponseWriter, r *http.Request, params GetTransactionsByOriginParams)
+	// ExportDevicesCsv Streaming CSV export of the devices list, same filters as GET /devices.
+	// (GET /reports/devices.csv)
+	ExportDevicesCsv(w http.ResponseWriter, r *http.Request, params ExportDevicesCsvParams)
+	// ListDisputedLoans Records forced past a custody conflict, permanently badged.
+	// (GET /reports/disputed)
+	ListDisputedLoans(w http.ResponseWriter, r *http.Request, params ListDisputedLoansParams)
+	// ExportLoansCsv Streaming CSV export of the loans list. Takes the same filters as GET /loans so the export matches what is on screen, and is streamed rather than buffered so a multi-year export does not hold memory.
+	// (GET /reports/loans.csv)
+	ExportLoansCsv(w http.ResponseWriter, r *http.Request, params ExportLoansCsvParams)
+	// GetOperationalHealth Manual-entry count, camera-fallback count and rejection reasons. A rising trend means labels or scanners need attention before they become an outage.
+	// (GET /reports/operational-health)
+	GetOperationalHealth(w http.ResponseWriter, r *http.Request, params GetOperationalHealthParams)
+	// GetReportSummary Utilisation, average loan duration, top borrowers, overdue rate.
+	// (GET /reports/summary)
+	GetReportSummary(w http.ResponseWriter, r *http.Request, params GetReportSummaryParams)
+	// ExportUsersCsv Streaming CSV export of the users list, same filters as GET /users.
+	// (GET /reports/users.csv)
+	ExportUsersCsv(w http.ResponseWriter, r *http.Request, params ExportUsersCsvParams)
 	// CreateSession Create a scan session.
 	// (POST /sessions)
 	CreateSession(w http.ResponseWriter, r *http.Request, params CreateSessionParams)
@@ -1550,12 +2211,21 @@ type ServerInterface interface {
 	// SubmitScan Submit a scanned token.
 	// (POST /sessions/{id}/scan)
 	SubmitScan(w http.ResponseWriter, r *http.Request, id IDParam, params SubmitScanParams)
+	// GetSettings Policy, label template and paper slip template.
+	// (GET /settings)
+	GetSettings(w http.ResponseWriter, r *http.Request)
+	// UpdateSettings Update one or more settings sections. Each section present in the body replaces that section wholesale — there is no per-field merge, so a partial write cannot leave a template half-configured.
+	// (PATCH /settings)
+	UpdateSettings(w http.ResponseWriter, r *http.Request)
 	// ListUsers List users.
 	// (GET /users)
 	ListUsers(w http.ResponseWriter, r *http.Request, params ListUsersParams)
 	// CreateUser Register a borrower. Admin-only (FR-45); `registeredBy` is derived from the session, never client-supplied.
 	// (POST /users)
 	CreateUser(w http.ResponseWriter, r *http.Request)
+	// CheckEmployeeNo Live duplicate check for the registration form, called as the employee number is typed (FR-41). Cheap by design — it returns availability, not the matching user's record.
+	// (GET /users/check-employee-no)
+	CheckEmployeeNo(w http.ResponseWriter, r *http.Request, params CheckEmployeeNoParams)
 	// RegisterUserWithCard Register a borrower and bind a card in one atomic transaction (FR-41, FR-44, FR-59).
 	// (POST /users/register-with-card)
 	RegisterUserWithCard(w http.ResponseWriter, r *http.Request)
@@ -1565,6 +2235,9 @@ type ServerInterface interface {
 	// UpdateUser Edit a user's fields. Employee number is not editable — it is the bulk-import matching key.
 	// (PATCH /users/{id})
 	UpdateUser(w http.ResponseWriter, r *http.Request, id IDParam)
+	// ArchiveUser Archive a borrower. Refused while they still hold a device.
+	// (POST /users/{id}/archive)
+	ArchiveUser(w http.ResponseWriter, r *http.Request, id IDParam)
 	// ListUserLoans List loan history for one user.
 	// (GET /users/{id}/loans)
 	ListUserLoans(w http.ResponseWriter, r *http.Request, id IDParam, params ListUserLoansParams)
@@ -1581,6 +2254,360 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAdmins operation middleware
+func (siw *ServerInterfaceWrapper) ListAdmins(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdmins(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAdmin operation middleware
+func (siw *ServerInterfaceWrapper) CreateAdmin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAdmin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdmin operation middleware
+func (siw *ServerInterfaceWrapper) GetAdmin(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdmin(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdmin operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdmin(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdmin(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetAdminPassword operation middleware
+func (siw *ServerInterfaceWrapper) ResetAdminPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetAdminPassword(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ForceAdminTotpReenrolment operation middleware
+func (siw *ServerInterfaceWrapper) ForceAdminTotpReenrolment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForceAdminTotpReenrolment(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnlockAdmin operation middleware
+func (siw *ServerInterfaceWrapper) UnlockAdmin(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlockAdmin(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAuditEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListAuditEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAuditEventsParams
+
+	// ------------- Optional query parameter "actor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "actor", r.URL.Query(), &params.Actor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "actor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "actor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action", r.URL.Query(), &params.Action, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "action"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "action", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "subject" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "subject", r.URL.Query(), &params.Subject, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "subject"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subject", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAuditEvents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportAuditCsv operation middleware
+func (siw *ServerInterfaceWrapper) ExportAuditCsv(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportAuditCsvParams
+
+	// ------------- Optional query parameter "actor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "actor", r.URL.Query(), &params.Actor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "actor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "actor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action", r.URL.Query(), &params.Action, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "action"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "action", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "subject" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "subject", r.URL.Query(), &params.Subject, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "subject"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subject", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportAuditCsv(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
@@ -1615,6 +2642,62 @@ func (siw *ServerInterfaceWrapper) GetCurrentAdmin(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCurrentAdmin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeOwnPassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeOwnPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegenerateRecoveryCodes operation middleware
+func (siw *ServerInterfaceWrapper) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegenerateRecoveryCodes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmTotpReenrolment operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmTotpReenrolment(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmTotpReenrolment(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BeginTotpReenrolment operation middleware
+func (siw *ServerInterfaceWrapper) BeginTotpReenrolment(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BeginTotpReenrolment(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2353,6 +3436,116 @@ func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// CommitDeviceImport operation middleware
+func (siw *ServerInterfaceWrapper) CommitDeviceImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CommitDeviceImportParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CommitDeviceImport(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewDeviceImport operation middleware
+func (siw *ServerInterfaceWrapper) PreviewDeviceImport(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewDeviceImport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CommitUserImport operation middleware
+func (siw *ServerInterfaceWrapper) CommitUserImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CommitUserImportParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CommitUserImport(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewUserImport operation middleware
+func (siw *ServerInterfaceWrapper) PreviewUserImport(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewUserImport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListKiosks operation middleware
 func (siw *ServerInterfaceWrapper) ListKiosks(w http.ResponseWriter, r *http.Request) {
 
@@ -2449,6 +3642,58 @@ func (siw *ServerInterfaceWrapper) PairKiosk(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// GetKiosk operation middleware
+func (siw *ServerInterfaceWrapper) GetKiosk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetKiosk(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateKiosk operation middleware
+func (siw *ServerInterfaceWrapper) UpdateKiosk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateKiosk(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DisableKiosk operation middleware
 func (siw *ServerInterfaceWrapper) DisableKiosk(w http.ResponseWriter, r *http.Request) {
 
@@ -2490,6 +3735,32 @@ func (siw *ServerInterfaceWrapper) DisableKiosk(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DisableKiosk(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableKiosk operation middleware
+func (siw *ServerInterfaceWrapper) EnableKiosk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableKiosk(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2762,6 +4033,56 @@ func (siw *ServerInterfaceWrapper) GetLoan(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
+// CorrectLoanAttribution operation middleware
+func (siw *ServerInterfaceWrapper) CorrectLoanAttribution(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CorrectLoanAttributionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CorrectLoanAttribution(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ForceReturnLoan operation middleware
 func (siw *ServerInterfaceWrapper) ForceReturnLoan(w http.ResponseWriter, r *http.Request) {
 
@@ -2867,6 +4188,445 @@ func (siw *ServerInterfaceWrapper) GetReadyz(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetReadyz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTransactionsByOrigin operation middleware
+func (siw *ServerInterfaceWrapper) GetTransactionsByOrigin(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetTransactionsByOriginParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "bucket" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "bucket", r.URL.Query(), &params.Bucket, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "bucket"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucket", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTransactionsByOrigin(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportDevicesCsv operation middleware
+func (siw *ServerInterfaceWrapper) ExportDevicesCsv(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportDevicesCsvParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "category" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "category", r.URL.Query(), &params.Category, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "category"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportDevicesCsv(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDisputedLoans operation middleware
+func (siw *ServerInterfaceWrapper) ListDisputedLoans(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDisputedLoansParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDisputedLoans(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportLoansCsv operation middleware
+func (siw *ServerInterfaceWrapper) ExportLoansCsv(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportLoansCsvParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "origin" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "origin", r.URL.Query(), &params.Origin, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "origin"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "origin", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "userId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "userId", r.URL.Query(), &params.UserId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "userId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "deviceId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "deviceId", r.URL.Query(), &params.DeviceId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "deviceId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "deviceId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "disputed" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "disputed", r.URL.Query(), &params.Disputed, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "disputed"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "disputed", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportLoansCsv(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetOperationalHealth operation middleware
+func (siw *ServerInterfaceWrapper) GetOperationalHealth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetOperationalHealthParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetOperationalHealth(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReportSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetReportSummary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetReportSummaryParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReportSummary(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportUsersCsv operation middleware
+func (siw *ServerInterfaceWrapper) ExportUsersCsv(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportUsersCsvParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "department" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "department", r.URL.Query(), &params.Department, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "department"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "department", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "hasCredential" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hasCredential", r.URL.Query(), &params.HasCredential, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hasCredential"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hasCredential", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportUsersCsv(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3119,6 +4879,34 @@ func (siw *ServerInterfaceWrapper) SubmitScan(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// GetSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListUsers operation middleware
 func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -3137,6 +4925,19 @@ func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Requ
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "hasCredential" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hasCredential", r.URL.Query(), &params.HasCredential, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hasCredential"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hasCredential", Err: err})
 		}
 		return
 	}
@@ -3218,6 +5019,39 @@ func (siw *ServerInterfaceWrapper) CreateUser(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// CheckEmployeeNo operation middleware
+func (siw *ServerInterfaceWrapper) CheckEmployeeNo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CheckEmployeeNoParams
+
+	// ------------- Required query parameter "employeeNo" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "employeeNo", r.URL.Query(), &params.EmployeeNo, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "employeeNo"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "employeeNo", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckEmployeeNo(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RegisterUserWithCard operation middleware
 func (siw *ServerInterfaceWrapper) RegisterUserWithCard(w http.ResponseWriter, r *http.Request) {
 
@@ -3275,6 +5109,32 @@ func (siw *ServerInterfaceWrapper) UpdateUser(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateUser(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ArchiveUser operation middleware
+func (siw *ServerInterfaceWrapper) ArchiveUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IDParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ArchiveUser(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3538,6 +5398,38 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/{id}/disable", wrapper.DisableKiosk)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/{id}/pairing-code", wrapper.CreateKioskPairingCode)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/pair", wrapper.PairKiosk)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangeOwnPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/totp/reenrol", wrapper.BeginTotpReenrolment)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/totp/confirm", wrapper.ConfirmTotpReenrolment)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/recovery-codes", wrapper.RegenerateRecoveryCodes)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admins", wrapper.ListAdmins)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admins", wrapper.CreateAdmin)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admins/{id}", wrapper.GetAdmin)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admins/{id}", wrapper.UpdateAdmin)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admins/{id}/reset-password", wrapper.ResetAdminPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admins/{id}/reset-totp", wrapper.ForceAdminTotpReenrolment)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admins/{id}/unlock", wrapper.UnlockAdmin)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/users/check-employee-no", wrapper.CheckEmployeeNo)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/users/{id}/archive", wrapper.ArchiveUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/loans/{id}/correct-attribution", wrapper.CorrectLoanAttribution)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reports/summary", wrapper.GetReportSummary)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reports/by-origin", wrapper.GetTransactionsByOrigin)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reports/operational-health", wrapper.GetOperationalHealth)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reports/disputed", wrapper.ListDisputedLoans)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reports/loans.csv", wrapper.ExportLoansCsv)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reports/devices.csv", wrapper.ExportDevicesCsv)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reports/users.csv", wrapper.ExportUsersCsv)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit", wrapper.ListAuditEvents)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit.csv", wrapper.ExportAuditCsv)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/imports/users/preview", wrapper.PreviewUserImport)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/imports/users", wrapper.CommitUserImport)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/imports/devices/preview", wrapper.PreviewDeviceImport)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/imports/devices", wrapper.CommitDeviceImport)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/settings", wrapper.GetSettings)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/settings", wrapper.UpdateSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/kiosks/{id}", wrapper.GetKiosk)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/kiosks/{id}", wrapper.UpdateKiosk)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/kiosks/{id}/enable", wrapper.EnableKiosk)
 
 	return m
 }
@@ -3547,145 +5439,232 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"6HF0cv0gunl/8/8CAAD//w==",
+	"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",
+	"WKmZLrPQ6eTp5OTmyeTjTx//bwAAAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
