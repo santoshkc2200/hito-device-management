@@ -8,14 +8,15 @@ import {
 
 import type { ManualSource } from "@hdms/scan";
 import { Button } from "@/components/ui/button";
-import { getKioskConfig } from "@/lib/kiosk-config";
-import { CheckCircle2, Delete, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { getKioskConfig, unpairKiosk } from "@/lib/kiosk-config";
+import { CheckCircle2, Delete, LogOut, RotateCcw, ShieldCheck, X } from "lucide-react";
 
 export interface AttendantModalProps {
   isOpen: boolean;
   onClose: () => void;
   manualSource?: ManualSource | null;
   onScan?: (token: string) => void;
+  onUnpair?: () => void;
 }
 
 const INACTIVITY_TIMEOUT_MS = 60_000;
@@ -34,6 +35,7 @@ export function AttendantModal({
   onClose,
   manualSource,
   onScan,
+  onUnpair,
 }: AttendantModalProps) {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [pinInput, setPinInput] = React.useState("");
@@ -41,6 +43,7 @@ export function AttendantModal({
   const [failedAttempts, setFailedAttempts] = React.useState(0);
   const [isLockedOut, setIsLockedOut] = React.useState(false);
   const [lockoutRemaining, setLockoutRemaining] = React.useState(0);
+  const [showUnpairConfirm, setShowUnpairConfirm] = React.useState(false);
 
   // Keypad token state
   const [tokenInput, setTokenInput] = React.useState("HD-U-");
@@ -52,9 +55,18 @@ export function AttendantModal({
     setPinInput("");
     setPinError(null);
     setIsAuthenticated(false);
+    setShowUnpairConfirm(false);
     setTokenInput("HD-U-");
     onClose();
   }, [onClose]);
+
+  const handleUnpairConfirm = React.useCallback(() => {
+    unpairKiosk();
+    if (onUnpair) {
+      onUnpair();
+    }
+    handleClose();
+  }, [onUnpair, handleClose]);
 
   // Watchdog: 60s idle timeout
   const idleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -304,6 +316,47 @@ export function AttendantModal({
               </Button>
             </div>
           </form>
+        ) : showUnpairConfirm ? (
+          /* Station Redeployment: Unpair Confirmation View */
+          <div
+            data-testid="attendant-unpair-confirm-view"
+            className="space-y-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center"
+          >
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive shadow-xs">
+              <LogOut className="size-7" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-foreground">
+                Unpair this iPad?
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                This will clear the kiosk identity and bearer token from this device.
+                The iPad will immediately return to the pairing screen to be redeployed to another counter.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-4 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="min-h-14 min-w-32 text-base font-semibold"
+                onClick={() => setShowUnpairConfirm(false)}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="lg"
+                data-testid="attendant-confirm-unpair-button"
+                className="min-h-14 min-w-40 text-base font-bold gap-2"
+                onClick={handleUnpairConfirm}
+              >
+                <LogOut className="size-5" />
+                Confirm Unpair
+              </Button>
+            </div>
+          </div>
         ) : (
           /* Phase 2: Crockford Keypad */
           <div data-testid="crockford-keypad-view" className="space-y-5">
@@ -438,15 +491,28 @@ export function AttendantModal({
 
             {/* Bottom Actions */}
             <div className="flex items-center justify-between border-t border-border pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="min-h-14 min-w-28 text-base font-semibold"
-                onClick={handleClose}
-              >
-                Cancel
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="min-h-14 min-w-28 text-base font-semibold"
+                  onClick={handleClose}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  data-testid="attendant-unpair-button"
+                  className="min-h-14 text-sm font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive gap-2"
+                  onClick={() => setShowUnpairConfirm(true)}
+                >
+                  <LogOut className="size-4" />
+                  <span>Unpair iPad</span>
+                </Button>
+              </div>
               <Button
                 type="button"
                 size="lg"

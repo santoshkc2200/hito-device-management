@@ -272,4 +272,37 @@ describe("AttendantModal (Phase 3.4)", () => {
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
+
+  it("unpairFlowClearsConfigAndClosesModalOnConfirmation", async () => {
+    const onClose = vi.fn();
+    const onUnpair = vi.fn();
+
+    render(
+      <AttendantModal
+        isOpen={true}
+        onClose={onClose}
+        onUnpair={onUnpair}
+      />
+    );
+
+    // Unlock
+    fireEvent.change(screen.getByLabelText(/Attendant 4–6 Digit PIN/i), {
+      target: { value: "1234" },
+    });
+    fireEvent.click(screen.getByTestId("pin-submit-button"));
+
+    // Click unpair button
+    const unpairBtn = screen.getByTestId("attendant-unpair-button");
+    fireEvent.click(unpairBtn);
+
+    expect(screen.getByTestId("attendant-unpair-confirm-view")).toBeInTheDocument();
+
+    // Confirm unpair
+    const confirmBtn = screen.getByTestId("attendant-confirm-unpair-button");
+    fireEvent.click(confirmBtn);
+
+    expect(onUnpair).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("hdms_kiosk_config")).toBeNull();
+  });
 });

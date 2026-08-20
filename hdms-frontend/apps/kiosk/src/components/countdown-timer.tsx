@@ -4,13 +4,12 @@ export interface CountdownRingProps {
   expiresAt: string | null;
   /** Max threshold under which the ring appears (defaults to 8s) */
   thresholdSeconds?: number;
+  totalDurationSeconds?: number;
   className?: string;
   showAlways?: boolean;
 }
 
-export type CountdownTimerProps = CountdownRingProps & {
-  totalDurationSeconds?: number;
-};
+export type CountdownTimerProps = CountdownRingProps;
 
 function calculateDiff(expiresAt: string | null): number | null {
   if (!expiresAt) return null;

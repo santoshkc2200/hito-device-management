@@ -1,6 +1,11 @@
 import { client } from "@hdms/api-client";
 import { QueryClient } from "@tanstack/react-query";
-import { getKioskConfig, getSessionId } from "./kiosk-config";
+import {
+  clearKioskConfig,
+  clearSessionId,
+  getKioskConfig,
+  getSessionId,
+} from "./kiosk-config";
 
 let scanSequence = 0;
 
@@ -62,4 +67,17 @@ export function initKioskApi(baseUrl?: string): void {
 
     return request;
   });
+
+  client.interceptors.response.use(async (response) => {
+    if (response.status === 401 || response.status === 403) {
+      clearKioskConfig();
+      clearSessionId();
+    }
+    return response;
+  });
+}
+
+export function resetKioskApiForTesting(): void {
+  isInitialized = false;
+  scanSequence = 0;
 }

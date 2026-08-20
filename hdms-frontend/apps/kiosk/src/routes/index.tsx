@@ -1,3 +1,4 @@
+import * as React from "react";
 import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "./root";
 import { useKioskSession } from "@/machine/use-kiosk-session";
@@ -7,11 +8,22 @@ import { AwaitingDeviceScreen } from "@/screens/awaiting-device-screen";
 import { SuccessScreen } from "@/screens/success-screen";
 import { BlockedScreen } from "@/screens/blocked-screen";
 import { OfflineScreen } from "@/screens/offline-screen";
+import { PairingScreen } from "@/screens/pairing-screen";
 import { CameraOverlay } from "@/components/camera-overlay";
 import { DiagnosticsModal } from "@/components/diagnostics-modal";
 import { AttendantModal } from "@/components/attendant-modal";
+import { isKioskPaired, subscribeKioskConfig } from "@/lib/kiosk-config";
+import { useScreenWakeLock } from "@/lib/wake-lock";
+import { useDeferredServiceWorkerUpdate } from "@/lib/sw-update";
 
 export function KioskApp() {
+  // Track kiosk pairing state reactively
+  const paired = React.useSyncExternalStore(
+    subscribeKioskConfig,
+    () => isKioskPaired(),
+    () => true
+  );
+
   const {
     state,
     context,
@@ -35,6 +47,31 @@ export function KioskApp() {
     close,
     cancel,
   } = useKioskSession();
+
+  // Screen Wake Lock & deferred SW update during active transactions
+  useScreenWakeLock(paired);
+  useDeferredServiceWorkerUpdate(state);
+
+  // Kiosk lockdown: suppress context menu
+  React.useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("contextmenu", handleContextMenu);
+    return () => window.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
+
+  // If kiosk is not paired or authorization was revoked (401/403), render PairingScreen
+  if (!paired) {
+    return (
+      <PairingScreen
+        initialSupportCode={context.supportCode}
+        onPaired={() => {
+          // Trigger machine reset or refresh
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -153,6 +190,9 @@ export function KioskApp() {
         onScan={(token) => {
           void scan(token, "manual");
         }}
+        onUnpair={() => {
+          // Handled via subscribeKioskConfig
+        }}
       />
     </>
   );
@@ -163,4 +203,3 @@ export const indexRoute = createRoute({
   path: "/",
   component: KioskApp,
 });
-

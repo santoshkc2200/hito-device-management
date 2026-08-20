@@ -44,6 +44,31 @@ export function getKioskConfig(): KioskConfig | null {
   }
 }
 
+type ConfigListener = (config: KioskConfig | null) => void;
+const configListeners = new Set<ConfigListener>();
+
+export function subscribeKioskConfig(listener: ConfigListener): () => void {
+  configListeners.add(listener);
+  return () => {
+    configListeners.delete(listener);
+  };
+}
+
+function notifyConfigListeners(): void {
+  const current = getKioskConfig();
+  for (const listener of configListeners) {
+    try {
+      listener(current);
+    } catch {
+      // Ignore listener error
+    }
+  }
+}
+
+export function isKioskPaired(): boolean {
+  return getKioskConfig() !== null;
+}
+
 export function setKioskConfig(
   updates: Partial<Omit<KioskConfig, "schemaVersion">> & {
     kioskId: string;
@@ -63,12 +88,19 @@ export function setKioskConfig(
     attendantPinHash: updates.attendantPinHash ?? existing?.attendantPinHash,
   };
   localStorage.setItem(KIOSK_CONFIG_STORAGE_KEY, JSON.stringify(next));
+  notifyConfigListeners();
   return next;
 }
 
 export function clearKioskConfig(): void {
   // Wipe the token and config immediately
   localStorage.removeItem(KIOSK_CONFIG_STORAGE_KEY);
+  notifyConfigListeners();
+}
+
+export function unpairKiosk(): void {
+  clearKioskConfig();
+  clearSessionId();
 }
 
 export function getSessionId(): string | null {

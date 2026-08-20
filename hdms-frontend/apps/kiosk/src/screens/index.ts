@@ -5,3 +5,4 @@ export * from "./awaiting-device-screen";
 export * from "./success-screen";
 export * from "./blocked-screen";
 export * from "./offline-screen";
+export * from "./pairing-screen";
