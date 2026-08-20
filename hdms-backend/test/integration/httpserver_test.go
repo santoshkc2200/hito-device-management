@@ -69,7 +69,7 @@ func newTestHarness(t *testing.T) *testHarness {
 	identitySvc := identity.New(pool, auditSvc)
 	catalogSvc := catalog.New(pool, auditSvc)
 	credentialsSvc := credentials.New(pool, auditSvc, pepper, credEncKey)
-	authSvc := auth.New(pool, pepper, totpEncKey, time.Hour)
+	authSvc := auth.New(pool, pepper, totpEncKey, time.Hour, auth.WithAudit(auditSvc))
 	lendingSvc := lending.New(pool, auditSvc, clock.System{})
 
 	discardLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -128,7 +128,7 @@ func (h *testHarness) bootstrapAndLogin(t *testing.T, authSvc *auth.Service) {
 	email := "admin@example.org"
 	password := "correct horse battery staple"
 
-	_, secret, _, err := authSvc.CreateAdminAccount(t.Context(), email, "Test Admin", password, "superadmin")
+	_, secret, _, err := authSvc.CreateAdminAccount(t.Context(), email, "Test Admin", password, "admin")
 	if err != nil {
 		t.Fatalf("CreateAdminAccount: %v", err)
 	}

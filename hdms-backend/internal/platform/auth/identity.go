@@ -8,7 +8,7 @@ type AdminIdentity struct {
 	ID       string
 	Email    string
 	FullName string
-	Role     string // admin_role: "superadmin" | "admin" | "operator"
+	Role     string // admin_role: "admin" | "technician" | "viewer"
 }
 
 // KioskIdentity is the authenticated kiosk principal attached to a
@@ -44,13 +44,14 @@ func KioskFromContext(ctx context.Context) (KioskIdentity, bool) {
 	return id, ok
 }
 
-// roleRank orders admin_role from least to most privileged, so
-// RequireRole can express "at least operator" etc. without hard-coding
-// every pairwise comparison.
+// roleRank orders admin_role from least to most privileged:
+// viewer < technician < admin.
 var roleRank = map[string]int{
-	"operator":   0,
-	"admin":      1,
-	"superadmin": 2,
+	"viewer":     0,
+	"technician": 1,
+	"operator":   1, // v1.0.0 legacy alias
+	"admin":      2,
+	"superadmin": 2, // v1.0.0 legacy alias
 }
 
 // HasRoleAtLeast reports whether role meets or exceeds min in privilege.

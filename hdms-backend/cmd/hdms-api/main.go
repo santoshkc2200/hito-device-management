@@ -77,7 +77,7 @@ func run() error {
 	identitySvc := identity.New(pool, auditSvc)
 	catalogSvc := catalog.New(pool, auditSvc)
 	credentialsSvc := credentials.New(pool, auditSvc, cfg.TokenPepper, cfg.CredentialEncKey)
-	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL)
+	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL, auth.WithAudit(auditSvc))
 	lendingSvc := lending.New(pool, auditSvc, clock.System{})
 
 	// Event bus and outbox dispatcher (2.2): audit is the only subscriber

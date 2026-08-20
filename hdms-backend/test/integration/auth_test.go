@@ -99,6 +99,41 @@ func TestMiddlewareRejectsCSRFMismatchOnMutatingRequest(t *testing.T) {
 	}
 }
 
+func TestAdminIdentityCarriesRoleFromSession(t *testing.T) {
+	svc := newAuthService(t)
+	ctx := context.Background()
+
+	roles := []string{"admin", "technician", "viewer"}
+	for _, r := range roles {
+		t.Run("role_"+r, func(t *testing.T) {
+			email := r + "@example.org"
+			password := "password123456"
+			_, secret, _, err := svc.CreateAdminAccount(ctx, email, "Test "+r, password, r)
+			if err != nil {
+				t.Fatalf("CreateAdminAccount: %v", err)
+			}
+			code, err := currentTOTPCode(secret)
+			if err != nil {
+				t.Fatalf("currentTOTPCode: %v", err)
+			}
+			sessionToken, _, admin, err := svc.Login(ctx, email, password, code)
+			if err != nil {
+				t.Fatalf("Login: %v", err)
+			}
+			if admin.Role != r {
+				t.Fatalf("login admin.Role = %q, want %q", admin.Role, r)
+			}
+			validated, err := svc.ValidateSession(ctx, sessionToken)
+			if err != nil {
+				t.Fatalf("ValidateSession: %v", err)
+			}
+			if validated.Admin.Role != r {
+				t.Fatalf("validated admin.Role = %q, want %q", validated.Admin.Role, r)
+			}
+		})
+	}
+}
+
 // loginWithFreshTOTP bootstraps an admin account and logs in, computing a
 // valid TOTP code from the secret returned at bootstrap — Login has no
 // other way to succeed, since the secret is otherwise never retrievable.
@@ -108,7 +143,7 @@ func loginWithFreshTOTP(t *testing.T, svc *auth.Service) (sessionToken, csrfToke
 	email := "admin@example.org"
 	password := "correct horse battery staple"
 
-	_, secret, _, err := svc.CreateAdminAccount(ctx, email, "Test Admin", password, "superadmin")
+	_, secret, _, err := svc.CreateAdminAccount(ctx, email, "Test Admin", password, "admin")
 	if err != nil {
 		t.Fatalf("CreateAdminAccount: %v", err)
 	}

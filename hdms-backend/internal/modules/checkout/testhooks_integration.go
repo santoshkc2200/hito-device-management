@@ -8,5 +8,7 @@ package checkout
 // `integration` build tag (Taskfile.yml's test:integration task) so this
 // failure-injection lever never compiles into the production binary.
 func (s *Service) SetFailAfterLoanInsertForTest(fn func() error) {
-	s.setFailAfterLoanInsert(fn)
+	s.testHooksMu.Lock()
+	defer s.testHooksMu.Unlock()
+	s.failAfterLoanInsert = fn
 }

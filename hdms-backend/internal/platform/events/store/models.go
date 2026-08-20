@@ -15,9 +15,9 @@ import (
 type AdminRole string
 
 const (
-	AdminRoleSuperadmin AdminRole = "superadmin"
 	AdminRoleAdmin      AdminRole = "admin"
-	AdminRoleOperator   AdminRole = "operator"
+	AdminRoleTechnician AdminRole = "technician"
+	AdminRoleViewer     AdminRole = "viewer"
 )
 
 func (e *AdminRole) Scan(src interface{}) error {

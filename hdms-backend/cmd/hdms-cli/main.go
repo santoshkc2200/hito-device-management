@@ -131,13 +131,13 @@ func runImport(ctx context.Context, cfg config.Config, args []string) error {
 
 func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 	if len(args) < 1 || args[0] != "bootstrap" {
-		return fmt.Errorf("usage: hdms-cli admin bootstrap --email <email> --name <full name> [--role superadmin|admin|operator]")
+		return fmt.Errorf("usage: hdms-cli admin bootstrap --email <email> --name <full name> [--role admin|technician|viewer]")
 	}
 
 	fs := flag.NewFlagSet("bootstrap", flag.ContinueOnError)
 	email := fs.String("email", "", "admin account email (required)")
 	name := fs.String("name", "", "admin account full name (required)")
-	role := fs.String("role", "superadmin", "admin role: superadmin | admin | operator")
+	role := fs.String("role", "admin", "admin role: admin | technician | viewer")
 	passwordFlag := fs.String("password", "", "admin account password (optional; prompted if omitted)")
 	totpSecretFlag := fs.String("totp-secret", "", "optional base32 TOTP secret (for test environments)")
 	if err := fs.Parse(args[1:]); err != nil {
@@ -147,9 +147,9 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 		return fmt.Errorf("--email and --name are required")
 	}
 	switch *role {
-	case "superadmin", "admin", "operator":
+	case "admin", "technician", "viewer", "superadmin", "operator":
 	default:
-		return fmt.Errorf("--role must be one of superadmin, admin, operator")
+		return fmt.Errorf("--role must be one of admin, technician, viewer")
 	}
 
 	password := *passwordFlag

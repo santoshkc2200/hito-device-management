@@ -80,25 +80,22 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 			}
 		}
 
+		// Enforce server-side minimum role for the requested operation (4.1a).
+		minRole, classified := RequireRole(r.Method, r.URL.Path)
+		if !classified {
+			writeForbidden(w, r, "Unclassified operation")
+			return
+		}
+		if minRole != "" && !HasRoleAtLeast(validated.Admin.Role, minRole) {
+			s.recordRoleDenied(r.Context(), r, validated.Admin, minRole)
+			writeForbidden(w, r, "Insufficient role")
+			return
+		}
+
 		ctx := contextWithAdmin(r.Context(), validated.Admin)
 		ctx = httpx.ContextWithActor(ctx, "admin:"+validated.Admin.ID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-// RequireRole wraps a handler so it rejects an authenticated admin whose
-// role does not meet min, returning 403 rather than the 404 a plain "not
-// wired" would give — a distinguishable signal for the audit trail
-// (docs/09: "every check failure produces an audit row").
-func RequireRole(min string, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		admin, ok := AdminFromContext(r.Context())
-		if !ok || !HasRoleAtLeast(admin.Role, min) {
-			writeForbidden(w, r, "Insufficient role")
-			return
-		}
-		next(w, r)
-	}
 }
 
 func kioskBearerToken(r *http.Request) (string, bool) {

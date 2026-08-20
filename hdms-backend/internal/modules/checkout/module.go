@@ -41,15 +41,8 @@ type Service struct {
 	failAfterLoanInsert func() error
 }
 
-// setFailAfterLoanInsert and getFailAfterLoanInsert guard the test-only
-// failure-injection hook (docs/phases/phase-2/2.8-testing.md § 2.8.3) behind
-// a mutex, since the setter (checkout_testhooks.go, built only with
-// `-tags=integration`) and the reader in executeBorrow can otherwise race.
-func (s *Service) setFailAfterLoanInsert(fn func() error) {
-	s.testHooksMu.Lock()
-	defer s.testHooksMu.Unlock()
-	s.failAfterLoanInsert = fn
-}
+// getFailAfterLoanInsert reads the test-only failure-injection hook
+// (docs/phases/phase-2/2.8-testing.md § 2.8.3) behind a mutex.
 
 func (s *Service) getFailAfterLoanInsert() func() error {
 	s.testHooksMu.Lock()

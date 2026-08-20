@@ -13,11 +13,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"strings"
 	"time"
 
+	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
 	authstore "github.com/hito-hospital/hdms/internal/platform/auth/store"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -40,6 +45,7 @@ type Service struct {
 	totpEncKey []byte // AES-256-GCM key for admin_accounts.totp_secret_enc — config.TOTPSecretEncKey
 	sessionTTL time.Duration
 	clock      clock.Clock
+	audit      auditapi.Recorder
 }
 
 // Option customises a Service at construction.
@@ -50,6 +56,45 @@ type Option func(*Service)
 // instead of sleeping.
 func WithClock(c clock.Clock) Option {
 	return func(s *Service) { s.clock = c }
+}
+
+// WithAudit attaches an audit recorder to the service so that security
+// and authorization events (such as 403 role check failures) are audited.
+func WithAudit(a auditapi.Recorder) Option {
+	return func(s *Service) { s.audit = a }
+}
+
+func (s *Service) recordRoleDenied(ctx context.Context, r *http.Request, admin AdminIdentity, minRole string) {
+	if s.audit == nil {
+		return
+	}
+	_ = s.audit.Record(ctx, auditapi.Event{
+		Actor:   "admin:" + admin.ID,
+		ActorIP: clientIP(r),
+		Action:  "auth.role_denied",
+		Subject: "admin:" + admin.ID,
+		Payload: map[string]any{
+			"method":        r.Method,
+			"path":          r.URL.Path,
+			"role":          admin.Role,
+			"required_role": minRole,
+		},
+		RequestID: httpx.RequestID(r.Context()),
+	})
+}
+
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if i := strings.IndexByte(xff, ','); i >= 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 // New constructs the auth service.
