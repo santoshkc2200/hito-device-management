@@ -200,8 +200,18 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		httpx.WriteProblem(w, r, httpx.NewProblem("unauthorized", "Unauthorized", http.StatusUnauthorized))
 	case errors.Is(err, auth.ErrAccountDisabled):
 		httpx.WriteProblem(w, r, httpx.NewProblem("forbidden", "Account disabled", http.StatusForbidden))
+	case errors.Is(err, auth.ErrAccountLocked):
+		httpx.WriteProblem(w, r, httpx.NewProblem("account-locked", "Account locked", http.StatusForbidden))
 	case errors.Is(err, auth.ErrEmailTaken):
 		httpx.WriteProblem(w, r, httpx.NewProblem("email-taken", "Email already registered", http.StatusConflict))
+	case errors.Is(err, auth.ErrAdminNotFound):
+		httpx.WriteProblem(w, r, httpx.NewProblem("admin-not-found", "Admin not found", http.StatusNotFound))
+	case errors.Is(err, auth.ErrNoPendingTotp):
+		httpx.WriteProblem(w, r, httpx.NewProblem("no-pending-totp", "No pending TOTP re-enrolment", http.StatusBadRequest))
+	case errors.Is(err, auth.ErrInvalidPassword):
+		httpx.WriteProblem(w, r, httpx.NewProblem("invalid-password", "Current password is incorrect", http.StatusUnprocessableEntity))
+	case errors.Is(err, auth.ErrPasswordTooShort):
+		writeValidationFailed(w, r, "password must be at least 12 characters", []string{"password"})
 	case errors.Is(err, auth.ErrKioskNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("kiosk-not-found", "Kiosk not found", http.StatusNotFound))
 	case errors.Is(err, auth.ErrPairingCodeInvalid):

@@ -18,11 +18,6 @@ import (
 // redeemable (docs/phases/phase-2/2.0-preflight.md).
 const pairingCodeTTL = 10 * time.Minute
 
-var (
-	ErrKioskNotFound      = errors.New("auth: kiosk not found")
-	ErrPairingCodeInvalid = errors.New("auth: pairing code invalid or expired")
-)
-
 // Kiosk is the read model for a registered kiosk.
 type Kiosk struct {
 	ID             string

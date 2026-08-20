@@ -11,16 +11,21 @@ import (
 )
 
 type Querier interface {
-	CreateAdminAccount(ctx context.Context, arg CreateAdminAccountParams) (AdminAccount, error)
+	ConfirmAdminPendingTotp(ctx context.Context, id pgtype.UUID) (ConfirmAdminPendingTotpRow, error)
+	CountUnusedRecoveryCodesByAdminID(ctx context.Context, adminID pgtype.UUID) (int64, error)
+	CreateAdminAccount(ctx context.Context, arg CreateAdminAccountParams) (CreateAdminAccountRow, error)
 	CreateKiosk(ctx context.Context, arg CreateKioskParams) (CreateKioskRow, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (AdminSession, error)
+	DeleteOtherSessionsByAdminID(ctx context.Context, arg DeleteOtherSessionsByAdminIDParams) error
 	DeleteSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) error
+	DeleteSessionsByAdminID(ctx context.Context, adminID pgtype.UUID) error
+	DeleteUnusedRecoveryCodesByAdminID(ctx context.Context, adminID pgtype.UUID) error
 	DisableKiosk(ctx context.Context, id pgtype.UUID) (DisableKioskRow, error)
 	// Only used at login, where a non-existent email must fail the same way a
 	// wrong password does (no user enumeration) — the caller compares errors,
 	// not this query's behaviour, to keep that response uniform.
-	GetAdminAccountByEmail(ctx context.Context, lower string) (AdminAccount, error)
-	GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (AdminAccount, error)
+	GetAdminAccountByEmail(ctx context.Context, lower string) (GetAdminAccountByEmailRow, error)
+	GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (GetAdminAccountByIDRow, error)
 	GetKioskByID(ctx context.Context, id pgtype.UUID) (GetKioskByIDRow, error)
 	// Scoped to active kiosks so a disabled kiosk's stale pairing code (if any)
 	// cannot be redeemed.
@@ -29,7 +34,13 @@ type Querier interface {
 	// Joins the owning account so the middleware can reject a disabled account
 	// on every request without a second round trip.
 	GetSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) (GetSessionByTokenHashRow, error)
+	InsertRecoveryCode(ctx context.Context, arg InsertRecoveryCodeParams) error
+	ListAdmins(ctx context.Context) ([]ListAdminsRow, error)
 	ListKiosks(ctx context.Context) ([]ListKiosksRow, error)
+	ListUnusedRecoveryCodesByAdminID(ctx context.Context, adminID pgtype.UUID) ([]ListUnusedRecoveryCodesByAdminIDRow, error)
+	MarkRecoveryCodeUsed(ctx context.Context, id pgtype.UUID) (MarkRecoveryCodeUsedRow, error)
+	RecordLoginFailure(ctx context.Context, arg RecordLoginFailureParams) (RecordLoginFailureRow, error)
+	RecordLoginSuccess(ctx context.Context, id pgtype.UUID) error
 	// Consumes the code and installs the freshly minted token in one statement,
 	// so a redeemed code can never be replayed. The pairing_code_hash predicate
 	// is what makes that true under concurrency as well as sequentially: two
@@ -42,7 +53,13 @@ type Querier interface {
 	// expires_at (now + TTL), matching docs/09's "12-hour expiry with sliding
 	// renewal".
 	RenewSession(ctx context.Context, arg RenewSessionParams) (AdminSession, error)
+	ResetAdminPassword(ctx context.Context, arg ResetAdminPasswordParams) (ResetAdminPasswordRow, error)
+	SetAdminPendingTotp(ctx context.Context, arg SetAdminPendingTotpParams) (SetAdminPendingTotpRow, error)
+	SetAdminTotpSecret(ctx context.Context, arg SetAdminTotpSecretParams) (SetAdminTotpSecretRow, error)
 	SetKioskPairingCode(ctx context.Context, arg SetKioskPairingCodeParams) (SetKioskPairingCodeRow, error)
+	UnlockAdminAccount(ctx context.Context, id pgtype.UUID) (UnlockAdminAccountRow, error)
+	UnlockAdminAccountByEmail(ctx context.Context, lower string) (UnlockAdminAccountByEmailRow, error)
+	UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (UpdateAdminRow, error)
 	UpdateKioskLastSeen(ctx context.Context, id pgtype.UUID) error
 	// Used by both explicit rotation and pairing-code redemption, which mints
 	// and reveals a fresh token the same way registration does.

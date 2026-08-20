@@ -14,10 +14,7 @@ const (
 	csrfHeaderName    = "X-CSRF-Token"
 )
 
-// unauthenticatedPaths never require a session or kiosk token. There is no
-// per-route security-requirement codegen from oapi-codegen's std-http-server
-// generator (no strict-server/security-options config), so this is a plain
-// path allowlist rather than something derived from the spec.
+// unauthenticatedPaths never require a session or kiosk token.
 var unauthenticatedPaths = map[string]struct{}{
 	"/v1/healthz":     {},
 	"/v1/readyz":      {},
@@ -28,9 +25,7 @@ var unauthenticatedPaths = map[string]struct{}{
 // Middleware validates the admin session cookie (or, failing that, a kiosk
 // bearer token) on every request outside unauthenticatedPaths, attaches the
 // resulting identity to the request context, and enforces the CSRF
-// double-submit check on state-changing admin requests. It is the Phase 1
-// replacement for the Phase 0 pass-through — built once, wholesale, per
-// that stub's own comment.
+// double-submit check on state-changing admin requests.
 func (s *Service) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := unauthenticatedPaths[r.URL.Path]; ok {
@@ -44,10 +39,6 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 				writeUnauthorized(w, r, "Invalid or disabled kiosk token")
 				return
 			}
-			// Authenticated is not authorised: a validated kiosk token still
-			// only reaches KioskAllowedOperations (FR-45, INV-11). The 2.4
-			// scope test enumerates the embedded OpenAPI spec against this
-			// gate, so a newly added endpoint cannot silently escape it.
 			if refuseOutOfScopeKiosk(w, r) {
 				return
 			}
@@ -80,6 +71,22 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 			}
 		}
 
+		// Enforce must_change_password policy (4.1b)
+		if validated.Admin.MustChangePassword {
+			if !isPasswordChangeAllowed(r.Method, r.URL.Path) {
+				writeForbiddenWithProblem(w, r, "password-change-required", "Password change required", "You must change your password before performing any other actions.")
+				return
+			}
+		}
+
+		// Enforce must_reenrol_totp policy (4.1b)
+		if validated.Admin.MustReenrolTotp {
+			if !isTotpReenrolAllowed(r.Method, r.URL.Path) {
+				writeForbiddenWithProblem(w, r, "totp-reenrolment-required", "TOTP re-enrolment required", "You must complete TOTP re-enrolment before performing any other actions.")
+				return
+			}
+		}
+
 		// Enforce server-side minimum role for the requested operation (4.1a).
 		minRole, classified := RequireRole(r.Method, r.URL.Path)
 		if !classified {
@@ -96,6 +103,36 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 		ctx = httpx.ContextWithActor(ctx, "admin:"+validated.Admin.ID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func isPasswordChangeAllowed(method, path string) bool {
+	cleanPath, _, _ := strings.Cut(path, "?")
+	switch {
+	case method == http.MethodPost && cleanPath == "/v1/auth/password":
+		return true
+	case method == http.MethodPost && cleanPath == "/v1/auth/logout":
+		return true
+	case method == http.MethodGet && cleanPath == "/v1/auth/me":
+		return true
+	default:
+		return false
+	}
+}
+
+func isTotpReenrolAllowed(method, path string) bool {
+	cleanPath, _, _ := strings.Cut(path, "?")
+	switch {
+	case method == http.MethodPost && cleanPath == "/v1/auth/totp/reenrol":
+		return true
+	case method == http.MethodPost && cleanPath == "/v1/auth/totp/confirm":
+		return true
+	case method == http.MethodPost && cleanPath == "/v1/auth/logout":
+		return true
+	case method == http.MethodGet && cleanPath == "/v1/auth/me":
+		return true
+	default:
+		return false
+	}
 }
 
 func kioskBearerToken(r *http.Request) (string, bool) {
@@ -124,6 +161,12 @@ func writeUnauthorized(w http.ResponseWriter, r *http.Request, detail string) {
 
 func writeForbidden(w http.ResponseWriter, r *http.Request, detail string) {
 	p := httpx.NewProblem("forbidden", "Forbidden", http.StatusForbidden)
+	p.Detail = detail
+	httpx.WriteProblem(w, r, p)
+}
+
+func writeForbiddenWithProblem(w http.ResponseWriter, r *http.Request, probType, title, detail string) {
+	p := httpx.NewProblem(probType, title, http.StatusForbidden)
 	p.Detail = detail
 	httpx.WriteProblem(w, r, p)
 }
@@ -157,13 +200,28 @@ func CSRFCookie(token string, ttlSeconds int) *http.Cookie {
 	}
 }
 
-// ExpiredSessionCookie and ExpiredCSRFCookie clear both cookies on logout.
+// ExpiredSessionCookie returns an expired cookie to clear the session cookie.
 func ExpiredSessionCookie() *http.Cookie {
-	c := SessionCookie("", -1)
-	return c
+	return &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	}
 }
 
+// ExpiredCSRFCookie returns an expired cookie to clear the CSRF cookie.
 func ExpiredCSRFCookie() *http.Cookie {
-	c := CSRFCookie("", -1)
-	return c
+	return &http.Cookie{
+		Name:     csrfCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: false,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	}
 }

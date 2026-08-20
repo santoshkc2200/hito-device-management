@@ -1,14 +1,22 @@
 package auth
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // AdminIdentity is the authenticated admin principal attached to a
 // request's context by Middleware once a session cookie validates.
 type AdminIdentity struct {
-	ID       string
-	Email    string
-	FullName string
-	Role     string // admin_role: "admin" | "technician" | "viewer"
+	ID                 string
+	Email              string
+	FullName           string
+	Role               string // admin_role: "admin" | "technician" | "viewer"
+	Status             string // admin_status: "active" | "disabled" | "locked"
+	MustChangePassword bool
+	MustReenrolTotp    bool
+	LastLoginAt        *time.Time
+	LockedUntil        *time.Time
 }
 
 // KioskIdentity is the authenticated kiosk principal attached to a

@@ -30,18 +30,6 @@ type phase4Stub struct {
 func phase4Stubs() []phase4Stub {
 	const id = "01923e5c-0000-7000-8000-000000000000"
 	return []phase4Stub{
-		{http.MethodGet, "/v1/admins", "4.1b"},
-		{http.MethodPost, "/v1/admins", "4.1b"},
-		{http.MethodGet, "/v1/admins/" + id, "4.1b"},
-		{http.MethodPatch, "/v1/admins/" + id, "4.1b"},
-		{http.MethodPost, "/v1/admins/" + id + "/reset-password", "4.1b"},
-		{http.MethodPost, "/v1/admins/" + id + "/reset-totp", "4.1b"},
-		{http.MethodPost, "/v1/admins/" + id + "/unlock", "4.1b"},
-		{http.MethodPost, "/v1/auth/password", "4.1b"},
-		{http.MethodPost, "/v1/auth/totp/reenrol", "4.1b"},
-		{http.MethodPost, "/v1/auth/totp/confirm", "4.1b"},
-		{http.MethodPost, "/v1/auth/recovery-codes", "4.1b"},
-
 		{http.MethodGet, "/v1/users/check-employee-no?employeeNo=E000001", "4.4b"},
 		{http.MethodPost, "/v1/users/" + id + "/archive", "4.4a"},
 

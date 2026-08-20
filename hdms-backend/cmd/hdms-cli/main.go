@@ -40,7 +40,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli <seed|migrate|admin bootstrap|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli <seed|migrate|admin bootstrap|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string) error {
@@ -105,7 +105,7 @@ func runImport(ctx context.Context, cfg config.Config, args []string) error {
 
 	var report cliimport.Report
 	switch resource {
-	case "devices":
+		case "devices":
 		catalogSvc := catalog.New(pool, auditSvc)
 		report, err = cliimport.ImportDevices(ctx, cliimport.DeviceImportDeps{
 			Catalog:     catalogSvc,
@@ -130,61 +130,97 @@ func runImport(ctx context.Context, cfg config.Config, args []string) error {
 }
 
 func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
-	if len(args) < 1 || args[0] != "bootstrap" {
-		return fmt.Errorf("usage: hdms-cli admin bootstrap --email <email> --name <full name> [--role admin|technician|viewer]")
+	if len(args) < 1 {
+		return fmt.Errorf("usage: hdms-cli admin <bootstrap|unlock>")
 	}
 
-	fs := flag.NewFlagSet("bootstrap", flag.ContinueOnError)
-	email := fs.String("email", "", "admin account email (required)")
-	name := fs.String("name", "", "admin account full name (required)")
-	role := fs.String("role", "admin", "admin role: admin | technician | viewer")
-	passwordFlag := fs.String("password", "", "admin account password (optional; prompted if omitted)")
-	totpSecretFlag := fs.String("totp-secret", "", "optional base32 TOTP secret (for test environments)")
-	if err := fs.Parse(args[1:]); err != nil {
-		return err
-	}
-	if *email == "" || *name == "" {
-		return fmt.Errorf("--email and --name are required")
-	}
-	switch *role {
-	case "admin", "technician", "viewer", "superadmin", "operator":
-	default:
-		return fmt.Errorf("--role must be one of admin, technician, viewer")
-	}
+	switch args[0] {
+	case "bootstrap":
+		fs := flag.NewFlagSet("bootstrap", flag.ContinueOnError)
+		email := fs.String("email", "", "admin account email (required)")
+		name := fs.String("name", "", "admin account full name (required)")
+		role := fs.String("role", "admin", "admin role: admin | technician | viewer")
+		passwordFlag := fs.String("password", "", "admin account password (optional; prompted if omitted)")
+		totpSecretFlag := fs.String("totp-secret", "", "optional base32 TOTP secret (for test environments)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *email == "" || *name == "" {
+			return fmt.Errorf("--email and --name are required")
+		}
+		switch *role {
+		case "admin", "technician", "viewer", "superadmin", "operator":
+		default:
+			return fmt.Errorf("--role must be one of admin, technician, viewer")
+		}
 
-	password := *passwordFlag
-	if password == "" {
-		var err error
-		password, err = promptPassword()
+		password := *passwordFlag
+		if password == "" {
+			var err error
+			password, err = promptPassword()
+			if err != nil {
+				return err
+			}
+		} else if len(password) < 12 {
+			return fmt.Errorf("password must be at least 12 characters")
+		}
+
+		if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
+			return err
+		}
+		pool, err := db.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
 			return err
 		}
-	} else if len(password) < 12 {
-		return fmt.Errorf("password must be at least 12 characters")
-	}
+		defer pool.Close()
 
-	if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
-		return err
-	}
-	pool, err := db.Open(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return err
-	}
-	defer pool.Close()
+		auditSvc := audit.New(pool)
+		authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL, auth.WithAudit(auditSvc))
+		id, secret, otpauthURL, err := authSvc.CreateAdminAccountWithSecret(ctx, *email, *name, password, *role, *totpSecretFlag)
+		if err != nil {
+			return fmt.Errorf("create admin account: %w", err)
+		}
 
-	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL)
-	id, secret, otpauthURL, err := authSvc.CreateAdminAccountWithSecret(ctx, *email, *name, password, *role, *totpSecretFlag)
-	if err != nil {
-		return fmt.Errorf("create admin account: %w", err)
-	}
+		fmt.Printf("Admin account created: %s (%s, role=%s)\n\n", id, *email, *role)
+		fmt.Println("Scan this into your authenticator app now — it will not be shown again:")
+		fmt.Println()
+		fmt.Println("  otpauth URL:", otpauthURL)
+		fmt.Println("  raw secret: ", secret)
+		fmt.Println()
+		return nil
 
-	fmt.Printf("Admin account created: %s (%s, role=%s)\n\n", id, *email, *role)
-	fmt.Println("Scan this into your authenticator app now — it will not be shown again:")
-	fmt.Println()
-	fmt.Println("  otpauth URL:", otpauthURL)
-	fmt.Println("  raw secret: ", secret)
-	fmt.Println()
-	return nil
+	case "unlock":
+		fs := flag.NewFlagSet("unlock", flag.ContinueOnError)
+		emailFlag := fs.String("email", "", "admin account email (required)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		email := *emailFlag
+		if email == "" && len(fs.Args()) > 0 {
+			email = fs.Args()[0]
+		}
+		if email == "" {
+			return fmt.Errorf("usage: hdms-cli admin unlock --email <email>")
+		}
+
+		pool, err := db.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer pool.Close()
+
+		auditSvc := audit.New(pool)
+		authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL, auth.WithAudit(auditSvc))
+		if err := authSvc.UnlockAdminByEmail(ctx, email); err != nil {
+			return fmt.Errorf("unlock admin account: %w", err)
+		}
+
+		fmt.Printf("Admin account unlocked: %s\n", email)
+		return nil
+
+	default:
+		return fmt.Errorf("usage: hdms-cli admin <bootstrap|unlock>")
+	}
 }
 
 func runKiosk(ctx context.Context, cfg config.Config, args []string) error {

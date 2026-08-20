@@ -29,52 +29,6 @@ func (s *Server) notImplemented(w http.ResponseWriter, r *http.Request, task str
 	httpx.WriteProblem(w, r, p)
 }
 
-// --- 4.1b Admin accounts and auth lifecycle ---------------------------------
-
-func (s *Server) ListAdmins(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) CreateAdmin(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) GetAdmin(w http.ResponseWriter, r *http.Request, _ gen.IDParam) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) UpdateAdmin(w http.ResponseWriter, r *http.Request, _ gen.IDParam) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) ResetAdminPassword(w http.ResponseWriter, r *http.Request, _ gen.IDParam) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) ForceAdminTotpReenrolment(w http.ResponseWriter, r *http.Request, _ gen.IDParam) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) UnlockAdmin(w http.ResponseWriter, r *http.Request, _ gen.IDParam) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) BeginTotpReenrolment(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) ConfirmTotpReenrolment(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.1b")
-}
-
-func (s *Server) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.1b")
-}
-
 // --- 4.4 Users and registration ---------------------------------------------
 
 func (s *Server) CheckEmployeeNo(w http.ResponseWriter, r *http.Request, _ gen.CheckEmployeeNoParams) {

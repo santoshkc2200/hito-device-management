@@ -11,10 +11,55 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const confirmAdminPendingTotp = `-- name: ConfirmAdminPendingTotp :one
+UPDATE admin_accounts
+SET totp_secret_enc = totp_pending_secret_enc,
+    totp_pending_secret_enc = NULL,
+    must_reenrol_totp = false,
+    updated_at = now()
+WHERE id = $1 AND totp_pending_secret_enc IS NOT NULL
+RETURNING id, email, full_name, role, status
+`
+
+type ConfirmAdminPendingTotpRow struct {
+	ID       pgtype.UUID `json:"id"`
+	Email    string      `json:"email"`
+	FullName string      `json:"full_name"`
+	Role     AdminRole   `json:"role"`
+	Status   AdminStatus `json:"status"`
+}
+
+func (q *Queries) ConfirmAdminPendingTotp(ctx context.Context, id pgtype.UUID) (ConfirmAdminPendingTotpRow, error) {
+	row := q.db.QueryRow(ctx, confirmAdminPendingTotp, id)
+	var i ConfirmAdminPendingTotpRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+	)
+	return i, err
+}
+
+const countUnusedRecoveryCodesByAdminID = `-- name: CountUnusedRecoveryCodesByAdminID :one
+SELECT count(*) FROM admin_recovery_codes
+WHERE admin_id = $1 AND used_at IS NULL
+`
+
+func (q *Queries) CountUnusedRecoveryCodesByAdminID(ctx context.Context, adminID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countUnusedRecoveryCodesByAdminID, adminID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAdminAccount = `-- name: CreateAdminAccount :one
 INSERT INTO admin_accounts (id, email, full_name, password_hash, totp_secret_enc, role)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, email, full_name, password_hash, totp_secret_enc, role, status, created_at, updated_at
+RETURNING id, email, full_name, password_hash, totp_secret_enc, role, status,
+          failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
+          last_login_at, totp_pending_secret_enc, created_at, updated_at
 `
 
 type CreateAdminAccountParams struct {
@@ -26,7 +71,26 @@ type CreateAdminAccountParams struct {
 	Role          AdminRole   `json:"role"`
 }
 
-func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccountParams) (AdminAccount, error) {
+type CreateAdminAccountRow struct {
+	ID                   pgtype.UUID        `json:"id"`
+	Email                string             `json:"email"`
+	FullName             string             `json:"full_name"`
+	PasswordHash         string             `json:"password_hash"`
+	TotpSecretEnc        []byte             `json:"totp_secret_enc"`
+	Role                 AdminRole          `json:"role"`
+	Status               AdminStatus        `json:"status"`
+	FailedAttempts       int32              `json:"failed_attempts"`
+	LastFailureAt        pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil          pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword   bool               `json:"must_change_password"`
+	MustReenrolTotp      bool               `json:"must_reenrol_totp"`
+	LastLoginAt          pgtype.Timestamptz `json:"last_login_at"`
+	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccountParams) (CreateAdminAccountRow, error) {
 	row := q.db.QueryRow(ctx, createAdminAccount,
 		arg.ID,
 		arg.Email,
@@ -35,7 +99,7 @@ func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccount
 		arg.TotpSecretEnc,
 		arg.Role,
 	)
-	var i AdminAccount
+	var i CreateAdminAccountRow
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
@@ -44,6 +108,13 @@ func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccount
 		&i.TotpSecretEnc,
 		&i.Role,
 		&i.Status,
+		&i.FailedAttempts,
+		&i.LastFailureAt,
+		&i.LockedUntil,
+		&i.MustChangePassword,
+		&i.MustReenrolTotp,
+		&i.LastLoginAt,
+		&i.TotpPendingSecretEnc,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -130,12 +201,45 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (A
 	return i, err
 }
 
+const deleteOtherSessionsByAdminID = `-- name: DeleteOtherSessionsByAdminID :exec
+DELETE FROM admin_sessions WHERE admin_id = $1 AND session_token_hash != $2
+`
+
+type DeleteOtherSessionsByAdminIDParams struct {
+	AdminID          pgtype.UUID `json:"admin_id"`
+	SessionTokenHash []byte      `json:"session_token_hash"`
+}
+
+func (q *Queries) DeleteOtherSessionsByAdminID(ctx context.Context, arg DeleteOtherSessionsByAdminIDParams) error {
+	_, err := q.db.Exec(ctx, deleteOtherSessionsByAdminID, arg.AdminID, arg.SessionTokenHash)
+	return err
+}
+
 const deleteSessionByTokenHash = `-- name: DeleteSessionByTokenHash :exec
 DELETE FROM admin_sessions WHERE session_token_hash = $1
 `
 
 func (q *Queries) DeleteSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) error {
 	_, err := q.db.Exec(ctx, deleteSessionByTokenHash, sessionTokenHash)
+	return err
+}
+
+const deleteSessionsByAdminID = `-- name: DeleteSessionsByAdminID :exec
+DELETE FROM admin_sessions WHERE admin_id = $1
+`
+
+func (q *Queries) DeleteSessionsByAdminID(ctx context.Context, adminID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSessionsByAdminID, adminID)
+	return err
+}
+
+const deleteUnusedRecoveryCodesByAdminID = `-- name: DeleteUnusedRecoveryCodesByAdminID :exec
+DELETE FROM admin_recovery_codes
+WHERE admin_id = $1 AND used_at IS NULL
+`
+
+func (q *Queries) DeleteUnusedRecoveryCodesByAdminID(ctx context.Context, adminID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUnusedRecoveryCodesByAdminID, adminID)
 	return err
 }
 
@@ -172,16 +276,37 @@ func (q *Queries) DisableKiosk(ctx context.Context, id pgtype.UUID) (DisableKios
 }
 
 const getAdminAccountByEmail = `-- name: GetAdminAccountByEmail :one
-SELECT id, email, full_name, password_hash, totp_secret_enc, role, status, created_at, updated_at
+SELECT id, email, full_name, password_hash, totp_secret_enc, role, status,
+       failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
+       last_login_at, totp_pending_secret_enc, created_at, updated_at
 FROM admin_accounts WHERE lower(email) = lower($1)
 `
+
+type GetAdminAccountByEmailRow struct {
+	ID                   pgtype.UUID        `json:"id"`
+	Email                string             `json:"email"`
+	FullName             string             `json:"full_name"`
+	PasswordHash         string             `json:"password_hash"`
+	TotpSecretEnc        []byte             `json:"totp_secret_enc"`
+	Role                 AdminRole          `json:"role"`
+	Status               AdminStatus        `json:"status"`
+	FailedAttempts       int32              `json:"failed_attempts"`
+	LastFailureAt        pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil          pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword   bool               `json:"must_change_password"`
+	MustReenrolTotp      bool               `json:"must_reenrol_totp"`
+	LastLoginAt          pgtype.Timestamptz `json:"last_login_at"`
+	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
 
 // Only used at login, where a non-existent email must fail the same way a
 // wrong password does (no user enumeration) — the caller compares errors,
 // not this query's behaviour, to keep that response uniform.
-func (q *Queries) GetAdminAccountByEmail(ctx context.Context, lower string) (AdminAccount, error) {
+func (q *Queries) GetAdminAccountByEmail(ctx context.Context, lower string) (GetAdminAccountByEmailRow, error) {
 	row := q.db.QueryRow(ctx, getAdminAccountByEmail, lower)
-	var i AdminAccount
+	var i GetAdminAccountByEmailRow
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
@@ -190,6 +315,13 @@ func (q *Queries) GetAdminAccountByEmail(ctx context.Context, lower string) (Adm
 		&i.TotpSecretEnc,
 		&i.Role,
 		&i.Status,
+		&i.FailedAttempts,
+		&i.LastFailureAt,
+		&i.LockedUntil,
+		&i.MustChangePassword,
+		&i.MustReenrolTotp,
+		&i.LastLoginAt,
+		&i.TotpPendingSecretEnc,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -197,13 +329,34 @@ func (q *Queries) GetAdminAccountByEmail(ctx context.Context, lower string) (Adm
 }
 
 const getAdminAccountByID = `-- name: GetAdminAccountByID :one
-SELECT id, email, full_name, password_hash, totp_secret_enc, role, status, created_at, updated_at
+SELECT id, email, full_name, password_hash, totp_secret_enc, role, status,
+       failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
+       last_login_at, totp_pending_secret_enc, created_at, updated_at
 FROM admin_accounts WHERE id = $1
 `
 
-func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (AdminAccount, error) {
+type GetAdminAccountByIDRow struct {
+	ID                   pgtype.UUID        `json:"id"`
+	Email                string             `json:"email"`
+	FullName             string             `json:"full_name"`
+	PasswordHash         string             `json:"password_hash"`
+	TotpSecretEnc        []byte             `json:"totp_secret_enc"`
+	Role                 AdminRole          `json:"role"`
+	Status               AdminStatus        `json:"status"`
+	FailedAttempts       int32              `json:"failed_attempts"`
+	LastFailureAt        pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil          pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword   bool               `json:"must_change_password"`
+	MustReenrolTotp      bool               `json:"must_reenrol_totp"`
+	LastLoginAt          pgtype.Timestamptz `json:"last_login_at"`
+	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (GetAdminAccountByIDRow, error) {
 	row := q.db.QueryRow(ctx, getAdminAccountByID, id)
-	var i AdminAccount
+	var i GetAdminAccountByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
@@ -212,6 +365,13 @@ func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (Admi
 		&i.TotpSecretEnc,
 		&i.Role,
 		&i.Status,
+		&i.FailedAttempts,
+		&i.LastFailureAt,
+		&i.LockedUntil,
+		&i.MustChangePassword,
+		&i.MustReenrolTotp,
+		&i.LastLoginAt,
+		&i.TotpPendingSecretEnc,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -305,24 +465,29 @@ func (q *Queries) GetKioskByTokenHash(ctx context.Context, tokenHash []byte) (Ge
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT
     s.id, s.admin_id, s.session_token_hash, s.csrf_token, s.created_at, s.last_seen_at, s.expires_at,
-    a.email, a.full_name, a.role, a.status AS admin_status
+    a.email, a.full_name, a.role, a.status AS admin_status,
+    a.must_change_password, a.must_reenrol_totp, a.locked_until, a.last_login_at
 FROM admin_sessions s
 JOIN admin_accounts a ON a.id = s.admin_id
 WHERE s.session_token_hash = $1
 `
 
 type GetSessionByTokenHashRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	AdminID          pgtype.UUID        `json:"admin_id"`
-	SessionTokenHash []byte             `json:"session_token_hash"`
-	CsrfToken        string             `json:"csrf_token"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	LastSeenAt       pgtype.Timestamptz `json:"last_seen_at"`
-	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
-	Email            string             `json:"email"`
-	FullName         string             `json:"full_name"`
-	Role             AdminRole          `json:"role"`
-	AdminStatus      AdminStatus        `json:"admin_status"`
+	ID                 pgtype.UUID        `json:"id"`
+	AdminID            pgtype.UUID        `json:"admin_id"`
+	SessionTokenHash   []byte             `json:"session_token_hash"`
+	CsrfToken          string             `json:"csrf_token"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	LastSeenAt         pgtype.Timestamptz `json:"last_seen_at"`
+	ExpiresAt          pgtype.Timestamptz `json:"expires_at"`
+	Email              string             `json:"email"`
+	FullName           string             `json:"full_name"`
+	Role               AdminRole          `json:"role"`
+	AdminStatus        AdminStatus        `json:"admin_status"`
+	MustChangePassword bool               `json:"must_change_password"`
+	MustReenrolTotp    bool               `json:"must_reenrol_totp"`
+	LockedUntil        pgtype.Timestamptz `json:"locked_until"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
 }
 
 // Joins the owning account so the middleware can reject a disabled account
@@ -342,8 +507,85 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, sessionTokenHash []
 		&i.FullName,
 		&i.Role,
 		&i.AdminStatus,
+		&i.MustChangePassword,
+		&i.MustReenrolTotp,
+		&i.LockedUntil,
+		&i.LastLoginAt,
 	)
 	return i, err
+}
+
+const insertRecoveryCode = `-- name: InsertRecoveryCode :exec
+INSERT INTO admin_recovery_codes (id, admin_id, code_hash)
+VALUES ($1, $2, $3)
+`
+
+type InsertRecoveryCodeParams struct {
+	ID       pgtype.UUID `json:"id"`
+	AdminID  pgtype.UUID `json:"admin_id"`
+	CodeHash string      `json:"code_hash"`
+}
+
+func (q *Queries) InsertRecoveryCode(ctx context.Context, arg InsertRecoveryCodeParams) error {
+	_, err := q.db.Exec(ctx, insertRecoveryCode, arg.ID, arg.AdminID, arg.CodeHash)
+	return err
+}
+
+const listAdmins = `-- name: ListAdmins :many
+SELECT id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
+       must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at
+FROM admin_accounts
+ORDER BY created_at ASC
+`
+
+type ListAdminsRow struct {
+	ID                 pgtype.UUID        `json:"id"`
+	Email              string             `json:"email"`
+	FullName           string             `json:"full_name"`
+	Role               AdminRole          `json:"role"`
+	Status             AdminStatus        `json:"status"`
+	FailedAttempts     int32              `json:"failed_attempts"`
+	LastFailureAt      pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil        pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword bool               `json:"must_change_password"`
+	MustReenrolTotp    bool               `json:"must_reenrol_totp"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListAdmins(ctx context.Context) ([]ListAdminsRow, error) {
+	rows, err := q.db.Query(ctx, listAdmins)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAdminsRow
+	for rows.Next() {
+		var i ListAdminsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FullName,
+			&i.Role,
+			&i.Status,
+			&i.FailedAttempts,
+			&i.LastFailureAt,
+			&i.LockedUntil,
+			&i.MustChangePassword,
+			&i.MustReenrolTotp,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listKiosks = `-- name: ListKiosks :many
@@ -388,6 +630,112 @@ func (q *Queries) ListKiosks(ctx context.Context) ([]ListKiosksRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listUnusedRecoveryCodesByAdminID = `-- name: ListUnusedRecoveryCodesByAdminID :many
+SELECT id, admin_id, code_hash, created_at
+FROM admin_recovery_codes
+WHERE admin_id = $1 AND used_at IS NULL
+`
+
+type ListUnusedRecoveryCodesByAdminIDRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	AdminID   pgtype.UUID        `json:"admin_id"`
+	CodeHash  string             `json:"code_hash"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListUnusedRecoveryCodesByAdminID(ctx context.Context, adminID pgtype.UUID) ([]ListUnusedRecoveryCodesByAdminIDRow, error) {
+	rows, err := q.db.Query(ctx, listUnusedRecoveryCodesByAdminID, adminID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUnusedRecoveryCodesByAdminIDRow
+	for rows.Next() {
+		var i ListUnusedRecoveryCodesByAdminIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AdminID,
+			&i.CodeHash,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markRecoveryCodeUsed = `-- name: MarkRecoveryCodeUsed :one
+UPDATE admin_recovery_codes
+SET used_at = now()
+WHERE id = $1 AND used_at IS NULL
+RETURNING id, admin_id, code_hash, used_at
+`
+
+type MarkRecoveryCodeUsedRow struct {
+	ID       pgtype.UUID        `json:"id"`
+	AdminID  pgtype.UUID        `json:"admin_id"`
+	CodeHash string             `json:"code_hash"`
+	UsedAt   pgtype.Timestamptz `json:"used_at"`
+}
+
+func (q *Queries) MarkRecoveryCodeUsed(ctx context.Context, id pgtype.UUID) (MarkRecoveryCodeUsedRow, error) {
+	row := q.db.QueryRow(ctx, markRecoveryCodeUsed, id)
+	var i MarkRecoveryCodeUsedRow
+	err := row.Scan(
+		&i.ID,
+		&i.AdminID,
+		&i.CodeHash,
+		&i.UsedAt,
+	)
+	return i, err
+}
+
+const recordLoginFailure = `-- name: RecordLoginFailure :one
+UPDATE admin_accounts
+SET failed_attempts = failed_attempts + 1,
+    last_failure_at = now(),
+    locked_until = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING failed_attempts, locked_until
+`
+
+type RecordLoginFailureParams struct {
+	ID          pgtype.UUID        `json:"id"`
+	LockedUntil pgtype.Timestamptz `json:"locked_until"`
+}
+
+type RecordLoginFailureRow struct {
+	FailedAttempts int32              `json:"failed_attempts"`
+	LockedUntil    pgtype.Timestamptz `json:"locked_until"`
+}
+
+func (q *Queries) RecordLoginFailure(ctx context.Context, arg RecordLoginFailureParams) (RecordLoginFailureRow, error) {
+	row := q.db.QueryRow(ctx, recordLoginFailure, arg.ID, arg.LockedUntil)
+	var i RecordLoginFailureRow
+	err := row.Scan(&i.FailedAttempts, &i.LockedUntil)
+	return i, err
+}
+
+const recordLoginSuccess = `-- name: RecordLoginSuccess :exec
+UPDATE admin_accounts
+SET failed_attempts = 0,
+    last_failure_at = NULL,
+    locked_until = NULL,
+    last_login_at = now(),
+    updated_at = now()
+WHERE id = $1
+`
+
+func (q *Queries) RecordLoginSuccess(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, recordLoginSuccess, id)
+	return err
 }
 
 const redeemKioskPairingCode = `-- name: RedeemKioskPairingCode :one
@@ -451,6 +799,113 @@ func (q *Queries) RenewSession(ctx context.Context, arg RenewSessionParams) (Adm
 	return i, err
 }
 
+const resetAdminPassword = `-- name: ResetAdminPassword :one
+UPDATE admin_accounts
+SET password_hash = $2,
+    must_change_password = $3,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, email, full_name, role, status
+`
+
+type ResetAdminPasswordParams struct {
+	ID                 pgtype.UUID `json:"id"`
+	PasswordHash       string      `json:"password_hash"`
+	MustChangePassword bool        `json:"must_change_password"`
+}
+
+type ResetAdminPasswordRow struct {
+	ID       pgtype.UUID `json:"id"`
+	Email    string      `json:"email"`
+	FullName string      `json:"full_name"`
+	Role     AdminRole   `json:"role"`
+	Status   AdminStatus `json:"status"`
+}
+
+func (q *Queries) ResetAdminPassword(ctx context.Context, arg ResetAdminPasswordParams) (ResetAdminPasswordRow, error) {
+	row := q.db.QueryRow(ctx, resetAdminPassword, arg.ID, arg.PasswordHash, arg.MustChangePassword)
+	var i ResetAdminPasswordRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+	)
+	return i, err
+}
+
+const setAdminPendingTotp = `-- name: SetAdminPendingTotp :one
+UPDATE admin_accounts
+SET totp_pending_secret_enc = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, email, full_name, role, status
+`
+
+type SetAdminPendingTotpParams struct {
+	ID                   pgtype.UUID `json:"id"`
+	TotpPendingSecretEnc []byte      `json:"totp_pending_secret_enc"`
+}
+
+type SetAdminPendingTotpRow struct {
+	ID       pgtype.UUID `json:"id"`
+	Email    string      `json:"email"`
+	FullName string      `json:"full_name"`
+	Role     AdminRole   `json:"role"`
+	Status   AdminStatus `json:"status"`
+}
+
+func (q *Queries) SetAdminPendingTotp(ctx context.Context, arg SetAdminPendingTotpParams) (SetAdminPendingTotpRow, error) {
+	row := q.db.QueryRow(ctx, setAdminPendingTotp, arg.ID, arg.TotpPendingSecretEnc)
+	var i SetAdminPendingTotpRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+	)
+	return i, err
+}
+
+const setAdminTotpSecret = `-- name: SetAdminTotpSecret :one
+UPDATE admin_accounts
+SET totp_secret_enc = $2,
+    totp_pending_secret_enc = NULL,
+    must_reenrol_totp = $3,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, email, full_name, role, status
+`
+
+type SetAdminTotpSecretParams struct {
+	ID              pgtype.UUID `json:"id"`
+	TotpSecretEnc   []byte      `json:"totp_secret_enc"`
+	MustReenrolTotp bool        `json:"must_reenrol_totp"`
+}
+
+type SetAdminTotpSecretRow struct {
+	ID       pgtype.UUID `json:"id"`
+	Email    string      `json:"email"`
+	FullName string      `json:"full_name"`
+	Role     AdminRole   `json:"role"`
+	Status   AdminStatus `json:"status"`
+}
+
+func (q *Queries) SetAdminTotpSecret(ctx context.Context, arg SetAdminTotpSecretParams) (SetAdminTotpSecretRow, error) {
+	row := q.db.QueryRow(ctx, setAdminTotpSecret, arg.ID, arg.TotpSecretEnc, arg.MustReenrolTotp)
+	var i SetAdminTotpSecretRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+	)
+	return i, err
+}
+
 const setKioskPairingCode = `-- name: SetKioskPairingCode :one
 UPDATE kiosks SET pairing_code_hash = $2, pairing_code_expires_at = $3
 WHERE id = $1
@@ -472,6 +927,145 @@ func (q *Queries) SetKioskPairingCode(ctx context.Context, arg SetKioskPairingCo
 	row := q.db.QueryRow(ctx, setKioskPairingCode, arg.ID, arg.PairingCodeHash, arg.PairingCodeExpiresAt)
 	var i SetKioskPairingCodeRow
 	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const unlockAdminAccount = `-- name: UnlockAdminAccount :one
+UPDATE admin_accounts
+SET failed_attempts = 0,
+    last_failure_at = NULL,
+    locked_until = NULL,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at
+`
+
+type UnlockAdminAccountRow struct {
+	ID                 pgtype.UUID        `json:"id"`
+	Email              string             `json:"email"`
+	FullName           string             `json:"full_name"`
+	Role               AdminRole          `json:"role"`
+	Status             AdminStatus        `json:"status"`
+	FailedAttempts     int32              `json:"failed_attempts"`
+	LastFailureAt      pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil        pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword bool               `json:"must_change_password"`
+	MustReenrolTotp    bool               `json:"must_reenrol_totp"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UnlockAdminAccount(ctx context.Context, id pgtype.UUID) (UnlockAdminAccountRow, error) {
+	row := q.db.QueryRow(ctx, unlockAdminAccount, id)
+	var i UnlockAdminAccountRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+		&i.FailedAttempts,
+		&i.LastFailureAt,
+		&i.LockedUntil,
+		&i.MustChangePassword,
+		&i.MustReenrolTotp,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const unlockAdminAccountByEmail = `-- name: UnlockAdminAccountByEmail :one
+UPDATE admin_accounts
+SET failed_attempts = 0,
+    last_failure_at = NULL,
+    locked_until = NULL,
+    updated_at = now()
+WHERE lower(email) = lower($1)
+RETURNING id, email, full_name, role, status
+`
+
+type UnlockAdminAccountByEmailRow struct {
+	ID       pgtype.UUID `json:"id"`
+	Email    string      `json:"email"`
+	FullName string      `json:"full_name"`
+	Role     AdminRole   `json:"role"`
+	Status   AdminStatus `json:"status"`
+}
+
+func (q *Queries) UnlockAdminAccountByEmail(ctx context.Context, lower string) (UnlockAdminAccountByEmailRow, error) {
+	row := q.db.QueryRow(ctx, unlockAdminAccountByEmail, lower)
+	var i UnlockAdminAccountByEmailRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+	)
+	return i, err
+}
+
+const updateAdmin = `-- name: UpdateAdmin :one
+UPDATE admin_accounts
+SET full_name = COALESCE($1, full_name),
+    role = COALESCE($2, role),
+    status = COALESCE($3, status),
+    updated_at = now()
+WHERE id = $4
+RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at
+`
+
+type UpdateAdminParams struct {
+	FullName pgtype.Text     `json:"full_name"`
+	Role     NullAdminRole   `json:"role"`
+	Status   NullAdminStatus `json:"status"`
+	ID       pgtype.UUID     `json:"id"`
+}
+
+type UpdateAdminRow struct {
+	ID                 pgtype.UUID        `json:"id"`
+	Email              string             `json:"email"`
+	FullName           string             `json:"full_name"`
+	Role               AdminRole          `json:"role"`
+	Status             AdminStatus        `json:"status"`
+	FailedAttempts     int32              `json:"failed_attempts"`
+	LastFailureAt      pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil        pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword bool               `json:"must_change_password"`
+	MustReenrolTotp    bool               `json:"must_reenrol_totp"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (UpdateAdminRow, error) {
+	row := q.db.QueryRow(ctx, updateAdmin,
+		arg.FullName,
+		arg.Role,
+		arg.Status,
+		arg.ID,
+	)
+	var i UpdateAdminRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+		&i.FailedAttempts,
+		&i.LastFailureAt,
+		&i.LockedUntil,
+		&i.MustChangePassword,
+		&i.MustReenrolTotp,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 

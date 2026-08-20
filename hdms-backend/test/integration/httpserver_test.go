@@ -45,7 +45,7 @@ import (
 // share one budget — unrelated tests would start failing with 429s purely
 // from run order, which tests nothing this package is meant to verify.
 type testHarness struct {
-	server    *httptest.Server
+	server      *httptest.Server
 	client      *http.Client
 	csrfToken   string
 	identity    identityapi.Service
@@ -54,6 +54,7 @@ type testHarness struct {
 	lending     lendingapi.Service
 	checkout    checkoutapi.Service
 	auth        *auth.Service
+	audit       *audit.Service
 	bus         *events.Bus
 	pool        *db.Pool
 }
@@ -111,6 +112,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		lending:     lendingSvc,
 		checkout:    checkoutSvc,
 		auth:        authSvc,
+		audit:       auditSvc,
 		bus:         bus,
 		pool:        pool,
 	}

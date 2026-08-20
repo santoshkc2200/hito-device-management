@@ -535,15 +535,30 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 }
 
 type AdminAccount struct {
-	ID            pgtype.UUID        `json:"id"`
-	Email         string             `json:"email"`
-	FullName      string             `json:"full_name"`
-	PasswordHash  string             `json:"password_hash"`
-	TotpSecretEnc []byte             `json:"totp_secret_enc"`
-	Role          AdminRole          `json:"role"`
-	Status        AdminStatus        `json:"status"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ID                   pgtype.UUID        `json:"id"`
+	Email                string             `json:"email"`
+	FullName             string             `json:"full_name"`
+	PasswordHash         string             `json:"password_hash"`
+	TotpSecretEnc        []byte             `json:"totp_secret_enc"`
+	Role                 AdminRole          `json:"role"`
+	Status               AdminStatus        `json:"status"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	FailedAttempts       int32              `json:"failed_attempts"`
+	LastFailureAt        pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil          pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword   bool               `json:"must_change_password"`
+	MustReenrolTotp      bool               `json:"must_reenrol_totp"`
+	LastLoginAt          pgtype.Timestamptz `json:"last_login_at"`
+	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
+}
+
+type AdminRecoveryCode struct {
+	ID        pgtype.UUID        `json:"id"`
+	AdminID   pgtype.UUID        `json:"admin_id"`
+	CodeHash  string             `json:"code_hash"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
 type AdminSession struct {

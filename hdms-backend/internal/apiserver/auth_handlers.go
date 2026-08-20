@@ -13,16 +13,16 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// totpCode became optional at contract v1.1.0 because a recovery code may
-	// stand in for it (4.1b). Until that path is implemented, an omitted code
-	// is an empty code, which auth.Login already refuses — the same answer a
-	// wrong code gets, and deliberately indistinguishable from one.
 	var totpCode string
 	if req.TotpCode != nil {
 		totpCode = *req.TotpCode
 	}
+	var recoveryCode string
+	if req.RecoveryCode != nil {
+		recoveryCode = *req.RecoveryCode
+	}
 
-	sessionToken, csrfToken, admin, err := s.auth.Login(r.Context(), req.Email, req.Password, totpCode)
+	sessionToken, csrfToken, admin, err := s.auth.LoginWithRecovery(r.Context(), req.Email, req.Password, totpCode, recoveryCode)
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
@@ -53,11 +53,98 @@ func (s *Server) GetCurrentAdmin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, adminToGen(admin))
 }
 
+func (s *Server) ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
+	admin, ok := auth.AdminFromContext(r.Context())
+	if !ok {
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
+		return
+	}
+	req, ok := decodeJSON[gen.ChangePasswordRequest](w, r)
+	if !ok {
+		return
+	}
+	if len(req.NewPassword) < 12 {
+		writeValidationFailed(w, r, "newPassword must be at least 12 characters", []string{"newPassword"})
+		return
+	}
+
+	var currentSessionToken string
+	if cookie, err := r.Cookie("hdms_session"); err == nil {
+		currentSessionToken = cookie.Value
+	}
+
+	if err := s.auth.ChangeOwnPassword(r.Context(), admin.ID, req.CurrentPassword, req.NewPassword, currentSessionToken); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) BeginTotpReenrolment(w http.ResponseWriter, r *http.Request) {
+	admin, ok := auth.AdminFromContext(r.Context())
+	if !ok {
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
+		return
+	}
+	secret, url, err := s.auth.BeginTotpReenrolment(r.Context(), admin.ID)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	setNoStore(w)
+	writeJSON(w, http.StatusOK, gen.TotpEnrolment{
+		OtpauthUrl: url,
+		TotpSecret: secret,
+	})
+}
+
+func (s *Server) ConfirmTotpReenrolment(w http.ResponseWriter, r *http.Request) {
+	admin, ok := auth.AdminFromContext(r.Context())
+	if !ok {
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
+		return
+	}
+	req, ok := decodeJSON[gen.ConfirmTotpRequest](w, r)
+	if !ok {
+		return
+	}
+	if err := s.auth.ConfirmTotpReenrolment(r.Context(), admin.ID, req.TotpCode); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+	admin, ok := auth.AdminFromContext(r.Context())
+	if !ok {
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
+		return
+	}
+	codes, err := s.auth.RegenerateRecoveryCodes(r.Context(), admin.ID)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	setNoStore(w)
+	writeJSON(w, http.StatusOK, gen.RecoveryCodes{
+		Codes: codes,
+	})
+}
+
 func adminToGen(a auth.AdminIdentity) gen.Admin {
+	var status *gen.AdminStatus
+	if a.Status != "" {
+		st := gen.AdminStatus(a.Status)
+		status = &st
+	}
 	return gen.Admin{
-		Id:       a.ID,
-		Email:    a.Email,
-		FullName: a.FullName,
-		Role:     gen.AdminRole(a.Role),
+		Id:          a.ID,
+		Email:       a.Email,
+		FullName:    a.FullName,
+		Role:        gen.AdminRole(a.Role),
+		Status:      status,
+		LastLoginAt: a.LastLoginAt,
+		LockedUntil: a.LockedUntil,
 	}
 }
