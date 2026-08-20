@@ -53,13 +53,12 @@ export function OfflineScreen({
           {/* Primary Prompt: ≥ 36px font size */}
           <h2
             data-testid="offline-title"
-            className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground"
-            style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}
+            className="text-kiosk-prompt text-foreground leading-tight"
           >
             Reconnecting to hospital network
           </h2>
 
-          <p data-testid="offline-subtitle" className="text-lg md:text-xl text-muted-foreground max-w-lg">
+          <p data-testid="offline-subtitle" className="text-kiosk-body text-muted-foreground max-w-lg">
             This kiosk is temporarily offline and will resume automatically as soon as the connection is restored.
           </p>
         </div>

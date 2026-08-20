@@ -136,12 +136,11 @@ export function AwaitingDeviceScreen({
           <div className="space-y-2">
             <h2
               data-testid="awaiting-device-prompt"
-              className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground leading-tight"
-              style={{ fontSize: "clamp(2.25rem, 5vw, 3.25rem)" }}
+              className="text-kiosk-prompt text-foreground leading-tight"
             >
               Scan a device to borrow or return
             </h2>
-            <p className="text-base md:text-lg text-muted-foreground">
+            <p className="text-kiosk-body text-muted-foreground">
               Scan barcode on any device, or tap RETURN on one of your borrowed items below.
             </p>
           </div>

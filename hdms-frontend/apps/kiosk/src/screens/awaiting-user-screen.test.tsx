@@ -25,7 +25,7 @@ describe("AwaitingUserScreen", () => {
     const prompt = screen.getByTestId("awaiting-user-prompt");
     expect(prompt).toBeInTheDocument();
     expect(prompt).toHaveTextContent("Now scan your ID card");
-    expect(prompt.className).toMatch(/text-4xl|text-5xl/);
+    expect(prompt.className).toMatch(/text-kiosk-prompt|text-4xl|text-5xl/);
 
     expect(screen.getByTestId("pending-device-asset-tag")).toHaveTextContent(
       "SCANNER-99"

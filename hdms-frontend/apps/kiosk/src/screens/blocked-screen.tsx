@@ -106,8 +106,7 @@ export function BlockedScreen({
           {/* Primary Reason Title: ≥ 36px font size */}
           <h2
             data-testid="blocked-title"
-            className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground"
-            style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}
+            className="text-kiosk-prompt text-foreground leading-tight"
           >
             {title}
           </h2>
@@ -128,7 +127,7 @@ export function BlockedScreen({
               </h3>
               <p
                 data-testid="blocked-detail"
-                className="text-base md:text-lg font-medium text-muted-foreground leading-relaxed whitespace-pre-line"
+                className="text-kiosk-body font-medium text-muted-foreground leading-relaxed whitespace-pre-line"
               >
                 {detail}
               </p>

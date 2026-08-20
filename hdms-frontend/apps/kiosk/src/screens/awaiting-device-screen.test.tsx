@@ -45,7 +45,7 @@ describe("AwaitingDeviceScreen", () => {
     const prompt = screen.getByTestId("awaiting-device-prompt");
     expect(prompt).toBeInTheDocument();
     expect(prompt).toHaveTextContent("Scan a device to borrow or return");
-    expect(prompt.className).toMatch(/text-4xl|text-5xl/);
+    expect(prompt.className).toMatch(/text-kiosk-prompt|text-4xl|text-5xl/);
 
     expect(screen.getByTestId("user-greeting-badge")).toHaveTextContent(
       "Dr. Meredith Grey"

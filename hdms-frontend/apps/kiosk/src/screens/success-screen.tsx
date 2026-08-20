@@ -113,13 +113,12 @@ export function SuccessScreen({
           {/* Primary Outcome Title */}
           <h2
             data-testid="success-title"
-            className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground"
-            style={{ fontSize: "clamp(2.25rem, 5vw, 3rem)" }}
+            className="text-kiosk-prompt text-foreground leading-tight"
           >
             {title}
           </h2>
 
-          <p data-testid="success-detail" className="text-lg md:text-xl text-muted-foreground max-w-xl">
+          <p data-testid="success-detail" className="text-kiosk-body text-muted-foreground max-w-xl">
             {detail}
           </p>
         </div>

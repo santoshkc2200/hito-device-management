@@ -194,7 +194,7 @@ export function DiagnosticsModal({
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-foreground">{seq.raw}</span>
                         <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] uppercase font-bold ${
+                          className={`rounded px-1.5 py-0.5 text-xs uppercase font-bold ${
                             seq.emitted
                               ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
                               : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
@@ -203,7 +203,7 @@ export function DiagnosticsModal({
                           {seq.emitted ? "Emitted Scan" : "Dropped / Timeout"}
                         </span>
                       </div>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         Timings (ms between keys):{" "}
                         <span className="text-foreground">
                           {seq.timings.length > 0
@@ -211,7 +211,7 @@ export function DiagnosticsModal({
                             : "N/A"}
                         </span>
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         Recorded at {new Date(seq.timestamp).toLocaleTimeString()}
                       </div>
                     </div>

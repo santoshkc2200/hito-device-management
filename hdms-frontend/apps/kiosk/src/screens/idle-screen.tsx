@@ -52,13 +52,12 @@ export function IdleScreen({
 
           <h2
             data-testid="idle-prompt"
-            className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground leading-tight"
-            style={{ fontSize: "clamp(2.25rem, 5vw, 3.25rem)" }}
+            className="text-kiosk-prompt text-foreground leading-tight"
           >
             Scan your ID card or a device barcode
           </h2>
 
-          <p className="text-xl text-muted-foreground max-w-lg mx-auto">
+          <p className="text-kiosk-body text-muted-foreground max-w-lg mx-auto">
             Hold your staff ID card or device barcode directly under the optical scanner.
           </p>
         </div>

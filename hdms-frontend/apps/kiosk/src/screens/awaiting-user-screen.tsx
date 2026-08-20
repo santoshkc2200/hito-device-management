@@ -54,13 +54,12 @@ export function AwaitingUserScreen({
 
           <h2
             data-testid="awaiting-user-prompt"
-            className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground leading-tight"
-            style={{ fontSize: "clamp(2.25rem, 5vw, 3.25rem)" }}
+            className="text-kiosk-prompt text-foreground leading-tight"
           >
             Now scan your ID card
           </h2>
 
-          <p className="text-lg text-muted-foreground">
+          <p className="text-kiosk-body text-muted-foreground">
             Scan your staff badge to assign or return the scanned device.
           </p>
         </div>
@@ -71,16 +70,16 @@ export function AwaitingUserScreen({
             data-testid="pending-device-card"
             className="w-full rounded-2xl border-2 border-border bg-card p-6 shadow-sm text-left space-y-4"
           >
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-secondary text-secondary-foreground">
+            <div className="flex items-center justify-between border-b border-border pb-3 gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="p-3 rounded-xl bg-secondary text-secondary-foreground shrink-0">
                   <Laptop className="size-6 text-primary" />
                 </div>
-                <div>
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
+                <div className="min-w-0 flex-1">
+                  <span className="text-kiosk-badge uppercase tracking-wider text-muted-foreground">
                     Scanned Device
                   </span>
-                  <h3 className="text-2xl font-bold text-foreground">
+                  <h3 className="text-kiosk-heading text-foreground break-words">
                     {pendingDevice.name || "Equipment Item"}
                   </h3>
                 </div>
@@ -89,7 +88,7 @@ export function AwaitingUserScreen({
               {/* Status Badge: Never names the holder */}
               <div
                 data-testid="device-status-badge"
-                className={`rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${
+                className={`rounded-full px-3.5 py-1 text-kiosk-badge uppercase tracking-wider shrink-0 ${
                   isOnLoan
                     ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
                     : "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200"
@@ -104,7 +103,7 @@ export function AwaitingUserScreen({
                 <span className="text-muted-foreground block text-xs">Asset Tag</span>
                 <span
                   data-testid="pending-device-asset-tag"
-                  className="font-mono text-lg font-bold text-foreground tracking-wider"
+                  className="font-mono text-kiosk-mono-lg font-bold text-foreground tracking-wider"
                 >
                   {pendingDevice.assetTag}
                 </span>
@@ -112,7 +111,7 @@ export function AwaitingUserScreen({
               {(pendingDevice as any)?.category && (
                 <div>
                   <span className="text-muted-foreground block text-xs">Category</span>
-                  <span className="font-semibold text-foreground">
+                  <span className="font-semibold text-foreground text-base">
                     {(pendingDevice as any).category}
                   </span>
                 </div>

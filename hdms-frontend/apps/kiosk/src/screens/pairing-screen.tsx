@@ -120,11 +120,11 @@ export function PairingScreen({
         </div>
         <h1
           data-testid="pairing-title"
-          className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground"
+          className="text-kiosk-heading text-foreground"
         >
           This iPad is not yet paired
         </h1>
-        <p className="text-base text-muted-foreground max-w-md mx-auto">
+        <p className="text-kiosk-body text-muted-foreground max-w-md mx-auto">
           Ask an administrator for a 6-digit pairing code from the Admin Console.
         </p>
       </header>
@@ -147,7 +147,7 @@ export function PairingScreen({
                 <div
                   key={index}
                   data-testid={`pairing-digit-${index}`}
-                  className={`flex h-16 w-12 items-center justify-center rounded-xl border-2 font-mono text-3xl font-bold transition-all ${
+                  className={`flex h-16 w-12 items-center justify-center rounded-xl border-2 font-mono text-kiosk-mono-xl transition-all ${
                     char
                       ? "border-primary bg-primary/10 text-primary shadow-xs"
                       : isCurrent

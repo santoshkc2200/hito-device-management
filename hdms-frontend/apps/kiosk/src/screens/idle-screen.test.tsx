@@ -20,7 +20,7 @@ describe("IdleScreen", () => {
     expect(prompt).toHaveTextContent("Scan your ID card or a device barcode");
 
     // Must be styled with large text class
-    expect(prompt.className).toMatch(/text-4xl|text-5xl/);
+    expect(prompt.className).toMatch(/text-kiosk-prompt|text-4xl|text-5xl/);
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
