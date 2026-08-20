@@ -1,7 +1,7 @@
 import * as React from "react";
 import { AlertCircle, FileText, Info } from "lucide-react";
 import type { SessionMessage, MessageTone } from "@hdms/api-client";
-import type { KioskProblem } from "@/lib/problem";
+import { errorMessage, type KioskProblem } from "@/lib/problem";
 import { Button } from "@/components/ui/button";
 import { ScreenFrame } from "./screen-frame";
 
@@ -38,17 +38,21 @@ export function BlockedScreen({
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
+  const mappedProblem = problem ? errorMessage(problem) : null;
+
   const title =
     message?.title ||
+    mappedProblem?.title ||
     problem?.title ||
     "Action Not Completed";
 
   const detail =
     message?.detail ||
+    mappedProblem?.detail ||
     problem?.detail ||
     "This item cannot be issued right now. Please record your checkout on the paper register or contact the equipment administrator.";
 
-  const tone: MessageTone | string = message?.tone || "warning";
+  const tone: MessageTone | string = message?.tone || mappedProblem?.tone || "warning";
 
   // Pick non-crash tone styling (amber / slate / blue-grey)
   const isInfo = tone === "info" || tone === "neutral";

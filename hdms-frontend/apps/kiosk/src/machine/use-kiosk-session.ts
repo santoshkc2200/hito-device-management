@@ -18,6 +18,7 @@ import { parseProblem, type KioskProblem } from "../lib/problem";
 import { useScanRouter } from "../lib/scan";
 import { playFeedbackSound } from "../lib/audio";
 import { getOutcomeFeedback } from "../lib/feedback-config";
+import { useConnectivity, onKioskReconnect, resetConnectivityForTesting } from "../lib/connectivity";
 
 export interface UseKioskSessionOptions {
   actor?: SessionMachineActor;
@@ -39,6 +40,11 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const isMuted = config?.muteEnabled ?? false;
 
   const { subscribe: subscribeScan, getRouter } = useScanRouter();
+  const { isOffline } = useConnectivity();
+
+  const setIsOffline = React.useCallback((offline: boolean) => {
+    resetConnectivityForTesting(offline);
+  }, []);
 
   // Create or reuse actor
   const actor = React.useMemo(() => {
@@ -65,27 +71,21 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const [scannerReady, setScannerReady] = React.useState(true);
   const [isOutcomeDismissed, setIsOutcomeDismissed] = React.useState(false);
 
-  const [isOffline, setIsOffline] = React.useState<boolean>(() => {
-    if (typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
-      return !navigator.onLine;
-    }
-    return false;
-  });
-
-  // Track online/offline browser state
+  // Resync session on reconnect from offline
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+    return onKioskReconnect(() => {
+      const storedSessionId = getSessionId();
+      if (storedSessionId) {
+        void executeResume({ sessionId: storedSessionId }).then((session) => {
+          if (session) {
+            actor.send({ type: "RESTORE_SESSION", session });
+          } else {
+            actor.send({ type: "RESET" });
+          }
+        });
+      }
+    });
+  }, [actor]);
 
   const lastOutcome = snapshot.context.lastOutcome;
   const lastProblem = snapshot.context.lastProblem;
@@ -156,7 +156,10 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
           source,
         });
         actor.send({ type: "APPLY_SCAN_RESULT", result });
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
+          return;
+        }
         const problem = await parseProblem(err);
         actor.send({ type: "SET_PROBLEM", problem });
       }
@@ -217,7 +220,10 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
           loanId,
         });
         actor.send({ type: "APPLY_SCAN_RESULT", result });
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
+          return;
+        }
         const problem = await parseProblem(err);
         actor.send({ type: "SET_PROBLEM", problem });
       }

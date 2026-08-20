@@ -28,6 +28,10 @@ import {
   setSessionId,
   clearSessionId,
 } from "../lib/kiosk-config";
+import {
+  abortActiveSessionRequests,
+  getSessionAbortSignal,
+} from "../lib/api";
 import { parseProblem, type KioskProblem } from "../lib/problem";
 import {
   setup,
@@ -218,9 +222,14 @@ export function applyScanResultContext(
 }
 
 export async function executeScan(input: ScanActorInput): Promise<ScanResult> {
+  const signal = getSessionAbortSignal();
+  if (signal.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+
   let sid = input.sessionId;
   if (!sid) {
-    const createRes = await createSession();
+    const createRes = await createSession({ signal });
     if (createRes.error || !createRes.data) {
       const problem = await parseProblem(createRes.error);
       throw problem;
@@ -236,6 +245,7 @@ export async function executeScan(input: ScanActorInput): Promise<ScanResult> {
       source: input.source,
       scannedAt: new Date().toISOString(),
     },
+    signal,
   });
 
   if (res.error || !res.data) {
@@ -250,9 +260,11 @@ export async function executeScan(input: ScanActorInput): Promise<ScanResult> {
 export async function executeReturnLoan(
   input: ReturnLoanActorInput
 ): Promise<ScanResult> {
+  const signal = getSessionAbortSignal();
   const res = await returnSessionLoan({
     path: { id: input.sessionId },
     body: { loanId: input.loanId },
+    signal,
   });
 
   if (res.error || !res.data) {
@@ -265,6 +277,7 @@ export async function executeReturnLoan(
 }
 
 export async function executeClose(input: CloseActorInput): Promise<void> {
+  abortActiveSessionRequests();
   try {
     await closeSession({ path: { id: input.sessionId } });
   } finally {
@@ -273,6 +286,7 @@ export async function executeClose(input: CloseActorInput): Promise<void> {
 }
 
 export async function executeCancel(input: CancelActorInput): Promise<void> {
+  abortActiveSessionRequests();
   try {
     await cancelSession({ path: { id: input.sessionId } });
   } finally {
@@ -345,6 +359,7 @@ export function buildKioskSessionMachine(
   const statesConfig: Record<string, any> = {};
 
   const clearSessionContext = (context: SessionContext): SessionContext => {
+    abortActiveSessionRequests();
     clearSessionId();
     return {
       ...context,
@@ -627,7 +642,8 @@ export const sessionMachine = buildKioskSessionMachine();
 export type SessionMachineActor = ActorRefFrom<typeof sessionMachine>;
 
 /**
- * Attaches visibility change listener to reconcile expiry on app foregrounding.
+ * Attaches visibility change listener to reconcile expiry on app foregrounding,
+ * and reconcile full session from server if app was hidden for > 30 seconds.
  */
 export function setupVisibilityReconciliation(
   actor: { send: (event: SessionMachineEvent) => void }
@@ -635,9 +651,28 @@ export function setupVisibilityReconciliation(
   if (typeof document === "undefined") {
     return () => {};
   }
+  let hiddenAt: number | null = null;
+
   const handler = () => {
-    if (document.visibilityState === "visible") {
-      actor.send({ type: "RECONCILE_EXPIRY" });
+    if (document.visibilityState === "hidden") {
+      hiddenAt = Date.now();
+    } else if (document.visibilityState === "visible") {
+      const now = Date.now();
+      const hiddenDuration = hiddenAt !== null ? now - hiddenAt : 0;
+      hiddenAt = null;
+
+      const sid = getSessionId();
+      if (hiddenDuration > 30000 && sid) {
+        void executeResume({ sessionId: sid }).then((session) => {
+          if (session) {
+            actor.send({ type: "RESTORE_SESSION", session });
+          } else {
+            actor.send({ type: "RESET" });
+          }
+        });
+      } else {
+        actor.send({ type: "RECONCILE_EXPIRY" });
+      }
     }
   };
   document.addEventListener("visibilitychange", handler);

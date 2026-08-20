@@ -7,6 +7,7 @@ export interface CountdownRingProps {
   totalDurationSeconds?: number;
   className?: string;
   showAlways?: boolean;
+  isSuspended?: boolean;
 }
 
 export type CountdownTimerProps = CountdownRingProps;
@@ -24,19 +25,37 @@ export function CountdownRing({
   thresholdSeconds = 8,
   className = "",
   showAlways = false,
+  isSuspended = false,
 }: CountdownRingProps) {
   const [, setTick] = React.useState(0);
+  const [prevSuspended, setPrevSuspended] = React.useState(isSuspended);
+  const [frozenSeconds, setFrozenSeconds] = React.useState<number | null>(null);
+
+  if (isSuspended !== prevSuspended) {
+    setPrevSuspended(isSuspended);
+    if (isSuspended) {
+      setFrozenSeconds(expiresAt ? calculateDiff(expiresAt) : null);
+    } else {
+      setFrozenSeconds(null);
+    }
+  }
 
   React.useEffect(() => {
-    if (!expiresAt) return;
+    if (!expiresAt || isSuspended) {
+      return;
+    }
 
     const interval = setInterval(() => {
       setTick((t) => t + 1);
     }, 250);
     return () => clearInterval(interval);
-  }, [expiresAt]);
+  }, [expiresAt, isSuspended]);
 
-  const currentSeconds = expiresAt ? calculateDiff(expiresAt) : null;
+  const currentSeconds = isSuspended
+    ? frozenSeconds ?? (expiresAt ? calculateDiff(expiresAt) : null)
+    : expiresAt
+    ? calculateDiff(expiresAt)
+    : null;
 
   // Only render when ≤ thresholdSeconds (defaults to 8s) and > 0, unless showAlways is set
   if (currentSeconds === null || currentSeconds <= 0) {

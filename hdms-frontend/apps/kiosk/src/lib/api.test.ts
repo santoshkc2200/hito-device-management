@@ -1,14 +1,27 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
   deriveIdempotencyKey,
   getCurrentScanSequence,
   getNextScanSequence,
   resetScanSequence,
+  resilientFetch,
+  resetKioskApiForTesting,
+  abortActiveSessionRequests,
+  getSessionAbortSignal,
 } from "./api";
+import { isKioskOffline, resetConnectivityForTesting } from "./connectivity";
 
-describe("api library", () => {
+describe("api library & resilience", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     resetScanSequence();
+    resetKioskApiForTesting();
+    resetConnectivityForTesting(false);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("idempotency key is stable across retries of the same scan", () => {
@@ -45,5 +58,102 @@ describe("api library", () => {
     expect(getCurrentScanSequence()).toBe(2);
     resetScanSequence();
     expect(getCurrentScanSequence()).toBe(0);
+  });
+
+  it("retriesNetworkErrorsThreeTimesWithBackoff", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount += 1;
+      if (callCount <= 3) {
+        // Fail first 3 attempts with network error
+        throw new TypeError("Failed to fetch");
+      }
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    });
+
+    const fetchPromise = resilientFetch("https://api.test/v1/healthz");
+
+    // Advance through the 3 retry delays
+    // Attempt 1 fails -> delay ~1000ms
+    await vi.advanceTimersByTimeAsync(1500);
+    // Attempt 2 fails -> delay ~2000ms
+    await vi.advanceTimersByTimeAsync(2500);
+    // Attempt 3 fails -> delay ~4000ms
+    await vi.advanceTimersByTimeAsync(4500);
+
+    const response = await fetchPromise;
+    expect(response.status).toBe(200);
+    expect(callCount).toBe(4); // 1 initial + 3 retries
+    expect(isKioskOffline()).toBe(false);
+  });
+
+  it("doesNotRetryOn400", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount += 1;
+      return new Response(JSON.stringify({ type: "invalid-token-format" }), {
+        status: 400,
+        statusText: "Bad Request",
+      });
+    });
+
+    const response = await resilientFetch("https://api.test/v1/sessions/123/scan");
+    expect(response.status).toBe(400);
+    // MUST NOT retry on 400
+    expect(callCount).toBe(1);
+  });
+
+  it("retryReusesTheSameIdempotencyKey — ensures retries cannot duplicate loans", async () => {
+    const capturedIdempotencyKeys: string[] = [];
+    let callCount = 0;
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (req) => {
+      callCount += 1;
+      const request = req as Request;
+      capturedIdempotencyKeys.push(request.headers.get("Idempotency-Key") ?? "");
+
+      if (callCount < 3) {
+        // Return 503 Service Unavailable for first 2 attempts
+        return new Response(JSON.stringify({ type: "not-ready" }), { status: 503 });
+      }
+      return new Response(JSON.stringify({ outcome: { kind: "borrowed" } }), { status: 200 });
+    });
+
+    const req = new Request("https://api.test/v1/sessions/123/scan", {
+      method: "POST",
+      headers: {
+        "Idempotency-Key": "kiosk-1:sess-abc:1",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token: "HD-U-12345" }),
+    });
+
+    const fetchPromise = resilientFetch(req);
+
+    // Advance past retry backoffs
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(3000);
+
+    const response = await fetchPromise;
+    expect(response.status).toBe(200);
+    expect(callCount).toBe(3);
+
+    // Every attempt MUST carry the identical Idempotency-Key header
+    expect(capturedIdempotencyKeys).toEqual([
+      "kiosk-1:sess-abc:1",
+      "kiosk-1:sess-abc:1",
+      "kiosk-1:sess-abc:1",
+    ]);
+  });
+
+  it("aborts active session requests when session ends or resets", async () => {
+    const signal = getSessionAbortSignal();
+    expect(signal.aborted).toBe(false);
+
+    abortActiveSessionRequests();
+    expect(signal.aborted).toBe(true);
+
+    const nextSignal = getSessionAbortSignal();
+    expect(nextSignal.aborted).toBe(false);
   });
 });

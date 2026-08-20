@@ -1,20 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { fromProblemJson, type KnownProblemType, parseProblem } from "./problem";
+import { describe, expect, it, vi } from "vitest";
+import {
+  fromProblemJson,
+  type KnownProblemType,
+  parseProblem,
+  errorMessage,
+  KNOWN_TYPES,
+  PROBLEM_CATALOGUE,
+} from "./problem";
 
 describe("problem parsing", () => {
-  const knownTypes: KnownProblemType[] = [
-    "session-expired",
-    "session-conflict",
-    "device-on-loan",
-    "overlapping-custody",
-    "backdated-not-permitted",
-    "device-unavailable",
-    "user-suspended",
-    "idempotency-mismatch",
-    "invalid-token-format",
-    "rate-limited",
-    "pairing-code-invalid",
-  ];
+  const knownTypes: KnownProblemType[] = Array.from(KNOWN_TYPES);
 
   it.each(knownTypes)("maps known type %s to its discriminated variant", (kind) => {
     const raw = {
@@ -38,6 +33,21 @@ describe("problem parsing", () => {
     }
   });
 
+  it("everyProblemTypeHasACatalogueEntry — exhaustiveness over the generated union", () => {
+    for (const kind of KNOWN_TYPES) {
+      const entry = PROBLEM_CATALOGUE[kind];
+      expect(entry).toBeDefined();
+      expect(entry.title).toBeTruthy();
+      expect(entry.detail).toBeTruthy();
+      expect(["error", "warning", "info"]).toContain(entry.tone);
+
+      // Verify no technical jargon in user-facing message
+      expect(entry.title).not.toMatch(/500|502|503|504|400|401|403|404|409|410|422|429/);
+      expect(entry.title).not.toMatch(/https?:\/\//i);
+      expect(entry.title).not.toMatch(/RFC|stack|trace|exception|null|undefined/i);
+    }
+  });
+
   it("maps unknown type to unknown-problem with support code and never throws", () => {
     const raw = {
       type: "https://hdms.hito.local/errors/unrecognized-custom-error",
@@ -51,6 +61,29 @@ describe("problem parsing", () => {
     expect(parsed.supportCode).toBeTruthy();
     expect(typeof parsed.supportCode).toBe("string");
     expect(parsed.supportCode.length).toBeGreaterThan(0);
+  });
+
+  it("errorMessage maps unknown problem to safe support reference and logs warning", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const unknownProblem = fromProblemJson({
+      type: "https://hdms.hito.local/errors/mystery-system-glitch",
+      title: "Internal Failure",
+      status: 500,
+      requestId: "REQ-XYZ-123",
+    });
+
+    const msg = errorMessage(unknownProblem);
+    expect(msg.title).toBe("Unable to Complete Request");
+    expect(msg.detail).toContain("REQ-XYZ-123");
+    expect(msg.tone).toBe("error");
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[HDMS Problem] Unrecognised problem type"),
+      unknownProblem
+    );
+
+    warnSpy.mockRestore();
   });
 
   it("generates support code when requestId is absent", () => {
@@ -112,3 +145,4 @@ describe("problem parsing", () => {
     expect(parsedNull.status).toBe(500);
   });
 });
+
