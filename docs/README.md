@@ -42,7 +42,7 @@ Each phase has its own plan with tasks, deliverables and exit criteria.
 | 1 | [Identity, catalog & credentials](phases/phase-1-identity-catalog-credentials.md) | Staff registration, devices, barcode issuing and printing | ~2 wk |
 | 2 | [Lending & checkout engine](phases/phase-2-lending-checkout.md) · [sub-phases](phases/phase-2/) | Loans, the scan session state machine | ~2 wk |
 | 3 | [Kiosk application](phases/phase-3-kiosk-app.md) · [sub-phases](phases/phase-3/) | iPad PWA, scanner + camera, borrow/return | ~2 wk |
-| 4 | [Admin console](phases/phase-4-admin-console.md) | Registration, paper backfill, monitoring, reissue, reports | ~2–3 wk |
+| 4 | [Admin console](phases/phase-4-admin-console.md) · [sub-phases](phases/phase-4/) | Registration, paper backfill, monitoring, reissue, reports | ~2–3 wk |
 | 5 | [Hardening & pilot](phases/phase-5-hardening-pilot.md) | Security, backups, offline, UAT, rollout | ~2 wk |
 | 6 | [Extensibility & roadmap](phases/phase-6-extensibility.md) | **Adopt the RFID/NFC ID cards**, notifications, multi-location | ongoing |
 

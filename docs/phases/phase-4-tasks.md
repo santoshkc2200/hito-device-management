@@ -1,5 +1,11 @@
 # Phase 4 — task breakdown
 
+> **Superseded by [`phase-4/`](phase-4/).** This page was the first pass and is
+> kept for its "what already exists" and "gaps" survey, which the folder's
+> [README](phase-4/README.md) carries forward. The unit numbering is identical;
+> where the two disagree, the folder is authoritative, because it is the one the
+> sub-phase files, the migration table and the exit criteria are written against.
+
 Working breakdown of [phase-4-admin-console.md](phase-4-admin-console.md) into
 commit-sized units, in the same `phase-N.x` convention used by Phases 2 and 3
 (`feat(phase-4.1a): ...`).

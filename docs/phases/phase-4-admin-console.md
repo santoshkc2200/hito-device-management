@@ -4,6 +4,12 @@
 needs a developer or a SQL client.
 **Duration:** ~2 weeks · **Depends on:** Phase 2 (frozen contract) · **Parallel with:** Phase 3
 
+**Detailed breakdown:** [`phase-4/`](phase-4/) splits the tasks below into twelve
+sub-phases and forty-two executable units, each with its file paths, tests and
+exit criteria, plus the build order that puts registration ahead of the parent's
+numbering and the three tracks that make the two-week estimate achievable. Start
+there; this page stays the summary.
+
 > This console is now on the critical path for onboarding every borrower — the
 > kiosk cannot register anyone. The registration workflow (4.4) is the highest
 > priority item in the phase, not a routine CRUD screen.
