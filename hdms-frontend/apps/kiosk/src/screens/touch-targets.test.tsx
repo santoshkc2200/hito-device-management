@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { IdleScreen } from "./idle-screen";
 import { AwaitingUserScreen } from "./awaiting-user-screen";
 import { AwaitingDeviceScreen } from "./awaiting-device-screen";
+import { SuccessScreen } from "./success-screen";
+import { BlockedScreen } from "./blocked-screen";
+import { OfflineScreen } from "./offline-screen";
 
 describe("Touch Target Audit (WCAG 2.2 / iPad Kiosk Sizing)", () => {
   const checkInteractiveElementsTouchTargets = (container: HTMLElement) => {
@@ -101,5 +104,51 @@ describe("Touch Target Audit (WCAG 2.2 / iPad Kiosk Sizing)", () => {
 
     const returnButton = container.querySelector('[data-testid="return-button-loan-1"]');
     expect(returnButton?.className).toContain("min-h-12"); // >= 48px
+  });
+
+  it("SuccessScreen satisfies touch-target requirements (Done and Scan Another >= 64px)", () => {
+    const { container } = render(
+      <SuccessScreen
+        kind="borrowed"
+        onDone={vi.fn()}
+        onScanAnother={vi.fn()}
+        onToggleCamera={vi.fn()}
+        onOpenDiagnostics={vi.fn()}
+      />
+    );
+
+    checkInteractiveElementsTouchTargets(container);
+
+    const doneButton = container.querySelector('[data-testid="done-success-button"]');
+    expect(doneButton?.className).toContain("min-h-16");
+
+    const scanAnother = container.querySelector('[data-testid="scan-another-button"]');
+    expect(scanAnother?.className).toContain("min-h-16");
+  });
+
+  it("BlockedScreen satisfies touch-target requirements (OK >= 64px)", () => {
+    const { container } = render(
+      <BlockedScreen
+        onDismiss={vi.fn()}
+        onToggleCamera={vi.fn()}
+        onOpenDiagnostics={vi.fn()}
+      />
+    );
+
+    checkInteractiveElementsTouchTargets(container);
+
+    const okButton = container.querySelector('[data-testid="ok-blocked-button"]');
+    expect(okButton?.className).toContain("min-h-16");
+  });
+
+  it("OfflineScreen satisfies touch-target requirements", () => {
+    const { container } = render(
+      <OfflineScreen
+        onToggleCamera={vi.fn()}
+        onOpenDiagnostics={vi.fn()}
+      />
+    );
+
+    checkInteractiveElementsTouchTargets(container);
   });
 });

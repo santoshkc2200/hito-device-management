@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useSyncExternalStore } from "react";
 import { createActor } from "xstate";
-import type { ScanSource } from "@hdms/api-client";
+import type { ScanSource, Outcome, SessionMessage } from "@hdms/api-client";
 import type { SessionState } from "@hdms/domain";
 import {
   sessionMachine,
@@ -14,11 +14,20 @@ import {
   type SessionMachineActor,
 } from "./session-machine";
 import { getKioskConfig, getSessionId } from "../lib/kiosk-config";
-import { parseProblem } from "../lib/problem";
+import { parseProblem, type KioskProblem } from "../lib/problem";
 import { useScanRouter } from "../lib/scan";
 
 export interface UseKioskSessionOptions {
   actor?: SessionMachineActor;
+}
+
+export type OutcomeViewType = "success" | "blocked" | null;
+
+export interface ActiveOutcomeView {
+  type: OutcomeViewType;
+  outcome?: Outcome | null;
+  message?: SessionMessage | null;
+  problem?: KioskProblem | null;
 }
 
 export function useKioskSession(options?: UseKioskSessionOptions) {
@@ -50,6 +59,43 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = React.useState(false);
   const [scannerFresh, setScannerFresh] = React.useState(true);
   const [scannerReady, setScannerReady] = React.useState(true);
+  const [isOutcomeDismissed, setIsOutcomeDismissed] = React.useState(false);
+  const [isOffline, setIsOffline] = React.useState<boolean>(() => {
+    if (typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
+      return !navigator.onLine;
+    }
+    return false;
+  });
+
+  // Track online/offline browser state
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Reset outcome dismissed flag whenever a new outcome or problem arrives
+  const lastOutcomeRef = React.useRef(snapshot.context.lastOutcome);
+  const lastProblemRef = React.useRef(snapshot.context.lastProblem);
+
+  React.useEffect(() => {
+    if (
+      snapshot.context.lastOutcome !== lastOutcomeRef.current ||
+      snapshot.context.lastProblem !== lastProblemRef.current
+    ) {
+      lastOutcomeRef.current = snapshot.context.lastOutcome;
+      lastProblemRef.current = snapshot.context.lastProblem;
+      setIsOutcomeDismissed(false);
+    }
+  }, [snapshot.context.lastOutcome, snapshot.context.lastProblem]);
 
   // Resume stored session on mount if one exists
   React.useEffect(() => {
@@ -71,6 +117,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   // Handle hardware scan and camera scan routing
   const handleScan = React.useCallback(
     async (token: string, source: ScanSource = "scanner") => {
+      setIsOutcomeDismissed(false);
       try {
         const result = await executeScan({
           sessionId: snapshot.context.sessionId,
@@ -132,6 +179,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     async (loanId: string) => {
       const sid = snapshot.context.sessionId;
       if (!sid) return;
+      setIsOutcomeDismissed(false);
 
       try {
         const result = await executeReturnLoan({
@@ -153,6 +201,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
       void executeClose({ sessionId: sid });
     }
     actor.send({ type: "CLOSE" });
+    setIsOutcomeDismissed(true);
   }, [actor, snapshot.context.sessionId]);
 
   const handleCancel = React.useCallback(async () => {
@@ -161,7 +210,12 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
       void executeCancel({ sessionId: sid });
     }
     actor.send({ type: "CANCEL" });
+    setIsOutcomeDismissed(true);
   }, [actor, snapshot.context.sessionId]);
+
+  const dismissOutcome = React.useCallback(() => {
+    setIsOutcomeDismissed(true);
+  }, []);
 
   const cameraSource = React.useMemo(() => {
     try {
@@ -181,6 +235,42 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     }
   }, [getRouter]);
 
+  // Derive transient outcome view
+  const outcomeView = React.useMemo<ActiveOutcomeView>(() => {
+    if (isOutcomeDismissed) {
+      return { type: null };
+    }
+
+    const { lastOutcome, lastMessage, lastProblem } = snapshot.context;
+
+    if (lastOutcome?.kind === "borrowed" || lastOutcome?.kind === "returned") {
+      return {
+        type: "success",
+        outcome: lastOutcome,
+        message: lastMessage,
+      };
+    }
+
+    if (lastOutcome?.kind === "rejected") {
+      return {
+        type: "blocked",
+        outcome: lastOutcome,
+        message: lastMessage,
+        problem: lastProblem,
+      };
+    }
+
+    if (lastProblem && lastProblem.kind !== "session-expired") {
+      return {
+        type: "blocked",
+        problem: lastProblem,
+        message: lastMessage,
+      };
+    }
+
+    return { type: null };
+  }, [isOutcomeDismissed, snapshot.context]);
+
   return {
     state,
     context: snapshot.context,
@@ -189,10 +279,14 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     scannerFresh,
     isCameraOpen,
     isDiagnosticsOpen,
+    isOffline,
+    outcomeView,
     cameraSource,
     hidSource,
     setIsCameraOpen,
     setIsDiagnosticsOpen,
+    setIsOffline,
+    dismissOutcome,
     scan: handleScan,
     returnLoan: handleReturnLoan,
     close: handleClose,
