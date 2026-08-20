@@ -13,6 +13,7 @@ export interface AwaitingUserScreenProps {
   onCancel: () => void;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
+  onOpenManualEntry?: () => void;
 }
 
 export function AwaitingUserScreen({
@@ -25,6 +26,7 @@ export function AwaitingUserScreen({
   onCancel,
   onToggleCamera,
   onOpenDiagnostics,
+  onOpenManualEntry,
 }: AwaitingUserScreenProps) {
   const deviceStatus = (pendingDevice as any)?.status;
   const isOnLoan = deviceStatus === "on_loan";
@@ -39,7 +41,9 @@ export function AwaitingUserScreen({
       totalDurationSeconds={45}
       onToggleCamera={onToggleCamera}
       onOpenDiagnostics={onOpenDiagnostics}
+      onOpenManualEntry={onOpenManualEntry}
     >
+
       <div className="flex flex-col items-center text-center space-y-8 py-4 max-w-2xl w-full">
         {/* Main Directive Prompt: ≥ 36px font-size */}
         <div className="space-y-3">

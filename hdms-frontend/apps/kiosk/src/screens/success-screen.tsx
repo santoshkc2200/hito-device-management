@@ -19,6 +19,7 @@ export interface SuccessScreenProps {
   scannerFresh?: boolean;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
+  onOpenManualEntry?: () => void;
 }
 
 export function SuccessScreen({
@@ -35,6 +36,7 @@ export function SuccessScreen({
   scannerFresh = true,
   onToggleCamera,
   onOpenDiagnostics,
+  onOpenManualEntry,
 }: SuccessScreenProps) {
   const isReturn = kind === "returned";
   const dueLine = formatHumanDueDate(dueAt);
@@ -60,7 +62,9 @@ export function SuccessScreen({
       scannerFresh={scannerFresh}
       onToggleCamera={onToggleCamera}
       onOpenDiagnostics={onOpenDiagnostics}
+      onOpenManualEntry={onOpenManualEntry}
     >
+
       <div
         data-testid="success-screen"
         className="flex flex-col items-center justify-between h-full w-full max-w-3xl space-y-6 py-4 text-center"

@@ -6,6 +6,7 @@ export interface OfflineScreenProps {
   supportCode?: string | null;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
+  onOpenManualEntry?: () => void;
 }
 
 export function OfflineScreen({
@@ -13,6 +14,7 @@ export function OfflineScreen({
   supportCode = "KIOSK-01",
   onToggleCamera,
   onOpenDiagnostics,
+  onOpenManualEntry,
 }: OfflineScreenProps) {
   return (
     <ScreenFrame
@@ -22,7 +24,9 @@ export function OfflineScreen({
       scannerFresh={false}
       onToggleCamera={onToggleCamera}
       onOpenDiagnostics={onOpenDiagnostics}
+      onOpenManualEntry={onOpenManualEntry}
     >
+
       <div
         data-testid="offline-screen"
         className="flex flex-col items-center justify-between h-full w-full max-w-3xl space-y-8 py-6 text-center"

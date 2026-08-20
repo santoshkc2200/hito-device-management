@@ -55,7 +55,8 @@ describe("ScanRouter", () => {
     source.simulateScan(VALID_USER_TOKEN);
 
     expect(events).toHaveLength(2);
-    expect(events[0].kind).toBe("scan");
+    const firstEvent = events[0];
+    expect(firstEvent?.kind).toBe("scan");
     expect(events[1]).toEqual({
       kind: "duplicate",
       token: VALID_USER_TOKEN,
@@ -92,10 +93,11 @@ describe("ScanRouter", () => {
     source.simulateScan(VALID_USER_TOKEN);
 
     expect(events).toHaveLength(2);
-    expect(events[0].kind).toBe("scan");
-    expect(events[0].kind === "scan" && events[0].scan.token).toBe(
-      VALID_USER_TOKEN
-    );
+    const first = events[0];
+    expect(first?.kind).toBe("scan");
+    if (first && first.kind === "scan") {
+      expect(first.scan.token).toBe(VALID_USER_TOKEN);
+    }
     expect(events[1]).toEqual({
       kind: "duplicate",
       token: VALID_USER_TOKEN,
@@ -147,8 +149,14 @@ describe("ScanRouter", () => {
 
     const scans = events.filter((e) => e.kind === "scan");
     expect(scans).toHaveLength(2);
-    expect(scans[0].kind === "scan" && scans[0].scan.source).toBe("scanner");
-    expect(scans[1].kind === "scan" && scans[1].scan.source).toBe("camera");
+    const scan0 = scans[0];
+    const scan1 = scans[1];
+    if (scan0 && scan0.kind === "scan") {
+      expect(scan0.scan.source).toBe("scanner");
+    }
+    if (scan1 && scan1.kind === "scan") {
+      expect(scan1.scan.source).toBe("camera");
+    }
   });
 
   it("aThrowingSourceIsIsolated", async () => {
@@ -174,8 +182,12 @@ describe("ScanRouter", () => {
     goodSource.simulateScan(VALID_USER_TOKEN);
     const scans = events.filter((e) => e.kind === "scan");
     expect(scans).toHaveLength(1);
-    expect(scans[0].kind === "scan" && scans[0].scan.source).toBe("good");
+    const scan0 = scans[0];
+    if (scan0 && scan0.kind === "scan") {
+      expect(scan0.scan.source).toBe("good");
+    }
   });
+
 
   it("stopDetachesEverySource", async () => {
     const s1 = new FakeSource("s1", "S1");

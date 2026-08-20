@@ -23,6 +23,7 @@ export interface AwaitingDeviceScreenProps {
   onClose: () => void;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
+  onOpenManualEntry?: () => void;
 }
 
 export function AwaitingDeviceScreen({
@@ -37,7 +38,9 @@ export function AwaitingDeviceScreen({
   onClose,
   onToggleCamera,
   onOpenDiagnostics,
+  onOpenManualEntry,
 }: AwaitingDeviceScreenProps) {
+
   // Track which loan is currently in confirmation state for two-tap return
   const [confirmingLoanId, setConfirmingLoanId] = React.useState<string | null>(null);
   const [currentTime, setCurrentTime] = React.useState<number>(() => Date.now());
@@ -108,7 +111,9 @@ export function AwaitingDeviceScreen({
       totalDurationSeconds={25}
       onToggleCamera={onToggleCamera}
       onOpenDiagnostics={onOpenDiagnostics}
+      onOpenManualEntry={onOpenManualEntry}
     >
+
       <div className="flex flex-col h-full w-full max-w-3xl space-y-6 py-2">
         {/* Sticky/Fixed Directive & Greeting Header Area */}
         <div className="space-y-4 text-center border-b border-border pb-4">

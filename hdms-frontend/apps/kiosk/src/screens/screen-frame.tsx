@@ -12,6 +12,7 @@ export interface ScreenFrameProps {
   totalDurationSeconds?: number;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
+  onOpenManualEntry?: () => void;
   children: React.ReactNode;
   className?: string;
 }
@@ -25,9 +26,27 @@ export function ScreenFrame({
   totalDurationSeconds,
   onToggleCamera,
   onOpenDiagnostics,
+  onOpenManualEntry,
   children,
   className = "",
 }: ScreenFrameProps) {
+  const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePointerDown = () => {
+    if (onOpenManualEntry) {
+      longPressTimerRef.current = setTimeout(() => {
+        onOpenManualEntry();
+      }, 600);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
   return (
     <div
       data-testid="screen-frame"
@@ -37,11 +56,27 @@ export function ScreenFrame({
       <header className="flex w-full items-center justify-between border-b border-border bg-card px-6 py-4 shadow-xs">
         {/* Left: Kiosk Identification & Status */}
         <div className="flex items-center gap-4">
-          <div>
+          <div
+            data-testid="kiosk-name-heading"
+            className="min-h-12 cursor-pointer select-none flex flex-col justify-center"
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+            onDoubleClick={() => onOpenManualEntry?.()}
+            role="button"
+            tabIndex={0}
+            aria-label={`${kioskName} (long-press for attendant entry)`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                onOpenManualEntry?.();
+              }
+            }}
+          >
             <h1 className="text-xl font-bold tracking-tight text-foreground">
               {kioskName}
             </h1>
             <div className="flex items-center gap-2 pt-0.5 text-xs">
+
               <span
                 data-testid="scanner-status-dot"
                 className={`inline-block size-2.5 rounded-full ${
@@ -66,6 +101,7 @@ export function ScreenFrame({
             </div>
           </div>
         </div>
+
 
         {/* Center: Countdown Timer Slot */}
         <div className="flex items-center justify-center">

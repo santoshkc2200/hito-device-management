@@ -9,6 +9,7 @@ import { BlockedScreen } from "@/screens/blocked-screen";
 import { OfflineScreen } from "@/screens/offline-screen";
 import { CameraOverlay } from "@/components/camera-overlay";
 import { DiagnosticsModal } from "@/components/diagnostics-modal";
+import { AttendantModal } from "@/components/attendant-modal";
 
 export function KioskApp() {
   const {
@@ -19,12 +20,15 @@ export function KioskApp() {
     scannerFresh,
     isCameraOpen,
     isDiagnosticsOpen,
+    isAttendantOpen,
     isOffline,
     outcomeView,
     cameraSource,
     hidSource,
+    manualSource,
     setIsCameraOpen,
     setIsDiagnosticsOpen,
+    setIsAttendantOpen,
     dismissOutcome,
     scan,
     returnLoan,
@@ -41,6 +45,7 @@ export function KioskApp() {
           supportCode={context.supportCode}
           onToggleCamera={() => setIsCameraOpen(true)}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+          onOpenManualEntry={() => setIsAttendantOpen(true)}
         />
       ) : outcomeView.type === "success" && outcomeView.outcome ? (
         /* 2. Success Outcome Screen */
@@ -58,6 +63,7 @@ export function KioskApp() {
           scannerFresh={scannerFresh}
           onToggleCamera={() => setIsCameraOpen(true)}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+          onOpenManualEntry={() => setIsAttendantOpen(true)}
         />
       ) : outcomeView.type === "blocked" ? (
         /* 3. Blocked / Refusal Outcome Screen */
@@ -71,6 +77,7 @@ export function KioskApp() {
           scannerFresh={scannerFresh}
           onToggleCamera={() => setIsCameraOpen(true)}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+          onOpenManualEntry={() => setIsAttendantOpen(true)}
         />
       ) : (
         /* 4. Primary Interactive Screens */
@@ -83,6 +90,7 @@ export function KioskApp() {
               scannerFresh={scannerFresh}
               onToggleCamera={() => setIsCameraOpen(true)}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+              onOpenManualEntry={() => setIsAttendantOpen(true)}
             />
           )}
 
@@ -97,6 +105,7 @@ export function KioskApp() {
               onCancel={cancel}
               onToggleCamera={() => setIsCameraOpen(true)}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+              onOpenManualEntry={() => setIsAttendantOpen(true)}
             />
           )}
 
@@ -113,6 +122,7 @@ export function KioskApp() {
               onClose={close}
               onToggleCamera={() => setIsCameraOpen(true)}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+              onOpenManualEntry={() => setIsAttendantOpen(true)}
             />
           )}
         </>
@@ -134,6 +144,16 @@ export function KioskApp() {
         onClose={() => setIsDiagnosticsOpen(false)}
         scannerSource={hidSource}
       />
+
+      {/* Attendant Manual Entry PIN Gate & Crockford Keypad Modal */}
+      <AttendantModal
+        isOpen={isAttendantOpen}
+        onClose={() => setIsAttendantOpen(false)}
+        manualSource={manualSource}
+        onScan={(token) => {
+          void scan(token, "manual");
+        }}
+      />
     </>
   );
 }
@@ -143,3 +163,4 @@ export const indexRoute = createRoute({
   path: "/",
   component: KioskApp,
 });
+

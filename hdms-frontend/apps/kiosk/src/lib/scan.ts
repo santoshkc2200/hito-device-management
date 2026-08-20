@@ -3,37 +3,12 @@ import {
   ScanRouter,
   HidWedgeSource,
   CameraSource,
+  ManualSource,
   type ScanEvent,
   type ScanSource,
   type Unsubscribe,
 } from "@hdms/scan";
 import { getKioskConfig, type ScanSourceType } from "./kiosk-config";
-
-/**
- * Placeholder source implementation for uninitialized hardware sources.
- * Real source (ManualSource) will be plugged in during subphase 3.4.
- */
-class PlaceholderScanSource implements ScanSource {
-  readonly id: string;
-  readonly label: string;
-
-  constructor(id: string, label: string) {
-    this.id = id;
-    this.label = label;
-  }
-
-  async isAvailable(): Promise<boolean> {
-    return false;
-  }
-
-  async start(_emit: (rawOrScan: string) => void): Promise<void> {
-    // No-op until concrete source is wired in
-  }
-
-  async stop(): Promise<void> {
-    // No-op
-  }
-}
 
 function mapConfigTypeToSource(type: ScanSourceType): ScanSource {
   switch (type) {
@@ -42,9 +17,10 @@ function mapConfigTypeToSource(type: ScanSourceType): ScanSource {
     case "camera":
       return new CameraSource();
     case "manual":
-      return new PlaceholderScanSource("manual", "Attendant Keypad");
+      return new ManualSource();
   }
 }
+
 
 export interface UseScanRouterResult {
   subscribe: (listener: (event: ScanEvent) => void) => Unsubscribe;

@@ -27,10 +27,13 @@ export type {
   CameraSourceOptions,
   SupportedBarcodeFormat,
 } from "./camera";
+export { ManualSource } from "./manual";
+export type { ManualSourceOptions } from "./manual";
 export type {
   Scan,
   ScanSource,
   ScanEvent,
   Unsubscribe,
 } from "./types";
+
 

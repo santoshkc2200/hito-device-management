@@ -20,12 +20,14 @@
 export const NAMESPACE = "HD";
 
 /** Crockford Base32: excludes I, L, O, U to avoid look-alike confusion. */
-const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+export const CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+export const ALPHABET = CROCKFORD_ALPHABET;
 
 /** Adds the five check-only symbols so the check digit spans mod 37. */
-const CHECK_ALPHABET = ALPHABET + "*~$=U";
+export const CHECK_ALPHABET = ALPHABET + "*~$=U";
 
-const PAYLOAD_LENGTH = 10;
+export const PAYLOAD_LENGTH = 10;
+
 
 export type SubjectHint = "U" | "D";
 
@@ -124,6 +126,50 @@ export function validateToken(raw: string): boolean {
     return false;
   }
 }
+
+export interface TokenInspection {
+  isValid: boolean;
+  token?: Token;
+  reason?: ParseErrorReason;
+  errorMessage?: string;
+}
+
+/**
+ * Inspects a token input and returns structural / checksum validation details
+ * with friendly localized guidance suitable for attendant keypads.
+ */
+export function inspectToken(raw: string): TokenInspection {
+  try {
+    const token = parseToken(raw);
+    return { isValid: true, token };
+  } catch (err) {
+    if (err instanceof TokenParseError) {
+      let errorMessage = err.message;
+      if (err.reason === "invalid-checksum") {
+        errorMessage = "That code doesn't look right — check the last character.";
+      } else if (err.reason === "invalid-payload") {
+        errorMessage = "Token payload must be 10 characters from the Crockford Base32 alphabet.";
+      } else if (err.reason === "invalid-format") {
+        errorMessage = "Format must be HD-[U|D]-[10 characters]-[check digit].";
+      } else if (err.reason === "invalid-hint") {
+        errorMessage = "Invalid subject hint: must be U (user) or D (device).";
+      } else if (err.reason === "invalid-namespace") {
+        errorMessage = "Invalid prefix: must start with HD-.";
+      }
+      return {
+        isValid: false,
+        reason: err.reason,
+        errorMessage,
+      };
+    }
+    return {
+      isValid: false,
+      reason: "invalid-format",
+      errorMessage: "Invalid token structure.",
+    };
+  }
+}
+
 
 function isValidPayloadCharset(payload: string): boolean {
   for (const ch of payload) {

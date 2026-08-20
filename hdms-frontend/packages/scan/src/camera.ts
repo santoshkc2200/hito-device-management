@@ -324,10 +324,12 @@ export class CameraSource implements ScanSource {
       if (video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         try {
           const barcodes = await detector.detect(video);
-          if (barcodes && barcodes.length > 0) {
-            const rawValue = barcodes[0].rawValue;
-            if (rawValue && rawValue.trim().length > 0) {
+          const firstBarcode = barcodes?.[0];
+          if (firstBarcode && firstBarcode.rawValue) {
+            const rawValue = firstBarcode.rawValue;
+            if (rawValue.trim().length > 0) {
               const token = rawValue.trim();
+
 
               if (this.emitCallback) {
                 this.emitCallback(token);

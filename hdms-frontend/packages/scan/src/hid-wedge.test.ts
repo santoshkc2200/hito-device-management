@@ -265,14 +265,17 @@ describe("HidWedgeInterpreter", () => {
     const diag = interpreter.getDiagnostics();
     expect(diag.length).toBe(10);
     // Oldest entries 1-5 dropped, only last 10 preserved
-    expect(diag[0].raw).toBe("HD-U-TEST006");
-    expect(diag[9].raw).toBe("HD-U-TEST015");
-    expect(diag[9].emitted).toBe(true);
-    expect(diag[9].timings.length).toBeGreaterThan(0);
+    const firstDiag = diag[0];
+    const lastDiag = diag[9];
+    expect(firstDiag?.raw).toBe("HD-U-TEST006");
+    expect(lastDiag?.raw).toBe("HD-U-TEST015");
+    expect(lastDiag?.emitted).toBe(true);
+    expect(lastDiag?.timings.length).toBeGreaterThan(0);
 
     interpreter.clearDiagnostics();
     expect(interpreter.getDiagnostics()).toEqual([]);
   });
+
 });
 
 describe("HidWedgeSource (DOM Integration & ScanRouter)", () => {

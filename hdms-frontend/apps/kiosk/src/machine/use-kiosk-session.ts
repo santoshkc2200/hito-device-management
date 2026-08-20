@@ -57,9 +57,11 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
 
   const [isCameraOpen, setIsCameraOpen] = React.useState(false);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = React.useState(false);
+  const [isAttendantOpen, setIsAttendantOpen] = React.useState(false);
   const [scannerFresh, setScannerFresh] = React.useState(true);
   const [scannerReady, setScannerReady] = React.useState(true);
   const [isOutcomeDismissed, setIsOutcomeDismissed] = React.useState(false);
+
   const [isOffline, setIsOffline] = React.useState<boolean>(() => {
     if (typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
       return !navigator.onLine;
@@ -235,6 +237,15 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     }
   }, [getRouter]);
 
+  const manualSource = React.useMemo(() => {
+    try {
+      const sources = getRouter().getRegisteredSources();
+      return (sources.find((s) => s.id === "manual") as any) ?? null;
+    } catch {
+      return null;
+    }
+  }, [getRouter]);
+
   // Derive transient outcome view
   const outcomeView = React.useMemo<ActiveOutcomeView>(() => {
     if (isOutcomeDismissed) {
@@ -279,12 +290,15 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     scannerFresh,
     isCameraOpen,
     isDiagnosticsOpen,
+    isAttendantOpen,
     isOffline,
     outcomeView,
     cameraSource,
     hidSource,
+    manualSource,
     setIsCameraOpen,
     setIsDiagnosticsOpen,
+    setIsAttendantOpen,
     setIsOffline,
     dismissOutcome,
     scan: handleScan,
@@ -293,3 +307,4 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     cancel: handleCancel,
   };
 }
+

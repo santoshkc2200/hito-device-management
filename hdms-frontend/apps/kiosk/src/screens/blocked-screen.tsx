@@ -15,6 +15,7 @@ export interface BlockedScreenProps {
   scannerFresh?: boolean;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
+  onOpenManualEntry?: () => void;
 }
 
 export function BlockedScreen({
@@ -27,6 +28,7 @@ export function BlockedScreen({
   scannerFresh = true,
   onToggleCamera,
   onOpenDiagnostics,
+  onOpenManualEntry,
 }: BlockedScreenProps) {
   // Auto-dismiss after 8 seconds (8000 ms)
   React.useEffect(() => {
@@ -68,7 +70,9 @@ export function BlockedScreen({
       scannerFresh={scannerFresh}
       onToggleCamera={onToggleCamera}
       onOpenDiagnostics={onOpenDiagnostics}
+      onOpenManualEntry={onOpenManualEntry}
     >
+
       <div
         data-testid="blocked-screen"
         className="flex flex-col items-center justify-between h-full w-full max-w-3xl space-y-6 py-4 text-center"

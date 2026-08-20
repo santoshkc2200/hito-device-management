@@ -9,6 +9,7 @@ export interface IdleScreenProps {
   scannerFresh?: boolean;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
+  onOpenManualEntry?: () => void;
 }
 
 export function IdleScreen({
@@ -18,6 +19,7 @@ export function IdleScreen({
   scannerFresh = true,
   onToggleCamera,
   onOpenDiagnostics,
+  onOpenManualEntry,
 }: IdleScreenProps) {
   React.useEffect(() => {
     if (typeof performance !== "undefined" && typeof performance.mark === "function") {
@@ -37,7 +39,9 @@ export function IdleScreen({
       scannerFresh={scannerFresh}
       onToggleCamera={onToggleCamera}
       onOpenDiagnostics={onOpenDiagnostics}
+      onOpenManualEntry={onOpenManualEntry}
     >
+
       <div className="flex flex-col items-center text-center space-y-10 py-6 max-w-2xl">
         {/* Main Directive Prompt: ≥ 36px font-size, high-contrast, visible from a metre */}
         <div className="space-y-4">

@@ -149,7 +149,7 @@ describe("CameraSource", () => {
 
     // Assert camera stopped and released tracks
     expect(camera.isActive()).toBe(false);
-    expect(tracks[0].stop).toHaveBeenCalled();
+    expect(tracks[0]?.stop).toHaveBeenCalled();
   });
 
   it("stopReleasesEveryTrack", async () => {
@@ -164,12 +164,12 @@ describe("CameraSource", () => {
     await camera.start(vi.fn());
 
     expect(camera.isActive()).toBe(true);
-    expect(tracks[0].stop).not.toHaveBeenCalled();
+    expect(tracks[0]?.stop).not.toHaveBeenCalled();
 
     await camera.stop();
 
     expect(camera.isActive()).toBe(false);
-    expect(tracks[0].stop).toHaveBeenCalled();
+    expect(tracks[0]?.stop).toHaveBeenCalled();
     expect(camera.getStream()).toBeNull();
   });
 
@@ -215,7 +215,7 @@ describe("CameraSource", () => {
     }
 
     expect(camera.isActive()).toBe(false);
-    expect(tracks[0].stop).toHaveBeenCalled();
+    expect(tracks[0]?.stop).toHaveBeenCalled();
   });
 
   it("idleTimeoutReturnsToScannerMode", async () => {
@@ -241,7 +241,7 @@ describe("CameraSource", () => {
 
     expect(onIdleTimeout).toHaveBeenCalled();
     expect(camera.isActive()).toBe(false);
-    expect(tracks[0].stop).toHaveBeenCalled();
+    expect(tracks[0]?.stop).toHaveBeenCalled();
   });
 
   it("supports torch detection and toggle", async () => {
@@ -261,12 +261,13 @@ describe("CameraSource", () => {
     const success = await camera.setTorch(true);
     expect(success).toBe(true);
     expect(camera.isTorchOn()).toBe(true);
-    expect(tracks[0].applyConstraints).toHaveBeenCalledWith({
+    expect(tracks[0]?.applyConstraints).toHaveBeenCalledWith({
       advanced: [{ torch: true }],
     });
 
     await camera.stop();
   });
+
 
   it("integrates with ScanRouter as a scan source", async () => {
     const mockDetector = {
