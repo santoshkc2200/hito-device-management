@@ -17,6 +17,16 @@ export type {
   ProcessKeyResult,
   RawSequenceDiagnostic,
 } from "./hid-wedge";
+export {
+  CameraSource,
+  CAMERA_SUPPORTED_FORMATS,
+  DEFAULT_DECODE_INTERVAL_MS,
+  DEFAULT_CAMERA_IDLE_TIMEOUT_MS,
+} from "./camera";
+export type {
+  CameraSourceOptions,
+  SupportedBarcodeFormat,
+} from "./camera";
 export type {
   Scan,
   ScanSource,
