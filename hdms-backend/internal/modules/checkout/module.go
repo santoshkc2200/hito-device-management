@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
@@ -36,14 +37,24 @@ type Service struct {
 	audit auditapi.Recorder
 	bus   *events.Bus
 
+	testHooksMu         sync.Mutex
 	failAfterLoanInsert func() error
 }
 
-// SetFailAfterLoanInsertForTest configures a hook that fires immediately after
-// OpenLoan completes inside executeBorrow, before subsequent writes or commit.
-// Test-only (docs/phases/phase-2/2.8-testing.md § 2.8.3).
-func (s *Service) SetFailAfterLoanInsertForTest(fn func() error) {
+// setFailAfterLoanInsert and getFailAfterLoanInsert guard the test-only
+// failure-injection hook (docs/phases/phase-2/2.8-testing.md § 2.8.3) behind
+// a mutex, since the setter (checkout_testhooks.go, built only with
+// `-tags=integration`) and the reader in executeBorrow can otherwise race.
+func (s *Service) setFailAfterLoanInsert(fn func() error) {
+	s.testHooksMu.Lock()
+	defer s.testHooksMu.Unlock()
 	s.failAfterLoanInsert = fn
+}
+
+func (s *Service) getFailAfterLoanInsert() func() error {
+	s.testHooksMu.Lock()
+	defer s.testHooksMu.Unlock()
+	return s.failAfterLoanInsert
 }
 
 // New constructs the checkout service.

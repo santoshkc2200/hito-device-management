@@ -249,6 +249,9 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(@types/emscripten@1.41.5)
     devDependencies:
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
       oxlint:
         specifier: ^1.79.0
         version: 1.79.0

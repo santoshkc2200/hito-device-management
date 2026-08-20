@@ -104,8 +104,8 @@ func (s *Service) executeBorrow(
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: release savepoint: %w", err)
 	}
 
-	if s.failAfterLoanInsert != nil {
-		if hookErr := s.failAfterLoanInsert(); hookErr != nil {
+	if hook := s.getFailAfterLoanInsert(); hook != nil {
+		if hookErr := hook(); hookErr != nil {
 			return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("injected failure after loan insert: %w", hookErr)
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"testing"
 	"time"
 
@@ -21,34 +22,12 @@ import (
 	"github.com/hito-hospital/hdms/test/testdb"
 )
 
-const (
-	stateIdle           = "idle"
-	stateAwaitingUser   = "awaiting_user"
-	stateAwaitingDevice = "awaiting_device"
-	stateReady          = "ready"
-)
-
-var allMatrixStates = []string{
-	stateIdle,
-	stateAwaitingUser,
-	stateAwaitingDevice,
-	stateReady,
-}
-
-var allMatrixClasses = []string{
-	"device_available",
-	"device_on_loan_same_user",
-	"device_on_loan_other_user",
-	"device_unavailable",
-	"device_duplicate",
-	"user_active",
-	"user_same",
-	"user_suspended",
-	"user_archived",
-	"unbound",
-	"unknown",
-	"revoked",
-	"timeout",
+// matrixDef mirrors session-machine.json's states → on → rule shape, just
+// enough structure to enumerate every (state, class) cell it defines.
+type matrixDef struct {
+	States map[string]struct {
+		On map[string]any `json:"on"`
+	} `json:"states"`
 }
 
 // domainFilePath finds a file inside packages/domain relative to this test file.
@@ -58,25 +37,55 @@ func domainFilePath(filename string) string {
 	return filepath.Join(repoRoot, "hdms-frontend", "packages", "domain", filename)
 }
 
-// TestMatrixCoverageAssertion mechanically asserts that every (state × InputClass)
-// pair has an integration test case registered (docs/phases/phase-2/2.8-testing.md § 2.8.1).
-func TestMatrixCoverageAssertion(t *testing.T) {
-	// Also verify against the committed session-machine.json
+// loadMatrixDef reads the committed session-machine.json — verified
+// byte-for-byte against the Go transition table by
+// machine.TestMachineJSONMatchesTable in the machine package's own suite.
+// allMatrixStates/allMatrixClasses below are derived from it rather than
+// hand-copied, since internal/modules/checkout/internal/machine (the actual
+// source of truth) isn't importable from this package: Go's internal
+// package rule only allows it from within the checkout module's own tree.
+func loadMatrixDef() matrixDef {
 	targetPath := domainFilePath("session-machine.json")
 	data, err := os.ReadFile(targetPath)
 	if err != nil {
-		t.Fatalf("read %s: %v", targetPath, err)
+		panic(fmt.Sprintf("read %s: %v", targetPath, err))
 	}
-
-	var def struct {
-		States map[string]struct {
-			On map[string]any `json:"on"`
-		} `json:"states"`
-	}
+	var def matrixDef
 	if err := json.Unmarshal(data, &def); err != nil {
-		t.Fatalf("unmarshal %s: %v", targetPath, err)
+		panic(fmt.Sprintf("unmarshal %s: %v", targetPath, err))
 	}
+	return def
+}
 
+var matrixDefinition = loadMatrixDef()
+
+var allMatrixStates = func() []string {
+	states := make([]string, 0, len(matrixDefinition.States))
+	for s := range matrixDefinition.States {
+		states = append(states, s)
+	}
+	sort.Strings(states)
+	return states
+}()
+
+var allMatrixClasses = func() []string {
+	seen := map[string]bool{}
+	for _, sd := range matrixDefinition.States {
+		for c := range sd.On {
+			seen[c] = true
+		}
+	}
+	classes := make([]string, 0, len(seen))
+	for c := range seen {
+		classes = append(classes, c)
+	}
+	sort.Strings(classes)
+	return classes
+}()
+
+// TestMatrixCoverageAssertion mechanically asserts that every (state × InputClass)
+// pair has an integration test case registered (docs/phases/phase-2/2.8-testing.md § 2.8.1).
+func TestMatrixCoverageAssertion(t *testing.T) {
 	totalExpected := len(allMatrixStates) * len(allMatrixClasses)
 	if len(matrixIntegrationCases) != totalExpected {
 		t.Errorf("matrixIntegrationCases has %d entries, want %d (%d states × %d classes)",
@@ -84,7 +93,7 @@ func TestMatrixCoverageAssertion(t *testing.T) {
 	}
 
 	for _, s := range allMatrixStates {
-		stateDef, ok := def.States[s]
+		stateDef, ok := matrixDefinition.States[s]
 		if !ok {
 			t.Errorf("session-machine.json missing state %q", s)
 		}

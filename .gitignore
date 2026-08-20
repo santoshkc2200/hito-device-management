@@ -41,3 +41,5 @@ tmp/
 hdms-frontend/test-results/
 hdms-frontend/playwright-report/
 hdms-frontend/blob-report/
+
+.agents/

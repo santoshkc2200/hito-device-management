@@ -19,6 +19,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
+	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/test/fixtures"
 	"github.com/hito-hospital/hdms/test/testdb"
 	"github.com/hito-hospital/hdms/test/testutil"
@@ -325,25 +326,72 @@ func TestConcurrentIdempotentReplay(t *testing.T) {
 
 	testutil.Race(t, doReq(&resp1, &body1), doReq(&resp2, &body2))
 
-	if resp1.StatusCode != http.StatusCreated && resp1.StatusCode != http.StatusOK {
-		t.Fatalf("resp1 status = %d, body = %s", resp1.StatusCode, body1)
+	// httpx.WithIdempotency's own contract (idempotency.go's doc comment on
+	// WithIdempotency): the request that wins the race to insert the key
+	// executes once; its response is fresh and carries no Idempotency-Replayed
+	// header, whatever 2xx status the handler produced (201 here). The loser
+	// either arrives before the winner finishes — 409 "session-conflict", per
+	// replayExisting — or after the winner has stored its response, in which
+	// case replayExisting echoes the winner's exact status code (also 201,
+	// not always 200) and body verbatim, marked Idempotency-Replayed: true.
+	// So exactly one response must lack that header, and any response
+	// carrying it must match the winner's status and loan ID exactly.
+	type parsedResp struct {
+		status   int
+		replayed bool
+		loanID   string
 	}
-	if resp2.StatusCode != http.StatusCreated && resp2.StatusCode != http.StatusOK {
-		t.Fatalf("resp2 status = %d, body = %s", resp2.StatusCode, body2)
+	parse := func(res *http.Response, body string) parsedResp {
+		var p struct {
+			LoanID string `json:"loanId"`
+		}
+		if res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusOK {
+			if err := json.Unmarshal([]byte(body), &p); err != nil {
+				t.Fatalf("unmarshal body %q: %v", body, err)
+			}
+		}
+		return parsedResp{
+			status:   res.StatusCode,
+			replayed: res.Header.Get(httpx.IdempotencyReplayedHeader) == "true",
+			loanID:   p.LoanID,
+		}
 	}
+	results := []parsedResp{parse(resp1, body1), parse(resp2, body2)}
 
-	var p1, p2 struct {
-		LoanID string `json:"loanId"`
+	var winner parsedResp
+	var winnerCount int
+	for _, r := range results {
+		switch {
+		case !r.replayed && (r.status == http.StatusCreated || r.status == http.StatusOK):
+			winnerCount++
+			winner = r
+		case r.replayed:
+			// Loser: the winner had already finished and stored its response.
+		case r.status == http.StatusConflict:
+			// Loser: arrived while the winner was still in flight.
+		default:
+			t.Fatalf("unexpected response: status=%d replayed=%v (resp1=%d body=%s, resp2=%d body=%s)",
+				r.status, r.replayed, resp1.StatusCode, body1, resp2.StatusCode, body2)
+		}
 	}
-	if err := json.Unmarshal([]byte(body1), &p1); err != nil {
-		t.Fatalf("unmarshal body1 %q: %v", body1, err)
+	if winnerCount != 1 {
+		t.Fatalf("got %d fresh (non-replayed) responses, want exactly 1 (resp1=%d replayed=%v, resp2=%d replayed=%v)",
+			winnerCount, resp1.StatusCode, resp1.Header.Get(httpx.IdempotencyReplayedHeader) == "true",
+			resp2.StatusCode, resp2.Header.Get(httpx.IdempotencyReplayedHeader) == "true")
 	}
-	if err := json.Unmarshal([]byte(body2), &p2); err != nil {
-		t.Fatalf("unmarshal body2 %q: %v", body2, err)
+	if winner.loanID == "" {
+		t.Fatalf("winning response has empty loanId")
 	}
-
-	if p1.LoanID == "" || p1.LoanID != p2.LoanID {
-		t.Fatalf("idempotent replay loan IDs differ: p1=%s, p2=%s", p1.LoanID, p2.LoanID)
+	for _, r := range results {
+		if !r.replayed {
+			continue
+		}
+		if r.status != winner.status {
+			t.Fatalf("replayed status = %d, want %d (the winner's)", r.status, winner.status)
+		}
+		if r.loanID != winner.loanID {
+			t.Fatalf("replayed loan ID = %s, want %s (the winner's)", r.loanID, winner.loanID)
+		}
 	}
 
 	// Exactly 1 open loan row in DB
