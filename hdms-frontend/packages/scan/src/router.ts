@@ -73,18 +73,15 @@ export class ScanRouter {
     this.started = false;
     const stopPromises: Promise<void>[] = [];
 
-    for (const id of this.activeSources) {
-      const source = this.sources.get(id);
-      if (source) {
-        try {
-          stopPromises.push(
-            Promise.resolve(source.stop()).catch(() => {
-              // Ignore errors during mass teardown
-            })
-          );
-        } catch {
-          // Ignore synchronous throws
-        }
+    for (const source of this.sources.values()) {
+      try {
+        stopPromises.push(
+          Promise.resolve(source.stop()).catch(() => {
+            // Ignore errors during mass teardown
+          })
+        );
+      } catch {
+        // Ignore synchronous throws
       }
     }
 

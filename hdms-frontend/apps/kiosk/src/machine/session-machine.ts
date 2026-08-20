@@ -197,7 +197,10 @@ export function applyScanResultContext(
   result: ScanResult,
   actionOverride?: Action
 ): SessionContext {
-  const isIdle = result.session.state === "idle";
+  const isIdle =
+    result.session.state === "idle" ||
+    (result.session.state as string) === "closed" ||
+    (result.session.state as string) === "completed";
   if (isIdle) {
     clearSessionId();
   } else {
@@ -253,7 +256,15 @@ export async function executeScan(input: ScanActorInput): Promise<ScanResult> {
     throw problem;
   }
 
-  setSessionId(res.data.session.id);
+  if (
+    res.data.session.state === "idle" ||
+    (res.data.session.state as string) === "closed" ||
+    (res.data.session.state as string) === "completed"
+  ) {
+    clearSessionId();
+  } else {
+    setSessionId(res.data.session.id);
+  }
   return res.data;
 }
 

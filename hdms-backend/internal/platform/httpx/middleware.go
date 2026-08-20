@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"os"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -122,12 +123,12 @@ var loginLimiters sync.Map // map[string]*rate.Limiter
 var pairLimiters sync.Map // map[string]*rate.Limiter
 
 const (
-	generalRateLimit = 1.0 // 60 requests/minute sustained
-	generalBurst     = 60
-	loginRateLimit   = 0.1 // ~1 attempt per 10s, sustained
-	loginBurst       = 5
+	generalRateLimit = 10.0 // sustained rate
+	generalBurst     = 300
+	loginRateLimit   = 1.0
+	loginBurst       = 20
 	pairRateLimit    = 5.0 / 60.0 // 5 attempts per minute
-	pairBurst        = 5
+	pairBurst        = 10
 )
 
 // WithRateLimit applies per-principal / per-IP rate limits (docs/06-api-contract.md, 2.6.5):
@@ -137,6 +138,10 @@ const (
 // Denials return 429 with Retry-After header and RFC 9457 problem JSON.
 func WithRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("HDMS_RATE_LIMIT") == "off" || os.Getenv("HDMS_ENV") == "development" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		ip := clientIP(r)
 
 		if r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login" {

@@ -76,13 +76,26 @@ func (s *Service) SessionTTL() time.Duration {
 // `hdms-cli admin bootstrap`; there is no HTTP endpoint for this, matching
 // the rest of the system's administrator-only account creation.
 func (s *Service) CreateAdminAccount(ctx context.Context, email, fullName, password, role string) (id, totpSecret, otpauthURL string, err error) {
+	return s.CreateAdminAccountWithSecret(ctx, email, fullName, password, role, "")
+}
+
+// CreateAdminAccountWithSecret inserts a new admin account, optionally with a pre-specified
+// base32 TOTP secret (for deterministic test environments).
+func (s *Service) CreateAdminAccountWithSecret(ctx context.Context, email, fullName, password, role, customSecret string) (id, totpSecret, otpauthURL string, err error) {
 	hash, err := HashPassword(password)
 	if err != nil {
 		return "", "", "", err
 	}
-	secret, url, err := GenerateTOTPSecret(email)
-	if err != nil {
-		return "", "", "", err
+	secret := customSecret
+	url := ""
+	if secret == "" {
+		var err error
+		secret, url, err = GenerateTOTPSecret(email)
+		if err != nil {
+			return "", "", "", err
+		}
+	} else {
+		url = fmt.Sprintf("otpauth://totp/HDMS:%s?secret=%s&issuer=HDMS", email, secret)
 	}
 	secretEnc, err := encryptSecret(secret, s.totpEncKey)
 	if err != nil {

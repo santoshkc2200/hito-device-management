@@ -111,7 +111,10 @@ export class HidWedgeInterpreter {
 
   processKey(event: KeyInputEvent): ProcessKeyResult {
     const key = event.key;
-    const currentTime = event.timeStamp ?? this.now();
+    const currentTime =
+      typeof event.timeStamp === "number" && event.timeStamp > 0
+        ? event.timeStamp
+        : this.now();
 
     // 1. Clear any active idle reset timer upon new keystroke
     this.clearIdleTimer();
@@ -283,6 +286,12 @@ export class HidWedgeSource implements ScanSource {
   }
 
   async start(emit: (rawOrScan: string | Scan) => void): Promise<void> {
+    if (this.targetWindow && this.keydownListener) {
+      this.targetWindow.removeEventListener("keydown", this.keydownListener, {
+        capture: true,
+      });
+      this.keydownListener = null;
+    }
     this.emitCallback = emit;
     if (!this.targetWindow) return;
 

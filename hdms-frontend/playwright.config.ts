@@ -4,9 +4,12 @@ import { defineConfig, devices } from "@playwright/test";
 // project starts its own Vite dev server; `ignoreHTTPSErrors` is needed in
 // CI, where the mkcert root CA (see `task certs`) isn't installed in the
 // browser's trust store even though the certificate itself is valid.
+import { getFakeCameraLaunchArgs } from "./e2e/helpers/fake-camera";
+
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
@@ -18,7 +21,14 @@ export default defineConfig({
     {
       name: "kiosk",
       testMatch: /kiosk\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"], baseURL: "https://localhost:5173" },
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: "https://localhost:5173",
+        permissions: ["camera"],
+        launchOptions: {
+          args: getFakeCameraLaunchArgs(),
+        },
+      },
     },
     {
       name: "admin",

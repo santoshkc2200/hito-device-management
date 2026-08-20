@@ -82,5 +82,12 @@ export default defineConfig({
           key: readFileSync(keyFile),
         }
       : undefined,
+    proxy: {
+      "/v1": {
+        target: process.env.VITE_API_TARGET || "https://localhost:8443",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });

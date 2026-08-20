@@ -98,3 +98,96 @@ jobs:
       - run: pnpm -r lint
       - run: pnpm -r test
       - run: pnpm -r build
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: hdms
+          POSTGRES_PASSWORD: hdms
+          POSTGRES_DB: hdms
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hdms"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: hdms-backend/go.sum
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: hdms-frontend/pnpm-lock.yaml
+
+      - name: Generate self-signed TLS certs for localhost
+        run: |
+          mkdir -p certs
+          openssl req -x509 -newkey rsa:2048 -keyout certs/localhost-key.pem -out certs/localhost.pem -days 365 -nodes -subj "/CN=localhost"
+
+      - name: Migrate database and bootstrap admin
+        working-directory: hdms-backend
+        env:
+          HDMS_DATABASE_URL: postgres://hdms:hdms@localhost:5432/hdms?sslmode=disable
+          HDMS_TOKEN_PEPPER: dev-only-pepper
+          HDMS_CREDENTIAL_ENC_KEY: O4CAtFId3Jh5por/68sf2I8KracP/ylyP+HjDYsrQac=
+          HDMS_TOTP_ENC_KEY: SPCdq6Fv9PRz8jMr3UxAPIaUioFtcwtavZ1kSrtfCfE=
+        run: |
+          go run ./cmd/hdms-cli migrate
+          go run ./cmd/hdms-cli admin bootstrap --email admin@example.org --name "Admin" --password "correct horse battery staple" --totp-secret "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7"
+
+      - name: Start backend API server
+        working-directory: hdms-backend
+        env:
+          HDMS_DATABASE_URL: postgres://hdms:hdms@localhost:5432/hdms?sslmode=disable
+          HDMS_HTTP_ADDR: ":8443"
+          HDMS_TLS_CERT_FILE: ../certs/localhost.pem
+          HDMS_TLS_KEY_FILE: ../certs/localhost-key.pem
+          HDMS_TOKEN_PEPPER: dev-only-pepper
+          HDMS_CREDENTIAL_ENC_KEY: O4CAtFId3Jh5por/68sf2I8KracP/ylyP+HjDYsrQac=
+          HDMS_TOTP_ENC_KEY: SPCdq6Fv9PRz8jMr3UxAPIaUioFtcwtavZ1kSrtfCfE=
+          HDMS_RATE_LIMIT: "off"
+          HDMS_ENV: "development"
+        run: |
+          go run ./cmd/hdms-api &
+          for i in {1..30}; do
+            if curl -k -s https://localhost:8443/v1/readyz | grep -q "ready"; then
+              echo "API is ready!"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Install frontend dependencies and Playwright browser
+        working-directory: hdms-frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests (E1-E13 + axe a11y)
+        working-directory: hdms-frontend
+        env:
+          HDMS_API_URL: https://localhost:8443
+        run: pnpm exec playwright test
+
+      - name: Upload Playwright traces & test results on failure
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && failure() }}
+        with:
+          name: playwright-report
+          path: |
+            hdms-frontend/playwright-report/
+            hdms-frontend/test-results/
+          retention-days: 7

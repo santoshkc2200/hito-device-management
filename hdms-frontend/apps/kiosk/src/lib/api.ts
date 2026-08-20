@@ -225,9 +225,13 @@ export function initKioskApi(baseUrl?: string): void {
 
     if (request.method === "POST" && !request.headers.has("Idempotency-Key")) {
       const kioskId = config?.kioskId ?? "unpaired-kiosk";
-      const sessionId = getSessionId() ?? "no-session";
-      const seq = getCurrentScanSequence();
-      request.headers.set("Idempotency-Key", deriveIdempotencyKey(kioskId, sessionId, seq));
+      const sessionId = getSessionId();
+      if (!sessionId || sessionId === "no-session") {
+        request.headers.set("Idempotency-Key", crypto.randomUUID());
+      } else {
+        const seq = getNextScanSequence();
+        request.headers.set("Idempotency-Key", deriveIdempotencyKey(kioskId, sessionId, seq));
+      }
     }
 
     return request;

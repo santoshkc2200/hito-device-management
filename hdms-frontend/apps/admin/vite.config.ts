@@ -24,5 +24,12 @@ export default defineConfig({
       cert: readFileSync(`${certsDir}/localhost.pem`),
       key: readFileSync(`${certsDir}/localhost-key.pem`),
     },
+    proxy: {
+      "/v1": {
+        target: process.env.VITE_API_TARGET || "https://localhost:8443",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });

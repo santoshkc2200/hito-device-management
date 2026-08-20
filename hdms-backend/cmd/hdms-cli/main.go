@@ -138,6 +138,8 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 	email := fs.String("email", "", "admin account email (required)")
 	name := fs.String("name", "", "admin account full name (required)")
 	role := fs.String("role", "superadmin", "admin role: superadmin | admin | operator")
+	passwordFlag := fs.String("password", "", "admin account password (optional; prompted if omitted)")
+	totpSecretFlag := fs.String("totp-secret", "", "optional base32 TOTP secret (for test environments)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -150,9 +152,15 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 		return fmt.Errorf("--role must be one of superadmin, admin, operator")
 	}
 
-	password, err := promptPassword()
-	if err != nil {
-		return err
+	password := *passwordFlag
+	if password == "" {
+		var err error
+		password, err = promptPassword()
+		if err != nil {
+			return err
+		}
+	} else if len(password) < 12 {
+		return fmt.Errorf("password must be at least 12 characters")
 	}
 
 	if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
@@ -165,7 +173,7 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 	defer pool.Close()
 
 	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL)
-	id, secret, otpauthURL, err := authSvc.CreateAdminAccount(ctx, *email, *name, password, *role)
+	id, secret, otpauthURL, err := authSvc.CreateAdminAccountWithSecret(ctx, *email, *name, password, *role, *totpSecretFlag)
 	if err != nil {
 		return fmt.Errorf("create admin account: %w", err)
 	}

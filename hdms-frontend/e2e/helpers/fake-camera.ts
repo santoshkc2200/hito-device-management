@@ -5,7 +5,10 @@ import { resolve } from "node:path";
  * @param y4mFilePath Optional path to a .y4m video capture file.
  */
 export function getFakeCameraLaunchArgs(y4mFilePath?: string): string[] {
-  const args = ["--use-fake-device-for-media-stream"];
+  const args = [
+    "--use-fake-device-for-media-stream",
+    "--use-fake-ui-for-media-stream",
+  ];
   if (y4mFilePath) {
     args.push(`--use-file-for-fake-video-capture=${resolve(y4mFilePath)}`);
   }

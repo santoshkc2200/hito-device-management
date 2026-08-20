@@ -28,6 +28,7 @@ services:
       - .env
     environment:
       HDMS_ENV: development
+      HDMS_RATE_LIMIT: "off"
       HDMS_HTTP_ADDR: ":8443"
       HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms}:${POSTGRES_PASSWORD:-hdms}@db:5432/${POSTGRES_DB:-hdms}?sslmode=disable
       HDMS_TLS_CERT_FILE: /certs/localhost.pem

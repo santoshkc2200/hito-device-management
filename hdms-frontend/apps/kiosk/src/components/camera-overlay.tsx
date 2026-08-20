@@ -81,8 +81,8 @@ function CameraOverlayContent({
       aria-labelledby="camera-viewfinder-title"
       className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-black/90 p-6 text-white backdrop-blur-md animate-in fade-in duration-200"
     >
-      {/* Header */}
-      <header className="w-full max-w-xl flex items-center justify-between pt-2">
+      {/* Modal Top Bar */}
+      <div className="w-full max-w-xl flex items-center justify-between pt-2">
         <h2
           id="camera-viewfinder-title"
           className="text-2xl font-bold tracking-tight text-white"
@@ -101,10 +101,10 @@ function CameraOverlayContent({
             {torchEnabled ? "Turn Torch Off" : "Turn Torch On"}
           </Button>
         )}
-      </header>
+      </div>
 
       {/* Main Viewfinder Area */}
-      <main className="relative flex flex-1 w-full max-w-xl items-center justify-center my-6">
+      <div className="relative flex flex-1 w-full max-w-xl items-center justify-center my-6">
         {hasPermissionError ? (
           <div className="w-full rounded-2xl border border-destructive/40 bg-destructive/10 p-8 text-center space-y-6">
             <h3 className="text-2xl font-semibold text-white">
@@ -156,10 +156,10 @@ function CameraOverlayContent({
             </div>
           </div>
         )}
-      </main>
+      </div>
 
-      {/* Footer Actions */}
-      <footer className="w-full max-w-xl pb-2">
+      {/* Modal Actions */}
+      <div className="w-full max-w-xl pb-2">
         <Button
           type="button"
           variant="outline"
@@ -168,7 +168,7 @@ function CameraOverlayContent({
         >
           Cancel
         </Button>
-      </footer>
+      </div>
     </div>
   );
 }

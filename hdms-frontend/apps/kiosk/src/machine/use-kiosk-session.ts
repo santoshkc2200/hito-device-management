@@ -13,12 +13,13 @@ import {
   setupVisibilityReconciliation,
   type SessionMachineActor,
 } from "./session-machine";
-import { getKioskConfig, getSessionId } from "../lib/kiosk-config";
+import { getKioskConfig, getSessionId, clearSessionId } from "../lib/kiosk-config";
 import { parseProblem, type KioskProblem } from "../lib/problem";
 import { useScanRouter } from "../lib/scan";
 import { playFeedbackSound } from "../lib/audio";
 import { getOutcomeFeedback } from "../lib/feedback-config";
 import { useConnectivity, onKioskReconnect, resetConnectivityForTesting } from "../lib/connectivity";
+import { resetScanSequence } from "../lib/api";
 
 export interface UseKioskSessionOptions {
   actor?: SessionMachineActor;
@@ -147,7 +148,6 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   // Handle hardware scan and camera scan routing
   const handleScan = React.useCallback(
     async (token: string, source: ScanSource = "scanner") => {
-      setIsOutcomeDismissed(false);
       try {
         const result = await executeScan({
           sessionId: snapshot.context.sessionId,
@@ -155,11 +155,13 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
           token,
           source,
         });
+        setIsOutcomeDismissed(false);
         actor.send({ type: "APPLY_SCAN_RESULT", result });
       } catch (err: any) {
         if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
           return;
         }
+        setIsOutcomeDismissed(false);
         const problem = await parseProblem(err);
         actor.send({ type: "SET_PROBLEM", problem });
       }
@@ -251,7 +253,11 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
 
   const dismissOutcome = React.useCallback(() => {
     setIsOutcomeDismissed(true);
-  }, []);
+    if (snapshot.matches("idle") || !snapshot.context.sessionId) {
+      clearSessionId();
+      resetScanSequence();
+    }
+  }, [snapshot, snapshot.context.sessionId]);
 
   const cameraSource = React.useMemo(() => {
     try {
