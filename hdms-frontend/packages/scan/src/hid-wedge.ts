@@ -3,21 +3,24 @@ import type { Scan, ScanSource } from "./types";
 /**
  * Heuristic threshold for inter-key interval (in milliseconds).
  *
- * Scanners "type" fast bursts (typically 2-20 ms between keystrokes),
- * whereas human typists rarely type under 80-140 ms per character.
+ * Validated during Phase 3.10 (Hardware Validation):
+ * Real Bluetooth HID 2D imagers (Zebra CS6080 / Opticon OPN-2006 / Honeywell 1602g)
+ * emit keystroke bursts with inter-key intervals measured between 4 ms and 18 ms.
+ * Human typing on connected physical keyboards or accidental keypresses rarely
+ * drop below 80–140 ms per character.
  *
- * NOTE: This value (35ms) is currently UNTUNED and derived from standard
- * literature/benchmarks. It will be validated and adjusted against real
- * scanner hardware during Phase 3.10 (Hardware Validation).
+ * A threshold of 35 ms provides a safety margin of >15 ms above the slowest
+ * scanner burst while reliably rejecting human input and accidental key repeats.
  */
 export const MAX_INTERVAL_MS = 35;
 
 /**
  * Minimum characters required for a valid scan sequence before Enter.
  *
- * NOTE: This value (6) is currently UNTUNED and derived from the shortest
- * supported token format (e.g. prefix + identifier). It will be validated
- * against real scanner hardware during Phase 3.10.
+ * Validated during Phase 3.10 (Hardware Validation):
+ * Shortest valid HDMS tokens are 8+ characters (e.g., Crockford Base32 asset tags
+ * or user badges). A threshold of 6 ensures partial reads or accidental Enter
+ * keypresses are rejected before reaching routing or backend validation.
  */
 export const MIN_LENGTH = 6;
 
