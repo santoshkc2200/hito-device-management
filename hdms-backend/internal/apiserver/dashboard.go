@@ -20,6 +20,38 @@ func (s *Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	overdueSummaries := make([]gen.OverdueLoanSummary, 0, len(overdueLoans))
+	for _, l := range overdueLoans {
+		dev, err := s.catalog.LookupDevice(ctx, l.DeviceID)
+		if err != nil {
+			continue
+		}
+		usr, err := s.identity.LookupUser(ctx, l.UserID)
+		if err != nil {
+			continue
+		}
+		due := *l.DueAt
+		days := int(now.Sub(due).Hours() / 24)
+		if days < 0 {
+			days = 0
+		}
+		var empNo *string
+		if usr.EmployeeNo != "" {
+			empNo = &usr.EmployeeNo
+		}
+		overdueSummaries = append(overdueSummaries, gen.OverdueLoanSummary{
+			LoanId:         l.ID,
+			DeviceId:       l.DeviceID,
+			AssetTag:       dev.AssetTag,
+			DeviceName:     dev.Name,
+			UserId:         l.UserID,
+			UserFullName:   usr.FullName,
+			UserEmployeeNo: empNo,
+			DueAt:          due,
+			DaysOverdue:    days,
+		})
+	}
+
 	// 2. Query status counts and availability by category from database
 	var availableCount, onLoanCount, maintenanceCount int
 	if err := s.pool.QueryRow(ctx, `
@@ -116,6 +148,25 @@ func (s *Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 5. Unbound credentials count
+	var unboundCountPtr *int
+	if unboundCount, err := s.credentials.CountUnbound(ctx); err == nil {
+		unboundCountPtr = &unboundCount
+	}
+
+	// 6. Registered kiosks
+	var kioskListPtr *[]gen.Kiosk
+	if kiosks, err := s.auth.ListKiosks(ctx); err == nil {
+		kioskList := make([]gen.Kiosk, len(kiosks))
+		for i, k := range kiosks {
+			kioskList[i] = mapKiosk(k)
+		}
+		kioskListPtr = &kioskList
+	}
+
+	lowStock := 10
+	paperBacklog := 48
+
 	dashboard := gen.Dashboard{
 		OnLoanCount:            onLoanCount,
 		OverdueCount:           len(overdueLoans),
@@ -124,6 +175,11 @@ func (s *Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 		AvailabilityByCategory: categoryAvailabilities,
 		TurnedAwayCounts:       turnedAway,
 		LastPaperEntry:         lastPaperEntry,
+		OverdueLoans:           &overdueSummaries,
+		UnboundCredentialCount: unboundCountPtr,
+		Kiosks:                 kioskListPtr,
+		LowStockThreshold:      &lowStock,
+		PaperBacklogHours:      &paperBacklog,
 	}
 
 	writeJSON(w, http.StatusOK, dashboard)

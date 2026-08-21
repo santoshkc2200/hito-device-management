@@ -87,4 +87,23 @@ func TestHTTPDashboardEndpoint(t *testing.T) {
 	if len(dash.AvailabilityByCategory) == 0 {
 		t.Fatal("AvailabilityByCategory is empty")
 	}
+	if dash.OverdueLoans == nil || len(*dash.OverdueLoans) != 1 {
+		t.Fatalf("OverdueLoans = %v, want 1 item", dash.OverdueLoans)
+	}
+	overdueItem := (*dash.OverdueLoans)[0]
+	if overdueItem.AssetTag != "TAB-001" {
+		t.Errorf("OverdueLoans[0].AssetTag = %q, want TAB-001", overdueItem.AssetTag)
+	}
+	if overdueItem.UserFullName != "Nurse Alice" {
+		t.Errorf("OverdueLoans[0].UserFullName = %q, want Nurse Alice", overdueItem.UserFullName)
+	}
+	if dash.UnboundCredentialCount == nil {
+		t.Fatal("UnboundCredentialCount is nil")
+	}
+	if dash.LowStockThreshold == nil || *dash.LowStockThreshold != 10 {
+		t.Errorf("LowStockThreshold = %v, want 10", dash.LowStockThreshold)
+	}
+	if dash.PaperBacklogHours == nil || *dash.PaperBacklogHours != 48 {
+		t.Errorf("PaperBacklogHours = %v, want 48", dash.PaperBacklogHours)
+	}
 }
