@@ -36,11 +36,14 @@ type Entry struct {
 
 // ListParams filters List; a zero-value field matches everything.
 type ListParams struct {
-	Actor   string
-	Subject string
-	Action  string
-	Before  time.Time
-	Limit   int
+	Actor    string
+	Subject  string
+	Action   string
+	From     time.Time
+	To       time.Time
+	CursorAt time.Time
+	CursorID string
+	Limit    int
 }
 
 // Recorder is what every other module depends on to write an audit event.
@@ -55,4 +58,6 @@ type Recorder interface {
 type Service interface {
 	Recorder
 	List(ctx context.Context, params ListParams) ([]Entry, error)
+	StreamForExport(ctx context.Context, params ListParams) ([]Entry, error)
 }
+

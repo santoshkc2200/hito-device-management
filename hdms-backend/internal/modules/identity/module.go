@@ -423,3 +423,51 @@ func translateUserErr(err error) error {
 	}
 	return err
 }
+
+func (s *Service) StreamUsersForExport(ctx context.Context, params identityapi.ListUsersParams) ([]identityapi.ExportUserRow, error) {
+	q := identitystore.New(db.Conn(ctx, s.pool))
+
+	var deptID pgtype.UUID
+	var err error
+	if params.DepartmentID != "" {
+		deptID, err = pgtypeconv.UUID(params.DepartmentID)
+		if err != nil {
+			return nil, fmt.Errorf("identity: invalid department id: %w", err)
+		}
+	}
+
+	var hasCred pgtype.Bool
+	if params.HasCredential != nil {
+		hasCred = pgtype.Bool{Bool: *params.HasCredential, Valid: true}
+	}
+
+	rows, err := q.StreamUsersForExport(ctx, identitystore.StreamUsersForExportParams{
+		Status:        nullUserStatus(params.Status),
+		DepartmentID:  deptID,
+		Query:         pgtypeconv.Text(params.Query),
+		HasCredential: hasCred,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("identity: stream users for export: %w", err)
+	}
+
+	result := make([]identityapi.ExportUserRow, 0, len(rows))
+	for _, r := range rows {
+		result = append(result, identityapi.ExportUserRow{
+			ID:             pgtypeconv.UUIDString(r.ID),
+			EmployeeNo:     r.EmployeeNo,
+			FullName:       r.FullName,
+			DepartmentName: pgtypeconv.TextString(r.DepartmentName),
+			Email:          pgtypeconv.TextString(r.Email),
+			Phone:          pgtypeconv.TextString(r.Phone),
+			Status:         identityapi.UserStatus(r.Status),
+			Notes:          pgtypeconv.TextString(r.Notes),
+			HasCredential:  r.HasCredential,
+			RegisteredAt:   pgtypeconv.Time(r.RegisteredAt),
+			RegisteredBy:   r.RegisteredBy,
+			UpdatedAt:      pgtypeconv.Time(r.UpdatedAt),
+		})
+	}
+	return result, nil
+}
+

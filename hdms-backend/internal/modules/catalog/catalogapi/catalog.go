@@ -115,6 +115,23 @@ type UpdateCategoryParams struct {
 	RequiresApproval  bool
 }
 
+type ExportDeviceRow struct {
+	ID           string
+	AssetTag     string
+	Name         string
+	CategoryName string
+	Manufacturer string
+	Model        string
+	SerialNo     string
+	Status       DeviceStatus
+	Condition    DeviceCondition
+	HomeLocation string
+	Notes        string
+	AcquiredOn   *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 // Service is the catalog module's public API.
 type Service interface {
 	// CreateDevice registers a new device.
@@ -160,4 +177,11 @@ type Service interface {
 
 	// ListCategories returns every device category.
 	ListCategories(ctx context.Context) ([]Category, error)
+
+	// CountLiveDevicesByCategory returns a map from category ID to count of non-retired devices.
+	CountLiveDevicesByCategory(ctx context.Context) (map[string]int, error)
+
+	// StreamDevicesForExport returns devices matching filters with category names for streaming CSV.
+	StreamDevicesForExport(ctx context.Context, params ListDevicesParams) ([]ExportDeviceRow, error)
 }
+

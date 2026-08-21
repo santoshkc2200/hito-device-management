@@ -46,19 +46,28 @@ func (q *Queries) InsertAuditEvent(ctx context.Context, arg InsertAuditEventPara
 const listAuditEvents = `-- name: ListAuditEvents :many
 SELECT id, at, actor, actor_ip, action, subject, payload, request_id
 FROM audit_events
-WHERE ($1::text IS NULL OR actor = $1)
-  AND ($2::text IS NULL OR subject = $2)
+WHERE ($1::text IS NULL OR actor ILIKE '%' || $1 || '%')
+  AND ($2::text IS NULL OR subject ILIKE '%' || $2 || '%')
   AND ($3::text IS NULL OR action = $3)
-  AND ($4::timestamptz IS NULL OR at < $4)
-ORDER BY at DESC
-LIMIT $5
+  AND ($4::timestamptz IS NULL OR at >= $4)
+  AND ($5::timestamptz IS NULL OR at <= $5)
+  AND (
+    $6::timestamptz IS NULL
+    OR at < $6
+    OR (at = $6 AND id < $7)
+  )
+ORDER BY at DESC, id DESC
+LIMIT $8
 `
 
 type ListAuditEventsParams struct {
 	Actor       pgtype.Text        `json:"actor"`
 	Subject     pgtype.Text        `json:"subject"`
 	Action      pgtype.Text        `json:"action"`
-	Before      pgtype.Timestamptz `json:"before"`
+	FromAt      pgtype.Timestamptz `json:"from_at"`
+	ToAt        pgtype.Timestamptz `json:"to_at"`
+	CursorAt    pgtype.Timestamptz `json:"cursor_at"`
+	CursorID    pgtype.UUID        `json:"cursor_id"`
 	ResultLimit int32              `json:"result_limit"`
 }
 
@@ -67,8 +76,65 @@ func (q *Queries) ListAuditEvents(ctx context.Context, arg ListAuditEventsParams
 		arg.Actor,
 		arg.Subject,
 		arg.Action,
-		arg.Before,
+		arg.FromAt,
+		arg.ToAt,
+		arg.CursorAt,
+		arg.CursorID,
 		arg.ResultLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AuditEvent
+	for rows.Next() {
+		var i AuditEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.At,
+			&i.Actor,
+			&i.ActorIp,
+			&i.Action,
+			&i.Subject,
+			&i.Payload,
+			&i.RequestID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const streamAuditEventsForExport = `-- name: StreamAuditEventsForExport :many
+SELECT id, at, actor, actor_ip, action, subject, payload, request_id
+FROM audit_events
+WHERE ($1::text IS NULL OR actor ILIKE '%' || $1 || '%')
+  AND ($2::text IS NULL OR subject ILIKE '%' || $2 || '%')
+  AND ($3::text IS NULL OR action = $3)
+  AND ($4::timestamptz IS NULL OR at >= $4)
+  AND ($5::timestamptz IS NULL OR at <= $5)
+ORDER BY at DESC, id DESC
+`
+
+type StreamAuditEventsForExportParams struct {
+	Actor   pgtype.Text        `json:"actor"`
+	Subject pgtype.Text        `json:"subject"`
+	Action  pgtype.Text        `json:"action"`
+	FromAt  pgtype.Timestamptz `json:"from_at"`
+	ToAt    pgtype.Timestamptz `json:"to_at"`
+}
+
+func (q *Queries) StreamAuditEventsForExport(ctx context.Context, arg StreamAuditEventsForExportParams) ([]AuditEvent, error) {
+	rows, err := q.db.Query(ctx, streamAuditEventsForExport,
+		arg.Actor,
+		arg.Subject,
+		arg.Action,
+		arg.FromAt,
+		arg.ToAt,
 	)
 	if err != nil {
 		return nil, err

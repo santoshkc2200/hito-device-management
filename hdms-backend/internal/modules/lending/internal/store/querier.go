@@ -26,7 +26,13 @@ type Querier interface {
 	// backfill conflict report both need.
 	CustodyAt(ctx context.Context, arg CustodyAtParams) (Loan, error)
 	ForceReturnLoan(ctx context.Context, arg ForceReturnLoanParams) (Loan, error)
+	GetCategoryLoanStatsInWindow(ctx context.Context, arg GetCategoryLoanStatsInWindowParams) ([]GetCategoryLoanStatsInWindowRow, error)
 	GetLoan(ctx context.Context, id pgtype.UUID) (Loan, error)
+	GetReportSummaryStats(ctx context.Context, arg GetReportSummaryStatsParams) (GetReportSummaryStatsRow, error)
+	GetTopBorrowers(ctx context.Context, arg GetTopBorrowersParams) ([]GetTopBorrowersRow, error)
+	GetTransactionsByOriginDay(ctx context.Context, arg GetTransactionsByOriginDayParams) ([]GetTransactionsByOriginDayRow, error)
+	GetTransactionsByOriginMonth(ctx context.Context, arg GetTransactionsByOriginMonthParams) ([]GetTransactionsByOriginMonthRow, error)
+	GetTransactionsByOriginWeek(ctx context.Context, arg GetTransactionsByOriginWeekParams) ([]GetTransactionsByOriginWeekRow, error)
 	// Inserts a corrected loan linked to an original mis-assigned or typo row.
 	InsertCorrectedLoan(ctx context.Context, arg InsertCorrectedLoanParams) (Loan, error)
 	// The most recent paper-origin recording, for the dashboard's "last paper
@@ -53,6 +59,7 @@ type Querier interface {
 	// The only insert path with an explicit, possibly past, borrowed_at and
 	// full paper/import provenance (2.4b).
 	RecordHistorical(ctx context.Context, arg RecordHistoricalParams) (Loan, error)
+	StreamLoansForExport(ctx context.Context, arg StreamLoansForExportParams) ([]StreamLoansForExportRow, error)
 	// returned_at must be set even though the loan is written off, not
 	// returned: loans_status_matches_return only distinguishes 'open' from
 	// everything else, so any non-open status requires a non-null returned_at.

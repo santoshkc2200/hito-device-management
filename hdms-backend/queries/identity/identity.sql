@@ -75,3 +75,43 @@ RETURNING id, kind, actor, filename, total_rows, created_count, updated_count, s
 -- name: GetImportBatch :one
 SELECT id, kind, actor, filename, total_rows, created_count, updated_count, skipped_count, created_at
 FROM import_batches WHERE id = $1;
+
+-- name: StreamUsersForExport :many
+SELECT
+    u.id,
+    u.employee_no,
+    u.full_name,
+    d.name AS department_name,
+    u.email,
+    u.phone,
+    u.status,
+    u.notes,
+    u.registered_at,
+    u.registered_by,
+    u.updated_at,
+    EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    )::boolean AS has_credential
+FROM users u
+LEFT JOIN departments d ON u.department_id = d.id
+WHERE (sqlc.narg('status')::user_status IS NULL OR u.status = sqlc.narg('status'))
+  AND (sqlc.narg('department_id')::uuid IS NULL OR u.department_id = sqlc.narg('department_id'))
+  AND (
+    sqlc.narg('query')::text IS NULL
+    OR u.full_name ILIKE '%' || sqlc.narg('query') || '%'
+    OR u.employee_no ILIKE '%' || sqlc.narg('query') || '%'
+  )
+  AND (
+    sqlc.narg('has_credential')::boolean IS NULL
+    OR (sqlc.narg('has_credential')::boolean = TRUE AND EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
+    OR (sqlc.narg('has_credential')::boolean = FALSE AND NOT EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
+  )
+ORDER BY u.registered_at DESC, u.id DESC;
+

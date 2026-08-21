@@ -315,6 +315,106 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 	return items, nil
 }
 
+const streamUsersForExport = `-- name: StreamUsersForExport :many
+SELECT
+    u.id,
+    u.employee_no,
+    u.full_name,
+    d.name AS department_name,
+    u.email,
+    u.phone,
+    u.status,
+    u.notes,
+    u.registered_at,
+    u.registered_by,
+    u.updated_at,
+    EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    )::boolean AS has_credential
+FROM users u
+LEFT JOIN departments d ON u.department_id = d.id
+WHERE ($1::user_status IS NULL OR u.status = $1)
+  AND ($2::uuid IS NULL OR u.department_id = $2)
+  AND (
+    $3::text IS NULL
+    OR u.full_name ILIKE '%' || $3 || '%'
+    OR u.employee_no ILIKE '%' || $3 || '%'
+  )
+  AND (
+    $4::boolean IS NULL
+    OR ($4::boolean = TRUE AND EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
+    OR ($4::boolean = FALSE AND NOT EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
+  )
+ORDER BY u.registered_at DESC, u.id DESC
+`
+
+type StreamUsersForExportParams struct {
+	Status        NullUserStatus `json:"status"`
+	DepartmentID  pgtype.UUID    `json:"department_id"`
+	Query         pgtype.Text    `json:"query"`
+	HasCredential pgtype.Bool    `json:"has_credential"`
+}
+
+type StreamUsersForExportRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	EmployeeNo     string             `json:"employee_no"`
+	FullName       string             `json:"full_name"`
+	DepartmentName pgtype.Text        `json:"department_name"`
+	Email          pgtype.Text        `json:"email"`
+	Phone          pgtype.Text        `json:"phone"`
+	Status         UserStatus         `json:"status"`
+	Notes          pgtype.Text        `json:"notes"`
+	RegisteredAt   pgtype.Timestamptz `json:"registered_at"`
+	RegisteredBy   string             `json:"registered_by"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	HasCredential  bool               `json:"has_credential"`
+}
+
+func (q *Queries) StreamUsersForExport(ctx context.Context, arg StreamUsersForExportParams) ([]StreamUsersForExportRow, error) {
+	rows, err := q.db.Query(ctx, streamUsersForExport,
+		arg.Status,
+		arg.DepartmentID,
+		arg.Query,
+		arg.HasCredential,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StreamUsersForExportRow
+	for rows.Next() {
+		var i StreamUsersForExportRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.EmployeeNo,
+			&i.FullName,
+			&i.DepartmentName,
+			&i.Email,
+			&i.Phone,
+			&i.Status,
+			&i.Notes,
+			&i.RegisteredAt,
+			&i.RegisteredBy,
+			&i.UpdatedAt,
+			&i.HasCredential,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET full_name = $2, department_id = $3, email = $4, phone = $5, notes = $6, updated_at = now()

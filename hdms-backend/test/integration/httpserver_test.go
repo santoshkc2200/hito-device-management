@@ -82,8 +82,9 @@ func newTestHarness(t *testing.T) *testHarness {
 	}, auditSvc, bus)
 
 	sseHub := events.NewSSEHub(pool, bus, discardLogger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, sseHub)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, sseHub)
 	mux := http.NewServeMux()
+
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
 	handler := httpx.Chain(
 		httpx.WithRequestID,

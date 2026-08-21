@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	CountLiveDevicesByCategory(ctx context.Context) ([]CountLiveDevicesByCategoryRow, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (DeviceCategory, error)
 	CreateDevice(ctx context.Context, arg CreateDeviceParams) (Device, error)
 	GetCategoryByID(ctx context.Context, id pgtype.UUID) (DeviceCategory, error)
@@ -24,6 +25,7 @@ type Querier interface {
 	// The "full-text-ish search" is a plain ILIKE across the four fields an
 	// attendant is likely to have on hand: asset tag, name, model, serial.
 	ListDevices(ctx context.Context, arg ListDevicesParams) ([]Device, error)
+	StreamDevicesForExport(ctx context.Context, arg StreamDevicesForExportParams) ([]StreamDevicesForExportRow, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (DeviceCategory, error)
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) (Device, error)
 	UpdateDeviceCondition(ctx context.Context, arg UpdateDeviceConditionParams) (Device, error)

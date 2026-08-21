@@ -781,3 +781,264 @@ func decodeLoanCursor(cursor string) (pgtype.Timestamptz, pgtype.UUID, error) {
 	}
 	return pgtype.Timestamptz{}, pgtype.UUID{}, fmt.Errorf("malformed cursor")
 }
+
+func (s *Service) GetReportSummaryStats(ctx context.Context, from, to time.Time) (lendingapi.ReportSummaryStats, error) {
+	q := lendingstore.New(db.Conn(ctx, s.pool))
+	fromTz := pgtypeconv.Timestamptz(from)
+	toTz := pgtypeconv.Timestamptz(to)
+
+	summaryRow, err := q.GetReportSummaryStats(ctx, lendingstore.GetReportSummaryStatsParams{
+		FromAt: fromTz,
+		ToAt:   toTz,
+	})
+	if err != nil {
+		return lendingapi.ReportSummaryStats{}, fmt.Errorf("lending: get report summary stats: %w", err)
+	}
+
+	topBorrowerRows, err := q.GetTopBorrowers(ctx, lendingstore.GetTopBorrowersParams{
+		FromAt: fromTz,
+		ToAt:   toTz,
+	})
+	if err != nil {
+		return lendingapi.ReportSummaryStats{}, fmt.Errorf("lending: get top borrowers: %w", err)
+	}
+
+	categoryRows, err := q.GetCategoryLoanStatsInWindow(ctx, lendingstore.GetCategoryLoanStatsInWindowParams{
+		FromAt: fromTz,
+		ToAt:   toTz,
+	})
+	if err != nil {
+		return lendingapi.ReportSummaryStats{}, fmt.Errorf("lending: get category stats: %w", err)
+	}
+
+	var avgDuration *float32
+	if summaryRow.TotalLoans > 0 && summaryRow.AvgDurationHours > 0 {
+		val := float32(summaryRow.AvgDurationHours)
+		avgDuration = &val
+	}
+
+	totalLoans := int(summaryRow.TotalLoans)
+	openLoans := int(summaryRow.OpenLoans)
+	overdueCount := int(summaryRow.OverdueCount)
+	var overdueRate float32
+	if totalLoans > 0 {
+		overdueRate = float32(overdueCount) / float32(totalLoans)
+	}
+
+	topBorrowers := make([]lendingapi.TopBorrowerSummary, 0, len(topBorrowerRows))
+	for _, tb := range topBorrowerRows {
+		topBorrowers = append(topBorrowers, lendingapi.TopBorrowerSummary{
+			UserID:    pgtypeconv.UUIDString(tb.UserID),
+			LoanCount: int(tb.LoanCount),
+		})
+	}
+
+	catStats := make([]lendingapi.CategoryLoanStat, 0, len(categoryRows))
+	for _, cr := range categoryRows {
+		var catAvgDuration *float32
+		if cr.AvgDurationHours > 0 {
+			v := float32(cr.AvgDurationHours)
+			catAvgDuration = &v
+		}
+		catStats = append(catStats, lendingapi.CategoryLoanStat{
+			CategoryID:       pgtypeconv.UUIDString(cr.CategoryID),
+			LoanCount:        int(cr.LoanCount),
+			AvgDurationHours: catAvgDuration,
+			TotalLoanSeconds: cr.TotalLoanSeconds,
+		})
+	}
+
+
+	return lendingapi.ReportSummaryStats{
+		TotalLoans:       totalLoans,
+		OpenLoans:        openLoans,
+		OverdueCount:     overdueCount,
+		OverdueRate:      overdueRate,
+		AvgDurationHours: avgDuration,
+		TopBorrowers:     topBorrowers,
+		CategoryStats:    catStats,
+	}, nil
+}
+
+func (s *Service) GetTransactionsByOrigin(ctx context.Context, from, to time.Time, bucket string) ([]lendingapi.OriginBucketStats, error) {
+	q := lendingstore.New(db.Conn(ctx, s.pool))
+	fromTz := pgtypeconv.Timestamptz(from)
+	toTz := pgtypeconv.Timestamptz(to)
+
+	type rowItem struct {
+		PeriodStart time.Time
+		Origin      lendingstore.LoanOrigin
+		Count       int64
+	}
+	var rawRows []rowItem
+
+	switch bucket {
+	case "week":
+		rows, err := q.GetTransactionsByOriginWeek(ctx, lendingstore.GetTransactionsByOriginWeekParams{
+			FromAt: fromTz,
+			ToAt:   toTz,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("lending: get transactions by origin (week): %w", err)
+		}
+		for _, r := range rows {
+			rawRows = append(rawRows, rowItem{PeriodStart: pgtypeconv.Time(r.PeriodStart), Origin: r.Origin, Count: r.Count})
+		}
+	case "month":
+		rows, err := q.GetTransactionsByOriginMonth(ctx, lendingstore.GetTransactionsByOriginMonthParams{
+			FromAt: fromTz,
+			ToAt:   toTz,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("lending: get transactions by origin (month): %w", err)
+		}
+		for _, r := range rows {
+			rawRows = append(rawRows, rowItem{PeriodStart: pgtypeconv.Time(r.PeriodStart), Origin: r.Origin, Count: r.Count})
+		}
+	default: // "day"
+		rows, err := q.GetTransactionsByOriginDay(ctx, lendingstore.GetTransactionsByOriginDayParams{
+			FromAt: fromTz,
+			ToAt:   toTz,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("lending: get transactions by origin (day): %w", err)
+		}
+		for _, r := range rows {
+			rawRows = append(rawRows, rowItem{PeriodStart: pgtypeconv.Time(r.PeriodStart), Origin: r.Origin, Count: r.Count})
+		}
+	}
+
+	bucketMap := make(map[time.Time]map[lendingapi.Origin]int)
+	var orderedTimes []time.Time
+
+	for _, r := range rawRows {
+		t := r.PeriodStart
+		if _, exists := bucketMap[t]; !exists {
+			bucketMap[t] = make(map[lendingapi.Origin]int)
+			orderedTimes = append(orderedTimes, t)
+		}
+		bucketMap[t][lendingapi.Origin(r.Origin)] = int(r.Count)
+	}
+
+	allOrigins := []lendingapi.Origin{
+		lendingapi.OriginKiosk,
+		lendingapi.OriginPaper,
+		lendingapi.OriginAdmin,
+		lendingapi.OriginImport,
+	}
+
+	results := make([]lendingapi.OriginBucketStats, 0, len(orderedTimes))
+	for _, t := range orderedTimes {
+		counts := bucketMap[t]
+		total := 0
+		bucketCounts := make([]lendingapi.OriginBucketCount, 0, len(allOrigins))
+		for _, orig := range allOrigins {
+			c := counts[orig]
+			total += c
+			bucketCounts = append(bucketCounts, lendingapi.OriginBucketCount{
+				Origin: orig,
+				Count:  c,
+			})
+		}
+		results = append(results, lendingapi.OriginBucketStats{
+			PeriodStart: t,
+			Counts:      bucketCounts,
+			Total:       total,
+		})
+	}
+
+	return results, nil
+}
+
+func (s *Service) StreamLoansForExport(ctx context.Context, params lendingapi.ListLoansParams) ([]lendingapi.ExportLoanRow, error) {
+	q := lendingstore.New(db.Conn(ctx, s.pool))
+
+	var uid, did pgtype.UUID
+	var err error
+	if params.UserID != "" {
+		uid, err = pgtypeconv.UUID(params.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("lending: invalid user id: %w", err)
+		}
+	}
+	if params.DeviceID != "" {
+		did, err = pgtypeconv.UUID(params.DeviceID)
+		if err != nil {
+			return nil, fmt.Errorf("lending: invalid device id: %w", err)
+		}
+	}
+
+	var fromAt, toAt pgtype.Timestamptz
+	if params.From != nil {
+		fromAt = pgtypeconv.Timestamptz(*params.From)
+	}
+	if params.To != nil {
+		toAt = pgtypeconv.Timestamptz(*params.To)
+	}
+
+	var disputed pgtype.Bool
+	if params.Disputed != nil {
+		disputed = pgtype.Bool{Bool: *params.Disputed, Valid: true}
+	}
+
+	rows, err := q.StreamLoansForExport(ctx, lendingstore.StreamLoansForExportParams{
+		Status:   nullLoanStatus(params.Status),
+		Origin:   nullLoanOrigin(params.Origin),
+		UserID:   uid,
+		DeviceID: did,
+		Disputed: disputed,
+		FromAt:   fromAt,
+		ToAt:     toAt,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("lending: stream loans for export: %w", err)
+	}
+
+	result := make([]lendingapi.ExportLoanRow, 0, len(rows))
+	for _, r := range rows {
+		var dueAt, retAt, recAt *time.Time
+		if r.DueAt.Valid {
+			t := pgtypeconv.Time(r.DueAt)
+			dueAt = &t
+		}
+		if r.ReturnedAt.Valid {
+			t := pgtypeconv.Time(r.ReturnedAt)
+			retAt = &t
+		}
+		if r.RecordedAt.Valid {
+			t := pgtypeconv.Time(r.RecordedAt)
+			recAt = &t
+		}
+
+		result = append(result, lendingapi.ExportLoanRow{
+			ID:              pgtypeconv.UUIDString(r.ID),
+			DeviceID:        pgtypeconv.UUIDString(r.DeviceID),
+			DeviceAssetTag:  r.DeviceAssetTag,
+			DeviceName:      r.DeviceName,
+			UserID:          pgtypeconv.UUIDString(r.UserID),
+			UserEmployeeNo:  r.UserEmployeeNo,
+			UserFullName:    r.UserFullName,
+			Status:          lendingapi.Status(r.Status),
+			Origin:          lendingapi.Origin(r.Origin),
+			BorrowedAt:      pgtypeconv.Time(r.BorrowedAt),
+			DueAt:           dueAt,
+			ReturnedAt:      retAt,
+			BorrowKioskName: pgtypeconv.TextString(r.BorrowKioskName),
+			ReturnKioskName: pgtypeconv.TextString(r.ReturnKioskName),
+			BorrowActor:     r.BorrowActor,
+			ReturnActor:     pgtypeconv.TextString(r.ReturnActor),
+			BorrowSource:    r.BorrowSource,
+			ReturnSource:    pgtypeconv.TextString(r.ReturnSource),
+			ConditionOut:    conditionString(r.ConditionOut),
+			ConditionIn:     conditionString(r.ConditionIn),
+			Notes:           pgtypeconv.TextString(r.Notes),
+			PaperRef:        pgtypeconv.TextString(r.PaperRef),
+			RecordedAt:      recAt,
+			RecordedBy:      pgtypeconv.TextString(r.RecordedBy),
+			BackfillNote:    pgtypeconv.TextString(r.BackfillNote),
+			Disputed:        r.Disputed,
+		})
+	}
+	return result, nil
+}
+

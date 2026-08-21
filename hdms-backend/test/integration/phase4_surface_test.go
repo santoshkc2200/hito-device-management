@@ -30,21 +30,13 @@ type phase4Stub struct {
 func phase4Stubs() []phase4Stub {
 	const id = "01923e5c-0000-7000-8000-000000000000"
 	return []phase4Stub{
-		{http.MethodGet, "/v1/reports/summary", "4.9a"},
-		{http.MethodGet, "/v1/reports/by-origin", "4.9a"},
-		{http.MethodGet, "/v1/reports/operational-health", "4.9a"},
-		{http.MethodGet, "/v1/reports/loans.csv", "4.9c"},
-		{http.MethodGet, "/v1/reports/devices.csv", "4.9c"},
-		{http.MethodGet, "/v1/reports/users.csv", "4.9c"},
-		{http.MethodGet, "/v1/audit", "4.9d"},
-		{http.MethodGet, "/v1/audit.csv", "4.9d"},
-
 		{http.MethodGet, "/v1/settings", "4.10a"},
 		{http.MethodPatch, "/v1/settings", "4.10a"},
 		{http.MethodGet, "/v1/kiosks/" + id, "4.10b"},
 		{http.MethodPatch, "/v1/kiosks/" + id, "4.10b"},
 		{http.MethodPost, "/v1/kiosks/" + id + "/enable", "4.10b"},
 	}
+
 }
 
 // TestPhase4SurfaceIsRouted is the check the one-pass contract needs: a 404

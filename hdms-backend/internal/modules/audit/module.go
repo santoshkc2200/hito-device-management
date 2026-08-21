@@ -67,12 +67,25 @@ func (s *Service) List(ctx context.Context, params auditapi.ListParams) ([]audit
 		limit = 50
 	}
 
+	var cursorID pgtype.UUID
+	if params.CursorID != "" {
+		var err error
+		cursorID, err = pgtypeconv.NullUUID(params.CursorID)
+		if err != nil {
+			return nil, fmt.Errorf("audit: invalid cursor id: %w", err)
+		}
+	}
+
+
 	q := auditstore.New(db.Conn(ctx, s.pool))
 	rows, err := q.ListAuditEvents(ctx, auditstore.ListAuditEventsParams{
 		Actor:       pgtypeconv.Text(params.Actor),
 		Subject:     pgtypeconv.Text(params.Subject),
 		Action:      pgtypeconv.Text(params.Action),
-		Before:      beforeParam(params.Before),
+		FromAt:      timeParam(params.From),
+		ToAt:        timeParam(params.To),
+		CursorAt:    timeParam(params.CursorAt),
+		CursorID:    cursorID,
 		ResultLimit: int32(limit),
 	})
 	if err != nil {
@@ -105,6 +118,46 @@ func (s *Service) List(ctx context.Context, params auditapi.ListParams) ([]audit
 	return entries, nil
 }
 
+// StreamForExport returns audit events matching filters for CSV export.
+func (s *Service) StreamForExport(ctx context.Context, params auditapi.ListParams) ([]auditapi.Entry, error) {
+	q := auditstore.New(db.Conn(ctx, s.pool))
+	rows, err := q.StreamAuditEventsForExport(ctx, auditstore.StreamAuditEventsForExportParams{
+		Actor:   pgtypeconv.Text(params.Actor),
+		Subject: pgtypeconv.Text(params.Subject),
+		Action:  pgtypeconv.Text(params.Action),
+		FromAt:  timeParam(params.From),
+		ToAt:    timeParam(params.To),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("audit: stream for export: %w", err)
+	}
+
+	entries := make([]auditapi.Entry, 0, len(rows))
+	for _, r := range rows {
+		var payload map[string]any
+		if len(r.Payload) > 0 {
+			if err := json.Unmarshal(r.Payload, &payload); err != nil {
+				return nil, fmt.Errorf("audit: stream for export: unmarshal payload for %s: %w", pgtypeconv.UUIDString(r.ID), err)
+			}
+		}
+		actorIP := ""
+		if r.ActorIp != nil {
+			actorIP = r.ActorIp.String()
+		}
+		entries = append(entries, auditapi.Entry{
+			ID:        pgtypeconv.UUIDString(r.ID),
+			At:        pgtypeconv.Time(r.At),
+			Actor:     r.Actor,
+			ActorIP:   actorIP,
+			Action:    r.Action,
+			Subject:   r.Subject,
+			Payload:   payload,
+			RequestID: pgtypeconv.TextString(r.RequestID),
+		})
+	}
+	return entries, nil
+}
+
 func marshalPayload(payload map[string]any) ([]byte, error) {
 	if payload == nil {
 		return []byte("{}"), nil
@@ -112,9 +165,10 @@ func marshalPayload(payload map[string]any) ([]byte, error) {
 	return json.Marshal(payload)
 }
 
-func beforeParam(t time.Time) pgtype.Timestamptz {
+func timeParam(t time.Time) pgtype.Timestamptz {
 	if t.IsZero() {
 		return pgtype.Timestamptz{}
 	}
 	return pgtypeconv.Timestamptz(t)
 }
+

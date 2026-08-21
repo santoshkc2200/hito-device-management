@@ -59,3 +59,35 @@ SELECT resolved_type, COUNT(DISTINCT token_preview) AS distinct_tokens, COUNT(*)
 FROM scan_events
 WHERE result = 'rejected' AND at >= $1
 GROUP BY resolved_type;
+
+-- name: GetOperationalHealthStats :one
+SELECT
+    COUNT(*)::bigint AS total_scans,
+    COUNT(*) FILTER (WHERE source = 'manual')::bigint AS manual_entry_count,
+    COUNT(*) FILTER (WHERE source = 'camera')::bigint AS camera_fallback_count
+FROM scan_events
+WHERE at >= sqlc.arg('from_at')::timestamptz
+  AND at <= sqlc.arg('to_at')::timestamptz;
+
+-- name: GetScansBySource :many
+SELECT
+    source,
+    COUNT(*)::bigint AS count
+FROM scan_events
+WHERE at >= sqlc.arg('from_at')::timestamptz
+  AND at <= sqlc.arg('to_at')::timestamptz
+GROUP BY source
+ORDER BY count DESC, source ASC;
+
+-- name: GetScanRejectionReasons :many
+SELECT
+    COALESCE(reason, '')::text AS reason,
+    COALESCE(resolved_type, '')::text AS resolved_type,
+    COUNT(*)::bigint AS count
+FROM scan_events
+WHERE result = 'rejected'
+  AND at >= sqlc.arg('from_at')::timestamptz
+  AND at <= sqlc.arg('to_at')::timestamptz
+GROUP BY reason, resolved_type
+ORDER BY count DESC;
+

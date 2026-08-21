@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
 	"github.com/hito-hospital/hdms/internal/modules/checkout"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
@@ -24,15 +25,16 @@ import (
 
 // Server implements gen.ServerInterface.
 type Server struct {
-	pool               *db.Pool
-	auth               *auth.Service
-	identity           *identity.Service
-	catalog            *catalog.Service
-	credentials        *credentials.Service
-	lending            *lending.Service
-	checkout           *checkout.Service
-	sseHub             *events.SSEHub
-	importMu           sync.Mutex
+	pool                 *db.Pool
+	auth                 *auth.Service
+	identity             *identity.Service
+	catalog              *catalog.Service
+	credentials          *credentials.Service
+	lending              *lending.Service
+	checkout             *checkout.Service
+	audit                *audit.Service
+	sseHub               *events.SSEHub
+	importMu             sync.Mutex
 	userImportPreviews   map[string]*userImportPreviewCacheItem
 	deviceImportPreviews map[string]*deviceImportPreviewCacheItem
 }
@@ -42,7 +44,7 @@ type Server struct {
 func New(
 	pool *db.Pool, authSvc *auth.Service, identitySvc *identity.Service, catalogSvc *catalog.Service,
 	credentialsSvc *credentials.Service, lendingSvc *lending.Service, checkoutSvc *checkout.Service,
-	sseHub *events.SSEHub,
+	auditSvc *audit.Service, sseHub *events.SSEHub,
 ) *Server {
 	return &Server{
 		pool:                 pool,
@@ -52,11 +54,13 @@ func New(
 		credentials:          credentialsSvc,
 		lending:              lendingSvc,
 		checkout:             checkoutSvc,
+		audit:                auditSvc,
 		sseHub:               sseHub,
 		userImportPreviews:   make(map[string]*userImportPreviewCacheItem),
 		deviceImportPreviews: make(map[string]*deviceImportPreviewCacheItem),
 	}
 }
+
 
 var _ gen.ServerInterface = (*Server)(nil)
 

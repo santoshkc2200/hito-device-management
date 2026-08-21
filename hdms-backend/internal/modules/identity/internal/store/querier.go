@@ -24,6 +24,7 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	ListDepartments(ctx context.Context) ([]Department, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	StreamUsersForExport(ctx context.Context, arg StreamUsersForExportParams) ([]StreamUsersForExportRow, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) (User, error)
 }

@@ -31,3 +31,60 @@ func (s *Service) CountScanRejectionsSince(ctx context.Context, since time.Time)
 	}
 	return counts, nil
 }
+
+// GetOperationalHealth returns scan metrics, breakdown by source, and rejection reasons for a date range.
+func (s *Service) GetOperationalHealth(ctx context.Context, from, to time.Time) (checkoutapi.OperationalHealthStats, error) {
+	q := checkoutstore.New(s.pool.Pool)
+	fromTz := pgtypeconv.Timestamptz(from)
+	toTz := pgtypeconv.Timestamptz(to)
+
+	statsRow, err := q.GetOperationalHealthStats(ctx, checkoutstore.GetOperationalHealthStatsParams{
+		FromAt: fromTz,
+		ToAt:   toTz,
+	})
+	if err != nil {
+		return checkoutapi.OperationalHealthStats{}, fmt.Errorf("checkout: get operational health stats: %w", err)
+	}
+
+	sourceRows, err := q.GetScansBySource(ctx, checkoutstore.GetScansBySourceParams{
+		FromAt: fromTz,
+		ToAt:   toTz,
+	})
+	if err != nil {
+		return checkoutapi.OperationalHealthStats{}, fmt.Errorf("checkout: get scans by source: %w", err)
+	}
+
+	rejectionRows, err := q.GetScanRejectionReasons(ctx, checkoutstore.GetScanRejectionReasonsParams{
+		FromAt: fromTz,
+		ToAt:   toTz,
+	})
+	if err != nil {
+		return checkoutapi.OperationalHealthStats{}, fmt.Errorf("checkout: get scan rejection reasons: %w", err)
+	}
+
+	scansBySource := make([]checkoutapi.ScanSourceCount, 0, len(sourceRows))
+	for _, sr := range sourceRows {
+		scansBySource = append(scansBySource, checkoutapi.ScanSourceCount{
+			Source: sr.Source,
+			Count:  int(sr.Count),
+		})
+	}
+
+	rejectionReasons := make([]checkoutapi.ScanRejectionReasonCount, 0, len(rejectionRows))
+	for _, rr := range rejectionRows {
+		rejectionReasons = append(rejectionReasons, checkoutapi.ScanRejectionReasonCount{
+			Reason:       rr.Reason,
+			ResolvedType: rr.ResolvedType,
+			Count:        int(rr.Count),
+		})
+	}
+
+	return checkoutapi.OperationalHealthStats{
+		TotalScans:          int(statsRow.TotalScans),
+		ManualEntryCount:    int(statsRow.ManualEntryCount),
+		CameraFallbackCount: int(statsRow.CameraFallbackCount),
+		ScansBySource:       scansBySource,
+		RejectionReasons:    rejectionReasons,
+	}, nil
+}
+

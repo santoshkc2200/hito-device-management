@@ -212,3 +212,119 @@ RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_
     condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
     backfill_note, disputed;
 
+-- name: GetReportSummaryStats :one
+SELECT
+    COUNT(*)::bigint AS total_loans,
+    COUNT(*) FILTER (WHERE status = 'open')::bigint AS open_loans,
+    COUNT(*) FILTER (WHERE status = 'open' AND due_at IS NOT NULL AND due_at < now())::bigint AS overdue_count,
+    AVG(CASE WHEN returned_at IS NOT NULL THEN EXTRACT(EPOCH FROM (returned_at - borrowed_at)) / 3600.0 ELSE NULL END)::float8 AS avg_duration_hours
+FROM loans
+WHERE borrowed_at >= sqlc.arg('from_at')::timestamptz
+  AND borrowed_at <= sqlc.arg('to_at')::timestamptz;
+
+-- name: GetTopBorrowers :many
+SELECT
+    user_id,
+    COUNT(*)::bigint AS loan_count
+FROM loans
+WHERE borrowed_at >= sqlc.arg('from_at')::timestamptz
+  AND borrowed_at <= sqlc.arg('to_at')::timestamptz
+GROUP BY user_id
+ORDER BY loan_count DESC, user_id ASC
+LIMIT 10;
+
+-- name: GetCategoryLoanStatsInWindow :many
+SELECT
+    d.category_id,
+    COUNT(l.id)::bigint AS loan_count,
+    AVG(CASE WHEN l.returned_at IS NOT NULL THEN EXTRACT(EPOCH FROM (l.returned_at - l.borrowed_at)) / 3600.0 ELSE NULL END)::float8 AS avg_duration_hours,
+    COALESCE(SUM(
+        EXTRACT(EPOCH FROM (
+            LEAST(COALESCE(l.returned_at, now(), sqlc.arg('to_at')::timestamptz), sqlc.arg('to_at')::timestamptz) -
+            GREATEST(l.borrowed_at, sqlc.arg('from_at')::timestamptz)
+        ))
+    ), 0)::float8 AS total_loan_seconds
+FROM loans l
+JOIN devices d ON l.device_id = d.id
+WHERE l.borrowed_at <= sqlc.arg('to_at')::timestamptz
+  AND (l.returned_at IS NULL OR l.returned_at >= sqlc.arg('from_at')::timestamptz)
+  AND l.status <> 'written_off'
+  AND NOT l.disputed
+GROUP BY d.category_id;
+
+-- name: GetTransactionsByOriginDay :many
+SELECT
+    date_trunc('day', borrowed_at)::timestamptz AS period_start,
+    origin,
+    COUNT(*)::bigint AS count
+FROM loans
+WHERE borrowed_at >= sqlc.arg('from_at')::timestamptz
+  AND borrowed_at <= sqlc.arg('to_at')::timestamptz
+GROUP BY period_start, origin
+ORDER BY period_start ASC, origin ASC;
+
+-- name: GetTransactionsByOriginWeek :many
+SELECT
+    date_trunc('week', borrowed_at)::timestamptz AS period_start,
+    origin,
+    COUNT(*)::bigint AS count
+FROM loans
+WHERE borrowed_at >= sqlc.arg('from_at')::timestamptz
+  AND borrowed_at <= sqlc.arg('to_at')::timestamptz
+GROUP BY period_start, origin
+ORDER BY period_start ASC, origin ASC;
+
+-- name: GetTransactionsByOriginMonth :many
+SELECT
+    date_trunc('month', borrowed_at)::timestamptz AS period_start,
+    origin,
+    COUNT(*)::bigint AS count
+FROM loans
+WHERE borrowed_at >= sqlc.arg('from_at')::timestamptz
+  AND borrowed_at <= sqlc.arg('to_at')::timestamptz
+GROUP BY period_start, origin
+ORDER BY period_start ASC, origin ASC;
+
+-- name: StreamLoansForExport :many
+SELECT
+    l.id,
+    l.device_id,
+    d.asset_tag AS device_asset_tag,
+    d.name AS device_name,
+    l.user_id,
+    u.employee_no AS user_employee_no,
+    u.full_name AS user_full_name,
+    l.status,
+    l.origin,
+    l.borrowed_at,
+    l.due_at,
+    l.returned_at,
+    bk.name AS borrow_kiosk_name,
+    rk.name AS return_kiosk_name,
+    l.borrow_actor,
+    l.return_actor,
+    l.borrow_source,
+    l.return_source,
+    l.condition_out,
+    l.condition_in,
+    l.notes,
+    l.paper_ref,
+    l.recorded_at,
+    l.recorded_by,
+    l.backfill_note,
+    l.disputed
+FROM loans l
+JOIN devices d ON l.device_id = d.id
+JOIN users u ON l.user_id = u.id
+LEFT JOIN kiosks bk ON l.borrow_kiosk_id = bk.id
+LEFT JOIN kiosks rk ON l.return_kiosk_id = rk.id
+WHERE (sqlc.narg('status')::loan_status IS NULL OR l.status = sqlc.narg('status'))
+  AND (sqlc.narg('origin')::loan_origin IS NULL OR l.origin = sqlc.narg('origin'))
+  AND (sqlc.narg('user_id')::uuid IS NULL OR l.user_id = sqlc.narg('user_id'))
+  AND (sqlc.narg('device_id')::uuid IS NULL OR l.device_id = sqlc.narg('device_id'))
+  AND (sqlc.narg('disputed')::boolean IS NULL OR l.disputed = sqlc.narg('disputed'))
+  AND (sqlc.narg('from_at')::timestamptz IS NULL OR l.borrowed_at >= sqlc.narg('from_at'))
+  AND (sqlc.narg('to_at')::timestamptz IS NULL OR l.borrowed_at <= sqlc.narg('to_at'))
+ORDER BY l.borrowed_at DESC, l.id DESC;
+
+

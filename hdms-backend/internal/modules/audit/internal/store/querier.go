@@ -14,6 +14,7 @@ type Querier interface {
 	// grant on audit_events at all.
 	InsertAuditEvent(ctx context.Context, arg InsertAuditEventParams) error
 	ListAuditEvents(ctx context.Context, arg ListAuditEventsParams) ([]AuditEvent, error)
+	StreamAuditEventsForExport(ctx context.Context, arg StreamAuditEventsForExportParams) ([]AuditEvent, error)
 }
 
 var _ Querier = (*Queries)(nil)

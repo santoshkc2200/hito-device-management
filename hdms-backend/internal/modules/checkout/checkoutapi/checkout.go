@@ -214,6 +214,9 @@ type Service interface {
 	// kiosk and the backfill screen cannot disagree.
 	ResolveHistorical(ctx context.Context, deviceID, userID string, at time.Time) (HistoricalAction, error)
 
+	// GetOperationalHealth returns scan metrics, source breakdown, and rejection reasons for [from, to].
+	GetOperationalHealth(ctx context.Context, from, to time.Time) (OperationalHealthStats, error)
+
 	// PreviewPaperBatch validates a whole staged batch and reports, per
 	// row, the auto-detected action and any conflict — writing nothing.
 	// The validation is the identical code path RecordPaperBatch runs, in
@@ -236,6 +239,26 @@ type ScanRejectionCount struct {
 	DistinctTokens int
 	TotalScans     int
 }
+
+type ScanSourceCount struct {
+	Source string
+	Count  int
+}
+
+type ScanRejectionReasonCount struct {
+	Reason       string
+	ResolvedType string
+	Count        int
+}
+
+type OperationalHealthStats struct {
+	TotalScans          int
+	ManualEntryCount    int
+	CameraFallbackCount int
+	ScansBySource       []ScanSourceCount
+	RejectionReasons    []ScanRejectionReasonCount
+}
+
 
 // ─── Paper backfill (2.4b) ──────────────────────────────────────────────────
 //

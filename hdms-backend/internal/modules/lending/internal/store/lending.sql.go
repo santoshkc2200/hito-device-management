@@ -264,6 +264,63 @@ func (q *Queries) ForceReturnLoan(ctx context.Context, arg ForceReturnLoanParams
 	return i, err
 }
 
+const getCategoryLoanStatsInWindow = `-- name: GetCategoryLoanStatsInWindow :many
+SELECT
+    d.category_id,
+    COUNT(l.id)::bigint AS loan_count,
+    AVG(CASE WHEN l.returned_at IS NOT NULL THEN EXTRACT(EPOCH FROM (l.returned_at - l.borrowed_at)) / 3600.0 ELSE NULL END)::float8 AS avg_duration_hours,
+    COALESCE(SUM(
+        EXTRACT(EPOCH FROM (
+            LEAST(COALESCE(l.returned_at, now(), $1::timestamptz), $1::timestamptz) -
+            GREATEST(l.borrowed_at, $2::timestamptz)
+        ))
+    ), 0)::float8 AS total_loan_seconds
+FROM loans l
+JOIN devices d ON l.device_id = d.id
+WHERE l.borrowed_at <= $1::timestamptz
+  AND (l.returned_at IS NULL OR l.returned_at >= $2::timestamptz)
+  AND l.status <> 'written_off'
+  AND NOT l.disputed
+GROUP BY d.category_id
+`
+
+type GetCategoryLoanStatsInWindowParams struct {
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+	FromAt pgtype.Timestamptz `json:"from_at"`
+}
+
+type GetCategoryLoanStatsInWindowRow struct {
+	CategoryID       pgtype.UUID `json:"category_id"`
+	LoanCount        int64       `json:"loan_count"`
+	AvgDurationHours float64     `json:"avg_duration_hours"`
+	TotalLoanSeconds float64     `json:"total_loan_seconds"`
+}
+
+func (q *Queries) GetCategoryLoanStatsInWindow(ctx context.Context, arg GetCategoryLoanStatsInWindowParams) ([]GetCategoryLoanStatsInWindowRow, error) {
+	rows, err := q.db.Query(ctx, getCategoryLoanStatsInWindow, arg.ToAt, arg.FromAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCategoryLoanStatsInWindowRow
+	for rows.Next() {
+		var i GetCategoryLoanStatsInWindowRow
+		if err := rows.Scan(
+			&i.CategoryID,
+			&i.LoanCount,
+			&i.AvgDurationHours,
+			&i.TotalLoanSeconds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLoan = `-- name: GetLoan :one
 SELECT id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
     borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
@@ -301,6 +358,212 @@ func (q *Queries) GetLoan(ctx context.Context, id pgtype.UUID) (Loan, error) {
 		&i.Disputed,
 	)
 	return i, err
+}
+
+const getReportSummaryStats = `-- name: GetReportSummaryStats :one
+SELECT
+    COUNT(*)::bigint AS total_loans,
+    COUNT(*) FILTER (WHERE status = 'open')::bigint AS open_loans,
+    COUNT(*) FILTER (WHERE status = 'open' AND due_at IS NOT NULL AND due_at < now())::bigint AS overdue_count,
+    AVG(CASE WHEN returned_at IS NOT NULL THEN EXTRACT(EPOCH FROM (returned_at - borrowed_at)) / 3600.0 ELSE NULL END)::float8 AS avg_duration_hours
+FROM loans
+WHERE borrowed_at >= $1::timestamptz
+  AND borrowed_at <= $2::timestamptz
+`
+
+type GetReportSummaryStatsParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetReportSummaryStatsRow struct {
+	TotalLoans       int64   `json:"total_loans"`
+	OpenLoans        int64   `json:"open_loans"`
+	OverdueCount     int64   `json:"overdue_count"`
+	AvgDurationHours float64 `json:"avg_duration_hours"`
+}
+
+func (q *Queries) GetReportSummaryStats(ctx context.Context, arg GetReportSummaryStatsParams) (GetReportSummaryStatsRow, error) {
+	row := q.db.QueryRow(ctx, getReportSummaryStats, arg.FromAt, arg.ToAt)
+	var i GetReportSummaryStatsRow
+	err := row.Scan(
+		&i.TotalLoans,
+		&i.OpenLoans,
+		&i.OverdueCount,
+		&i.AvgDurationHours,
+	)
+	return i, err
+}
+
+const getTopBorrowers = `-- name: GetTopBorrowers :many
+SELECT
+    user_id,
+    COUNT(*)::bigint AS loan_count
+FROM loans
+WHERE borrowed_at >= $1::timestamptz
+  AND borrowed_at <= $2::timestamptz
+GROUP BY user_id
+ORDER BY loan_count DESC, user_id ASC
+LIMIT 10
+`
+
+type GetTopBorrowersParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetTopBorrowersRow struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	LoanCount int64       `json:"loan_count"`
+}
+
+func (q *Queries) GetTopBorrowers(ctx context.Context, arg GetTopBorrowersParams) ([]GetTopBorrowersRow, error) {
+	rows, err := q.db.Query(ctx, getTopBorrowers, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopBorrowersRow
+	for rows.Next() {
+		var i GetTopBorrowersRow
+		if err := rows.Scan(&i.UserID, &i.LoanCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTransactionsByOriginDay = `-- name: GetTransactionsByOriginDay :many
+SELECT
+    date_trunc('day', borrowed_at)::timestamptz AS period_start,
+    origin,
+    COUNT(*)::bigint AS count
+FROM loans
+WHERE borrowed_at >= $1::timestamptz
+  AND borrowed_at <= $2::timestamptz
+GROUP BY period_start, origin
+ORDER BY period_start ASC, origin ASC
+`
+
+type GetTransactionsByOriginDayParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetTransactionsByOriginDayRow struct {
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	Origin      LoanOrigin         `json:"origin"`
+	Count       int64              `json:"count"`
+}
+
+func (q *Queries) GetTransactionsByOriginDay(ctx context.Context, arg GetTransactionsByOriginDayParams) ([]GetTransactionsByOriginDayRow, error) {
+	rows, err := q.db.Query(ctx, getTransactionsByOriginDay, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTransactionsByOriginDayRow
+	for rows.Next() {
+		var i GetTransactionsByOriginDayRow
+		if err := rows.Scan(&i.PeriodStart, &i.Origin, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTransactionsByOriginMonth = `-- name: GetTransactionsByOriginMonth :many
+SELECT
+    date_trunc('month', borrowed_at)::timestamptz AS period_start,
+    origin,
+    COUNT(*)::bigint AS count
+FROM loans
+WHERE borrowed_at >= $1::timestamptz
+  AND borrowed_at <= $2::timestamptz
+GROUP BY period_start, origin
+ORDER BY period_start ASC, origin ASC
+`
+
+type GetTransactionsByOriginMonthParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetTransactionsByOriginMonthRow struct {
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	Origin      LoanOrigin         `json:"origin"`
+	Count       int64              `json:"count"`
+}
+
+func (q *Queries) GetTransactionsByOriginMonth(ctx context.Context, arg GetTransactionsByOriginMonthParams) ([]GetTransactionsByOriginMonthRow, error) {
+	rows, err := q.db.Query(ctx, getTransactionsByOriginMonth, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTransactionsByOriginMonthRow
+	for rows.Next() {
+		var i GetTransactionsByOriginMonthRow
+		if err := rows.Scan(&i.PeriodStart, &i.Origin, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTransactionsByOriginWeek = `-- name: GetTransactionsByOriginWeek :many
+SELECT
+    date_trunc('week', borrowed_at)::timestamptz AS period_start,
+    origin,
+    COUNT(*)::bigint AS count
+FROM loans
+WHERE borrowed_at >= $1::timestamptz
+  AND borrowed_at <= $2::timestamptz
+GROUP BY period_start, origin
+ORDER BY period_start ASC, origin ASC
+`
+
+type GetTransactionsByOriginWeekParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetTransactionsByOriginWeekRow struct {
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	Origin      LoanOrigin         `json:"origin"`
+	Count       int64              `json:"count"`
+}
+
+func (q *Queries) GetTransactionsByOriginWeek(ctx context.Context, arg GetTransactionsByOriginWeekParams) ([]GetTransactionsByOriginWeekRow, error) {
+	rows, err := q.db.Query(ctx, getTransactionsByOriginWeek, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTransactionsByOriginWeekRow
+	for rows.Next() {
+		var i GetTransactionsByOriginWeekRow
+		if err := rows.Scan(&i.PeriodStart, &i.Origin, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertCorrectedLoan = `-- name: InsertCorrectedLoan :one
@@ -941,6 +1204,143 @@ func (q *Queries) RecordHistorical(ctx context.Context, arg RecordHistoricalPara
 		&i.Disputed,
 	)
 	return i, err
+}
+
+const streamLoansForExport = `-- name: StreamLoansForExport :many
+SELECT
+    l.id,
+    l.device_id,
+    d.asset_tag AS device_asset_tag,
+    d.name AS device_name,
+    l.user_id,
+    u.employee_no AS user_employee_no,
+    u.full_name AS user_full_name,
+    l.status,
+    l.origin,
+    l.borrowed_at,
+    l.due_at,
+    l.returned_at,
+    bk.name AS borrow_kiosk_name,
+    rk.name AS return_kiosk_name,
+    l.borrow_actor,
+    l.return_actor,
+    l.borrow_source,
+    l.return_source,
+    l.condition_out,
+    l.condition_in,
+    l.notes,
+    l.paper_ref,
+    l.recorded_at,
+    l.recorded_by,
+    l.backfill_note,
+    l.disputed
+FROM loans l
+JOIN devices d ON l.device_id = d.id
+JOIN users u ON l.user_id = u.id
+LEFT JOIN kiosks bk ON l.borrow_kiosk_id = bk.id
+LEFT JOIN kiosks rk ON l.return_kiosk_id = rk.id
+WHERE ($1::loan_status IS NULL OR l.status = $1)
+  AND ($2::loan_origin IS NULL OR l.origin = $2)
+  AND ($3::uuid IS NULL OR l.user_id = $3)
+  AND ($4::uuid IS NULL OR l.device_id = $4)
+  AND ($5::boolean IS NULL OR l.disputed = $5)
+  AND ($6::timestamptz IS NULL OR l.borrowed_at >= $6)
+  AND ($7::timestamptz IS NULL OR l.borrowed_at <= $7)
+ORDER BY l.borrowed_at DESC, l.id DESC
+`
+
+type StreamLoansForExportParams struct {
+	Status   NullLoanStatus     `json:"status"`
+	Origin   NullLoanOrigin     `json:"origin"`
+	UserID   pgtype.UUID        `json:"user_id"`
+	DeviceID pgtype.UUID        `json:"device_id"`
+	Disputed pgtype.Bool        `json:"disputed"`
+	FromAt   pgtype.Timestamptz `json:"from_at"`
+	ToAt     pgtype.Timestamptz `json:"to_at"`
+}
+
+type StreamLoansForExportRow struct {
+	ID              pgtype.UUID         `json:"id"`
+	DeviceID        pgtype.UUID         `json:"device_id"`
+	DeviceAssetTag  string              `json:"device_asset_tag"`
+	DeviceName      string              `json:"device_name"`
+	UserID          pgtype.UUID         `json:"user_id"`
+	UserEmployeeNo  string              `json:"user_employee_no"`
+	UserFullName    string              `json:"user_full_name"`
+	Status          LoanStatus          `json:"status"`
+	Origin          LoanOrigin          `json:"origin"`
+	BorrowedAt      pgtype.Timestamptz  `json:"borrowed_at"`
+	DueAt           pgtype.Timestamptz  `json:"due_at"`
+	ReturnedAt      pgtype.Timestamptz  `json:"returned_at"`
+	BorrowKioskName pgtype.Text         `json:"borrow_kiosk_name"`
+	ReturnKioskName pgtype.Text         `json:"return_kiosk_name"`
+	BorrowActor     string              `json:"borrow_actor"`
+	ReturnActor     pgtype.Text         `json:"return_actor"`
+	BorrowSource    string              `json:"borrow_source"`
+	ReturnSource    pgtype.Text         `json:"return_source"`
+	ConditionOut    NullDeviceCondition `json:"condition_out"`
+	ConditionIn     NullDeviceCondition `json:"condition_in"`
+	Notes           pgtype.Text         `json:"notes"`
+	PaperRef        pgtype.Text         `json:"paper_ref"`
+	RecordedAt      pgtype.Timestamptz  `json:"recorded_at"`
+	RecordedBy      pgtype.Text         `json:"recorded_by"`
+	BackfillNote    pgtype.Text         `json:"backfill_note"`
+	Disputed        bool                `json:"disputed"`
+}
+
+func (q *Queries) StreamLoansForExport(ctx context.Context, arg StreamLoansForExportParams) ([]StreamLoansForExportRow, error) {
+	rows, err := q.db.Query(ctx, streamLoansForExport,
+		arg.Status,
+		arg.Origin,
+		arg.UserID,
+		arg.DeviceID,
+		arg.Disputed,
+		arg.FromAt,
+		arg.ToAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StreamLoansForExportRow
+	for rows.Next() {
+		var i StreamLoansForExportRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeviceID,
+			&i.DeviceAssetTag,
+			&i.DeviceName,
+			&i.UserID,
+			&i.UserEmployeeNo,
+			&i.UserFullName,
+			&i.Status,
+			&i.Origin,
+			&i.BorrowedAt,
+			&i.DueAt,
+			&i.ReturnedAt,
+			&i.BorrowKioskName,
+			&i.ReturnKioskName,
+			&i.BorrowActor,
+			&i.ReturnActor,
+			&i.BorrowSource,
+			&i.ReturnSource,
+			&i.ConditionOut,
+			&i.ConditionIn,
+			&i.Notes,
+			&i.PaperRef,
+			&i.RecordedAt,
+			&i.RecordedBy,
+			&i.BackfillNote,
+			&i.Disputed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const writeOffLoan = `-- name: WriteOffLoan :one

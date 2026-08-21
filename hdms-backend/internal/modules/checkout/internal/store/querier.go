@@ -21,6 +21,9 @@ type Querier interface {
 	// nobody closed, in one statement.
 	ExpireSessions(ctx context.Context, closedAt pgtype.Timestamptz) ([]ScanSession, error)
 	GetLiveSessionForKiosk(ctx context.Context, kioskID pgtype.UUID) (ScanSession, error)
+	GetOperationalHealthStats(ctx context.Context, arg GetOperationalHealthStatsParams) (GetOperationalHealthStatsRow, error)
+	GetScanRejectionReasons(ctx context.Context, arg GetScanRejectionReasonsParams) ([]GetScanRejectionReasonsRow, error)
+	GetScansBySource(ctx context.Context, arg GetScansBySourceParams) ([]GetScansBySourceRow, error)
 	GetSession(ctx context.Context, id pgtype.UUID) (ScanSession, error)
 	// The serialisation point for concurrent scans on one session (2.3c): a
 	// row lock, held only for the duration of the transaction that executes

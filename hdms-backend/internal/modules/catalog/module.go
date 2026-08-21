@@ -440,3 +440,67 @@ func translateDeviceErr(err error) error {
 	}
 	return err
 }
+
+func (s *Service) CountLiveDevicesByCategory(ctx context.Context) (map[string]int, error) {
+	q := catalogstore.New(db.Conn(ctx, s.pool))
+	rows, err := q.CountLiveDevicesByCategory(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("catalog: count live devices by category: %w", err)
+	}
+
+	result := make(map[string]int, len(rows))
+	for _, r := range rows {
+		result[pgtypeconv.UUIDString(r.CategoryID)] = int(r.Count)
+	}
+	return result, nil
+}
+
+func (s *Service) StreamDevicesForExport(ctx context.Context, params catalogapi.ListDevicesParams) ([]catalogapi.ExportDeviceRow, error) {
+	q := catalogstore.New(db.Conn(ctx, s.pool))
+
+	var catID pgtype.UUID
+	var err error
+	if params.CategoryID != "" {
+		catID, err = pgtypeconv.UUID(params.CategoryID)
+		if err != nil {
+			return nil, fmt.Errorf("catalog: invalid category id: %w", err)
+		}
+	}
+
+	rows, err := q.StreamDevicesForExport(ctx, catalogstore.StreamDevicesForExportParams{
+		Status:     nullDeviceStatus(params.Status),
+		CategoryID: catID,
+		Query:      pgtypeconv.Text(params.Query),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("catalog: stream devices for export: %w", err)
+	}
+
+	result := make([]catalogapi.ExportDeviceRow, 0, len(rows))
+	for _, r := range rows {
+		var acquiredOn *time.Time
+		if r.AcquiredOn.Valid {
+			t := r.AcquiredOn.Time
+			acquiredOn = &t
+		}
+
+		result = append(result, catalogapi.ExportDeviceRow{
+			ID:           pgtypeconv.UUIDString(r.ID),
+			AssetTag:     r.AssetTag,
+			Name:         r.Name,
+			CategoryName: r.CategoryName,
+			Manufacturer: pgtypeconv.TextString(r.Manufacturer),
+			Model:        pgtypeconv.TextString(r.Model),
+			SerialNo:     pgtypeconv.TextString(r.SerialNo),
+			Status:       catalogapi.DeviceStatus(r.Status),
+			Condition:    catalogapi.DeviceCondition(r.Condition),
+			HomeLocation: pgtypeconv.TextString(r.HomeLocation),
+			Notes:        pgtypeconv.TextString(r.Notes),
+			AcquiredOn:   acquiredOn,
+			CreatedAt:    pgtypeconv.Time(r.CreatedAt),
+			UpdatedAt:    pgtypeconv.Time(r.UpdatedAt),
+		})
+	}
+	return result, nil
+}
+

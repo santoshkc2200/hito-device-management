@@ -190,6 +190,119 @@ func (q *Queries) GetLiveSessionForKiosk(ctx context.Context, kioskID pgtype.UUI
 	return i, err
 }
 
+const getOperationalHealthStats = `-- name: GetOperationalHealthStats :one
+SELECT
+    COUNT(*)::bigint AS total_scans,
+    COUNT(*) FILTER (WHERE source = 'manual')::bigint AS manual_entry_count,
+    COUNT(*) FILTER (WHERE source = 'camera')::bigint AS camera_fallback_count
+FROM scan_events
+WHERE at >= $1::timestamptz
+  AND at <= $2::timestamptz
+`
+
+type GetOperationalHealthStatsParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetOperationalHealthStatsRow struct {
+	TotalScans          int64 `json:"total_scans"`
+	ManualEntryCount    int64 `json:"manual_entry_count"`
+	CameraFallbackCount int64 `json:"camera_fallback_count"`
+}
+
+func (q *Queries) GetOperationalHealthStats(ctx context.Context, arg GetOperationalHealthStatsParams) (GetOperationalHealthStatsRow, error) {
+	row := q.db.QueryRow(ctx, getOperationalHealthStats, arg.FromAt, arg.ToAt)
+	var i GetOperationalHealthStatsRow
+	err := row.Scan(&i.TotalScans, &i.ManualEntryCount, &i.CameraFallbackCount)
+	return i, err
+}
+
+const getScanRejectionReasons = `-- name: GetScanRejectionReasons :many
+SELECT
+    COALESCE(reason, '')::text AS reason,
+    COALESCE(resolved_type, '')::text AS resolved_type,
+    COUNT(*)::bigint AS count
+FROM scan_events
+WHERE result = 'rejected'
+  AND at >= $1::timestamptz
+  AND at <= $2::timestamptz
+GROUP BY reason, resolved_type
+ORDER BY count DESC
+`
+
+type GetScanRejectionReasonsParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetScanRejectionReasonsRow struct {
+	Reason       string `json:"reason"`
+	ResolvedType string `json:"resolved_type"`
+	Count        int64  `json:"count"`
+}
+
+func (q *Queries) GetScanRejectionReasons(ctx context.Context, arg GetScanRejectionReasonsParams) ([]GetScanRejectionReasonsRow, error) {
+	rows, err := q.db.Query(ctx, getScanRejectionReasons, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScanRejectionReasonsRow
+	for rows.Next() {
+		var i GetScanRejectionReasonsRow
+		if err := rows.Scan(&i.Reason, &i.ResolvedType, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getScansBySource = `-- name: GetScansBySource :many
+SELECT
+    source,
+    COUNT(*)::bigint AS count
+FROM scan_events
+WHERE at >= $1::timestamptz
+  AND at <= $2::timestamptz
+GROUP BY source
+ORDER BY count DESC, source ASC
+`
+
+type GetScansBySourceParams struct {
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+type GetScansBySourceRow struct {
+	Source string `json:"source"`
+	Count  int64  `json:"count"`
+}
+
+func (q *Queries) GetScansBySource(ctx context.Context, arg GetScansBySourceParams) ([]GetScansBySourceRow, error) {
+	rows, err := q.db.Query(ctx, getScansBySource, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScansBySourceRow
+	for rows.Next() {
+		var i GetScansBySourceRow
+		if err := rows.Scan(&i.Source, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSession = `-- name: GetSession :one
 SELECT id, kiosk_id, state, user_id, pending_device, started_at, last_activity, expires_at, closed_at, outcome, last_token_hash, last_scan_at FROM scan_sessions WHERE id = $1
 `

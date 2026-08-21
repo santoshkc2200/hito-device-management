@@ -186,4 +186,23 @@ type Service interface {
 
 	// GetImportBatch fetches an import batch by ID.
 	GetImportBatch(ctx context.Context, id string) (ImportBatch, error)
+
+	// StreamUsersForExport returns users matching filters with department name and credential status for streaming CSV.
+	StreamUsersForExport(ctx context.Context, params ListUsersParams) ([]ExportUserRow, error)
 }
+
+type ExportUserRow struct {
+	ID             string
+	EmployeeNo     string
+	FullName       string
+	DepartmentName string
+	Email          string
+	Phone          string
+	Status         UserStatus
+	Notes          string
+	HasCredential  bool
+	RegisteredAt   time.Time
+	RegisteredBy   string
+	UpdatedAt      time.Time
+}
+

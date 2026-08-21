@@ -11,6 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countLiveDevicesByCategory = `-- name: CountLiveDevicesByCategory :many
+SELECT category_id, count(*)::bigint AS count
+FROM devices
+WHERE status <> 'retired'
+GROUP BY category_id
+`
+
+type CountLiveDevicesByCategoryRow struct {
+	CategoryID pgtype.UUID `json:"category_id"`
+	Count      int64       `json:"count"`
+}
+
+func (q *Queries) CountLiveDevicesByCategory(ctx context.Context) ([]CountLiveDevicesByCategoryRow, error) {
+	rows, err := q.db.Query(ctx, countLiveDevicesByCategory)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountLiveDevicesByCategoryRow
+	for rows.Next() {
+		var i CountLiveDevicesByCategoryRow
+		if err := rows.Scan(&i.CategoryID, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createCategory = `-- name: CreateCategory :one
 INSERT INTO device_categories (id, name, default_loan_period, requires_approval)
 VALUES ($1, $2, $3, $4)
@@ -278,6 +310,94 @@ func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]Dev
 			&i.AssetTag,
 			&i.Name,
 			&i.CategoryID,
+			&i.Manufacturer,
+			&i.Model,
+			&i.SerialNo,
+			&i.Status,
+			&i.Condition,
+			&i.HomeLocation,
+			&i.Notes,
+			&i.AcquiredOn,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const streamDevicesForExport = `-- name: StreamDevicesForExport :many
+SELECT
+    d.id,
+    d.asset_tag,
+    d.name,
+    c.name AS category_name,
+    d.manufacturer,
+    d.model,
+    d.serial_no,
+    d.status,
+    d.condition,
+    d.home_location,
+    d.notes,
+    d.acquired_on,
+    d.created_at,
+    d.updated_at
+FROM devices d
+JOIN device_categories c ON d.category_id = c.id
+WHERE ($1::device_status IS NULL OR d.status = $1)
+  AND ($2::uuid IS NULL OR d.category_id = $2)
+  AND (
+    $3::text IS NULL
+    OR d.asset_tag ILIKE '%' || $3 || '%'
+    OR d.name       ILIKE '%' || $3 || '%'
+    OR d.model      ILIKE '%' || $3 || '%'
+    OR d.serial_no  ILIKE '%' || $3 || '%'
+  )
+ORDER BY d.created_at DESC, d.id DESC
+`
+
+type StreamDevicesForExportParams struct {
+	Status     NullDeviceStatus `json:"status"`
+	CategoryID pgtype.UUID      `json:"category_id"`
+	Query      pgtype.Text      `json:"query"`
+}
+
+type StreamDevicesForExportRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	AssetTag     string             `json:"asset_tag"`
+	Name         string             `json:"name"`
+	CategoryName string             `json:"category_name"`
+	Manufacturer pgtype.Text        `json:"manufacturer"`
+	Model        pgtype.Text        `json:"model"`
+	SerialNo     pgtype.Text        `json:"serial_no"`
+	Status       DeviceStatus       `json:"status"`
+	Condition    DeviceCondition    `json:"condition"`
+	HomeLocation pgtype.Text        `json:"home_location"`
+	Notes        pgtype.Text        `json:"notes"`
+	AcquiredOn   pgtype.Date        `json:"acquired_on"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) StreamDevicesForExport(ctx context.Context, arg StreamDevicesForExportParams) ([]StreamDevicesForExportRow, error) {
+	rows, err := q.db.Query(ctx, streamDevicesForExport, arg.Status, arg.CategoryID, arg.Query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StreamDevicesForExportRow
+	for rows.Next() {
+		var i StreamDevicesForExportRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AssetTag,
+			&i.Name,
+			&i.CategoryName,
 			&i.Manufacturer,
 			&i.Model,
 			&i.SerialNo,

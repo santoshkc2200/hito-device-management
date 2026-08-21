@@ -77,3 +77,39 @@ RETURNING id, asset_tag, name, category_id, manufacturer, model, serial_no, stat
 UPDATE devices SET condition = $2, updated_at = now()
 WHERE id = $1
 RETURNING id, asset_tag, name, category_id, manufacturer, model, serial_no, status, condition, home_location, notes, acquired_on, created_at, updated_at;
+
+-- name: CountLiveDevicesByCategory :many
+SELECT category_id, count(*)::bigint AS count
+FROM devices
+WHERE status <> 'retired'
+GROUP BY category_id;
+
+-- name: StreamDevicesForExport :many
+SELECT
+    d.id,
+    d.asset_tag,
+    d.name,
+    c.name AS category_name,
+    d.manufacturer,
+    d.model,
+    d.serial_no,
+    d.status,
+    d.condition,
+    d.home_location,
+    d.notes,
+    d.acquired_on,
+    d.created_at,
+    d.updated_at
+FROM devices d
+JOIN device_categories c ON d.category_id = c.id
+WHERE (sqlc.narg('status')::device_status IS NULL OR d.status = sqlc.narg('status'))
+  AND (sqlc.narg('category_id')::uuid IS NULL OR d.category_id = sqlc.narg('category_id'))
+  AND (
+    sqlc.narg('query')::text IS NULL
+    OR d.asset_tag ILIKE '%' || sqlc.narg('query') || '%'
+    OR d.name       ILIKE '%' || sqlc.narg('query') || '%'
+    OR d.model      ILIKE '%' || sqlc.narg('query') || '%'
+    OR d.serial_no  ILIKE '%' || sqlc.narg('query') || '%'
+  )
+ORDER BY d.created_at DESC, d.id DESC;
+

@@ -29,40 +29,6 @@ func (s *Server) notImplemented(w http.ResponseWriter, r *http.Request, task str
 	httpx.WriteProblem(w, r, p)
 }
 
-// --- 4.9 Reports and audit ---------------------------------------------------
-
-func (s *Server) GetReportSummary(w http.ResponseWriter, r *http.Request, _ gen.GetReportSummaryParams) {
-	s.notImplemented(w, r, "4.9a")
-}
-
-func (s *Server) GetTransactionsByOrigin(w http.ResponseWriter, r *http.Request, _ gen.GetTransactionsByOriginParams) {
-	s.notImplemented(w, r, "4.9a")
-}
-
-func (s *Server) GetOperationalHealth(w http.ResponseWriter, r *http.Request, _ gen.GetOperationalHealthParams) {
-	s.notImplemented(w, r, "4.9a")
-}
-
-func (s *Server) ExportLoansCsv(w http.ResponseWriter, r *http.Request, _ gen.ExportLoansCsvParams) {
-	s.notImplemented(w, r, "4.9c")
-}
-
-func (s *Server) ExportDevicesCsv(w http.ResponseWriter, r *http.Request, _ gen.ExportDevicesCsvParams) {
-	s.notImplemented(w, r, "4.9c")
-}
-
-func (s *Server) ExportUsersCsv(w http.ResponseWriter, r *http.Request, _ gen.ExportUsersCsvParams) {
-	s.notImplemented(w, r, "4.9c")
-}
-
-func (s *Server) ListAuditEvents(w http.ResponseWriter, r *http.Request, _ gen.ListAuditEventsParams) {
-	s.notImplemented(w, r, "4.9d")
-}
-
-func (s *Server) ExportAuditCsv(w http.ResponseWriter, r *http.Request, _ gen.ExportAuditCsvParams) {
-	s.notImplemented(w, r, "4.9d")
-}
-
 // --- 4.10 Settings and kiosk management --------------------------------------
 
 func (s *Server) GetSettings(w http.ResponseWriter, r *http.Request) {

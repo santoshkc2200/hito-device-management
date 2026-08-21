@@ -228,6 +228,68 @@ type PaperEntry struct {
 	RecordedBy string
 }
 
+type TopBorrowerSummary struct {
+	UserID    string
+	LoanCount int
+}
+
+type CategoryLoanStat struct {
+	CategoryID       string
+	LoanCount        int
+	AvgDurationHours *float32
+	TotalLoanSeconds float64
+}
+
+type ReportSummaryStats struct {
+	TotalLoans       int
+	OpenLoans        int
+	OverdueCount     int
+	OverdueRate      float32
+	AvgDurationHours *float32
+	TopBorrowers     []TopBorrowerSummary
+	CategoryStats    []CategoryLoanStat
+}
+
+type OriginBucketCount struct {
+	Origin Origin
+	Count  int
+}
+
+type OriginBucketStats struct {
+	PeriodStart time.Time
+	Counts      []OriginBucketCount
+	Total       int
+}
+
+type ExportLoanRow struct {
+	ID              string
+	DeviceID        string
+	DeviceAssetTag  string
+	DeviceName      string
+	UserID          string
+	UserEmployeeNo  string
+	UserFullName    string
+	Status          Status
+	Origin          Origin
+	BorrowedAt      time.Time
+	DueAt           *time.Time
+	ReturnedAt      *time.Time
+	BorrowKioskName string
+	ReturnKioskName string
+	BorrowActor     string
+	ReturnActor     string
+	BorrowSource    string
+	ReturnSource    string
+	ConditionOut    string
+	ConditionIn     string
+	Notes           string
+	PaperRef        string
+	RecordedAt      *time.Time
+	RecordedBy      string
+	BackfillNote    string
+	Disputed        bool
+}
+
 // Service is the lending module's public API.
 type Service interface {
 	// OpenLoan opens a new loan on the live path (origin is always
@@ -308,4 +370,14 @@ type Service interface {
 	// catalogapi, so the caller (checkout) reads the category and hands
 	// over just the period. A nil period yields a nil due date.
 	DueDateFor(period *time.Duration, borrowedAt time.Time) *time.Time
+
+	// GetReportSummaryStats computes summary metrics, top borrowers, and category utilisation within [from, to].
+	GetReportSummaryStats(ctx context.Context, from, to time.Time) (ReportSummaryStats, error)
+
+	// GetTransactionsByOrigin aggregates transaction counts bucketed by day, week, or month.
+	GetTransactionsByOrigin(ctx context.Context, from, to time.Time, bucket string) ([]OriginBucketStats, error)
+
+	// StreamLoansForExport returns all loans matching filters with joined device and user information for streaming CSV.
+	StreamLoansForExport(ctx context.Context, params ListLoansParams) ([]ExportLoanRow, error)
 }
+
