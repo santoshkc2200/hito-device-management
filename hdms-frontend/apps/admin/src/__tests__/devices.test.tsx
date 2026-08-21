@@ -34,8 +34,8 @@ vi.spyOn(devicesRoute, "useSearch").mockImplementation(() => mockSearch as any);
 
 describe("DevicesPage — Phase 4.3a/b", () => {
   const mockCategories: apiClient.Category[] = [
-    { id: "cat-1", name: "Laptops", createdAt: "2026-08-01T00:00:00Z" },
-    { id: "cat-2", name: "Tablets", createdAt: "2026-08-01T00:00:00Z" },
+    { id: "cat-1", name: "Laptops", requiresApproval: false, createdAt: "2026-08-01T00:00:00Z" },
+    { id: "cat-2", name: "Tablets", requiresApproval: false, createdAt: "2026-08-01T00:00:00Z" },
   ];
 
   const mockDevices: apiClient.Device[] = [

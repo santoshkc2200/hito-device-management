@@ -1,5 +1,4 @@
 import {
-  type Category,
   type Device,
   type DeviceStatus,
   listCategories,

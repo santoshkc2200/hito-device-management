@@ -303,6 +303,106 @@ func (q *Queries) GetLoan(ctx context.Context, id pgtype.UUID) (Loan, error) {
 	return i, err
 }
 
+const insertCorrectedLoan = `-- name: InsertCorrectedLoan :one
+INSERT INTO loans (
+    id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    $9, $10, $11, $12, $13, $14,
+    $15, $16, $17, $18, $19, $20, $21,
+    $22, $23
+)
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed
+`
+
+type InsertCorrectedLoanParams struct {
+	ID            pgtype.UUID         `json:"id"`
+	DeviceID      pgtype.UUID         `json:"device_id"`
+	UserID        pgtype.UUID         `json:"user_id"`
+	Status        LoanStatus          `json:"status"`
+	Origin        LoanOrigin          `json:"origin"`
+	BorrowedAt    pgtype.Timestamptz  `json:"borrowed_at"`
+	DueAt         pgtype.Timestamptz  `json:"due_at"`
+	ReturnedAt    pgtype.Timestamptz  `json:"returned_at"`
+	BorrowKioskID pgtype.UUID         `json:"borrow_kiosk_id"`
+	ReturnKioskID pgtype.UUID         `json:"return_kiosk_id"`
+	BorrowActor   string              `json:"borrow_actor"`
+	ReturnActor   pgtype.Text         `json:"return_actor"`
+	BorrowSource  string              `json:"borrow_source"`
+	ReturnSource  pgtype.Text         `json:"return_source"`
+	ConditionOut  NullDeviceCondition `json:"condition_out"`
+	ConditionIn   NullDeviceCondition `json:"condition_in"`
+	Notes         pgtype.Text         `json:"notes"`
+	SessionID     pgtype.UUID         `json:"session_id"`
+	PaperRef      pgtype.Text         `json:"paper_ref"`
+	RecordedAt    pgtype.Timestamptz  `json:"recorded_at"`
+	RecordedBy    pgtype.Text         `json:"recorded_by"`
+	BackfillNote  pgtype.Text         `json:"backfill_note"`
+	Disputed      bool                `json:"disputed"`
+}
+
+// Inserts a corrected loan linked to an original mis-assigned or typo row.
+func (q *Queries) InsertCorrectedLoan(ctx context.Context, arg InsertCorrectedLoanParams) (Loan, error) {
+	row := q.db.QueryRow(ctx, insertCorrectedLoan,
+		arg.ID,
+		arg.DeviceID,
+		arg.UserID,
+		arg.Status,
+		arg.Origin,
+		arg.BorrowedAt,
+		arg.DueAt,
+		arg.ReturnedAt,
+		arg.BorrowKioskID,
+		arg.ReturnKioskID,
+		arg.BorrowActor,
+		arg.ReturnActor,
+		arg.BorrowSource,
+		arg.ReturnSource,
+		arg.ConditionOut,
+		arg.ConditionIn,
+		arg.Notes,
+		arg.SessionID,
+		arg.PaperRef,
+		arg.RecordedAt,
+		arg.RecordedBy,
+		arg.BackfillNote,
+		arg.Disputed,
+	)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Status,
+		&i.Origin,
+		&i.BorrowedAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.BorrowKioskID,
+		&i.ReturnKioskID,
+		&i.BorrowActor,
+		&i.ReturnActor,
+		&i.BorrowSource,
+		&i.ReturnSource,
+		&i.ConditionOut,
+		&i.ConditionIn,
+		&i.Notes,
+		&i.SessionID,
+		&i.PaperRef,
+		&i.RecordedAt,
+		&i.RecordedBy,
+		&i.BackfillNote,
+		&i.Disputed,
+	)
+	return i, err
+}
+
 const lastPaperEntry = `-- name: LastPaperEntry :many
 SELECT paper_ref, recorded_at, recorded_by
 FROM loans
@@ -428,6 +528,54 @@ func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const markLoanDisputed = `-- name: MarkLoanDisputed :one
+UPDATE loans
+SET disputed = true, notes = $2
+WHERE id = $1
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed
+`
+
+type MarkLoanDisputedParams struct {
+	ID    pgtype.UUID `json:"id"`
+	Notes pgtype.Text `json:"notes"`
+}
+
+// Marks a loan row as disputed, releasing its temporal custody hold
+// while preserving the original borrower and timestamps intact for audit.
+func (q *Queries) MarkLoanDisputed(ctx context.Context, arg MarkLoanDisputedParams) (Loan, error) {
+	row := q.db.QueryRow(ctx, markLoanDisputed, arg.ID, arg.Notes)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Status,
+		&i.Origin,
+		&i.BorrowedAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.BorrowKioskID,
+		&i.ReturnKioskID,
+		&i.BorrowActor,
+		&i.ReturnActor,
+		&i.BorrowSource,
+		&i.ReturnSource,
+		&i.ConditionOut,
+		&i.ConditionIn,
+		&i.Notes,
+		&i.SessionID,
+		&i.PaperRef,
+		&i.RecordedAt,
+		&i.RecordedBy,
+		&i.BackfillNote,
+		&i.Disputed,
+	)
+	return i, err
 }
 
 const openLoan = `-- name: OpenLoan :one

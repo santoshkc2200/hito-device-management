@@ -189,7 +189,7 @@ describe("Phase 4.7 — Dashboard", () => {
 
       vi.spyOn(apiClient, "forceReturnLoan").mockResolvedValue({
         data: {} as any,
-      });
+      } as any);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -378,7 +378,7 @@ describe("Phase 4.7 — Dashboard", () => {
       const queryClient = createTestQueryClient();
       vi.spyOn(apiClient, "getDashboard").mockResolvedValue({
         data: mockDashboardData,
-      });
+      } as any);
 
       const Component = (dashboardRoute as any).options.component;
 

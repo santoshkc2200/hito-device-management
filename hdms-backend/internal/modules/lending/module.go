@@ -291,6 +291,96 @@ func (s *Service) WriteOff(ctx context.Context, loanID, reason, actor string) (l
 	return loan, nil
 }
 
+func (s *Service) CorrectAttribution(ctx context.Context, loanID, newUserID, reason, actor string) (lendingapi.Loan, error) {
+	lid, err := pgtypeconv.UUID(loanID)
+	if err != nil {
+		return lendingapi.Loan{}, fmt.Errorf("lending: invalid loan id: %w", err)
+	}
+	newUID, err := pgtypeconv.UUID(newUserID)
+	if err != nil {
+		return lendingapi.Loan{}, fmt.Errorf("lending: invalid user id: %w", err)
+	}
+	if strings.TrimSpace(reason) == "" {
+		return lendingapi.Loan{}, fmt.Errorf("lending: a reason is required to correct loan attribution")
+	}
+
+	var correctedLoan lendingapi.Loan
+	txErr := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := lendingstore.New(db.Conn(ctx, s.pool))
+		origRow, err := q.GetLoan(ctx, lid)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return lendingapi.ErrLoanNotFound
+			}
+			return fmt.Errorf("lending: get loan: %w", err)
+		}
+
+		// 1. Mark original loan as disputed so it releases custody, but keeps its
+		// original borrower, timestamps, etc. intact for audit.
+		origNotes := pgtypeconv.TextString(origRow.Notes)
+		disputeNote := fmt.Sprintf("attribution corrected to user %s: %s", newUserID, reason)
+		if origNotes != "" {
+			disputeNote = origNotes + "; " + disputeNote
+		}
+		if _, err := q.MarkLoanDisputed(ctx, lendingstore.MarkLoanDisputedParams{
+			ID:    lid,
+			Notes: pgtypeconv.Text(disputeNote),
+		}); err != nil {
+			return fmt.Errorf("lending: mark original loan disputed: %w", err)
+		}
+
+		// 2. Insert new corrected loan linked to the original
+		correctionNote := fmt.Sprintf("corrected attribution from loan %s (user %s): %s", loanID, pgtypeconv.UUIDString(origRow.UserID), reason)
+		newLoanID := pgtypeconv.NewUUID()
+		newRow, err := q.InsertCorrectedLoan(ctx, lendingstore.InsertCorrectedLoanParams{
+			ID:            newLoanID,
+			DeviceID:      origRow.DeviceID,
+			UserID:        newUID,
+			Status:        origRow.Status,
+			Origin:        origRow.Origin,
+			BorrowedAt:    origRow.BorrowedAt,
+			DueAt:         origRow.DueAt,
+			ReturnedAt:    origRow.ReturnedAt,
+			BorrowKioskID: origRow.BorrowKioskID,
+			ReturnKioskID: origRow.ReturnKioskID,
+			BorrowActor:   origRow.BorrowActor,
+			ReturnActor:   origRow.ReturnActor,
+			BorrowSource:  origRow.BorrowSource,
+			ReturnSource:  origRow.ReturnSource,
+			ConditionOut:  origRow.ConditionOut,
+			ConditionIn:   origRow.ConditionIn,
+			Notes:         pgtypeconv.Text(correctionNote),
+			SessionID:     origRow.SessionID,
+			PaperRef:      origRow.PaperRef,
+			RecordedAt:    origRow.RecordedAt,
+			RecordedBy:    origRow.RecordedBy,
+			BackfillNote:  origRow.BackfillNote,
+			Disputed:      false,
+		})
+		if err != nil {
+			return err
+		}
+		correctedLoan = toLoan(newRow)
+
+		return s.audit.Record(ctx, auditapi.Event{
+			Actor:   actor,
+			Action:  "loan.attribution_corrected",
+			Subject: "loan:" + correctedLoan.ID,
+			Payload: map[string]any{
+				"originalLoanId":  loanID,
+				"originalUserId":  pgtypeconv.UUIDString(origRow.UserID),
+				"correctedUserId": newUserID,
+				"reason":          reason,
+				"override":        true,
+			},
+		})
+	})
+	if txErr != nil {
+		return lendingapi.Loan{}, txErr
+	}
+	return correctedLoan, nil
+}
+
 func (s *Service) RecordHistorical(ctx context.Context, params lendingapi.RecordHistoricalParams) (lendingapi.Loan, error) {
 	did, err := pgtypeconv.UUID(params.DeviceID)
 	if err != nil {

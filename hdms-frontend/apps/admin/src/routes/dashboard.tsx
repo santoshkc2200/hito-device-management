@@ -71,7 +71,7 @@ function DashboardPage() {
         <ErrorState
           error={error}
           title="Could not load dashboard overview"
-          explanation="Failed to fetch operational statistics and overdue loans. Check your connection or retry."
+          detail="Failed to fetch operational statistics and overdue loans. Check your connection or retry."
           onRetry={() => refetch()}
         />
       </div>

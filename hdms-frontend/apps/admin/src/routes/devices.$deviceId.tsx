@@ -1,8 +1,6 @@
 import {
-  type Category,
   type Device,
   type DeviceStatus,
-  type Loan,
   forceReturnLoan,
   getDevice,
   getUser,
@@ -20,7 +18,6 @@ import {
   ExternalLink,
   History,
   Laptop,
-  Printer,
   RotateCw,
   Tag,
   User as UserIcon,

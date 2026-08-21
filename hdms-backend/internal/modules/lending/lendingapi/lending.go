@@ -267,6 +267,12 @@ type Service interface {
 	// against a later re-borrow of the same device over the same period.
 	WriteOff(ctx context.Context, loanID, reason, actor string) (Loan, error)
 
+	// CorrectAttribution reassigns a loan's custody to the correct borrower
+	// (4.8c). The original loan record is preserved intact with disputed=true
+	// to release its custody hold, and a new linked correction loan is created.
+	// reason is mandatory and audited as an override.
+	CorrectAttribution(ctx context.Context, loanID, newUserID, reason, actor string) (Loan, error)
+
 	// RecordHistorical inserts a loan with an explicit, possibly past,
 	// borrowed_at and full provenance — the paper backfill (2.4b) and
 	// import write path. Fails with OverlappingCustodyError if the window

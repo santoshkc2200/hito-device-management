@@ -46,7 +46,7 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
   };
 
   const mockCategories: apiClient.Category[] = [
-    { id: "cat-monitors", name: "Monitors", createdAt: "2025-01-01T00:00:00Z" },
+    { id: "cat-monitors", name: "Monitors", requiresApproval: false, createdAt: "2025-01-01T00:00:00Z" },
   ];
 
   const mockLoans: apiClient.Loan[] = [
@@ -60,6 +60,7 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
       dueAt: "2026-08-21T18:00:00Z",
       borrowActor: "kiosk:kiosk-1",
       borrowSource: "scanner",
+      disputed: false,
     },
     {
       id: "loan-hist-1",
@@ -74,6 +75,7 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
       returnActor: "kiosk:kiosk-1",
       borrowSource: "scanner",
       returnSource: "scanner",
+      disputed: false,
     },
   ];
 
@@ -84,6 +86,7 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
     departmentId: "dept-cardio",
     status: "active",
     registeredAt: "2025-01-01T00:00:00Z",
+    registeredBy: "admin:1",
     updatedAt: "2025-01-01T00:00:00Z",
   };
 

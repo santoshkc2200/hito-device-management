@@ -1,6 +1,5 @@
 import {
   Activity,
-  AlertTriangle,
   ArrowDownLeft,
   ArrowUpRight,
   Clock,

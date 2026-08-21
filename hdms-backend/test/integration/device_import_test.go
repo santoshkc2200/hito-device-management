@@ -5,7 +5,6 @@ package integration
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"

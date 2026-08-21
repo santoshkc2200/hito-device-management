@@ -27,11 +27,16 @@ type Querier interface {
 	CustodyAt(ctx context.Context, arg CustodyAtParams) (Loan, error)
 	ForceReturnLoan(ctx context.Context, arg ForceReturnLoanParams) (Loan, error)
 	GetLoan(ctx context.Context, id pgtype.UUID) (Loan, error)
+	// Inserts a corrected loan linked to an original mis-assigned or typo row.
+	InsertCorrectedLoan(ctx context.Context, arg InsertCorrectedLoanParams) (Loan, error)
 	// The most recent paper-origin recording, for the dashboard's "last paper
 	// entry: N days ago" nag (2.4b.5). :many + LIMIT 1 rather than :one so the
 	// empty case is an empty slice, not an error the caller must unwrap.
 	LastPaperEntry(ctx context.Context) ([]LastPaperEntryRow, error)
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
+	// Marks a loan row as disputed, releasing its temporal custody hold
+	// while preserving the original borrower and timestamps intact for audit.
+	MarkLoanDisputed(ctx context.Context, arg MarkLoanDisputedParams) (Loan, error)
 	// The live path: origin is always 'kiosk' — a loan opened here means a
 	// device was scanned right now, whether at a kiosk or overridden live by an
 	// admin. Genuinely backdated loans go through RecordHistorical instead.

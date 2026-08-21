@@ -182,3 +182,33 @@ FROM loans
 WHERE origin = 'paper' AND recorded_at IS NOT NULL
 ORDER BY recorded_at DESC
 LIMIT 1;
+
+-- name: MarkLoanDisputed :one
+-- Marks a loan row as disputed, releasing its temporal custody hold
+-- while preserving the original borrower and timestamps intact for audit.
+UPDATE loans
+SET disputed = true, notes = $2
+WHERE id = $1
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed;
+
+-- name: InsertCorrectedLoan :one
+-- Inserts a corrected loan linked to an original mis-assigned or typo row.
+INSERT INTO loans (
+    id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    $9, $10, $11, $12, $13, $14,
+    $15, $16, $17, $18, $19, $20, $21,
+    $22, $23
+)
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed;
+

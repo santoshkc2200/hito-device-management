@@ -30,15 +30,9 @@ type phase4Stub struct {
 func phase4Stubs() []phase4Stub {
 	const id = "01923e5c-0000-7000-8000-000000000000"
 	return []phase4Stub{
-		{http.MethodPost, "/v1/imports/devices/preview", "4.3c"},
-		{http.MethodPost, "/v1/imports/devices", "4.3c"},
-
-		{http.MethodPost, "/v1/loans/" + id + "/correct-attribution", "4.8c"},
-
 		{http.MethodGet, "/v1/reports/summary", "4.9a"},
 		{http.MethodGet, "/v1/reports/by-origin", "4.9a"},
 		{http.MethodGet, "/v1/reports/operational-health", "4.9a"},
-		{http.MethodGet, "/v1/reports/disputed", "4.9a"},
 		{http.MethodGet, "/v1/reports/loans.csv", "4.9c"},
 		{http.MethodGet, "/v1/reports/devices.csv", "4.9c"},
 		{http.MethodGet, "/v1/reports/users.csv", "4.9c"},

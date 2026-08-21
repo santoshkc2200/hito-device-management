@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
+	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 )
@@ -142,6 +143,69 @@ func (s *Server) WriteOffLoan(w http.ResponseWriter, r *http.Request, id gen.IDP
 	}
 
 	writeJSON(w, http.StatusOK, mapLoan(loan))
+}
+
+// CorrectLoanAttribution reassigns a loan to the borrower who actually holds the device (4.8c).
+func (s *Server) CorrectLoanAttribution(w http.ResponseWriter, r *http.Request, id gen.IDParam, _ gen.CorrectLoanAttributionParams) {
+	body, ok := decodeJSON[gen.CorrectAttributionRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if !requireReason(w, r, body.Reason) {
+		return
+	}
+
+	if body.UserId == "" {
+		p := httpx.NewProblem("validation-error", "Validation error", http.StatusUnprocessableEntity)
+		p.Detail = "A target userId is required"
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+
+	// Verify target user exists
+	if _, err := s.identity.LookupUser(r.Context(), body.UserId); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	actor := actorFrom(r)
+	loan, err := s.lending.CorrectAttribution(r.Context(), id, body.UserId, body.Reason, actor)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, mapLoan(loan))
+}
+
+// ListDisputedLoans lists loans flagged as disputed claims (4.8a).
+func (s *Server) ListDisputedLoans(w http.ResponseWriter, r *http.Request, params gen.ListDisputedLoansParams) {
+	limit := 0
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+
+	disputed := true
+	res, err := s.lending.ListLoans(r.Context(), lendingapi.ListLoansParams{
+		Disputed: &disputed,
+		Cursor:   fromPtr(params.Cursor),
+		Limit:    limit,
+	})
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	items := make([]gen.Loan, len(res.Items))
+	for i, l := range res.Items {
+		items[i] = mapLoan(l)
+	}
+
+	writeJSON(w, http.StatusOK, gen.LoanList{
+		Items:      items,
+		NextCursor: strPtr(res.NextCursor),
+	})
 }
 
 // ListDeviceLoans lists the loan history for one device.

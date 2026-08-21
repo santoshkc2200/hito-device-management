@@ -29,12 +29,6 @@ func (s *Server) notImplemented(w http.ResponseWriter, r *http.Request, task str
 	httpx.WriteProblem(w, r, p)
 }
 
-// --- 4.8c Loan overrides -----------------------------------------------------
-
-func (s *Server) CorrectLoanAttribution(w http.ResponseWriter, r *http.Request, _ gen.IDParam, _ gen.CorrectLoanAttributionParams) {
-	s.notImplemented(w, r, "4.8c")
-}
-
 // --- 4.9 Reports and audit ---------------------------------------------------
 
 func (s *Server) GetReportSummary(w http.ResponseWriter, r *http.Request, _ gen.GetReportSummaryParams) {
@@ -46,10 +40,6 @@ func (s *Server) GetTransactionsByOrigin(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Server) GetOperationalHealth(w http.ResponseWriter, r *http.Request, _ gen.GetOperationalHealthParams) {
-	s.notImplemented(w, r, "4.9a")
-}
-
-func (s *Server) ListDisputedLoans(w http.ResponseWriter, r *http.Request, _ gen.ListDisputedLoansParams) {
 	s.notImplemented(w, r, "4.9a")
 }
 

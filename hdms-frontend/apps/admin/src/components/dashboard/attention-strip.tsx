@@ -1,7 +1,6 @@
 import type { BackfillLastEntry, Kiosk, ScanRejectionSummary } from "@hdms/api-client";
 import { Link } from "@tanstack/react-router";
 import {
-  AlertCircle,
   AlertTriangle,
   CreditCard,
   FileSpreadsheet,
@@ -254,7 +253,7 @@ export function AttentionStrip({
                         </span>
                         <StatusBadge
                           label={kiosk.status}
-                          tone={kiosk.status === "active" ? "emerald" : "muted"}
+                          tone={kiosk.status === "active" ? "success" : "muted"}
                         />
                       </div>
                       <div className="text-muted-foreground text-[11px] mt-0.5 truncate">
