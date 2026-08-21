@@ -5,27 +5,22 @@ import {
   listDevices,
   setDeviceStatus,
 } from "@hdms/api-client";
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { createColumnHelper } from "@tanstack/react-table";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, useNavigate } from "@tanstack/react-router";
-import { Plus, Search, Tag } from "lucide-react";
+import { Plus, Tag } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CategoryManagerDialog } from "@/components/category-manager-dialog";
 import { CredentialsPanel } from "@/components/credentials-panel";
+import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/components/data-table";
 import { DeviceForm } from "@/components/device-form";
 import { DeviceLabelSheetDialog } from "@/components/device-label-sheet-dialog";
 import { deviceStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { RoleGate } from "@/lib/use-role";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -34,15 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { authenticatedRoute } from "./authenticated";
 
@@ -178,7 +164,6 @@ function DeviceDetailSheet({ device, onClose }: { device: Device; onClose: () =>
 function DevicesPage() {
   const search = devicesRoute.useSearch();
   const navigate = useNavigate({ from: devicesRoute.fullPath });
-  const [qInput, setQInput] = useState(search.q ?? "");
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [labelSheetOpen, setLabelSheetOpen] = useState(false);
@@ -213,45 +198,39 @@ function DevicesPage() {
     () => query.data?.pages.flatMap((p) => p.items) ?? [],
     [query.data],
   );
-  // Derived from live data (not a click-time snapshot) so the detail sheet
-  // reflects a status/edit mutation immediately, without needing to be
-  // closed and reopened.
+
   const selectedDevice = devices.find((d) => d.id === selectedId);
 
   function updateSearch(patch: Partial<DeviceSearch>) {
     void navigate({ search: (prev) => ({ ...prev, ...patch }) });
   }
 
-  // Unmemoized columns/data given fresh references to useReactTable on every
-  // render is a documented TanStack Table v8 trap: data-change auto-reset
-  // behavior calls setState, which triggers a re-render, which (without
-  // memoization) hands the table a "new" data array again — an infinite loop
-  // that burns CPU silently with no console error.
-  const columns = useMemo(
+  const columns = useDataTableColumns(
     () => [
       columnHelper.accessor("assetTag", {
-        header: "Asset tag",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Asset tag" />,
         cell: (c) => <span className="font-identifier">{c.getValue()}</span>,
       }),
-      columnHelper.accessor("name", { header: "Name" }),
+      columnHelper.accessor("name", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+      }),
       columnHelper.accessor("categoryId", {
-        header: "Category",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
         cell: (c) => categoryName.get(c.getValue()) ?? "—",
       }),
       columnHelper.accessor("status", {
-        header: "Status",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
         cell: (c) => <StatusBadge label={labelize(c.getValue())} tone={deviceStatusTone[c.getValue()] ?? "muted"} />,
       }),
-      columnHelper.accessor("condition", { header: "Condition", cell: (c) => labelize(c.getValue()) }),
+      columnHelper.accessor("condition", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Condition" />,
+        cell: (c) => labelize(c.getValue()),
+      }),
     ],
     [categoryName],
   );
 
-  const table = useReactTable({
-    data: devices,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
+  const isFiltered = Boolean(search.q || search.status || search.category);
 
   return (
     <div className="flex flex-col gap-4">
@@ -279,104 +258,62 @@ function DevicesPage() {
         </RoleGate>
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="relative w-64">
-          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search asset tag, name, model…"
-            className="pl-8"
-            value={qInput}
-            onChange={(e) => setQInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && updateSearch({ q: qInput || undefined })}
-            onBlur={() => updateSearch({ q: qInput || undefined })}
-          />
-        </div>
-        <Select
-          value={search.status ?? "all"}
-          onValueChange={(v) => updateSearch({ status: v === "all" ? undefined : (v as DeviceStatus) })}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {DEVICE_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {labelize(s)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={search.category ?? "all"}
-          onValueChange={(v) => updateSearch({ category: v === "all" ? undefined : v })}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {categories?.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="rounded-md border border-border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((h) => (
-                  <TableHead key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</TableHead>
+      <DataTable
+        tableId="devices"
+        columns={columns}
+        data={devices}
+        isLoading={query.isLoading}
+        isError={query.isError}
+        error={query.error}
+        onRetry={() => query.refetch()}
+        searchQuery={search.q ?? ""}
+        onSearchChange={(q) => updateSearch({ q: q || undefined })}
+        searchPlaceholder="Search asset tag, name, model…"
+        isFiltered={isFiltered}
+        onResetFilters={() => updateSearch({ q: undefined, status: undefined, category: undefined })}
+        onRowClick={(row) => setSelectedId(row.id)}
+        hasNextPage={query.hasNextPage}
+        isFetchingNextPage={query.isFetchingNextPage}
+        onFetchNextPage={() => query.fetchNextPage()}
+        emptyTitle="No devices registered"
+        emptyExplanation="No devices have been added to the inventory yet."
+        filterControls={
+          <>
+            <Select
+              value={search.status ?? "all"}
+              onValueChange={(v) => updateSearch({ status: v === "all" ? undefined : (v as DeviceStatus) })}
+            >
+              <SelectTrigger className="h-8 w-36 text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {DEVICE_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {labelize(s)}
+                  </SelectItem>
                 ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {query.isLoading && (
-              <TableRow>
-                <TableCell colSpan={5}>
-                  <Skeleton className="h-6 w-full" />
-                </TableCell>
-              </TableRow>
-            )}
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className="cursor-pointer"
-                onClick={() => setSelectedId(row.original.id)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+              </SelectContent>
+            </Select>
+            <Select
+              value={search.category ?? "all"}
+              onValueChange={(v) => updateSearch({ category: v === "all" ? undefined : v })}
+            >
+              <SelectTrigger className="h-8 w-40 text-xs">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {categories?.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
                 ))}
-              </TableRow>
-            ))}
-            {!query.isLoading && devices.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No devices match these filters.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {query.hasNextPage && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="self-center"
-          disabled={query.isFetchingNextPage}
-          onClick={() => query.fetchNextPage()}
-        >
-          Load more
-        </Button>
-      )}
+              </SelectContent>
+            </Select>
+          </>
+        }
+      />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
