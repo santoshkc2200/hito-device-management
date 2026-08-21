@@ -35,10 +35,6 @@ func (s *Server) CheckEmployeeNo(w http.ResponseWriter, r *http.Request, _ gen.C
 	s.notImplemented(w, r, "4.4b")
 }
 
-func (s *Server) ArchiveUser(w http.ResponseWriter, r *http.Request, _ gen.IDParam) {
-	s.notImplemented(w, r, "4.4a")
-}
-
 // --- 4.3c / 4.4d CSV import --------------------------------------------------
 
 func (s *Server) PreviewUserImport(w http.ResponseWriter, r *http.Request) {

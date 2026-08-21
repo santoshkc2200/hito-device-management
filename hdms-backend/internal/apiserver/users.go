@@ -2,11 +2,14 @@ package apiserver
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 )
@@ -36,12 +39,27 @@ func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, params gen.Li
 		qStr = lp.Filter("q")
 	}
 
+	var hasCred *bool
+	if params.HasCredential != nil {
+		b := *params.HasCredential
+		hasCred = &b
+	} else if raw := lp.Filter("hasCredential"); raw != "" {
+		if b, err := strconv.ParseBool(raw); err == nil {
+			hasCred = &b
+		}
+	} else if raw := lp.Filter("has_credential"); raw != "" {
+		if b, err := strconv.ParseBool(raw); err == nil {
+			hasCred = &b
+		}
+	}
+
 	result, err := s.identity.ListUsers(r.Context(), identityapi.ListUsersParams{
-		Status:       identityapi.UserStatus(statusStr),
-		DepartmentID: deptID,
-		Query:        qStr,
-		Cursor:       lp.RawCursor,
-		Limit:        lp.Limit,
+		Status:        identityapi.UserStatus(statusStr),
+		DepartmentID:  deptID,
+		Query:         qStr,
+		HasCredential: hasCred,
+		Cursor:        lp.RawCursor,
+		Limit:         lp.Limit,
 	})
 	if err != nil {
 		s.writeServiceError(w, r, err)
@@ -178,6 +196,39 @@ func (s *Server) SuspendUser(w http.ResponseWriter, r *http.Request, id gen.IDPa
 		return
 	}
 	user, err := s.identity.SuspendUser(r.Context(), id, req.Reason, actorFrom(r))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, userToGen(user))
+}
+
+func (s *Server) ArchiveUser(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	req, ok := decodeJSON[gen.ArchiveUserJSONRequestBody](w, r)
+	if !ok {
+		return
+	}
+	if !requireReason(w, r, req.Reason) {
+		return
+	}
+
+	openLoans, err := s.lending.OpenLoansFor(r.Context(), id)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	if len(openLoans) > 0 {
+		p := httpx.NewProblem("user-has-open-loans", "User has open loans and cannot be archived", http.StatusConflict)
+		p.Detail = fmt.Sprintf("User holds %d open loan(s); return all devices before archiving", len(openLoans))
+		p.Extensions = map[string]any{
+			"loanId":    openLoans[0].ID,
+			"openLoans": len(openLoans),
+		}
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+
+	user, err := s.identity.ArchiveUser(r.Context(), id, req.Reason, actorFrom(r))
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return

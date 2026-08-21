@@ -127,10 +127,15 @@ func (s *Service) ListUsers(ctx context.Context, params identityapi.ListUsersPar
 	}
 
 	q := identitystore.New(db.Conn(ctx, s.pool))
+	var hasCred pgtype.Bool
+	if params.HasCredential != nil {
+		hasCred = pgtype.Bool{Bool: *params.HasCredential, Valid: true}
+	}
 	rows, err := q.ListUsers(ctx, identitystore.ListUsersParams{
 		Status:             nullUserStatus(params.Status),
 		DepartmentID:       deptID,
 		Query:              pgtypeconv.Text(params.Query),
+		HasCredential:      hasCred,
 		CursorRegisteredAt: cursorAt,
 		CursorID:           cursorID,
 		ResultLimit:        int32(limit) + 1,

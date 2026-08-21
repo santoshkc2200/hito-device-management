@@ -71,11 +71,12 @@ type UpdateUserParams struct {
 
 // ListUsersParams filters ListUsers; a zero-value field matches everything.
 type ListUsersParams struct {
-	Status       UserStatus
-	DepartmentID string
-	Query        string // matches employee number or full name
-	Cursor       string
-	Limit        int
+	Status        UserStatus
+	DepartmentID  string
+	Query         string // matches employee number or full name
+	HasCredential *bool
+	Cursor        string
+	Limit         int
 }
 
 // ListUsersResult is one page of ListUsers; NextCursor is "" on the last

@@ -29,20 +29,31 @@ FROM users WHERE lower(employee_no) = lower($1) AND status <> 'archived';
 
 -- name: ListUsers :many
 SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
-FROM users
-WHERE (sqlc.narg('status')::user_status IS NULL OR status = sqlc.narg('status'))
-  AND (sqlc.narg('department_id')::uuid IS NULL OR department_id = sqlc.narg('department_id'))
+FROM users u
+WHERE (sqlc.narg('status')::user_status IS NULL OR u.status = sqlc.narg('status'))
+  AND (sqlc.narg('department_id')::uuid IS NULL OR u.department_id = sqlc.narg('department_id'))
   AND (
     sqlc.narg('query')::text IS NULL
-    OR full_name ILIKE '%' || sqlc.narg('query') || '%'
-    OR employee_no ILIKE '%' || sqlc.narg('query') || '%'
+    OR u.full_name ILIKE '%' || sqlc.narg('query') || '%'
+    OR u.employee_no ILIKE '%' || sqlc.narg('query') || '%'
+  )
+  AND (
+    sqlc.narg('has_credential')::boolean IS NULL
+    OR (sqlc.narg('has_credential')::boolean = TRUE AND EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
+    OR (sqlc.narg('has_credential')::boolean = FALSE AND NOT EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
   )
   AND (
     sqlc.narg('cursor_registered_at')::timestamptz IS NULL
-    OR registered_at < sqlc.narg('cursor_registered_at')
-    OR (registered_at = sqlc.narg('cursor_registered_at') AND id < sqlc.narg('cursor_id'))
+    OR u.registered_at < sqlc.narg('cursor_registered_at')
+    OR (u.registered_at = sqlc.narg('cursor_registered_at') AND u.id < sqlc.narg('cursor_id'))
   )
-ORDER BY registered_at DESC, id DESC
+ORDER BY u.registered_at DESC, u.id DESC
 LIMIT sqlc.arg('result_limit');
 
 -- name: UpdateUser :one

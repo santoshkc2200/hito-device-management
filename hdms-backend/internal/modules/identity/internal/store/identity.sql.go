@@ -164,27 +164,39 @@ func (q *Queries) ListDepartments(ctx context.Context) ([]Department, error) {
 
 const listUsers = `-- name: ListUsers :many
 SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
-FROM users
-WHERE ($1::user_status IS NULL OR status = $1)
-  AND ($2::uuid IS NULL OR department_id = $2)
+FROM users u
+WHERE ($1::user_status IS NULL OR u.status = $1)
+  AND ($2::uuid IS NULL OR u.department_id = $2)
   AND (
     $3::text IS NULL
-    OR full_name ILIKE '%' || $3 || '%'
-    OR employee_no ILIKE '%' || $3 || '%'
+    OR u.full_name ILIKE '%' || $3 || '%'
+    OR u.employee_no ILIKE '%' || $3 || '%'
   )
   AND (
-    $4::timestamptz IS NULL
-    OR registered_at < $4
-    OR (registered_at = $4 AND id < $5)
+    $4::boolean IS NULL
+    OR ($4::boolean = TRUE AND EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
+    OR ($4::boolean = FALSE AND NOT EXISTS (
+      SELECT 1 FROM credentials c
+      WHERE c.subject_type = 'user' AND c.subject_id = u.id AND c.status = 'active'
+    ))
   )
-ORDER BY registered_at DESC, id DESC
-LIMIT $6
+  AND (
+    $5::timestamptz IS NULL
+    OR u.registered_at < $5
+    OR (u.registered_at = $5 AND u.id < $6)
+  )
+ORDER BY u.registered_at DESC, u.id DESC
+LIMIT $7
 `
 
 type ListUsersParams struct {
 	Status             NullUserStatus     `json:"status"`
 	DepartmentID       pgtype.UUID        `json:"department_id"`
 	Query              pgtype.Text        `json:"query"`
+	HasCredential      pgtype.Bool        `json:"has_credential"`
 	CursorRegisteredAt pgtype.Timestamptz `json:"cursor_registered_at"`
 	CursorID           pgtype.UUID        `json:"cursor_id"`
 	ResultLimit        int32              `json:"result_limit"`
@@ -195,6 +207,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		arg.Status,
 		arg.DepartmentID,
 		arg.Query,
+		arg.HasCredential,
 		arg.CursorRegisteredAt,
 		arg.CursorID,
 		arg.ResultLimit,
