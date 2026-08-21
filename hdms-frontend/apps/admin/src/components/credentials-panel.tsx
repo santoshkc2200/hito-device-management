@@ -193,22 +193,46 @@ export function CredentialsPanel({
   });
 
   const hasActive = credentials?.some((c) => c.status === "active");
+  const allRevoked = Boolean(credentials && credentials.length > 0 && !hasActive);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Credentials</h3>
-        {!hasActive && (
+        {!hasActive && credentials && credentials.length > 0 && (
           <Button size="sm" variant="outline" onClick={() => setIssueOpen(true)}>
             <Plus className="size-4" data-icon="inline-start" />
-            Issue credential
+            {subjectType === "user" ? "Issue card" : "Issue credential"}
           </Button>
         )}
       </div>
 
       {isLoading && <Skeleton className="h-16 w-full" />}
+
       {credentials?.length === 0 && (
-        <p className="text-sm text-muted-foreground">No credentials issued yet.</p>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-6 text-center">
+          <p className="text-sm font-medium text-foreground">
+            {subjectType === "user" ? "No card issued" : "No credential issued"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {subjectType === "user"
+              ? "This borrower cannot borrow devices until a credential is assigned."
+              : "This device has no active or past credentials."}
+          </p>
+          <Button size="sm" variant="outline" className="mt-1" onClick={() => setIssueOpen(true)}>
+            <Plus className="size-4" data-icon="inline-start" />
+            {subjectType === "user" ? "Issue card" : "Issue credential"}
+          </Button>
+        </div>
+      )}
+
+      {allRevoked && (
+        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+          <p className="font-semibold">All credentials have been revoked</p>
+          <p className="text-muted-foreground mt-0.5">
+            This {subjectType === "user" ? "borrower" : "device"} has no working credentials. Issue a new credential to restore access.
+          </p>
+        </div>
       )}
 
       <ul className="flex flex-col gap-3">

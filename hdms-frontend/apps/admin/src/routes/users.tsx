@@ -9,7 +9,7 @@ import {
 } from "@hdms/api-client";
 import { createColumnHelper } from "@tanstack/react-table";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createRoute, useNavigate } from "@tanstack/react-router";
+import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -132,7 +132,14 @@ function UserDetailSheet({
     <Sheet open onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle className="font-identifier">{user.employeeNo}</SheetTitle>
+          <div className="flex items-center justify-between pr-6">
+            <SheetTitle className="font-identifier">{user.employeeNo}</SheetTitle>
+            <Button size="sm" variant="ghost" asChild>
+              <Link to="/users/$userId" params={{ userId: user.id }} className="text-xs">
+                Full profile →
+              </Link>
+            </Button>
+          </div>
         </SheetHeader>
         <div className="flex flex-col gap-6 px-4 pb-6">
           <div>
