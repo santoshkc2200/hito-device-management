@@ -3,3 +3,4 @@
 // hdms-backend/internal/platform/tokens (docs/02-architecture.md).
 export * from "./token";
 export * from "./session-machine";
+export * from "./time-parser";
