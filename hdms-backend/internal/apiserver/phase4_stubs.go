@@ -29,17 +29,6 @@ func (s *Server) notImplemented(w http.ResponseWriter, r *http.Request, task str
 	httpx.WriteProblem(w, r, p)
 }
 
-
-// --- 4.3c / 4.4d CSV import --------------------------------------------------
-
-func (s *Server) PreviewDeviceImport(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.3c")
-}
-
-func (s *Server) CommitDeviceImport(w http.ResponseWriter, r *http.Request, _ gen.CommitDeviceImportParams) {
-	s.notImplemented(w, r, "4.3c")
-}
-
 // --- 4.8c Loan overrides -----------------------------------------------------
 
 func (s *Server) CorrectLoanAttribution(w http.ResponseWriter, r *http.Request, _ gen.IDParam, _ gen.CorrectLoanAttributionParams) {

@@ -33,7 +33,8 @@ type Server struct {
 	checkout           *checkout.Service
 	sseHub             *events.SSEHub
 	importMu           sync.Mutex
-	userImportPreviews map[string]*userImportPreviewCacheItem
+	userImportPreviews   map[string]*userImportPreviewCacheItem
+	deviceImportPreviews map[string]*deviceImportPreviewCacheItem
 }
 
 // New constructs the API server from the module services the composition
@@ -44,15 +45,16 @@ func New(
 	sseHub *events.SSEHub,
 ) *Server {
 	return &Server{
-		pool:               pool,
-		auth:               authSvc,
-		identity:           identitySvc,
-		catalog:            catalogSvc,
-		credentials:        credentialsSvc,
-		lending:            lendingSvc,
-		checkout:           checkoutSvc,
-		sseHub:             sseHub,
-		userImportPreviews: make(map[string]*userImportPreviewCacheItem),
+		pool:                 pool,
+		auth:                 authSvc,
+		identity:             identitySvc,
+		catalog:              catalogSvc,
+		credentials:          credentialsSvc,
+		lending:              lendingSvc,
+		checkout:             checkoutSvc,
+		sseHub:               sseHub,
+		userImportPreviews:   make(map[string]*userImportPreviewCacheItem),
+		deviceImportPreviews: make(map[string]*deviceImportPreviewCacheItem),
 	}
 }
 

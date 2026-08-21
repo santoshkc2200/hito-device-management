@@ -173,7 +173,7 @@ function DataTableInner<TData, TValue>({
   });
 
   const rows = table.getRowModel().rows;
-  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().rows;
 
   // Reset keyboard focus if data rows change
   useEffect(() => {
