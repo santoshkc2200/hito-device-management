@@ -632,7 +632,9 @@ export const zAdmin = z.object({
     role: zAdminRole,
     status: zAdminStatus.optional(),
     lastLoginAt: z.iso.datetime().optional(),
-    lockedUntil: z.iso.datetime().optional()
+    lockedUntil: z.iso.datetime().optional(),
+    mustChangePassword: z.boolean().optional(),
+    mustReenrolTotp: z.boolean().optional()
 });
 
 export const zAdminList = z.object({

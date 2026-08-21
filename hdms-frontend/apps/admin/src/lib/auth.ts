@@ -1,4 +1,13 @@
-import { client, getCurrentAdmin, login, logout } from "@hdms/api-client";
+import {
+  beginTotpReenrolment,
+  changeOwnPassword,
+  client,
+  confirmTotpReenrolment,
+  getCurrentAdmin,
+  login,
+  logout,
+  regenerateRecoveryCodes,
+} from "@hdms/api-client";
 import { queryOptions } from "@tanstack/react-query";
 import { queryClient } from "./query-client";
 
@@ -15,7 +24,14 @@ export const currentAdminQueryOptions = queryOptions({
   retry: false,
 });
 
-export async function loginAdmin(params: { email: string; password: string; totpCode: string }) {
+export interface LoginParams {
+  email: string;
+  password: string;
+  totpCode?: string;
+  recoveryCode?: string;
+}
+
+export async function loginAdmin(params: LoginParams) {
   const { data, error } = await login({ body: params });
   if (error) throw error;
   queryClient.setQueryData(currentAdminQueryKey, data);
@@ -26,6 +42,55 @@ export async function logoutAdmin() {
   await logout();
   queryClient.setQueryData(currentAdminQueryKey, undefined);
   queryClient.removeQueries({ queryKey: currentAdminQueryKey });
+}
+
+export async function changeOwnPasswordAdmin(params: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  const { data, error } = await changeOwnPassword({ body: params });
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: currentAdminQueryKey });
+  return data;
+}
+
+export async function beginTotpReenrolmentAdmin() {
+  const { data, error } = await beginTotpReenrolment();
+  if (error) throw error;
+  return data;
+}
+
+export async function confirmTotpReenrolmentAdmin(params: { totpCode: string }) {
+  const { data, error } = await confirmTotpReenrolment({ body: params });
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: currentAdminQueryKey });
+  return data;
+}
+
+export async function regenerateRecoveryCodesAdmin() {
+  const { data, error } = await regenerateRecoveryCodes();
+  if (error) throw error;
+  return data;
+}
+
+type SessionExpiredListener = () => void;
+const sessionExpiredListeners = new Set<SessionExpiredListener>();
+
+export function onSessionExpired(listener: SessionExpiredListener): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => {
+    sessionExpiredListeners.delete(listener);
+  };
+}
+
+export function triggerSessionExpired() {
+  for (const listener of sessionExpiredListeners) {
+    try {
+      listener();
+    } catch {
+      // Ignore listener errors
+    }
+  }
 }
 
 const CSRF_COOKIE = "hdms_csrf";
@@ -52,13 +117,20 @@ export function installAuthInterceptors() {
   });
 
   client.interceptors.response.use((response, request) => {
-    const isAuthCall = request.url.includes("/auth/login") || request.url.includes("/auth/me");
+    const isAuthCall =
+      request.url.includes("/auth/login") ||
+      request.url.includes("/auth/logout") ||
+      request.url.includes("/auth/me");
+
     if (response.status === 401 && !isAuthCall) {
       queryClient.removeQueries({ queryKey: currentAdminQueryKey });
-      if (!window.location.pathname.startsWith("/login")) {
+      if (sessionExpiredListeners.size > 0) {
+        triggerSessionExpired();
+      } else if (!window.location.pathname.startsWith("/login")) {
         window.location.href = "/login";
       }
     }
     return response;
   });
 }
+

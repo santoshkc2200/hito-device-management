@@ -37,6 +37,8 @@ export type Admin = {
      * Set while a lockout from repeated failed logins is in force.
      */
     lockedUntil?: string;
+    mustChangePassword?: boolean;
+    mustReenrolTotp?: boolean;
 };
 
 export type LoginRequest = {

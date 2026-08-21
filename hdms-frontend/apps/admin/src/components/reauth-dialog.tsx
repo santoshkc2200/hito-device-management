@@ -1,9 +1,16 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
-import { createRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -12,36 +19,68 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { loginAdmin } from "@/lib/auth";
-import { rootRoute } from "./root";
+import {
+  currentAdminQueryOptions,
+  loginAdmin,
+  logoutAdmin,
+  onSessionExpired,
+} from "@/lib/auth";
+import { toast } from "sonner";
 
-const loginSchema = z.object({
+const reauthSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
   totpCode: z.string().optional(),
   recoveryCode: z.string().optional(),
 });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type ReauthFormValues = z.infer<typeof reauthSchema>;
 
-export function LoginPage() {
+export function ReauthDialog() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const { data: admin } = useQuery(currentAdminQueryOptions);
   const router = useRouter();
   const navigate = useNavigate();
-  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "", totpCode: "", recoveryCode: "" },
+  const form = useForm<ReauthFormValues>({
+    resolver: zodResolver(reauthSchema),
+    defaultValues: {
+      email: admin?.email || "",
+      password: "",
+      totpCode: "",
+      recoveryCode: "",
+    },
   });
+
+  useEffect(() => {
+    if (admin?.email) {
+      form.setValue("email", admin.email);
+    }
+  }, [admin?.email, form]);
+
+  useEffect(() => {
+    const unsubscribe = onSessionExpired(() => {
+      setIsOpen(true);
+    });
+    return unsubscribe;
+  }, []);
 
   const mutation = useMutation({
     mutationFn: loginAdmin,
     onSuccess: async () => {
+      setIsOpen(false);
+      form.reset({
+        email: admin?.email || "",
+        password: "",
+        totpCode: "",
+        recoveryCode: "",
+      });
+      toast.success("Session restored. You can continue where you left off.");
       await router.invalidate();
-      await navigate({ to: "/" });
     },
     onError: (error: unknown) => {
-      let message = "Invalid email, password or code.";
+      let message = "Invalid credentials or code.";
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -53,10 +92,10 @@ export function LoginPage() {
     },
   });
 
-  const handleSubmit = (values: LoginFormValues) => {
+  const handleSubmit = (values: ReauthFormValues) => {
     if (useRecoveryCode) {
       if (!values.recoveryCode || values.recoveryCode.trim().length === 0) {
-        form.setError("recoveryCode", { message: "Enter your single-use recovery code" });
+        form.setError("recoveryCode", { message: "Enter your recovery code" });
         return;
       }
       mutation.mutate({
@@ -77,26 +116,38 @@ export function LoginPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    setIsOpen(false);
+    await logoutAdmin();
+    await router.invalidate();
+    await navigate({ to: "/login" });
+  };
+
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-secondary p-6">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8 shadow-sm">
-        <div className="mb-6">
-          <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
-            Hito Hospital
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold text-card-foreground">
-            Device management
-          </h1>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      // Prevent accidental backdrop closing to protect form state
+      if (!open && mutation.isPending) return;
+      setIsOpen(open);
+    }}>
+      <DialogContent
+        className="sm:max-w-md"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>Session expired</DialogTitle>
+          <DialogDescription>
+            Your session has timed out. Re-authenticate below to keep working without losing any form state.
+          </DialogDescription>
+        </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)}>
-          <FieldGroup>
+          <FieldGroup className="mt-4">
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="reauth-email">Email</FieldLabel>
               <Input
-                id="email"
+                id="reauth-email"
                 type="email"
                 autoComplete="username"
-                autoFocus
                 aria-invalid={!!form.formState.errors.email}
                 {...form.register("email")}
               />
@@ -104,27 +155,27 @@ export function LoginPage() {
                 <FieldError>{form.formState.errors.email.message}</FieldError>
               )}
             </Field>
+
             <Field data-invalid={!!form.formState.errors.password}>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <FieldLabel htmlFor="reauth-password">Password</FieldLabel>
               <Input
-                id="password"
+                id="reauth-password"
                 type="password"
                 autoComplete="current-password"
+                autoFocus
                 aria-invalid={!!form.formState.errors.password}
                 {...form.register("password")}
               />
               {form.formState.errors.password && (
-                <FieldError>
-                  {form.formState.errors.password.message}
-                </FieldError>
+                <FieldError>{form.formState.errors.password.message}</FieldError>
               )}
             </Field>
 
             {!useRecoveryCode ? (
               <Field data-invalid={!!form.formState.errors.totpCode}>
-                <FieldLabel htmlFor="totpCode">Authenticator code</FieldLabel>
+                <FieldLabel htmlFor="reauth-totp">Authenticator code</FieldLabel>
                 <Input
-                  id="totpCode"
+                  id="reauth-totp"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   maxLength={6}
@@ -134,27 +185,23 @@ export function LoginPage() {
                   {...form.register("totpCode")}
                 />
                 {form.formState.errors.totpCode && (
-                  <FieldError>
-                    {form.formState.errors.totpCode.message}
-                  </FieldError>
+                  <FieldError>{form.formState.errors.totpCode.message}</FieldError>
                 )}
               </Field>
             ) : (
               <Field data-invalid={!!form.formState.errors.recoveryCode}>
-                <FieldLabel htmlFor="recoveryCode">Recovery code</FieldLabel>
+                <FieldLabel htmlFor="reauth-recovery">Recovery code</FieldLabel>
                 <Input
-                  id="recoveryCode"
+                  id="reauth-recovery"
                   type="text"
                   autoComplete="off"
-                  placeholder="e.g. abcd-1234 or 10-char code"
+                  placeholder="Single-use code"
                   className="font-mono uppercase tracking-wider"
                   aria-invalid={!!form.formState.errors.recoveryCode}
                   {...form.register("recoveryCode")}
                 />
                 {form.formState.errors.recoveryCode && (
-                  <FieldError>
-                    {form.formState.errors.recoveryCode.message}
-                  </FieldError>
+                  <FieldError>{form.formState.errors.recoveryCode.message}</FieldError>
                 )}
               </Field>
             )}
@@ -170,8 +217,8 @@ export function LoginPage() {
                 }}
               >
                 {useRecoveryCode
-                  ? "Use authenticator code instead"
-                  : "Lost authenticator? Use a recovery code"}
+                  ? "Use authenticator code"
+                  : "Use recovery code"}
               </button>
             </div>
 
@@ -181,18 +228,25 @@ export function LoginPage() {
               </p>
             )}
 
-            <Button type="submit" disabled={mutation.isPending} className="mt-2 w-full">
-              {mutation.isPending ? "Signing in…" : "Sign in"}
-            </Button>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+              >
+                Sign out
+              </Button>
+              <Button
+                type="submit"
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending ? "Re-authenticating…" : "Resume session"}
+              </Button>
+            </div>
           </FieldGroup>
         </form>
-      </div>
-    </main>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-export const loginRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/login",
-  component: LoginPage,
-});

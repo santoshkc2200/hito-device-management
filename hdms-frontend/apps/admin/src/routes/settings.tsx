@@ -1,19 +1,40 @@
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, useNavigate } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { z } from "zod";
 import { EmptyState } from "@/components/states";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminAccountsPanel } from "@/components/admin-accounts-panel";
 import { authenticatedRoute } from "./authenticated";
 
 const settingsSearchSchema = z.object({
   tab: z.enum(["policy", "kiosks", "templates", "admins"]).optional(),
 });
 
-function SettingsPlaceholder() {
+function SettingsPage() {
+  const search = settingsRoute.useSearch();
+  const navigate = useNavigate();
+  const activeTab = search.tab ?? "policy";
+
+  const handleTabChange = (value: string) => {
+    navigate({
+      to: "/settings",
+      search: { tab: value as "policy" | "kiosks" | "templates" | "admins" },
+      replace: true,
+    });
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Settings</h1>
-      <Tabs defaultValue="policy">
+    <div className="flex flex-col gap-6 max-w-6xl">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Settings
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          System configuration, hardware management, templates, and operator accounts.
+        </p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="policy">Categories & Policy</TabsTrigger>
           <TabsTrigger value="kiosks">Kiosks</TabsTrigger>
@@ -42,11 +63,7 @@ function SettingsPlaceholder() {
           />
         </TabsContent>
         <TabsContent value="admins" className="mt-4">
-          <EmptyState
-            icon={Settings}
-            title="Admin Accounts"
-            explanation="Admin user management, role assignments, password resets, and TOTP re-enrolments will land in task 4.1b."
-          />
+          <AdminAccountsPanel />
         </TabsContent>
       </Tabs>
     </div>
@@ -57,5 +74,5 @@ export const settingsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/settings",
   validateSearch: settingsSearchSchema,
-  component: SettingsPlaceholder,
+  component: SettingsPage,
 });

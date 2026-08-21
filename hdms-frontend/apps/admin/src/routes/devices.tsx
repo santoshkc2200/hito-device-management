@@ -23,6 +23,7 @@ import { DeviceForm } from "@/components/device-form";
 import { DeviceLabelSheetDialog } from "@/components/device-label-sheet-dialog";
 import { deviceStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { RoleGate } from "@/lib/use-role";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -140,19 +141,34 @@ function DeviceDetailSheet({ device, onClose }: { device: Device; onClose: () =>
           <div>
             <h3 className="mb-2 text-sm font-semibold">Status</h3>
             <StatusBadge label={labelize(device.status)} tone={deviceStatusTone[device.status] ?? "muted"} />
-            <div className="mt-3">
-              <StatusChangeForm device={device} onDone={() => {}} />
-            </div>
+            <RoleGate minRole="technician">
+              <div className="mt-3">
+                <StatusChangeForm device={device} onDone={() => {}} />
+              </div>
+            </RoleGate>
           </div>
           <div>
             <h3 className="mb-2 text-sm font-semibold">Details</h3>
-            <DeviceForm device={device} categories={categories ?? []} onDone={() => {}} />
+            <RoleGate
+              minRole="technician"
+              fallback={
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p><span className="font-medium text-foreground">Name:</span> {device.name}</p>
+                  {device.model && <p><span className="font-medium text-foreground">Model:</span> {device.model}</p>}
+                  <p><span className="font-medium text-foreground">Condition:</span> {labelize(device.condition)}</p>
+                </div>
+              }
+            >
+              <DeviceForm device={device} categories={categories ?? []} onDone={() => {}} />
+            </RoleGate>
           </div>
-          <CredentialsPanel
-            subjectType="device"
-            subjectId={device.id}
-            subject={{ type: "device", assetTag: device.assetTag, name: device.name, model: device.model }}
-          />
+          <RoleGate minRole="technician">
+            <CredentialsPanel
+              subjectType="device"
+              subjectId={device.id}
+              subject={{ type: "device", assetTag: device.assetTag, name: device.name, model: device.model }}
+            />
+          </RoleGate>
         </div>
       </SheetContent>
     </Sheet>
@@ -241,22 +257,26 @@ function DevicesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Devices</h1>
-        <div className="flex gap-2">
-          <CategoryManagerDialog />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={devices.length === 0}
-            onClick={() => setLabelSheetOpen(true)}
-          >
-            <Tag className="size-4" data-icon="inline-start" />
-            Print labels
-          </Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" data-icon="inline-start" />
-            New device
-          </Button>
-        </div>
+        <RoleGate minRole="technician">
+          <div className="flex gap-2">
+            <RoleGate minRole="admin">
+              <CategoryManagerDialog />
+            </RoleGate>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={devices.length === 0}
+              onClick={() => setLabelSheetOpen(true)}
+            >
+              <Tag className="size-4" data-icon="inline-start" />
+              Print labels
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" data-icon="inline-start" />
+              New device
+            </Button>
+          </div>
+        </RoleGate>
       </div>
 
       <div className="flex items-center gap-2">

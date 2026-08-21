@@ -18,7 +18,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { currentAdminQueryOptions, logoutAdmin } from "@/lib/auth";
-import type { AdminRole } from "@hdms/api-client";
+import { hasRoleAtLeast } from "@/lib/use-role";
+import { ReauthDialog } from "@/components/reauth-dialog";
+import { ForcedPasswordChangeDialog } from "@/components/forced-password-change-dialog";
+import { ForcedTotpDialog } from "@/components/forced-totp-dialog";
 import { cn } from "@hdms/ui";
 
 interface NavItem {
@@ -68,31 +71,6 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// Role hierarchy rank for cosmetic navigation filtering.
-// Note: This is purely for UI ergonomics and UX clarity.
-// Actual access control and security enforcement are enforced server-side per endpoint in 4.1a.
-function getRoleRank(role?: AdminRole | string): number {
-  switch (role) {
-    case "superadmin":
-    case "admin":
-      return 3;
-    case "operator":
-    case "technician":
-      return 2;
-    case "viewer":
-      return 1;
-    default:
-      return 0;
-  }
-}
-
-function hasMinRole(userRole: AdminRole | string | undefined, minRole?: "viewer" | "technician" | "admin"): boolean {
-  if (!minRole) return true;
-  const userRank = getRoleRank(userRole);
-  const requiredRank = getRoleRank(minRole);
-  return userRank >= requiredRank;
-}
-
 export function AppShell() {
   const { data: admin } = useQuery(currentAdminQueryOptions);
   const router = useRouter();
@@ -119,7 +97,7 @@ export function AppShell() {
         </div>
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
           {NAV_GROUPS.map((group) => {
-            const visibleItems = group.items.filter((item) => hasMinRole(role, item.minRole));
+            const visibleItems = group.items.filter((item) => hasRoleAtLeast(role, item.minRole));
             if (visibleItems.length === 0) return null;
 
             return (
@@ -167,6 +145,11 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global Auth Compliance & Re-authentication Modals */}
+      <ReauthDialog />
+      <ForcedPasswordChangeDialog />
+      <ForcedTotpDialog />
     </div>
   );
 }

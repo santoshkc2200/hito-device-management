@@ -138,13 +138,25 @@ func adminToGen(a auth.AdminIdentity) gen.Admin {
 		st := gen.AdminStatus(a.Status)
 		status = &st
 	}
+	var mustChangePassword *bool
+	if a.MustChangePassword {
+		v := true
+		mustChangePassword = &v
+	}
+	var mustReenrolTotp *bool
+	if a.MustReenrolTotp {
+		v := true
+		mustReenrolTotp = &v
+	}
 	return gen.Admin{
-		Id:          a.ID,
-		Email:       a.Email,
-		FullName:    a.FullName,
-		Role:        gen.AdminRole(a.Role),
-		Status:      status,
-		LastLoginAt: a.LastLoginAt,
-		LockedUntil: a.LockedUntil,
+		Id:                 a.ID,
+		Email:              a.Email,
+		FullName:           a.FullName,
+		Role:               gen.AdminRole(a.Role),
+		Status:             status,
+		LastLoginAt:        a.LastLoginAt,
+		LockedUntil:        a.LockedUntil,
+		MustChangePassword: mustChangePassword,
+		MustReenrolTotp:    mustReenrolTotp,
 	}
 }

@@ -21,6 +21,7 @@ import { z } from "zod";
 import { CredentialsPanel } from "@/components/credentials-panel";
 import { userStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { RoleGate } from "@/lib/use-role";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -107,25 +108,40 @@ function UserDetailSheet({
             <h3 className="mb-2 text-sm font-semibold">Status</h3>
             <StatusBadge label={labelize(user.status)} tone={userStatusTone[user.status] ?? "muted"} />
             {user.status === "active" && (
-              <div className="mt-3">
-                <SuspendForm user={user} onDone={() => {}} />
-              </div>
+              <RoleGate minRole="technician">
+                <div className="mt-3">
+                  <SuspendForm user={user} onDone={() => {}} />
+                </div>
+              </RoleGate>
             )}
           </div>
           <div>
             <h3 className="mb-2 text-sm font-semibold">Details</h3>
-            <UserForm user={user} departments={departments} onDone={() => {}} />
+            <RoleGate
+              minRole="technician"
+              fallback={
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p><span className="font-medium text-foreground">Name:</span> {user.fullName}</p>
+                  <p><span className="font-medium text-foreground">Employee No:</span> {user.employeeNo}</p>
+                  {departmentName && <p><span className="font-medium text-foreground">Department:</span> {departmentName}</p>}
+                </div>
+              }
+            >
+              <UserForm user={user} departments={departments} onDone={() => {}} />
+            </RoleGate>
           </div>
-          <CredentialsPanel
-            subjectType="user"
-            subjectId={user.id}
-            subject={{
-              type: "user",
-              fullName: user.fullName,
-              employeeNo: user.employeeNo,
-              department: departmentName,
-            }}
-          />
+          <RoleGate minRole="technician">
+            <CredentialsPanel
+              subjectType="user"
+              subjectId={user.id}
+              subject={{
+                type: "user",
+                fullName: user.fullName,
+                employeeNo: user.employeeNo,
+                department: departmentName,
+              }}
+            />
+          </RoleGate>
         </div>
       </SheetContent>
     </Sheet>
@@ -199,10 +215,12 @@ function UsersPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Users</h1>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" data-icon="inline-start" />
-          New user
-        </Button>
+        <RoleGate minRole="technician">
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" data-icon="inline-start" />
+            New user
+          </Button>
+        </RoleGate>
       </div>
 
       <div className="flex items-center gap-2">

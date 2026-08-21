@@ -2018,6 +2018,10 @@ components:
           type: string
           format: date-time
           description: Set while a lockout from repeated failed logins is in force.
+        mustChangePassword:
+          type: boolean
+        mustReenrolTotp:
+          type: boolean
 
     LoginRequest:
       type: object
