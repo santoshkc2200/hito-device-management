@@ -13,6 +13,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 )
 
 // setNoStore sets Cache-Control: no-store on sensitive responses containing tokens.
@@ -214,10 +215,16 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		writeValidationFailed(w, r, "password must be at least 12 characters", []string{"password"})
 	case errors.Is(err, auth.ErrKioskNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("kiosk-not-found", "Kiosk not found", http.StatusNotFound))
-	case errors.Is(err, auth.ErrPairingCodeInvalid):
-		httpx.WriteProblem(w, r, httpx.NewProblem("pairing-code-invalid", "Pairing code is invalid or expired", http.StatusNotFound))
-	case errors.Is(err, auth.ErrKioskInvalid):
-		httpx.WriteProblem(w, r, httpx.NewProblem("unauthorized", "Kiosk token invalid or disabled", http.StatusUnauthorized))
+	// Listing errors
+	case errors.Is(err, listing.ErrInvalidCursor), errors.Is(err, listing.ErrStaleCursor):
+		p := httpx.NewProblem("invalid-cursor", "Invalid pagination cursor", http.StatusBadRequest)
+		p.Detail = err.Error()
+		httpx.WriteProblem(w, r, p)
+	case errors.Is(err, listing.ErrInvalidSort), errors.Is(err, listing.ErrInvalidOrder),
+		errors.Is(err, listing.ErrInvalidLimit), errors.Is(err, listing.ErrUnknownFilter):
+		p := httpx.NewProblem("validation-failed", "Validation failed", http.StatusBadRequest)
+		p.Detail = err.Error()
+		httpx.WriteProblem(w, r, p)
 
 	default:
 		// Domain validation errors surface as raw errors from module methods

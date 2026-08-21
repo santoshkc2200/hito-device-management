@@ -157,3 +157,89 @@ func TestMigration0012_AdminRoles(t *testing.T) {
 		t.Fatalf("goose up to latest: %v", err)
 	}
 }
+
+// TestMigration0014_ListIndexes proves that migration 0014:
+// 1. Applies covering indexes for loans, devices, users, and audit_events.
+// 2. Rolls back cleanly (dropping all 6 indexes).
+// 3. Re-applies cleanly on up migration.
+func TestMigration0014_ListIndexes(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	connStr := pool.Config().ConnConfig.ConnString()
+
+	sqlDB, err := sql.Open("pgx", connStr)
+	if err != nil {
+		t.Fatalf("open sql DB: %v", err)
+	}
+	defer sqlDB.Close()
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatalf("goose set dialect: %v", err)
+	}
+
+	expectedIndexes := []string{
+		"loans_status_due_at_id_idx",
+		"loans_user_id_borrowed_at_id_idx",
+		"devices_status_asset_tag_id_idx",
+		"users_department_id_full_name_id_idx",
+		"audit_events_at_id_idx",
+		"audit_events_actor_at_id_idx",
+	}
+
+	checkIndexExists := func(idxName string) bool {
+		var exists bool
+		err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = $1)`,
+			idxName,
+		).Scan(&exists)
+		if err != nil {
+			t.Fatalf("check index %s: %v", idxName, err)
+		}
+		return exists
+	}
+
+	// 1. Roll back to 13
+	if err := goose.DownToContext(ctx, sqlDB, ".", 13); err != nil {
+		t.Fatalf("goose down to 13: %v", err)
+	}
+
+	for _, idx := range expectedIndexes {
+		if checkIndexExists(idx) {
+			t.Errorf("expected index %s NOT to exist after rollback to 13", idx)
+		}
+	}
+
+	// 2. Migrate up to 14
+	if err := goose.UpToContext(ctx, sqlDB, ".", 14); err != nil {
+		t.Fatalf("goose up to 14: %v", err)
+	}
+
+	for _, idx := range expectedIndexes {
+		if !checkIndexExists(idx) {
+			t.Errorf("expected index %s to exist after migrating up to 14", idx)
+		}
+	}
+
+	// 3. Roll back again to 13
+	if err := goose.DownToContext(ctx, sqlDB, ".", 13); err != nil {
+		t.Fatalf("goose down to 13: %v", err)
+	}
+
+	for _, idx := range expectedIndexes {
+		if checkIndexExists(idx) {
+			t.Errorf("expected index %s to be dropped on down to 13", idx)
+		}
+	}
+
+	// 4. Migrate up to latest
+	if err := goose.UpContext(ctx, sqlDB, "."); err != nil {
+		t.Fatalf("goose up to latest: %v", err)
+	}
+
+	for _, idx := range expectedIndexes {
+		if !checkIndexExists(idx) {
+			t.Errorf("expected index %s to exist after migrating up to latest", idx)
+		}
+	}
+}

@@ -8,15 +8,40 @@ import (
 
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 )
 
 func (s *Server) ListDevices(w http.ResponseWriter, r *http.Request, params gen.ListDevicesParams) {
+	lp, err := listing.Parse(r, listing.DevicesSpec)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	categoryID := fromPtr(params.Category)
+	if categoryID == "" {
+		categoryID = lp.Filter("categoryId")
+		if categoryID == "" {
+			categoryID = lp.Filter("category_id")
+		}
+	}
+
+	statusStr := fromDeviceStatusFilter(params.Status)
+	if statusStr == "" {
+		statusStr = lp.Filter("status")
+	}
+
+	qStr := fromPtr(params.Q)
+	if qStr == "" {
+		qStr = lp.Filter("q")
+	}
+
 	result, err := s.catalog.ListDevices(r.Context(), catalogapi.ListDevicesParams{
-		Status:     catalogapi.DeviceStatus(fromDeviceStatusFilter(params.Status)),
-		CategoryID: fromPtr(params.Category),
-		Query:      fromPtr(params.Q),
-		Cursor:     fromPtr(params.Cursor),
-		Limit:      fromLimitPtr(params.Limit),
+		Status:     catalogapi.DeviceStatus(statusStr),
+		CategoryID: categoryID,
+		Query:      qStr,
+		Cursor:     lp.RawCursor,
+		Limit:      lp.Limit,
 	})
 	if err != nil {
 		s.writeServiceError(w, r, err)
@@ -134,13 +159,6 @@ func fromDeviceStatusFilter(f *gen.DeviceStatusFilter) string {
 		return ""
 	}
 	return string(*f)
-}
-
-func fromLimitPtr(l *gen.LimitParam) int {
-	if l == nil {
-		return 0
-	}
-	return *l
 }
 
 func dateToTimePtr(d *openapi_types.Date) *time.Time {

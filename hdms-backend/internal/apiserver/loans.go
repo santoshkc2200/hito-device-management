@@ -5,35 +5,71 @@ import (
 
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 )
 
 // ListLoans lists loans matching the supplied query filters.
 func (s *Server) ListLoans(w http.ResponseWriter, r *http.Request, params gen.ListLoansParams) {
+	lp, err := listing.Parse(r, listing.LoansSpec)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
 	var status lendingapi.Status
 	if params.Status != nil {
 		status = lendingapi.Status(*params.Status)
+	} else if sVal := lp.Filter("status"); sVal != "" {
+		status = lendingapi.Status(sVal)
 	}
 
 	var origin lendingapi.Origin
 	if params.Origin != nil {
 		origin = lendingapi.Origin(*params.Origin)
+	} else if oVal := lp.Filter("origin"); oVal != "" {
+		origin = lendingapi.Origin(oVal)
 	}
 
-	limit := 0
-	if params.Limit != nil {
-		limit = *params.Limit
+	userID := fromPtr(params.UserId)
+	if userID == "" {
+		userID = lp.Filter("userId")
+		if userID == "" {
+			userID = lp.Filter("user_id")
+		}
+	}
+
+	deviceID := fromPtr(params.DeviceId)
+	if deviceID == "" {
+		deviceID = lp.Filter("deviceId")
+		if deviceID == "" {
+			deviceID = lp.Filter("device_id")
+		}
+	}
+
+	fromTime := params.From
+	if fromTime == nil {
+		fromTime, _ = lp.TimeFilter("from")
+	}
+	toTime := params.To
+	if toTime == nil {
+		toTime, _ = lp.TimeFilter("to")
+	}
+
+	disputed := params.Disputed
+	if disputed == nil {
+		disputed, _ = lp.BoolFilter("disputed")
 	}
 
 	res, err := s.lending.ListLoans(r.Context(), lendingapi.ListLoansParams{
 		Status:   status,
 		Origin:   origin,
-		UserID:   fromPtr(params.UserId),
-		DeviceID: fromPtr(params.DeviceId),
-		From:     params.From,
-		To:       params.To,
-		Disputed: params.Disputed,
-		Cursor:   fromPtr(params.Cursor),
-		Limit:    limit,
+		UserID:   userID,
+		DeviceID: deviceID,
+		From:     fromTime,
+		To:       toTime,
+		Disputed: disputed,
+		Cursor:   lp.RawCursor,
+		Limit:    lp.Limit,
 	})
 	if err != nil {
 		s.writeServiceError(w, r, err)

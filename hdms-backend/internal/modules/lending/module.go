@@ -21,6 +21,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -651,29 +652,42 @@ func nullLoanOrigin(origin lendingapi.Origin) lendingstore.NullLoanOrigin {
 // over (borrowed_at, id) — the same ordering ListLoans sorts by, mirroring
 // catalog's encodeDeviceCursor pattern.
 func encodeLoanCursor(at time.Time, id string) string {
-	raw := at.UTC().Format(time.RFC3339Nano) + "|" + id
-	return base64.RawURLEncoding.EncodeToString([]byte(raw))
+	return listing.EncodeTimeCursor("borrowed_at", at, id)
 }
 
 func decodeLoanCursor(cursor string) (pgtype.Timestamptz, pgtype.UUID, error) {
 	if cursor == "" {
 		return pgtype.Timestamptz{}, pgtype.UUID{}, nil
 	}
-	raw, err := base64.RawURLEncoding.DecodeString(cursor)
+	c, err := listing.DecodeCursor(cursor, "borrowed_at")
+	if err == nil && c != nil {
+		tVal, tErr := c.TimeVal()
+		if tErr != nil {
+			return pgtype.Timestamptz{}, pgtype.UUID{}, tErr
+		}
+		uVal, uErr := pgtypeconv.UUID(c.ID)
+		if uErr != nil {
+			return pgtype.Timestamptz{}, pgtype.UUID{}, uErr
+		}
+		return pgtypeconv.Timestamptz(*tVal), uVal, nil
+	}
+
+	// Fallback for legacy format
+	raw, decErr := base64.RawURLEncoding.DecodeString(cursor)
+	if decErr == nil {
+		parts := strings.SplitN(string(raw), "|", 2)
+		if len(parts) == 2 {
+			at, pErr := time.Parse(time.RFC3339Nano, parts[0])
+			if pErr == nil {
+				id, uErr := pgtypeconv.UUID(parts[1])
+				if uErr == nil {
+					return pgtypeconv.Timestamptz(at), id, nil
+				}
+			}
+		}
+	}
 	if err != nil {
 		return pgtype.Timestamptz{}, pgtype.UUID{}, err
 	}
-	parts := strings.SplitN(string(raw), "|", 2)
-	if len(parts) != 2 {
-		return pgtype.Timestamptz{}, pgtype.UUID{}, fmt.Errorf("malformed cursor")
-	}
-	at, err := time.Parse(time.RFC3339Nano, parts[0])
-	if err != nil {
-		return pgtype.Timestamptz{}, pgtype.UUID{}, err
-	}
-	id, err := pgtypeconv.UUID(parts[1])
-	if err != nil {
-		return pgtype.Timestamptz{}, pgtype.UUID{}, err
-	}
-	return pgtypeconv.Timestamptz(at), id, nil
+	return pgtype.Timestamptz{}, pgtype.UUID{}, fmt.Errorf("malformed cursor")
 }

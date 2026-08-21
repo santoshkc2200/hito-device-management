@@ -8,15 +8,40 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 )
 
 func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, params gen.ListUsersParams) {
+	lp, err := listing.Parse(r, listing.UsersSpec)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	deptID := fromPtr(params.Department)
+	if deptID == "" {
+		deptID = lp.Filter("departmentId")
+		if deptID == "" {
+			deptID = lp.Filter("department_id")
+		}
+	}
+
+	statusStr := fromUserStatusFilter(params.Status)
+	if statusStr == "" {
+		statusStr = lp.Filter("status")
+	}
+
+	qStr := fromPtr(params.Q)
+	if qStr == "" {
+		qStr = lp.Filter("q")
+	}
+
 	result, err := s.identity.ListUsers(r.Context(), identityapi.ListUsersParams{
-		Status:       identityapi.UserStatus(fromUserStatusFilter(params.Status)),
-		DepartmentID: fromPtr(params.Department),
-		Query:        fromPtr(params.Q),
-		Cursor:       fromPtr(params.Cursor),
-		Limit:        fromLimitPtr(params.Limit),
+		Status:       identityapi.UserStatus(statusStr),
+		DepartmentID: deptID,
+		Query:        qStr,
+		Cursor:       lp.RawCursor,
+		Limit:        lp.Limit,
 	})
 	if err != nil {
 		s.writeServiceError(w, r, err)
