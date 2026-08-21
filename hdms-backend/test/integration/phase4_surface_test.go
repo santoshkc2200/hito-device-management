@@ -30,8 +30,6 @@ type phase4Stub struct {
 func phase4Stubs() []phase4Stub {
 	const id = "01923e5c-0000-7000-8000-000000000000"
 	return []phase4Stub{
-		{http.MethodPost, "/v1/imports/users/preview", "4.4d"},
-		{http.MethodPost, "/v1/imports/users", "4.4d"},
 		{http.MethodPost, "/v1/imports/devices/preview", "4.3c"},
 		{http.MethodPost, "/v1/imports/devices", "4.3c"},
 

@@ -654,6 +654,18 @@ type IdempotencyKey struct {
 	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
 }
 
+type ImportBatch struct {
+	ID           string             `json:"id"`
+	Kind         string             `json:"kind"`
+	Actor        string             `json:"actor"`
+	Filename     string             `json:"filename"`
+	TotalRows    int32              `json:"total_rows"`
+	CreatedCount int32              `json:"created_count"`
+	UpdatedCount int32              `json:"updated_count"`
+	SkippedCount int32              `json:"skipped_count"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
 type Kiosk struct {
 	ID                   pgtype.UUID        `json:"id"`
 	Name                 string             `json:"name"`
@@ -733,15 +745,16 @@ type ScanSession struct {
 }
 
 type User struct {
-	ID           pgtype.UUID        `json:"id"`
-	EmployeeNo   string             `json:"employee_no"`
-	FullName     string             `json:"full_name"`
-	DepartmentID pgtype.UUID        `json:"department_id"`
-	Email        pgtype.Text        `json:"email"`
-	Phone        pgtype.Text        `json:"phone"`
-	Status       UserStatus         `json:"status"`
-	Notes        pgtype.Text        `json:"notes"`
-	RegisteredAt pgtype.Timestamptz `json:"registered_at"`
-	RegisteredBy string             `json:"registered_by"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	ID            pgtype.UUID        `json:"id"`
+	EmployeeNo    string             `json:"employee_no"`
+	FullName      string             `json:"full_name"`
+	DepartmentID  pgtype.UUID        `json:"department_id"`
+	Email         pgtype.Text        `json:"email"`
+	Phone         pgtype.Text        `json:"phone"`
+	Status        UserStatus         `json:"status"`
+	Notes         pgtype.Text        `json:"notes"`
+	RegisteredAt  pgtype.Timestamptz `json:"registered_at"`
+	RegisteredBy  string             `json:"registered_by"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ImportBatchID pgtype.Text        `json:"import_batch_id"`
 }

@@ -11,8 +11,10 @@ import (
 )
 
 type Querier interface {
+	CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (ImportBatch, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	GetDepartmentByID(ctx context.Context, id pgtype.UUID) (Department, error)
+	GetImportBatch(ctx context.Context, id string) (ImportBatch, error)
 	// Used by bulk import, which resolves a department name from a CSV column
 	// without needing a separate "does it exist" round trip.
 	GetOrCreateDepartment(ctx context.Context, arg GetOrCreateDepartmentParams) (Department, error)

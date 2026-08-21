@@ -7,18 +7,37 @@ package identityapi
 import (
 	"context"
 	"errors"
+	"regexp"
+	"strings"
 	"time"
 )
+
+var employeeNoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,31}$`)
 
 // Sentinel errors callers can match on with errors.Is. Validation failures
 // are returned wrapped around the identity/internal/domain error that
 // caused them, not one of these.
 var (
-	ErrUserNotFound       = errors.New("identity: user not found")
-	ErrDepartmentNotFound = errors.New("identity: department not found")
-	ErrEmployeeNoTaken    = errors.New("identity: employee number is already in use")
-	ErrIllegalTransition  = errors.New("identity: illegal user status transition")
+	ErrUserNotFound        = errors.New("identity: user not found")
+	ErrDepartmentNotFound  = errors.New("identity: department not found")
+	ErrEmployeeNoTaken     = errors.New("identity: employee number is already in use")
+	ErrIllegalTransition   = errors.New("identity: illegal user status transition")
+	ErrEmployeeNoRequired  = errors.New("identity: employee number is required")
+	ErrEmployeeNoInvalid   = errors.New("identity: employee number must be 1-32 characters, starting alphanumeric, with only letters, digits and hyphens")
+	ErrFullNameRequired    = errors.New("identity: full name is required")
 )
+
+// ValidateEmployeeNo trims and checks an employee number, returning the canonical form.
+func ValidateEmployeeNo(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", ErrEmployeeNoRequired
+	}
+	if !employeeNoPattern.MatchString(v) {
+		return "", ErrEmployeeNoInvalid
+	}
+	return v, nil
+}
 
 // UserStatus mirrors the user_status Postgres enum.
 type UserStatus string
@@ -33,29 +52,31 @@ const (
 // caller outside the module needs, and nothing that reaches into another
 // module's data.
 type UserSummary struct {
-	ID           string
-	EmployeeNo   string
-	FullName     string
-	DepartmentID string // "" if none
-	Email        string
-	Phone        string
-	Status       UserStatus
-	Notes        string
-	RegisteredAt time.Time
-	RegisteredBy string
-	UpdatedAt    time.Time
+	ID            string
+	EmployeeNo    string
+	FullName      string
+	DepartmentID  string // "" if none
+	Email         string
+	Phone         string
+	Status        UserStatus
+	Notes         string
+	RegisteredAt  time.Time
+	RegisteredBy  string
+	UpdatedAt     time.Time
+	ImportBatchID string // "" if not created by an import batch
 }
 
 // CreateUserParams registers a new user. RegisteredBy must be
-// 'admin:<id>' or 'import' — INV-11 forbids a kiosk from ever creating one.
+// 'admin:<id>', 'import', or 'import:<batch_id>' — INV-11 forbids a kiosk from ever creating one.
 type CreateUserParams struct {
-	EmployeeNo   string
-	FullName     string
-	DepartmentID string // "" = none
-	Email        string
-	Phone        string
-	Notes        string
-	RegisteredBy string
+	EmployeeNo    string
+	FullName      string
+	DepartmentID  string // "" = none
+	Email         string
+	Phone         string
+	Notes         string
+	RegisteredBy  string
+	ImportBatchID string // "" = none
 }
 
 // UpdateUserParams edits the mutable fields of an existing user. The
@@ -91,6 +112,32 @@ type ListUsersResult struct {
 type Department struct {
 	ID   string
 	Name string
+}
+
+// ImportBatch is the identity module's read model for an import batch.
+type ImportBatch struct {
+	ID           string
+	Kind         string
+	Actor        string
+	Filename     string
+	TotalRows    int
+	CreatedCount int
+	UpdatedCount int
+	SkippedCount int
+	CreatedAt    time.Time
+}
+
+// CreateImportBatchParams parameters for creating an import batch record.
+type CreateImportBatchParams struct {
+	ID           string
+	Kind         string
+	Actor        string
+	Filename     string
+	TotalRows    int
+	CreatedCount int
+	UpdatedCount int
+	SkippedCount int
+	CreatedAt    time.Time
 }
 
 // Service is the identity module's public API.
@@ -133,4 +180,10 @@ type Service interface {
 
 	// ListDepartments returns every department, for admin console pickers.
 	ListDepartments(ctx context.Context) ([]Department, error)
+
+	// CreateImportBatch records a completed import batch.
+	CreateImportBatch(ctx context.Context, params CreateImportBatchParams) (ImportBatch, error)
+
+	// GetImportBatch fetches an import batch by ID.
+	GetImportBatch(ctx context.Context, id string) (ImportBatch, error)
 }

@@ -62,14 +62,15 @@ func (s *Service) CreateUser(ctx context.Context, params identityapi.CreateUserP
 	err = db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
 		q := identitystore.New(db.Conn(ctx, s.pool))
 		row, err := q.CreateUser(ctx, identitystore.CreateUserParams{
-			ID:           pgtypeconv.NewUUID(),
-			EmployeeNo:   employeeNo,
-			FullName:     fullName,
-			DepartmentID: deptID,
-			Email:        pgtypeconv.Text(params.Email),
-			Phone:        pgtypeconv.Text(params.Phone),
-			Notes:        pgtypeconv.Text(params.Notes),
-			RegisteredBy: registeredBy,
+			ID:            pgtypeconv.NewUUID(),
+			EmployeeNo:    employeeNo,
+			FullName:      fullName,
+			DepartmentID:  deptID,
+			Email:         pgtypeconv.Text(params.Email),
+			Phone:         pgtypeconv.Text(params.Phone),
+			Notes:         pgtypeconv.Text(params.Notes),
+			RegisteredBy:  registeredBy,
+			ImportBatchID: pgtypeconv.Text(params.ImportBatchID),
 		})
 		if err != nil {
 			return translateUserErr(err)
@@ -289,19 +290,75 @@ func (s *Service) ListDepartments(ctx context.Context) ([]identityapi.Department
 	return depts, nil
 }
 
+func (s *Service) CreateImportBatch(ctx context.Context, params identityapi.CreateImportBatchParams) (identityapi.ImportBatch, error) {
+	q := identitystore.New(db.Conn(ctx, s.pool))
+	createdAt := params.CreatedAt
+	if createdAt.IsZero() {
+		createdAt = time.Now()
+	}
+	row, err := q.CreateImportBatch(ctx, identitystore.CreateImportBatchParams{
+		ID:           params.ID,
+		Kind:         params.Kind,
+		Actor:        params.Actor,
+		Filename:     params.Filename,
+		TotalRows:    int32(params.TotalRows),
+		CreatedCount: int32(params.CreatedCount),
+		UpdatedCount: int32(params.UpdatedCount),
+		SkippedCount: int32(params.SkippedCount),
+		CreatedAt:    pgtypeconv.Timestamptz(createdAt),
+	})
+	if err != nil {
+		return identityapi.ImportBatch{}, fmt.Errorf("identity: create import batch: %w", err)
+	}
+	return identityapi.ImportBatch{
+		ID:           row.ID,
+		Kind:         row.Kind,
+		Actor:        row.Actor,
+		Filename:     row.Filename,
+		TotalRows:    int(row.TotalRows),
+		CreatedCount: int(row.CreatedCount),
+		UpdatedCount: int(row.UpdatedCount),
+		SkippedCount: int(row.SkippedCount),
+		CreatedAt:    pgtypeconv.Time(row.CreatedAt),
+	}, nil
+}
+
+func (s *Service) GetImportBatch(ctx context.Context, id string) (identityapi.ImportBatch, error) {
+	q := identitystore.New(db.Conn(ctx, s.pool))
+	row, err := q.GetImportBatch(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return identityapi.ImportBatch{}, fmt.Errorf("identity: import batch %q not found", id)
+		}
+		return identityapi.ImportBatch{}, fmt.Errorf("identity: get import batch: %w", err)
+	}
+	return identityapi.ImportBatch{
+		ID:           row.ID,
+		Kind:         row.Kind,
+		Actor:        row.Actor,
+		Filename:     row.Filename,
+		TotalRows:    int(row.TotalRows),
+		CreatedCount: int(row.CreatedCount),
+		UpdatedCount: int(row.UpdatedCount),
+		SkippedCount: int(row.SkippedCount),
+		CreatedAt:    pgtypeconv.Time(row.CreatedAt),
+	}, nil
+}
+
 func toUserSummary(row identitystore.User) identityapi.UserSummary {
 	return identityapi.UserSummary{
-		ID:           pgtypeconv.UUIDString(row.ID),
-		EmployeeNo:   row.EmployeeNo,
-		FullName:     row.FullName,
-		DepartmentID: pgtypeconv.UUIDString(row.DepartmentID),
-		Email:        pgtypeconv.TextString(row.Email),
-		Phone:        pgtypeconv.TextString(row.Phone),
-		Status:       identityapi.UserStatus(row.Status),
-		Notes:        pgtypeconv.TextString(row.Notes),
-		RegisteredAt: pgtypeconv.Time(row.RegisteredAt),
-		RegisteredBy: row.RegisteredBy,
-		UpdatedAt:    pgtypeconv.Time(row.UpdatedAt),
+		ID:            pgtypeconv.UUIDString(row.ID),
+		EmployeeNo:    row.EmployeeNo,
+		FullName:      row.FullName,
+		DepartmentID:  pgtypeconv.UUIDString(row.DepartmentID),
+		Email:         pgtypeconv.TextString(row.Email),
+		Phone:         pgtypeconv.TextString(row.Phone),
+		Status:        identityapi.UserStatus(row.Status),
+		Notes:         pgtypeconv.TextString(row.Notes),
+		RegisteredAt:  pgtypeconv.Time(row.RegisteredAt),
+		RegisteredBy:  row.RegisteredBy,
+		UpdatedAt:     pgtypeconv.Time(row.UpdatedAt),
+		ImportBatchID: pgtypeconv.TextString(row.ImportBatchID),
 	}
 }
 

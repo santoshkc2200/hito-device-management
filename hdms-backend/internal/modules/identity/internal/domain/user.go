@@ -61,7 +61,7 @@ func ValidateRegisteredBy(raw string) (string, error) {
 	if v == "" || strings.HasPrefix(v, "kiosk:") {
 		return "", ErrRegisteredByInvalid
 	}
-	if v != "import" && !strings.HasPrefix(v, "admin:") {
+	if v != "import" && !strings.HasPrefix(v, "admin:") && !strings.HasPrefix(v, "import:") {
 		return "", ErrRegisteredByInvalid
 	}
 	return v, nil

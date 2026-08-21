@@ -10,7 +10,7 @@ import {
 import { createColumnHelper } from "@tanstack/react-table";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/compone
 import { userStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { UserImportDialog } from "@/components/user-import-dialog";
 import { RoleGate } from "@/lib/use-role";
 import {
   Dialog,
@@ -206,6 +207,7 @@ export function UsersPage() {
   const search = usersRoute.useSearch();
   const navigate = useNavigate({ from: usersRoute.fullPath });
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [suspendTarget, setSuspendTarget] = useState<User | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<User | null>(null);
@@ -366,10 +368,16 @@ export function UsersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Users</h1>
         <RoleGate minRole="technician">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" data-icon="inline-start" />
-            New user
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" data-icon="inline-start" />
+              Import CSV
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" data-icon="inline-start" />
+              New user
+            </Button>
+          </div>
         </RoleGate>
       </div>
 
@@ -457,6 +465,8 @@ export function UsersPage() {
           <UserForm departments={departments ?? []} onDone={() => setCreateOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      <UserImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {selectedUser && (
         <UserDetailSheet

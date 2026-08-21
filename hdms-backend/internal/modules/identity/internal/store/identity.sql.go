@@ -11,21 +11,67 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createImportBatch = `-- name: CreateImportBatch :one
+INSERT INTO import_batches (id, kind, actor, filename, total_rows, created_count, updated_count, skipped_count, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, kind, actor, filename, total_rows, created_count, updated_count, skipped_count, created_at
+`
+
+type CreateImportBatchParams struct {
+	ID           string             `json:"id"`
+	Kind         string             `json:"kind"`
+	Actor        string             `json:"actor"`
+	Filename     string             `json:"filename"`
+	TotalRows    int32              `json:"total_rows"`
+	CreatedCount int32              `json:"created_count"`
+	UpdatedCount int32              `json:"updated_count"`
+	SkippedCount int32              `json:"skipped_count"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (ImportBatch, error) {
+	row := q.db.QueryRow(ctx, createImportBatch,
+		arg.ID,
+		arg.Kind,
+		arg.Actor,
+		arg.Filename,
+		arg.TotalRows,
+		arg.CreatedCount,
+		arg.UpdatedCount,
+		arg.SkippedCount,
+		arg.CreatedAt,
+	)
+	var i ImportBatch
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Actor,
+		&i.Filename,
+		&i.TotalRows,
+		&i.CreatedCount,
+		&i.UpdatedCount,
+		&i.SkippedCount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, employee_no, full_name, department_id, email, phone, notes, registered_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
+INSERT INTO users (id, employee_no, full_name, department_id, email, phone, notes, registered_by, import_batch_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 `
 
 type CreateUserParams struct {
-	ID           pgtype.UUID `json:"id"`
-	EmployeeNo   string      `json:"employee_no"`
-	FullName     string      `json:"full_name"`
-	DepartmentID pgtype.UUID `json:"department_id"`
-	Email        pgtype.Text `json:"email"`
-	Phone        pgtype.Text `json:"phone"`
-	Notes        pgtype.Text `json:"notes"`
-	RegisteredBy string      `json:"registered_by"`
+	ID            pgtype.UUID `json:"id"`
+	EmployeeNo    string      `json:"employee_no"`
+	FullName      string      `json:"full_name"`
+	DepartmentID  pgtype.UUID `json:"department_id"`
+	Email         pgtype.Text `json:"email"`
+	Phone         pgtype.Text `json:"phone"`
+	Notes         pgtype.Text `json:"notes"`
+	RegisteredBy  string      `json:"registered_by"`
+	ImportBatchID pgtype.Text `json:"import_batch_id"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -38,6 +84,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Phone,
 		arg.Notes,
 		arg.RegisteredBy,
+		arg.ImportBatchID,
 	)
 	var i User
 	err := row.Scan(
@@ -52,6 +99,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.RegisteredAt,
 		&i.RegisteredBy,
 		&i.UpdatedAt,
+		&i.ImportBatchID,
 	)
 	return i, err
 }
@@ -64,6 +112,28 @@ func (q *Queries) GetDepartmentByID(ctx context.Context, id pgtype.UUID) (Depart
 	row := q.db.QueryRow(ctx, getDepartmentByID, id)
 	var i Department
 	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
+}
+
+const getImportBatch = `-- name: GetImportBatch :one
+SELECT id, kind, actor, filename, total_rows, created_count, updated_count, skipped_count, created_at
+FROM import_batches WHERE id = $1
+`
+
+func (q *Queries) GetImportBatch(ctx context.Context, id string) (ImportBatch, error) {
+	row := q.db.QueryRow(ctx, getImportBatch, id)
+	var i ImportBatch
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Actor,
+		&i.Filename,
+		&i.TotalRows,
+		&i.CreatedCount,
+		&i.UpdatedCount,
+		&i.SkippedCount,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -89,7 +159,7 @@ func (q *Queries) GetOrCreateDepartment(ctx context.Context, arg GetOrCreateDepa
 }
 
 const getUserByEmployeeNo = `-- name: GetUserByEmployeeNo :one
-SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
+SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 FROM users WHERE lower(employee_no) = lower($1) AND status <> 'archived'
 `
 
@@ -110,12 +180,13 @@ func (q *Queries) GetUserByEmployeeNo(ctx context.Context, lower string) (User, 
 		&i.RegisteredAt,
 		&i.RegisteredBy,
 		&i.UpdatedAt,
+		&i.ImportBatchID,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
+SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 FROM users WHERE id = $1
 `
 
@@ -134,6 +205,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.RegisteredAt,
 		&i.RegisteredBy,
 		&i.UpdatedAt,
+		&i.ImportBatchID,
 	)
 	return i, err
 }
@@ -163,7 +235,7 @@ func (q *Queries) ListDepartments(ctx context.Context) ([]Department, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
+SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 FROM users u
 WHERE ($1::user_status IS NULL OR u.status = $1)
   AND ($2::uuid IS NULL OR u.department_id = $2)
@@ -231,6 +303,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.RegisteredAt,
 			&i.RegisteredBy,
 			&i.UpdatedAt,
+			&i.ImportBatchID,
 		); err != nil {
 			return nil, err
 		}
@@ -246,7 +319,7 @@ const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET full_name = $2, department_id = $3, email = $4, phone = $5, notes = $6, updated_at = now()
 WHERE id = $1 AND status <> 'archived'
-RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
+RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 `
 
 type UpdateUserParams struct {
@@ -280,6 +353,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.RegisteredAt,
 		&i.RegisteredBy,
 		&i.UpdatedAt,
+		&i.ImportBatchID,
 	)
 	return i, err
 }
@@ -287,7 +361,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 const updateUserStatus = `-- name: UpdateUserStatus :one
 UPDATE users SET status = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at
+RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 `
 
 type UpdateUserStatusParams struct {
@@ -310,6 +384,7 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 		&i.RegisteredAt,
 		&i.RegisteredBy,
 		&i.UpdatedAt,
+		&i.ImportBatchID,
 	)
 	return i, err
 }

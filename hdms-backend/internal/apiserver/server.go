@@ -8,6 +8,7 @@ package apiserver
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
 	"github.com/hito-hospital/hdms/internal/modules/checkout"
@@ -23,14 +24,16 @@ import (
 
 // Server implements gen.ServerInterface.
 type Server struct {
-	pool        *db.Pool
-	auth        *auth.Service
-	identity    *identity.Service
-	catalog     *catalog.Service
-	credentials *credentials.Service
-	lending     *lending.Service
-	checkout    *checkout.Service
-	sseHub      *events.SSEHub
+	pool               *db.Pool
+	auth               *auth.Service
+	identity           *identity.Service
+	catalog            *catalog.Service
+	credentials        *credentials.Service
+	lending            *lending.Service
+	checkout           *checkout.Service
+	sseHub             *events.SSEHub
+	importMu           sync.Mutex
+	userImportPreviews map[string]*userImportPreviewCacheItem
 }
 
 // New constructs the API server from the module services the composition
@@ -41,14 +44,15 @@ func New(
 	sseHub *events.SSEHub,
 ) *Server {
 	return &Server{
-		pool:        pool,
-		auth:        authSvc,
-		identity:    identitySvc,
-		catalog:     catalogSvc,
-		credentials: credentialsSvc,
-		lending:     lendingSvc,
-		checkout:    checkoutSvc,
-		sseHub:      sseHub,
+		pool:               pool,
+		auth:               authSvc,
+		identity:           identitySvc,
+		catalog:            catalogSvc,
+		credentials:        credentialsSvc,
+		lending:            lendingSvc,
+		checkout:           checkoutSvc,
+		sseHub:             sseHub,
+		userImportPreviews: make(map[string]*userImportPreviewCacheItem),
 	}
 }
 

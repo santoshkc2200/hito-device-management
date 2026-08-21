@@ -49,7 +49,7 @@ func TestValidateFullName(t *testing.T) {
 }
 
 func TestValidateRegisteredBy(t *testing.T) {
-	valid := []string{"admin:0192a1", "import"}
+	valid := []string{"admin:0192a1", "import", "import:0192a1"}
 	for _, v := range valid {
 		if _, err := domain.ValidateRegisteredBy(v); err != nil {
 			t.Errorf("ValidateRegisteredBy(%q) unexpected error: %v", v, err)

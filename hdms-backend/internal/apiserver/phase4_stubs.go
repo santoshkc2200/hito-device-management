@@ -32,14 +32,6 @@ func (s *Server) notImplemented(w http.ResponseWriter, r *http.Request, task str
 
 // --- 4.3c / 4.4d CSV import --------------------------------------------------
 
-func (s *Server) PreviewUserImport(w http.ResponseWriter, r *http.Request) {
-	s.notImplemented(w, r, "4.4d")
-}
-
-func (s *Server) CommitUserImport(w http.ResponseWriter, r *http.Request, _ gen.CommitUserImportParams) {
-	s.notImplemented(w, r, "4.4d")
-}
-
 func (s *Server) PreviewDeviceImport(w http.ResponseWriter, r *http.Request) {
 	s.notImplemented(w, r, "4.3c")
 }
