@@ -2,9 +2,11 @@ package apiserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
@@ -271,3 +273,33 @@ func (s *Server) ListDepartments(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, gen.DepartmentList{Items: items})
 }
+
+func (s *Server) CheckEmployeeNo(w http.ResponseWriter, r *http.Request, params gen.CheckEmployeeNoParams) {
+	empNo := strings.TrimSpace(params.EmployeeNo)
+	if empNo == "" {
+		p := httpx.NewProblem("invalid-parameter", "employeeNo query parameter is required", http.StatusBadRequest)
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+
+	user, err := s.identity.LookupUserByEmployeeNo(r.Context(), empNo)
+	if err == nil {
+		writeJSON(w, http.StatusOK, gen.EmployeeNoAvailability{
+			EmployeeNo:     empNo,
+			Available:      false,
+			ExistingUserId: &user.ID,
+		})
+		return
+	}
+
+	if errors.Is(err, identityapi.ErrUserNotFound) {
+		writeJSON(w, http.StatusOK, gen.EmployeeNoAvailability{
+			EmployeeNo: empNo,
+			Available:  true,
+		})
+		return
+	}
+
+	s.writeServiceError(w, r, err)
+}
+

@@ -276,3 +276,107 @@ func TestHTTPListUsersHasCredentialFilter(t *testing.T) {
 		t.Errorf("hasCredential=true list unexpectedly contained user without card %s", u2.Id)
 	}
 }
+
+func TestHTTPCheckEmployeeNo(t *testing.T) {
+	h := newTestHarness(t)
+
+	// Available check
+	resp := h.doJSON(t, http.MethodGet, "/v1/users/check-employee-no?employeeNo=HH-AVAIL-01", "", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("check employee number status = %d, want 200", resp.StatusCode)
+	}
+	avail := decodeBody[gen.EmployeeNoAvailability](t, resp)
+	if !avail.Available {
+		t.Errorf("expected available=true, got %v", avail.Available)
+	}
+	if avail.EmployeeNo != "HH-AVAIL-01" {
+		t.Errorf("expected employeeNo HH-AVAIL-01, got %s", avail.EmployeeNo)
+	}
+	if avail.ExistingUserId != nil {
+		t.Errorf("expected existingUserId=nil, got %v", *avail.ExistingUserId)
+	}
+
+	// Create user with employee number
+	createResp := h.doJSON(t, http.MethodPost, "/v1/users", "", map[string]any{
+		"employeeNo": "HH-AVAIL-01",
+		"fullName":   "Dr. Available Test",
+	})
+	if createResp.StatusCode != http.StatusCreated {
+		t.Fatalf("create user: %d", createResp.StatusCode)
+	}
+	created := decodeBody[gen.User](t, createResp)
+
+	// Taken check
+	resp2 := h.doJSON(t, http.MethodGet, "/v1/users/check-employee-no?employeeNo=HH-AVAIL-01", "", nil)
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("check taken employee number status = %d, want 200", resp2.StatusCode)
+	}
+	taken := decodeBody[gen.EmployeeNoAvailability](t, resp2)
+	if taken.Available {
+		t.Errorf("expected available=false for registered user")
+	}
+	if taken.ExistingUserId == nil || *taken.ExistingUserId != created.Id {
+		t.Errorf("expected existingUserId=%s, got %v", created.Id, taken.ExistingUserId)
+	}
+
+	// Empty check returns 400
+	resp3 := h.doJSON(t, http.MethodGet, "/v1/users/check-employee-no?employeeNo=", "", nil)
+	if resp3.StatusCode != http.StatusBadRequest {
+		t.Fatalf("check empty employee number status = %d, want 400", resp3.StatusCode)
+	}
+	resp3.Body.Close()
+}
+
+func TestHTTPRegisterWithCardInterruptedRollback(t *testing.T) {
+	h := newTestHarness(t)
+
+	// Attempt registration with a non-existent credentialId to inject failure in the second step of TxManager.Do
+	fakeCredID := "01923e5c-0000-7000-8000-000000000099"
+	regResp := h.doJSON(t, http.MethodPost, "/v1/users/register-with-card", "", map[string]any{
+		"employeeNo":   "HH-ROLLBACK-01",
+		"fullName":     "Dr. Rollback Test",
+		"credentialId": fakeCredID,
+	})
+	if regResp.StatusCode == http.StatusCreated {
+		t.Fatalf("register with non-existent credential unexpectedly succeeded")
+	}
+	regResp.Body.Close()
+
+	// Verify no user row was created (transaction rolled back completely)
+	checkResp := h.doJSON(t, http.MethodGet, "/v1/users/check-employee-no?employeeNo=HH-ROLLBACK-01", "", nil)
+	if checkResp.StatusCode != http.StatusOK {
+		t.Fatalf("check employee number status = %d", checkResp.StatusCode)
+	}
+	avail := decodeBody[gen.EmployeeNoAvailability](t, checkResp)
+	if !avail.Available {
+		t.Errorf("expected employeeNo to remain available after rollback, but was marked taken")
+	}
+}
+
+func TestHTTPRegisterWithCardDuplicateEmployeeNoRace(t *testing.T) {
+	h := newTestHarness(t)
+
+	// Register user 1 with card
+	regResp := h.doJSON(t, http.MethodPost, "/v1/users/register-with-card", "", map[string]any{
+		"employeeNo": "HH-RACE-01",
+		"fullName":   "Dr. Race Original",
+	})
+	if regResp.StatusCode != http.StatusCreated {
+		t.Fatalf("first register status = %d", regResp.StatusCode)
+	}
+	regResp.Body.Close()
+
+	// Register user 2 with the same employee number (simulating race condition where both submit at once)
+	raceResp := h.doJSON(t, http.MethodPost, "/v1/users/register-with-card", "", map[string]any{
+		"employeeNo": "HH-RACE-01",
+		"fullName":   "Dr. Race Duplicate",
+	})
+	if raceResp.StatusCode != http.StatusConflict {
+		t.Fatalf("duplicate register-with-card status = %d, want 409 Conflict", raceResp.StatusCode)
+	}
+	if ct := raceResp.Header.Get("Content-Type"); !strings.Contains(ct, "problem+json") {
+		t.Errorf("expected Content-Type application/problem+json, got %s", ct)
+	}
+	raceResp.Body.Close()
+}
+

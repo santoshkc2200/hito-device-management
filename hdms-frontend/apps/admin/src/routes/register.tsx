@@ -1,17 +1,17 @@
 import {
+  checkEmployeeNo,
   createUser,
   getUnboundCredentialCount,
   listDepartments,
-  listUsers,
   registerUserWithCard,
   resolveCredential,
   zCreateUserRequest,
 } from "@hdms/api-client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createRoute } from "@tanstack/react-router";
-import { CheckCircle2, ScanLine, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createRoute, Link } from "@tanstack/react-router";
+import { CheckCircle2, CreditCard, Printer, ScanLine, UserPlus, XCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -45,30 +45,56 @@ function useDebounced<T>(value: T, delayMs = 300): T {
   return debounced;
 }
 
-function DuplicateCheck({ employeeNo }: { employeeNo: string }) {
+function DuplicateCheck({
+  employeeNo,
+  onAvailabilityChange,
+}: {
+  employeeNo: string;
+  onAvailabilityChange?: (available: boolean) => void;
+}) {
   const debounced = useDebounced(employeeNo);
+  const trimmed = debounced.trim();
+
   const { data, isFetching } = useQuery({
-    queryKey: ["users", "duplicate-check", debounced],
+    queryKey: ["users", "check-employee-no", trimmed],
     queryFn: async () => {
-      const { data, error } = await listUsers({ query: { q: debounced, limit: 5 } });
+      const { data, error } = await checkEmployeeNo({ query: { employeeNo: trimmed } });
       if (error) throw error;
-      return data.items;
+      return data;
     },
-    enabled: debounced.trim().length > 0,
+    enabled: trimmed.length > 0,
   });
 
-  const duplicate = data?.find((u) => u.employeeNo.toLowerCase() === debounced.trim().toLowerCase());
+  useEffect(() => {
+    if (!trimmed) {
+      onAvailabilityChange?.(true);
+    } else if (data) {
+      onAvailabilityChange?.(data.available);
+    }
+  }, [trimmed, data, onAvailabilityChange]);
 
-  if (!debounced.trim() || isFetching) return null;
-  if (duplicate) {
+  if (!trimmed || isFetching || !data) return null;
+
+  if (!data.available) {
     return (
-      <FieldDescription className="text-destructive">
-        {duplicate.fullName} already holds employee number {duplicate.employeeNo}.
+      <FieldDescription className="text-xs text-destructive flex items-center flex-wrap gap-1">
+        <XCircle className="size-3.5 inline shrink-0" />
+        <span>{data.employeeNo} is already registered.</span>
+        {data.existingUserId && (
+          <Link
+            to="/users"
+            search={{ q: data.employeeNo }}
+            className="underline font-medium hover:text-foreground inline-flex items-center ml-1"
+          >
+            View existing record
+          </Link>
+        )}
       </FieldDescription>
     );
   }
+
   return (
-    <FieldDescription className="flex items-center gap-1 text-success">
+    <FieldDescription className="flex items-center gap-1 text-xs text-success font-medium">
       <CheckCircle2 className="size-3.5" /> Available
     </FieldDescription>
   );
@@ -81,6 +107,7 @@ function ScanCardField({
 }) {
   const [tokenInput, setTokenInput] = useState("");
   const [status, setStatus] = useState<{ ready: boolean; message: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const mutation = useMutation({
     mutationFn: async (token: string) => resolveCredential({ query: { token } }),
@@ -122,6 +149,7 @@ function ScanCardField({
         <ScanLine className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           id="scan-token"
+          ref={inputRef}
           className="pl-8 font-identifier"
           placeholder="Waiting for scan…"
           value={tokenInput}
@@ -140,7 +168,13 @@ function ScanCardField({
         />
       </div>
       {status && (
-        <FieldDescription className={status.ready ? "flex items-center gap-1 text-success" : "flex items-center gap-1 text-destructive"}>
+        <FieldDescription
+          className={
+            status.ready
+              ? "flex items-center gap-1 text-xs text-success"
+              : "flex items-center gap-1 text-xs text-destructive"
+          }
+        >
           {status.ready ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
           {status.message}
         </FieldDescription>
@@ -153,13 +187,19 @@ function RegisterBorrowerForm() {
   const queryClient = useQueryClient();
   const [cardMode, setCardMode] = useState<CardMode>("scan");
   const [resolvedCredentialId, setResolvedCredentialId] = useState<string | null>(null);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [isEmployeeNoAvailable, setIsEmployeeNoAvailable] = useState(true);
   const [success, setSuccess] = useState<{
     fullName: string;
     employeeNo: string;
+    departmentId?: string;
     department?: string;
     token?: string;
+    mode: CardMode;
   } | null>(null);
-  const [tokenDialogDismissed, setTokenDialogDismissed] = useState(false);
+  const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+
+  const fullNameInputRef = useRef<HTMLInputElement>(null);
 
   const { data: departments } = useQuery({
     queryKey: ["departments"],
@@ -204,46 +244,113 @@ function RegisterBorrowerForm() {
     onSuccess: async ({ user, token }) => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
       await queryClient.invalidateQueries({ queryKey: ["credentials", "unbound-count"] });
-      setTokenDialogDismissed(false);
       setSuccess({
         fullName: user.fullName,
         employeeNo: user.employeeNo,
+        departmentId: user.departmentId || selectedDepartmentId || undefined,
         department: departments?.find((d) => d.id === user.departmentId)?.name,
         token,
+        mode: cardMode,
       });
+      if (token) {
+        setTokenDialogOpen(true);
+      }
+    },
+    onError: (err: any) => {
+      if (err?.status === 409 || err?.type === "unique-constraint-violation") {
+        form.setError("employeeNo", {
+          type: "manual",
+          message: "Employee number is already registered.",
+        });
+      }
     },
   });
 
-  function reset() {
+  function resetForm() {
     form.reset({ employeeNo: "", fullName: "", departmentId: "", email: "", phone: "", notes: "" });
     setCardMode("scan");
+    setSelectedDepartmentId("");
     setResolvedCredentialId(null);
+    setIsEmployeeNoAvailable(true);
     setSuccess(null);
+    setTimeout(() => {
+      fullNameInputRef.current?.focus();
+    }, 50);
   }
 
-  const canSubmit = cardMode !== "scan" || !!resolvedCredentialId;
+  function handleRegisterAnother() {
+    const retainedDepartmentId = success?.departmentId || selectedDepartmentId || form.getValues("departmentId") || "";
+    form.reset({
+      employeeNo: "",
+      fullName: "",
+      departmentId: retainedDepartmentId,
+      email: "",
+      phone: "",
+      notes: "",
+    });
+    setCardMode("scan");
+    setSelectedDepartmentId(retainedDepartmentId);
+    setResolvedCredentialId(null);
+    setIsEmployeeNoAvailable(true);
+    setSuccess(null);
+    setTimeout(() => {
+      fullNameInputRef.current?.focus();
+    }, 50);
+  }
+
+
+
+  const canSubmit = (cardMode !== "scan" || !!resolvedCredentialId) && isEmployeeNoAvailable;
 
   if (success) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-lg border border-border bg-card p-8 text-center">
-        <CheckCircle2 className="size-10 text-success" />
+      <div className="mx-auto flex max-w-md flex-col items-center gap-5 rounded-lg border border-border bg-card p-8 text-center">
+        <CheckCircle2 className="size-12 text-success" />
         <div>
-          <h2 className="text-lg font-semibold">{success.fullName} is registered</h2>
-          <p className="font-identifier text-sm text-muted-foreground">
+          <h2 className="text-xl font-semibold">{success.fullName} is registered</h2>
+          <p className="font-identifier text-sm text-muted-foreground mt-1">
             {success.employeeNo}
             {success.department && ` · ${success.department}`}
           </p>
-          {!success.token && cardMode !== "none" && (
-            <p className="mt-1 text-sm text-muted-foreground">Card bound and ready to use.</p>
+          {success.mode === "scan" && (
+            <p className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+              <CreditCard className="size-4 text-success" />
+              Card bound and ready to use.
+            </p>
           )}
-          {!success.token && cardMode === "none" && (
-            <p className="mt-1 text-sm text-warning">No card issued yet.</p>
+          {success.mode === "print" && (
+            <p className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+              <Printer className="size-4 text-primary" />
+              New card generated.
+            </p>
+          )}
+          {success.mode === "none" && (
+            <p className="mt-2 text-sm text-warning font-medium">
+              No card issued yet — this borrower cannot borrow until a card is assigned.
+            </p>
           )}
         </div>
-        <Button onClick={reset}>Register another</Button>
+
+        <div className="flex flex-col w-full gap-2 pt-2">
+          {success.token && (
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => setTokenDialogOpen(true)}
+            >
+              <Printer className="size-4" />
+              Print card
+            </Button>
+          )}
+          <Button autoFocus className="w-full gap-2" onClick={handleRegisterAnother}>
+            <UserPlus className="size-4" />
+            Register another
+          </Button>
+        </div>
+
         <TokenRevealDialog
-          open={!!success.token && !tokenDialogDismissed}
-          onOpenChange={(o) => !o && setTokenDialogDismissed(true)}
+          open={!!success.token && tokenDialogOpen}
+          onOpenChange={setTokenDialogOpen}
           token={success.token}
           subject={{
             type: "user",
@@ -255,7 +362,6 @@ function RegisterBorrowerForm() {
       </div>
     );
   }
-
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
@@ -272,7 +378,15 @@ function RegisterBorrowerForm() {
           <div className="grid grid-cols-2 gap-3">
             <Field data-invalid={!!form.formState.errors.fullName}>
               <FieldLabel htmlFor="fullName">Full name</FieldLabel>
-              <Input id="fullName" autoFocus {...form.register("fullName")} />
+              <Input
+                id="fullName"
+                autoFocus
+                {...form.register("fullName")}
+                ref={(e) => {
+                  form.register("fullName").ref(e);
+                  (fullNameInputRef as any).current = e;
+                }}
+              />
               {form.formState.errors.fullName && (
                 <FieldError>{form.formState.errors.fullName.message}</FieldError>
               )}
@@ -283,7 +397,10 @@ function RegisterBorrowerForm() {
               {form.formState.errors.employeeNo ? (
                 <FieldError>{form.formState.errors.employeeNo.message}</FieldError>
               ) : (
-                <DuplicateCheck employeeNo={employeeNo} />
+                <DuplicateCheck
+                  employeeNo={employeeNo}
+                  onAvailabilityChange={setIsEmployeeNoAvailable}
+                />
               )}
             </Field>
           </div>
@@ -291,11 +408,16 @@ function RegisterBorrowerForm() {
             <Field>
               <FieldLabel htmlFor="departmentId">Department</FieldLabel>
               <Select
-                value={form.watch("departmentId") || undefined}
-                onValueChange={(v) => form.setValue("departmentId", v)}
+                value={selectedDepartmentId ? selectedDepartmentId : undefined}
+                onValueChange={(v) => {
+                  setSelectedDepartmentId(v);
+                  form.setValue("departmentId", v, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                }}
               >
-                <SelectTrigger id="departmentId" className="w-full">
-                  <SelectValue placeholder="Select a department" />
+                <SelectTrigger id="departmentId" aria-label="Department" className="w-full">
+                  <SelectValue placeholder="Select a department">
+                    {departments?.find((d) => d.id === selectedDepartmentId)?.name}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {departments?.map((d) => (
@@ -321,15 +443,16 @@ function RegisterBorrowerForm() {
         <div className="border-t border-border pt-4">
           <p className="mb-2 text-sm font-semibold">Assign card</p>
           <div className="flex flex-col gap-3">
-            <label className="flex items-start gap-2 text-sm">
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
               <input
                 type="radio"
-                className="mt-1"
+                name="cardMode"
+                className="mt-1 accent-primary"
                 checked={cardMode === "scan"}
                 onChange={() => setCardMode("scan")}
               />
               <span className="flex-1">
-                Scan a blank card
+                <span className="font-medium">Scan a blank card</span>
                 {typeof unboundCount === "number" && (
                   <span className="ml-1 text-muted-foreground">({unboundCount} remain unbound)</span>
                 )}
@@ -342,19 +465,34 @@ function RegisterBorrowerForm() {
                 )}
               </span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="radio" checked={cardMode === "print"} onChange={() => setCardMode("print")} />
-              Print a new card now
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="cardMode"
+                className="accent-primary"
+                checked={cardMode === "print"}
+                onChange={() => setCardMode("print")}
+              />
+              <span className="font-medium">Print a new card now</span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="radio" checked={cardMode === "none"} onChange={() => setCardMode("none")} />
-              Register without a card (they cannot borrow yet)
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="cardMode"
+                className="accent-primary"
+                checked={cardMode === "none"}
+                onChange={() => setCardMode("none")}
+              />
+              <span>
+                <span className="font-medium">Register without a card</span>{" "}
+                <span className="text-muted-foreground">(they cannot borrow yet)</span>
+              </span>
             </label>
           </div>
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={reset}>
+          <Button type="button" variant="outline" onClick={resetForm}>
             Cancel
           </Button>
           <Button type="submit" disabled={!canSubmit || mutation.isPending}>
@@ -371,3 +509,4 @@ export const registerRoute = createRoute({
   path: "/register",
   component: RegisterBorrowerForm,
 });
+

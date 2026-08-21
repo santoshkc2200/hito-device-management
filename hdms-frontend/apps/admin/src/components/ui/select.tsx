@@ -19,10 +19,22 @@ function SelectGroup({
 }
 
 function SelectValue({
+  children,
+  className,
+  placeholder,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+  if (children) {
+    return (
+      <span data-slot="select-value" className={className} style={{ pointerEvents: "none" }}>
+        {children}
+      </span>
+    );
+  }
+  return <SelectPrimitive.Value data-slot="select-value" placeholder={placeholder} className={className} {...props} />;
 }
+
+
 
 function SelectTrigger({
   className,

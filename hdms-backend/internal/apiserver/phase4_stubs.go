@@ -29,11 +29,6 @@ func (s *Server) notImplemented(w http.ResponseWriter, r *http.Request, task str
 	httpx.WriteProblem(w, r, p)
 }
 
-// --- 4.4 Users and registration ---------------------------------------------
-
-func (s *Server) CheckEmployeeNo(w http.ResponseWriter, r *http.Request, _ gen.CheckEmployeeNoParams) {
-	s.notImplemented(w, r, "4.4b")
-}
 
 // --- 4.3c / 4.4d CSV import --------------------------------------------------
 
