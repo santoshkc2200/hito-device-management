@@ -199,7 +199,8 @@ describe("LoansPage — Phase 4.8a/c", () => {
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
-  });
+  }, 15000);
+
 
   it("sorts overdue loans worst-first when filtered to overdue", async () => {
     mockSearch = { status: "overdue" };

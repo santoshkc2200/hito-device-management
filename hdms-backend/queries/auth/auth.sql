@@ -221,3 +221,18 @@ UPDATE kiosks
 SET status = 'disabled'
 WHERE id = $1
 RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at;
+
+-- name: EnableKiosk :one
+UPDATE kiosks
+SET status = 'active'
+WHERE id = $1
+RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at;
+
+-- name: UpdateKiosk :one
+UPDATE kiosks
+SET
+    name = CASE WHEN @set_name::boolean THEN @name::text ELSE name END,
+    location = CASE WHEN @set_location::boolean THEN @location::text ELSE location END,
+    enabled_sources = CASE WHEN @set_enabled_sources::boolean THEN @enabled_sources::text[] ELSE enabled_sources END
+WHERE id = @id
+RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at;

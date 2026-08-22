@@ -8,7 +8,9 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
+	"github.com/hito-hospital/hdms/internal/platform/settings"
 )
+
 
 // checkout defines its own dependency interfaces, satisfied by
 // identityapi, catalogapi, credentialsapi and lendingapi rather than
@@ -59,13 +61,20 @@ type Loans interface {
 	CountOpenByDevice(ctx context.Context, deviceID string) (int, error)
 }
 
+// SettingsReader is the subset of settings.Service checkout needs.
+type SettingsReader interface {
+	GetSettings(ctx context.Context) (settings.Settings, error)
+}
+
 // Deps bundles every dependency checkout needs, satisfied at construction
 // time by the four sibling modules' real services (internal/apiserver's
 // composition root) or by fakes (internal/modules/checkout/internal/machine
 // and service tests).
 type Deps struct {
-	Users   UserLookup
-	Devices DeviceLookup
-	Tokens  TokenResolver
-	Loans   Loans
+	Users    UserLookup
+	Devices  DeviceLookup
+	Tokens   TokenResolver
+	Loans    Loans
+	Settings SettingsReader
 }
+

@@ -744,6 +744,31 @@ type ScanSession struct {
 	LastScanAt    pgtype.Timestamptz `json:"last_scan_at"`
 }
 
+type Setting struct {
+	ID                        int32              `json:"id"`
+	BlockOnOverdue            bool               `json:"block_on_overdue"`
+	SessionIdleTimeoutSeconds int32              `json:"session_idle_timeout_seconds"`
+	KioskSoundEnabled         bool               `json:"kiosk_sound_enabled"`
+	LowStockThreshold         int32              `json:"low_stock_threshold"`
+	PaperBacklogHours         int32              `json:"paper_backlog_hours"`
+	SheetWidthMm              float64            `json:"sheet_width_mm"`
+	SheetHeightMm             float64            `json:"sheet_height_mm"`
+	LabelColumns              int32              `json:"label_columns"`
+	LabelRows                 int32              `json:"label_rows"`
+	MarginTopMm               float64            `json:"margin_top_mm"`
+	MarginLeftMm              float64            `json:"margin_left_mm"`
+	GutterXMm                 float64            `json:"gutter_x_mm"`
+	GutterYMm                 float64            `json:"gutter_y_mm"`
+	LabelWidthMm              float64            `json:"label_width_mm"`
+	LabelHeightMm             float64            `json:"label_height_mm"`
+	HospitalName              string             `json:"hospital_name"`
+	PageRefFormat             string             `json:"page_ref_format"`
+	SlipRowsPerPage           int32              `json:"slip_rows_per_page"`
+	SlipColumns               []string           `json:"slip_columns"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy                 string             `json:"updated_by"`
+}
+
 type User struct {
 	ID            pgtype.UUID        `json:"id"`
 	EmployeeNo    string             `json:"employee_no"`

@@ -28,7 +28,9 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/observability"
+	"github.com/hito-hospital/hdms/internal/platform/settings"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 )
 
 func main() {
@@ -79,6 +81,7 @@ func run() error {
 	credentialsSvc := credentials.New(pool, auditSvc, cfg.TokenPepper, cfg.CredentialEncKey)
 	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL, auth.WithAudit(auditSvc))
 	lendingSvc := lending.New(pool, auditSvc, clock.System{})
+	settingsSvc := settings.New(pool, auditSvc)
 
 	// Event bus and outbox dispatcher (2.2): audit is the only subscriber
 	// until 2.6 adds the SSE hub. checkout is the only publisher until
@@ -97,7 +100,7 @@ func run() error {
 	}()
 
 	checkoutSvc := checkout.New(pool, clock.System{}, checkout.Deps{
-		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc,
+		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc, Settings: settingsSvc,
 	}, auditSvc, bus)
 	sweeper := checkout.NewSweeper(checkoutSvc, 0, logger)
 	sweeper.Start(ctx)
@@ -108,7 +111,8 @@ func run() error {
 	}()
 
 	sseHub := events.NewSSEHub(pool, bus, logger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, sseHub)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub)
+
 
 
 	// actorOf scopes an idempotency key to the caller (2.5): a kiosk's key

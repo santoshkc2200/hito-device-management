@@ -275,6 +275,38 @@ func (q *Queries) DisableKiosk(ctx context.Context, id pgtype.UUID) (DisableKios
 	return i, err
 }
 
+const enableKiosk = `-- name: EnableKiosk :one
+UPDATE kiosks
+SET status = 'active'
+WHERE id = $1
+RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at
+`
+
+type EnableKioskRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) EnableKiosk(ctx context.Context, id pgtype.UUID) (EnableKioskRow, error) {
+	row := q.db.QueryRow(ctx, enableKiosk, id)
+	var i EnableKioskRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Location,
+		&i.EnabledSources,
+		&i.Status,
+		&i.LastSeenAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getAdminAccountByEmail = `-- name: GetAdminAccountByEmail :one
 SELECT id, email, full_name, password_hash, totp_secret_enc, role, status,
        failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
@@ -1065,6 +1097,59 @@ func (q *Queries) UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (Updat
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateKiosk = `-- name: UpdateKiosk :one
+UPDATE kiosks
+SET
+    name = CASE WHEN $1::boolean THEN $2::text ELSE name END,
+    location = CASE WHEN $3::boolean THEN $4::text ELSE location END,
+    enabled_sources = CASE WHEN $5::boolean THEN $6::text[] ELSE enabled_sources END
+WHERE id = $7
+RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at
+`
+
+type UpdateKioskParams struct {
+	SetName           bool        `json:"set_name"`
+	Name              string      `json:"name"`
+	SetLocation       bool        `json:"set_location"`
+	Location          string      `json:"location"`
+	SetEnabledSources bool        `json:"set_enabled_sources"`
+	EnabledSources    []string    `json:"enabled_sources"`
+	ID                pgtype.UUID `json:"id"`
+}
+
+type UpdateKioskRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Name           string             `json:"name"`
+	Location       pgtype.Text        `json:"location"`
+	EnabledSources []string           `json:"enabled_sources"`
+	Status         KioskStatus        `json:"status"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) UpdateKiosk(ctx context.Context, arg UpdateKioskParams) (UpdateKioskRow, error) {
+	row := q.db.QueryRow(ctx, updateKiosk,
+		arg.SetName,
+		arg.Name,
+		arg.SetLocation,
+		arg.Location,
+		arg.SetEnabledSources,
+		arg.EnabledSources,
+		arg.ID,
+	)
+	var i UpdateKioskRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Location,
+		&i.EnabledSources,
+		&i.Status,
+		&i.LastSeenAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }

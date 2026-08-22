@@ -10,15 +10,15 @@ import {
   ArrowRight,
   Code2,
   Download,
-  Filter,
   RefreshCw,
   Search,
   ShieldAlert,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+
 import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/components/data-table";
 import { EmptyState, ErrorState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
@@ -102,10 +102,10 @@ function AuditPage() {
     data,
     isLoading,
     isError,
-    error,
     refetch,
     isFetching,
   } = useQuery({
+
     queryKey: ["audit", search],
     queryFn: async () => {
       const { data, error } = await listAuditEvents({
@@ -368,8 +368,8 @@ function AuditPage() {
           <DataTable
             columns={columns}
             data={data.items}
-            showPagination={false}
           />
+
 
           {/* Keyset Cursor Pagination Controls */}
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">

@@ -28,16 +28,9 @@ type phase4Stub struct {
 // row is removed, which is the point — a stub cannot quietly outlive the task
 // that was supposed to replace it.
 func phase4Stubs() []phase4Stub {
-	const id = "01923e5c-0000-7000-8000-000000000000"
-	return []phase4Stub{
-		{http.MethodGet, "/v1/settings", "4.10a"},
-		{http.MethodPatch, "/v1/settings", "4.10a"},
-		{http.MethodGet, "/v1/kiosks/" + id, "4.10b"},
-		{http.MethodPatch, "/v1/kiosks/" + id, "4.10b"},
-		{http.MethodPost, "/v1/kiosks/" + id + "/enable", "4.10b"},
-	}
-
+	return []phase4Stub{}
 }
+
 
 // TestPhase4SurfaceIsRouted is the check the one-pass contract needs: a 404
 // here would mean an operation exists in the spec and in the generated

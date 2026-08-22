@@ -1,0 +1,211 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as apiClient from "@hdms/api-client";
+import { currentAdminQueryKey } from "@/lib/auth";
+import { PolicyPanel } from "@/components/settings/policy-panel";
+import { KiosksPanel } from "@/components/settings/kiosks-panel";
+import { TemplatesPanel } from "@/components/settings/templates-panel";
+
+// Mock TanStack Router
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-router")>();
+  return {
+    ...actual,
+    useNavigate: () => vi.fn(),
+    useRouter: () => ({ invalidate: vi.fn() }),
+    Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
+  };
+});
+
+// Mock ResizeObserver for Radix UI components
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
+
+const mockSettings: apiClient.Settings = {
+  policy: {
+    blockOnOverdue: false,
+    sessionIdleTimeoutSeconds: 45,
+    kioskSoundEnabled: true,
+    lowStockThreshold: 10,
+    paperBacklogHours: 48,
+  },
+  labelTemplate: {
+    sheetWidthMm: 210,
+    sheetHeightMm: 297,
+    columns: 3,
+    rows: 8,
+    marginTopMm: 15,
+    marginLeftMm: 8,
+    gutterXMm: 4,
+    gutterYMm: 4,
+    labelWidthMm: 60,
+    labelHeightMm: 30,
+  },
+  slipTemplate: {
+    hospitalName: "HITO HOSPITAL",
+    pageRefFormat: "REF-YYYY-MM-pNN",
+    rowsPerPage: 25,
+    columns: ["#", "Asset Tag", "Device Name", "Employee ID", "Borrow Date", "Return Date", "Sign / Note"],
+  },
+  updatedAt: "2026-08-20T10:00:00Z",
+  updatedBy: "admin:1",
+};
+
+const mockCategories: apiClient.Category[] = [
+  {
+    id: "cat-1",
+    name: "Infusion Pump",
+    defaultLoanPeriodSeconds: 604800, // 7 days
+    requiresApproval: false,
+  },
+  {
+    id: "cat-2",
+    name: "Ultrasound Probe",
+    defaultLoanPeriodSeconds: 86400, // 1 day
+    requiresApproval: true,
+  },
+];
+
+const mockKiosks: apiClient.Kiosk[] = [
+  {
+    id: "kiosk-1",
+    name: "Ward 3 Station",
+    location: "Ward 3",
+    enabledSources: ["scanner", "camera"],
+    status: "active",
+    lastSeenAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    createdAt: "2026-08-10T10:00:00Z",
+  },
+  {
+    id: "kiosk-2",
+    name: "ICU Backup Terminal",
+    location: "ICU Entrance",
+    enabledSources: ["scanner"],
+    status: "disabled",
+    lastSeenAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+    createdAt: "2026-08-01T10:00:00Z",
+  },
+];
+
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+}
+
+function renderWithClient(ui: React.ReactElement, currentUserRole: "admin" | "technician" | "viewer" = "admin") {
+  const queryClient = createTestQueryClient();
+  queryClient.setQueryData(currentAdminQueryKey, {
+    id: "admin-1",
+    email: "admin@hito.local",
+    fullName: "System Admin",
+    role: currentUserRole,
+    status: "active",
+  });
+
+  return {
+    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+    queryClient,
+  };
+}
+
+describe("Settings Panels", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(apiClient, "getSettings").mockResolvedValue({
+      data: mockSettings,
+      error: undefined,
+      response: new Response(),
+    });
+    vi.spyOn(apiClient, "listCategories").mockResolvedValue({
+      data: { items: mockCategories },
+      error: undefined,
+      response: new Response(),
+    });
+    vi.spyOn(apiClient, "listKiosks").mockResolvedValue({
+      data: { items: mockKiosks },
+      error: undefined,
+      response: new Response(),
+    });
+  });
+
+  describe("PolicyPanel", () => {
+    it("renders categories and system policy form fields", async () => {
+      renderWithClient(<PolicyPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Device Categories")).toBeInTheDocument();
+        expect(screen.getByText("Infusion Pump")).toBeInTheDocument();
+        expect(screen.getByText("Ultrasound Probe")).toBeInTheDocument();
+        expect(screen.getByText("System & Checkout Policy")).toBeInTheDocument();
+        expect(screen.getByText("Strict Overdue Enforcement")).toBeInTheDocument();
+      });
+    });
+
+    it("allows admin to open new category modal", async () => {
+      const user = userEvent.setup();
+      renderWithClient(<PolicyPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText("New Category")).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText("New Category"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Specify the default borrowing duration and approval policy for this equipment category.")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("KiosksPanel", () => {
+    it("renders registered kiosk terminals list", async () => {
+      renderWithClient(<KiosksPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Registered Kiosk Terminals")).toBeInTheDocument();
+        expect(screen.getByText("Ward 3 Station")).toBeInTheDocument();
+        expect(screen.getByText("ICU Backup Terminal")).toBeInTheDocument();
+      });
+    });
+
+    it("displays hardware diagnostic tool banner", async () => {
+      renderWithClient(<KiosksPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Scanner & Card Reader Diagnostic")).toBeInTheDocument();
+        expect(screen.getByText("Launch Diagnostic Tool")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("TemplatesPanel", () => {
+    it("renders label template settings and live layout preview", async () => {
+      renderWithClient(<TemplatesPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Adhesive Label Sheet Layout")).toBeInTheDocument();
+        expect(screen.getByText(/Live Layout Preview/)).toBeInTheDocument();
+        expect(screen.getByText("Physical Register Slip Pad Template")).toBeInTheDocument();
+      });
+    });
+
+    it("renders standard presets buttons", async () => {
+      renderWithClient(<TemplatesPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText("A4 Standard (3 × 8 — 24 Labels)")).toBeInTheDocument();
+        expect(screen.getByText("A4 Compact (4 × 10 — 40 Labels)")).toBeInTheDocument();
+      });
+    });
+  });
+});

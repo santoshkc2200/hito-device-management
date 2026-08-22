@@ -67,6 +67,42 @@ func (s *Service) executeBorrow(
 	decision machine.Decision, in machine.Input, params checkoutapi.ScanParams,
 ) (checkoutapi.Outcome, checkoutapi.Message, checkoutstore.ScanSession, error) {
 	deviceID, userID := borrowTargets(session, in)
+
+	if s.deps.Settings != nil {
+		st, err := s.deps.Settings.GetSettings(ctx)
+		if err == nil && st.Policy.BlockOnOverdue {
+			loans, err := s.deps.Loans.OpenLoansFor(ctx, userID)
+			if err == nil {
+				now := s.clock.Now()
+				for _, l := range loans {
+					if l.DueAt != nil && l.DueAt.Before(now) {
+						rejectNext, clearPending := rejectTargetFor(session, in)
+						reject := machine.Decision{
+							Action: machine.ActionReject, NextState: rejectNext, ClearPending: clearPending,
+							MessageKey: machine.MsgUserSuspended,
+							MessageArgs: mergeArgs(decision.MessageArgs, map[string]any{
+								"overdue": true,
+							}),
+						}
+						newSession, err := s.persistSession(ctx, q, session, reject, in, params)
+						if err != nil {
+							return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
+						}
+						if err := s.insertScanEvent(ctx, q, session.ID, params, in, "rejected", "user_blocked_overdue"); err != nil {
+							return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
+						}
+						msg := checkoutapi.Message{
+							Title:  "Borrowing blocked",
+							Detail: "You have overdue items that must be returned before borrowing new equipment.",
+							Tone:   checkoutapi.ToneWarning,
+						}
+						return checkoutapi.Outcome{Kind: checkoutapi.OutcomeRejected}, msg, newSession, nil
+					}
+				}
+			}
+		}
+	}
+
 	conn := db.Conn(ctx, s.pool)
 
 	if _, err := conn.Exec(ctx, "SAVEPOINT borrow_attempt"); err != nil {
@@ -74,6 +110,7 @@ func (s *Service) executeBorrow(
 	}
 
 	device, err := s.deps.Devices.LookupDevice(ctx, deviceID)
+
 	if err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: lookup device to borrow: %w", err)
 	}
@@ -233,16 +270,17 @@ func (s *Service) executeSwitchUser(
 	now := s.clock.Now()
 	newRow, err := q.CreateSession(ctx, checkoutstore.CreateSessionParams{
 		ID: pgtypeconv.NewUUID(), KioskID: session.KioskID, State: checkoutstore.SessionStateIdle,
-		ExpiresAt: pgtypeconv.Timestamptz(now.Add(machine.TimeoutFor(machine.Idle))),
+		ExpiresAt: pgtypeconv.Timestamptz(now.Add(s.ttlFor(ctx, checkoutapi.StateIdle))),
 	})
 	if err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: create switched-to session: %w", err)
 	}
 	newRow, err = q.UpdateSessionState(ctx, checkoutstore.UpdateSessionStateParams{
 		ID: newRow.ID, State: checkoutstore.SessionStateAwaitingDevice, UserID: uid, PendingDevice: pgtype.UUID{},
-		LastActivity: pgtypeconv.Timestamptz(now), ExpiresAt: pgtypeconv.Timestamptz(now.Add(machine.TimeoutFor(machine.AwaitingDevice))),
+		LastActivity: pgtypeconv.Timestamptz(now), ExpiresAt: pgtypeconv.Timestamptz(now.Add(s.ttlFor(ctx, checkoutapi.StateAwaitingDevice))),
 		LastTokenHash: scanTokenHash(params.Token), LastScanAt: pgtypeconv.Timestamptz(now),
 	})
+
 	if err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: set switched-to session state: %w", err)
 	}
@@ -356,9 +394,10 @@ func (s *Service) persistSession(
 	now := s.clock.Now()
 	row, err := q.UpdateSessionState(ctx, checkoutstore.UpdateSessionStateParams{
 		ID: session.ID, State: checkoutstore.SessionState(decision.NextState), UserID: newUserID, PendingDevice: newPending,
-		LastActivity: pgtypeconv.Timestamptz(now), ExpiresAt: pgtypeconv.Timestamptz(now.Add(ttlFor(checkoutapi.SessionState(decision.NextState)))),
+		LastActivity: pgtypeconv.Timestamptz(now), ExpiresAt: pgtypeconv.Timestamptz(now.Add(s.ttlFor(ctx, checkoutapi.SessionState(decision.NextState)))),
 		LastTokenHash: scanTokenHash(params.Token), LastScanAt: pgtypeconv.Timestamptz(now),
 	})
+
 	if err != nil {
 		return checkoutstore.ScanSession{}, fmt.Errorf("checkout: persist session state: %w", err)
 	}

@@ -1,10 +1,10 @@
-import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Radio, Settings } from "lucide-react";
+import { createRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { EmptyState } from "@/components/states";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminAccountsPanel } from "@/components/admin-accounts-panel";
+import { PolicyPanel } from "@/components/settings/policy-panel";
+import { KiosksPanel } from "@/components/settings/kiosks-panel";
+import { TemplatesPanel } from "@/components/settings/templates-panel";
 import { authenticatedRoute } from "./authenticated";
 
 const settingsSearchSchema = z.object({
@@ -43,44 +43,13 @@ function SettingsPage() {
           <TabsTrigger value="admins">Admin Accounts</TabsTrigger>
         </TabsList>
         <TabsContent value="policy" className="mt-4">
-          <EmptyState
-            icon={Settings}
-            title="Categories & System Policy"
-            explanation="Category management, default loan periods, and system thresholds will land in task 4.10a."
-          />
+          <PolicyPanel />
         </TabsContent>
-        <TabsContent value="kiosks" className="mt-4 flex flex-col gap-4">
-          <div className="flex items-center justify-between rounded-xl border border-border bg-card p-5 shadow-xs">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground text-sm">Scanner & Card Reader Diagnostic</span>
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary uppercase font-mono">
-                  Diagnostic Tool
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground max-w-xl">
-                Test hardware USB barcode scanners, RFID/NFC wedge readers, and raw credential token grammar directly on this workstation.
-              </p>
-            </div>
-            <Link to="/card-reader-test">
-              <Button size="sm" variant="outline" className="gap-2">
-                <Radio className="size-4 text-primary" />
-                Launch Diagnostic Tool
-              </Button>
-            </Link>
-          </div>
-          <EmptyState
-            icon={Settings}
-            title="Kiosk Management"
-            explanation="Kiosk registration, status monitoring, token rotation, and scanner configuration will land in task 4.10b."
-          />
+        <TabsContent value="kiosks" className="mt-4">
+          <KiosksPanel />
         </TabsContent>
         <TabsContent value="templates" className="mt-4">
-          <EmptyState
-            icon={Settings}
-            title="Printing Templates"
-            explanation="Label geometry presets and paper register slip layout configurations will land in task 4.10c."
-          />
+          <TemplatesPanel />
         </TabsContent>
         <TabsContent value="admins" className="mt-4">
           <AdminAccountsPanel />

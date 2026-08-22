@@ -138,6 +138,47 @@ func (s *Server) PairKiosk(w http.ResponseWriter, r *http.Request, _ gen.PairKio
 	})
 }
 
+// GetKiosk fetches one kiosk.
+func (s *Server) GetKiosk(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	kiosk, err := s.auth.GetKiosk(r.Context(), id)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, mapKiosk(kiosk))
+}
+
+// UpdateKiosk edits a kiosk's name, location or enabled scan sources.
+func (s *Server) UpdateKiosk(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	body, ok := decodeJSON[gen.UpdateKioskRequest](w, r)
+	if !ok {
+		return
+	}
+
+	var enabledSources []string
+	if body.EnabledSources != nil {
+		enabledSources = *body.EnabledSources
+	}
+
+	kiosk, err := s.auth.UpdateKiosk(r.Context(), id, body.Name, body.Location, enabledSources)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, mapKiosk(kiosk))
+}
+
+// EnableKiosk re-enables a disabled kiosk.
+func (s *Server) EnableKiosk(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	kiosk, err := s.auth.EnableKiosk(r.Context(), id)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, mapKiosk(kiosk))
+}
+
+
 func mapKiosk(k auth.Kiosk) gen.Kiosk {
 	return gen.Kiosk{
 		Id:             k.ID,

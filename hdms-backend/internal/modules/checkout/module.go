@@ -64,6 +64,17 @@ func ttlFor(state checkoutapi.SessionState) time.Duration {
 	return machine.TimeoutFor(machine.SessionState(state))
 }
 
+func (s *Service) ttlFor(ctx context.Context, state checkoutapi.SessionState) time.Duration {
+	if s.deps.Settings != nil {
+		if st, err := s.deps.Settings.GetSettings(ctx); err == nil && st.Policy.SessionIdleTimeoutSeconds > 0 {
+			if state == checkoutapi.StateIdle || state == checkoutapi.StateAwaitingUser {
+				return time.Duration(st.Policy.SessionIdleTimeoutSeconds) * time.Second
+			}
+		}
+	}
+	return ttlFor(state)
+}
+
 // CreateSession opens a fresh idle session at a kiosk. One kiosk has at
 // most one live session (2.3a design note): a live session already open
 // at kioskID is closed first with outcome "superseded", never left to
@@ -100,8 +111,9 @@ func (s *Service) CreateSession(ctx context.Context, params checkoutapi.CreateSe
 			ID:        pgtypeconv.NewUUID(),
 			KioskID:   kid,
 			State:     checkoutstore.SessionStateIdle,
-			ExpiresAt: pgtypeconv.Timestamptz(now.Add(ttlFor(checkoutapi.StateIdle))),
+			ExpiresAt: pgtypeconv.Timestamptz(now.Add(s.ttlFor(ctx, checkoutapi.StateIdle))),
 		})
+
 		if err != nil {
 			return fmt.Errorf("checkout: create session: %w", err)
 		}

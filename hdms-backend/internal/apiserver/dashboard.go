@@ -166,6 +166,12 @@ func (s *Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 	lowStock := 10
 	paperBacklog := 48
+	if s.settings != nil {
+		if st, err := s.settings.GetSettings(ctx); err == nil {
+			lowStock = st.Policy.LowStockThreshold
+			paperBacklog = st.Policy.PaperBacklogHours
+		}
+	}
 
 	dashboard := gen.Dashboard{
 		OnLoanCount:            onLoanCount,
@@ -184,3 +190,4 @@ func (s *Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, dashboard)
 }
+

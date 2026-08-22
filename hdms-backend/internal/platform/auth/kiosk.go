@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+
 
 	authstore "github.com/hito-hospital/hdms/internal/platform/auth/store"
 	"github.com/hito-hospital/hdms/internal/platform/db"
@@ -93,6 +95,61 @@ func (s *Service) DisableKiosk(ctx context.Context, kioskID string) (Kiosk, erro
 	}
 	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
 }
+
+// EnableKiosk marks a kiosk as active.
+func (s *Service) EnableKiosk(ctx context.Context, kioskID string) (Kiosk, error) {
+	pid, err := pgtypeconv.UUID(kioskID)
+	if err != nil {
+		return Kiosk{}, fmt.Errorf("auth: invalid kiosk id: %w", err)
+	}
+	q := authstore.New(db.Conn(ctx, s.pool))
+	row, err := q.EnableKiosk(ctx, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Kiosk{}, ErrKioskNotFound
+		}
+		return Kiosk{}, fmt.Errorf("auth: enable kiosk: %w", err)
+	}
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+}
+
+// UpdateKiosk updates a kiosk's mutable attributes (name, location, enabledSources).
+func (s *Service) UpdateKiosk(ctx context.Context, kioskID string, name, location *string, enabledSources []string) (Kiosk, error) {
+	pid, err := pgtypeconv.UUID(kioskID)
+	if err != nil {
+		return Kiosk{}, fmt.Errorf("auth: invalid kiosk id: %w", err)
+	}
+	params := authstore.UpdateKioskParams{
+		ID: pid,
+	}
+	if name != nil {
+		trimmed := strings.TrimSpace(*name)
+		if trimmed == "" {
+			return Kiosk{}, fmt.Errorf("name cannot be empty")
+		}
+		params.SetName = true
+		params.Name = trimmed
+	}
+	if location != nil {
+		params.SetLocation = true
+		params.Location = strings.TrimSpace(*location)
+	}
+	if enabledSources != nil {
+		params.SetEnabledSources = true
+		params.EnabledSources = enabledSources
+	}
+
+	q := authstore.New(db.Conn(ctx, s.pool))
+	row, err := q.UpdateKiosk(ctx, params)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Kiosk{}, ErrKioskNotFound
+		}
+		return Kiosk{}, fmt.Errorf("auth: update kiosk: %w", err)
+	}
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+}
+
 
 // RegisterKiosk mints a new kiosk row and its bearer token, returning the
 // plaintext token — the only time it is ever available again.

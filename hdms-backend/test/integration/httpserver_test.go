@@ -31,9 +31,11 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
+	"github.com/hito-hospital/hdms/internal/platform/settings"
 	"github.com/hito-hospital/hdms/test/testdb"
 	"github.com/pquerna/otp/totp"
 )
+
 
 // testHarness wires the real apiServer, the real auth middleware and
 // request-ID/recovery middleware against a fresh testdb, and exposes an
@@ -55,6 +57,7 @@ type testHarness struct {
 	checkout    checkoutapi.Service
 	auth        *auth.Service
 	audit       *audit.Service
+	settings    *settings.Service
 	bus         *events.Bus
 	pool        *db.Pool
 }
@@ -72,17 +75,18 @@ func newTestHarness(t *testing.T) *testHarness {
 	credentialsSvc := credentials.New(pool, auditSvc, pepper, credEncKey)
 	authSvc := auth.New(pool, pepper, totpEncKey, time.Hour, auth.WithAudit(auditSvc))
 	lendingSvc := lending.New(pool, auditSvc, clock.System{})
+	settingsSvc := settings.New(pool, auditSvc)
 
 	discardLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	bus := events.NewBus(discardLogger)
 	auditSvc.Subscribe(bus)
 
 	checkoutSvc := checkout.New(pool, clock.System{}, checkout.Deps{
-		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc,
+		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc, Settings: settingsSvc,
 	}, auditSvc, bus)
 
 	sseHub := events.NewSSEHub(pool, bus, discardLogger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, sseHub)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub)
 	mux := http.NewServeMux()
 
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
@@ -114,9 +118,11 @@ func newTestHarness(t *testing.T) *testHarness {
 		checkout:    checkoutSvc,
 		auth:        authSvc,
 		audit:       auditSvc,
+		settings:    settingsSvc,
 		bus:         bus,
 		pool:        pool,
 	}
+
 	h.bootstrapAndLogin(t, authSvc)
 	return h
 }

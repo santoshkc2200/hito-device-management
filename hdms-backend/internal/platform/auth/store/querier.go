@@ -21,6 +21,7 @@ type Querier interface {
 	DeleteSessionsByAdminID(ctx context.Context, adminID pgtype.UUID) error
 	DeleteUnusedRecoveryCodesByAdminID(ctx context.Context, adminID pgtype.UUID) error
 	DisableKiosk(ctx context.Context, id pgtype.UUID) (DisableKioskRow, error)
+	EnableKiosk(ctx context.Context, id pgtype.UUID) (EnableKioskRow, error)
 	// Only used at login, where a non-existent email must fail the same way a
 	// wrong password does (no user enumeration) — the caller compares errors,
 	// not this query's behaviour, to keep that response uniform.
@@ -60,6 +61,7 @@ type Querier interface {
 	UnlockAdminAccount(ctx context.Context, id pgtype.UUID) (UnlockAdminAccountRow, error)
 	UnlockAdminAccountByEmail(ctx context.Context, lower string) (UnlockAdminAccountByEmailRow, error)
 	UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (UpdateAdminRow, error)
+	UpdateKiosk(ctx context.Context, arg UpdateKioskParams) (UpdateKioskRow, error)
 	UpdateKioskLastSeen(ctx context.Context, id pgtype.UUID) error
 	// Used by both explicit rotation and pairing-code redemption, which mints
 	// and reveals a fresh token the same way registration does.

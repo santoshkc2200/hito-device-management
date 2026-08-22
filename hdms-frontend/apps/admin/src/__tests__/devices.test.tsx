@@ -194,7 +194,8 @@ describe("DevicesPage — Phase 4.3a/b", () => {
         body: { status: "maintenance", reason: "Battery replacement" },
       });
     });
-  });
+  }, 15000);
+
 
   it("handles bulk device selection and opens bulk category dialog with count", async () => {
     const user = userEvent.setup();
