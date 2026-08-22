@@ -290,6 +290,110 @@ func (s *Service) ListDepartments(ctx context.Context) ([]identityapi.Department
 	return depts, nil
 }
 
+func (s *Service) CreateDepartment(ctx context.Context, name, actor string) (identityapi.Department, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return identityapi.Department{}, identityapi.ErrDepartmentNameRequired
+	}
+
+	var department identityapi.Department
+	err := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := identitystore.New(db.Conn(ctx, s.pool))
+		row, err := q.CreateDepartment(ctx, identitystore.CreateDepartmentParams{
+			ID:   pgtypeconv.NewUUID(),
+			Name: name,
+		})
+		if err != nil {
+			return translateDepartmentErr(err)
+		}
+		department = toDepartment(row.ID, row.Name)
+		return s.audit.Record(ctx, auditapi.Event{
+			Actor: actor, Action: "department.created", Subject: "department:" + department.ID,
+			Payload: map[string]any{"name": department.Name},
+		})
+	})
+	if err != nil {
+		return identityapi.Department{}, err
+	}
+	return department, nil
+}
+
+func (s *Service) UpdateDepartment(ctx context.Context, id, name, actor string) (identityapi.Department, error) {
+	did, err := pgtypeconv.UUID(id)
+	if err != nil {
+		return identityapi.Department{}, fmt.Errorf("identity: invalid department id: %w", err)
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return identityapi.Department{}, identityapi.ErrDepartmentNameRequired
+	}
+
+	var department identityapi.Department
+	err = db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := identitystore.New(db.Conn(ctx, s.pool))
+		row, err := q.UpdateDepartment(ctx, identitystore.UpdateDepartmentParams{ID: did, Name: name})
+		if err != nil {
+			return translateDepartmentErr(err)
+		}
+		department = toDepartment(row.ID, row.Name)
+		return s.audit.Record(ctx, auditapi.Event{
+			Actor: actor, Action: "department.updated", Subject: "department:" + department.ID,
+			Payload: map[string]any{"name": department.Name},
+		})
+	})
+	if err != nil {
+		return identityapi.Department{}, err
+	}
+	return department, nil
+}
+
+func (s *Service) DeleteDepartment(ctx context.Context, id, actor string) error {
+	did, err := pgtypeconv.UUID(id)
+	if err != nil {
+		return fmt.Errorf("identity: invalid department id: %w", err)
+	}
+
+	err = db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := identitystore.New(db.Conn(ctx, s.pool))
+		_, err := q.DeleteDepartment(ctx, did)
+		if err == nil {
+			return s.audit.Record(ctx, auditapi.Event{
+				Actor: actor, Action: "department.deleted", Subject: "department:" + id,
+			})
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return translateDepartmentErr(err)
+		}
+
+		if _, lookupErr := q.GetDepartmentByID(ctx, did); lookupErr != nil {
+			return translateDepartmentErr(lookupErr)
+		}
+		// The guarded DELETE only returns no rows for an existing department
+		// when at least one user still references it.
+		return identityapi.ErrDepartmentInUse
+	})
+	return err
+}
+
+func toDepartment(id pgtype.UUID, name string) identityapi.Department {
+	return identityapi.Department{ID: pgtypeconv.UUIDString(id), Name: name}
+}
+
+func translateDepartmentErr(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return identityapi.ErrDepartmentNotFound
+	}
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
+		switch pgErr.Code {
+		case "23505":
+			return identityapi.ErrDepartmentNameTaken
+		case "23503":
+			return identityapi.ErrDepartmentInUse
+		}
+	}
+	return err
+}
+
 func (s *Service) CreateImportBatch(ctx context.Context, params identityapi.CreateImportBatchParams) (identityapi.ImportBatch, error) {
 	q := identitystore.New(db.Conn(ctx, s.pool))
 	createdAt := params.CreatedAt
@@ -470,4 +574,3 @@ func (s *Service) StreamUsersForExport(ctx context.Context, params identityapi.L
 	}
 	return result, nil
 }
-

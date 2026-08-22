@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createDepartment = `-- name: CreateDepartment :one
+INSERT INTO departments (id, name)
+VALUES ($1, $2)
+RETURNING id, name, created_at
+`
+
+type CreateDepartmentParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) CreateDepartment(ctx context.Context, arg CreateDepartmentParams) (Department, error) {
+	row := q.db.QueryRow(ctx, createDepartment, arg.ID, arg.Name)
+	var i Department
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
+}
+
 const createImportBatch = `-- name: CreateImportBatch :one
 INSERT INTO import_batches (id, kind, actor, filename, total_rows, created_count, updated_count, skipped_count, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -102,6 +120,20 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.ImportBatchID,
 	)
 	return i, err
+}
+
+const deleteDepartment = `-- name: DeleteDepartment :one
+DELETE FROM departments d
+WHERE d.id = $1
+  AND NOT EXISTS (SELECT 1 FROM users u WHERE u.department_id = d.id)
+RETURNING d.id
+`
+
+func (q *Queries) DeleteDepartment(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, deleteDepartment, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }
 
 const getDepartmentByID = `-- name: GetDepartmentByID :one
@@ -413,6 +445,25 @@ func (q *Queries) StreamUsersForExport(ctx context.Context, arg StreamUsersForEx
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateDepartment = `-- name: UpdateDepartment :one
+UPDATE departments
+SET name = $2
+WHERE id = $1
+RETURNING id, name, created_at
+`
+
+type UpdateDepartmentParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) UpdateDepartment(ctx context.Context, arg UpdateDepartmentParams) (Department, error) {
+	row := q.db.QueryRow(ctx, updateDepartment, arg.ID, arg.Name)
+	var i Department
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
 }
 
 const updateUser = `-- name: UpdateUser :one

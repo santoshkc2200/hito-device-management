@@ -209,6 +209,14 @@ export type DepartmentList = {
     items: Array<Department>;
 };
 
+export type CreateDepartmentRequest = {
+    name: string;
+};
+
+export type UpdateDepartmentRequest = {
+    name: string;
+};
+
 export type CredentialKind = 'qr' | 'code128' | 'nfc' | 'rfid' | 'manual';
 
 export type SubjectType = 'user' | 'device';
@@ -648,6 +656,9 @@ export type CreateKioskRequest = {
 };
 
 export type KioskPairingCode = {
+    /**
+     * Six-digit, single-use code. Expires ten minutes after issuance.
+     */
     code: string;
     expiresAt: string;
 };
@@ -1537,6 +1548,85 @@ export type ListDepartmentsResponses = {
 };
 
 export type ListDepartmentsResponse = ListDepartmentsResponses[keyof ListDepartmentsResponses];
+
+export type CreateDepartmentData = {
+    body: CreateDepartmentRequest;
+    path?: never;
+    query?: never;
+    url: '/departments';
+};
+
+export type CreateDepartmentErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateDepartmentError = CreateDepartmentErrors[keyof CreateDepartmentErrors];
+
+export type CreateDepartmentResponses = {
+    /**
+     * Created.
+     */
+    201: Department;
+};
+
+export type CreateDepartmentResponse = CreateDepartmentResponses[keyof CreateDepartmentResponses];
+
+export type DeleteDepartmentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/departments/{id}';
+};
+
+export type DeleteDepartmentErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type DeleteDepartmentError = DeleteDepartmentErrors[keyof DeleteDepartmentErrors];
+
+export type DeleteDepartmentResponses = {
+    /**
+     * Deleted.
+     */
+    204: void;
+};
+
+export type DeleteDepartmentResponse = DeleteDepartmentResponses[keyof DeleteDepartmentResponses];
+
+export type UpdateDepartmentData = {
+    body: UpdateDepartmentRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/departments/{id}';
+};
+
+export type UpdateDepartmentErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateDepartmentError = UpdateDepartmentErrors[keyof UpdateDepartmentErrors];
+
+export type UpdateDepartmentResponses = {
+    /**
+     * OK.
+     */
+    200: Department;
+};
+
+export type UpdateDepartmentResponse = UpdateDepartmentResponses[keyof UpdateDepartmentResponses];
 
 export type ListCredentialsBySubjectData = {
     body?: never;

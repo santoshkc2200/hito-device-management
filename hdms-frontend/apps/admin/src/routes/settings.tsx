@@ -5,10 +5,11 @@ import { AdminAccountsPanel } from "@/components/admin-accounts-panel";
 import { PolicyPanel } from "@/components/settings/policy-panel";
 import { KiosksPanel } from "@/components/settings/kiosks-panel";
 import { TemplatesPanel } from "@/components/settings/templates-panel";
+import { DepartmentManagerPanel } from "@/components/settings/department-manager-panel";
 import { authenticatedRoute } from "./authenticated";
 
 const settingsSearchSchema = z.object({
-  tab: z.enum(["policy", "kiosks", "templates", "admins"]).optional(),
+  tab: z.enum(["policy", "kiosks", "templates", "departments", "admins"]).optional(),
 });
 
 function SettingsPage() {
@@ -19,7 +20,7 @@ function SettingsPage() {
   const handleTabChange = (value: string) => {
     navigate({
       to: "/settings",
-      search: { tab: value as "policy" | "kiosks" | "templates" | "admins" },
+      search: { tab: value as "policy" | "kiosks" | "templates" | "departments" | "admins" },
       replace: true,
     });
   };
@@ -40,6 +41,7 @@ function SettingsPage() {
           <TabsTrigger value="policy">Categories & Policy</TabsTrigger>
           <TabsTrigger value="kiosks">Kiosks</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="departments">Departments</TabsTrigger>
           <TabsTrigger value="admins">Admin Accounts</TabsTrigger>
         </TabsList>
         <TabsContent value="policy" className="mt-4">
@@ -50,6 +52,9 @@ function SettingsPage() {
         </TabsContent>
         <TabsContent value="templates" className="mt-4">
           <TemplatesPanel />
+        </TabsContent>
+        <TabsContent value="departments" className="mt-4">
+          <DepartmentManagerPanel />
         </TabsContent>
         <TabsContent value="admins" className="mt-4">
           <AdminAccountsPanel />

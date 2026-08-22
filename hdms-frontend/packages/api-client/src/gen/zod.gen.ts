@@ -189,6 +189,14 @@ export const zDepartmentList = z.object({
     items: z.array(zDepartment)
 });
 
+export const zCreateDepartmentRequest = z.object({
+    name: z.string().min(1)
+});
+
+export const zUpdateDepartmentRequest = z.object({
+    name: z.string().min(1)
+});
+
 export const zCredentialKind = z.enum([
     'qr',
     'code128',
@@ -605,12 +613,12 @@ export const zCreateKioskRequest = z.object({
 });
 
 export const zKioskPairingCode = z.object({
-    code: z.string(),
+    code: z.string().length(6).regex(/^[0-9]{6}$/),
     expiresAt: z.iso.datetime()
 });
 
 export const zPairKioskRequest = z.object({
-    code: z.string()
+    code: z.string().length(6).regex(/^[0-9]{6}$/)
 });
 
 export const zPairKioskResponse = z.object({
@@ -1115,6 +1123,33 @@ export const zSuspendUserResponse = zUser;
  * OK.
  */
 export const zListDepartmentsResponse = zDepartmentList;
+
+export const zCreateDepartmentBody = zCreateDepartmentRequest;
+
+/**
+ * Created.
+ */
+export const zCreateDepartmentResponse = zDepartment;
+
+export const zDeleteDepartmentPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Deleted.
+ */
+export const zDeleteDepartmentResponse = z.void();
+
+export const zUpdateDepartmentBody = zUpdateDepartmentRequest;
+
+export const zUpdateDepartmentPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateDepartmentResponse = zDepartment;
 
 export const zListCredentialsBySubjectQuery = z.object({
     subjectType: zSubjectType,

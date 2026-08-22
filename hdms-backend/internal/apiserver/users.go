@@ -274,6 +274,40 @@ func (s *Server) ListDepartments(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gen.DepartmentList{Items: items})
 }
 
+func (s *Server) CreateDepartment(w http.ResponseWriter, r *http.Request) {
+	req, ok := decodeJSON[gen.CreateDepartmentRequest](w, r)
+	if !ok {
+		return
+	}
+	department, err := s.identity.CreateDepartment(r.Context(), req.Name, actorFrom(r))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, gen.Department{Id: department.ID, Name: department.Name})
+}
+
+func (s *Server) UpdateDepartment(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	req, ok := decodeJSON[gen.UpdateDepartmentRequest](w, r)
+	if !ok {
+		return
+	}
+	department, err := s.identity.UpdateDepartment(r.Context(), id, req.Name, actorFrom(r))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gen.Department{Id: department.ID, Name: department.Name})
+}
+
+func (s *Server) DeleteDepartment(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	if err := s.identity.DeleteDepartment(r.Context(), id, actorFrom(r)); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) CheckEmployeeNo(w http.ResponseWriter, r *http.Request, params gen.CheckEmployeeNoParams) {
 	empNo := strings.TrimSpace(params.EmployeeNo)
 	if empNo == "" {
@@ -302,4 +336,3 @@ func (s *Server) CheckEmployeeNo(w http.ResponseWriter, r *http.Request, params 
 
 	s.writeServiceError(w, r, err)
 }
-

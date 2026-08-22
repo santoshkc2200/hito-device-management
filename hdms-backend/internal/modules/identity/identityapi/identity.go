@@ -18,13 +18,16 @@ var employeeNoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,31}$`)
 // are returned wrapped around the identity/internal/domain error that
 // caused them, not one of these.
 var (
-	ErrUserNotFound        = errors.New("identity: user not found")
-	ErrDepartmentNotFound  = errors.New("identity: department not found")
-	ErrEmployeeNoTaken     = errors.New("identity: employee number is already in use")
-	ErrIllegalTransition   = errors.New("identity: illegal user status transition")
-	ErrEmployeeNoRequired  = errors.New("identity: employee number is required")
-	ErrEmployeeNoInvalid   = errors.New("identity: employee number must be 1-32 characters, starting alphanumeric, with only letters, digits and hyphens")
-	ErrFullNameRequired    = errors.New("identity: full name is required")
+	ErrUserNotFound           = errors.New("identity: user not found")
+	ErrDepartmentNotFound     = errors.New("identity: department not found")
+	ErrDepartmentNameTaken    = errors.New("identity: department name is already in use")
+	ErrDepartmentInUse        = errors.New("identity: department is in use")
+	ErrDepartmentNameRequired = errors.New("identity: department name is required")
+	ErrEmployeeNoTaken        = errors.New("identity: employee number is already in use")
+	ErrIllegalTransition      = errors.New("identity: illegal user status transition")
+	ErrEmployeeNoRequired     = errors.New("identity: employee number is required")
+	ErrEmployeeNoInvalid      = errors.New("identity: employee number must be 1-32 characters, starting alphanumeric, with only letters, digits and hyphens")
+	ErrFullNameRequired       = errors.New("identity: full name is required")
 )
 
 // ValidateEmployeeNo trims and checks an employee number, returning the canonical form.
@@ -181,6 +184,15 @@ type Service interface {
 	// ListDepartments returns every department, for admin console pickers.
 	ListDepartments(ctx context.Context) ([]Department, error)
 
+	// CreateDepartment creates a department for admin-managed organization setup.
+	CreateDepartment(ctx context.Context, name, actor string) (Department, error)
+
+	// UpdateDepartment renames a department without changing its identity.
+	UpdateDepartment(ctx context.Context, id, name, actor string) (Department, error)
+
+	// DeleteDepartment removes a department only when no users reference it.
+	DeleteDepartment(ctx context.Context, id, actor string) error
+
 	// CreateImportBatch records a completed import batch.
 	CreateImportBatch(ctx context.Context, params CreateImportBatchParams) (ImportBatch, error)
 
@@ -205,4 +217,3 @@ type ExportUserRow struct {
 	RegisteredBy   string
 	UpdatedAt      time.Time
 }
-

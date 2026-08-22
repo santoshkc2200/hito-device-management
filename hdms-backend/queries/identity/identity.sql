@@ -9,6 +9,23 @@ RETURNING id, name, created_at;
 -- name: ListDepartments :many
 SELECT id, name, created_at FROM departments ORDER BY name;
 
+-- name: CreateDepartment :one
+INSERT INTO departments (id, name)
+VALUES ($1, $2)
+RETURNING id, name, created_at;
+
+-- name: UpdateDepartment :one
+UPDATE departments
+SET name = $2
+WHERE id = $1
+RETURNING id, name, created_at;
+
+-- name: DeleteDepartment :one
+DELETE FROM departments d
+WHERE d.id = $1
+  AND NOT EXISTS (SELECT 1 FROM users u WHERE u.department_id = d.id)
+RETURNING d.id;
+
 -- name: GetDepartmentByID :one
 SELECT id, name, created_at FROM departments WHERE id = $1;
 
@@ -114,4 +131,3 @@ WHERE (sqlc.narg('status')::user_status IS NULL OR u.status = sqlc.narg('status'
     ))
   )
 ORDER BY u.registered_at DESC, u.id DESC;
-

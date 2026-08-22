@@ -11,8 +11,10 @@ import (
 )
 
 type Querier interface {
+	CreateDepartment(ctx context.Context, arg CreateDepartmentParams) (Department, error)
 	CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (ImportBatch, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteDepartment(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	GetDepartmentByID(ctx context.Context, id pgtype.UUID) (Department, error)
 	GetImportBatch(ctx context.Context, id string) (ImportBatch, error)
 	// Used by bulk import, which resolves a department name from a CSV column
@@ -25,6 +27,7 @@ type Querier interface {
 	ListDepartments(ctx context.Context) ([]Department, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	StreamUsersForExport(ctx context.Context, arg StreamUsersForExportParams) ([]StreamUsersForExportRow, error)
+	UpdateDepartment(ctx context.Context, arg UpdateDepartmentParams) (Department, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) (User, error)
 }

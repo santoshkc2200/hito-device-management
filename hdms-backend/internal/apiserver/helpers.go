@@ -163,6 +163,16 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 	// Identity module errors
 	case errors.Is(err, identityapi.ErrUserNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("user-not-found", "User not found", http.StatusNotFound))
+	case errors.Is(err, identityapi.ErrDepartmentNotFound):
+		httpx.WriteProblem(w, r, httpx.NewProblem("department-not-found", "Department not found", http.StatusNotFound))
+	case errors.Is(err, identityapi.ErrDepartmentNameTaken):
+		httpx.WriteProblem(w, r, httpx.NewProblem("department-name-taken", "Department name is already in use", http.StatusConflict))
+	case errors.Is(err, identityapi.ErrDepartmentInUse):
+		p := httpx.NewProblem("department-in-use", "Department cannot be deleted", http.StatusConflict)
+		p.Detail = "You cannot delete this department because it is being used by users."
+		httpx.WriteProblem(w, r, p)
+	case errors.Is(err, identityapi.ErrDepartmentNameRequired):
+		writeValidationFailed(w, r, "department name is required", []string{"name"})
 	case errors.Is(err, identityapi.ErrEmployeeNoTaken):
 		httpx.WriteProblem(w, r, httpx.NewProblem("employee-no-taken", "Employee number is already in use", http.StatusConflict))
 	case errors.Is(err, identityapi.ErrIllegalTransition):

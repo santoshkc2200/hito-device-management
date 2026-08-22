@@ -422,6 +422,59 @@ paths:
                 $ref: "#/components/schemas/DepartmentList"
         default:
           $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createDepartment
+      summary: Create a department. Admin-only.
+      tags: [users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDepartmentRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /departments/{id}:
+    patch:
+      operationId: updateDepartment
+      summary: Rename a department. Admin-only.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDepartmentRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    delete:
+      operationId: deleteDepartment
+      summary: Delete an unused department. Admin-only.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "204":
+          description: Deleted.
+        default:
+          $ref: "#/components/responses/ProblemResponse"
 
   # --- Credentials --------------------------------------------------------
 
@@ -2259,6 +2312,18 @@ components:
           items:
             $ref: "#/components/schemas/Department"
 
+    CreateDepartmentRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+
+    UpdateDepartmentRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+
     # --- Credentials --------------------------------------------------------
 
     CredentialKind:
@@ -2890,14 +2955,23 @@ components:
       type: object
       required: [code, expiresAt]
       properties:
-        code: { type: string }
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+          minLength: 6
+          maxLength: 6
+          description: Six-digit, single-use code. Expires ten minutes after issuance.
         expiresAt: { type: string, format: date-time }
 
     PairKioskRequest:
       type: object
       required: [code]
       properties:
-        code: { type: string }
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+          minLength: 6
+          maxLength: 6
 
     PairKioskResponse:
       type: object
