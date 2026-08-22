@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -79,6 +79,45 @@ const editKioskSchema = z.object({
 });
 type EditKioskValues = z.infer<typeof editKioskSchema>;
 
+type PairingModal = {
+  kioskId: string;
+  kioskName: string;
+  location?: string;
+  code: string | null;
+  expiresAt: string | null;
+  fallbackToken?: string;
+};
+
+type PairingKiosk = Kiosk & { fallbackToken?: string };
+
+function PairingCountdown({ expiresAt, onExpired }: { expiresAt: string | null; onExpired: () => void }) {
+  const [remainingSeconds, setRemainingSeconds] = useState(() => remaining(expiresAt));
+
+  useEffect(() => {
+    setRemainingSeconds(remaining(expiresAt));
+    if (!expiresAt) return;
+    const timer = window.setInterval(() => setRemainingSeconds(remaining(expiresAt)), 1_000);
+    return () => window.clearInterval(timer);
+  }, [expiresAt]);
+
+  useEffect(() => {
+    if (expiresAt && remaining(expiresAt) === 0) onExpired();
+  }, [expiresAt, onExpired]);
+
+  if (!expiresAt || remainingSeconds === 0) {
+    return <p role="status" className="text-sm font-medium text-destructive">Code expired. Issue a new code to continue.</p>;
+  }
+
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  return <p className="text-xs text-muted-foreground">{minutes}:{seconds.toString().padStart(2, "0")} remaining</p>;
+}
+
+function remaining(expiresAt: string | null): number {
+  if (!expiresAt) return 0;
+  return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1_000));
+}
+
 export function KiosksPanel() {
   const queryClient = useQueryClient();
   const { role } = useRole();
@@ -87,7 +126,7 @@ export function KiosksPanel() {
   // Modals state
   const [registerOpen, setRegisterOpen] = useState(false);
   const [revealedToken, setRevealedToken] = useState<{ title: string; kioskName: string; token: string } | null>(null);
-  const [pairingModal, setPairingModal] = useState<{ kioskName: string; code: string; expiresAt: string } | null>(null);
+  const [pairingModal, setPairingModal] = useState<PairingModal | null>(null);
   const [editingKiosk, setEditingKiosk] = useState<Kiosk | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
 
@@ -127,11 +166,16 @@ export function KiosksPanel() {
       setRegisterOpen(false);
       registerForm.reset();
       toast.success("Kiosk registered successfully");
-      if (data?.token) {
-        setRevealedToken({
-          title: "Kiosk Registration Token",
-          kioskName: data.name,
-          token: data.token,
+      if (data) {
+        pairingCodeMutation.mutate({
+          id: data.id,
+          name: data.name,
+          location: data.location,
+          enabledSources: data.enabledSources,
+          status: data.status,
+          lastSeenAt: data.lastSeenAt,
+          createdAt: data.createdAt,
+          fallbackToken: data.token,
         });
       }
     },
@@ -223,7 +267,7 @@ export function KiosksPanel() {
 
   // 5. Pairing Code Mutation
   const pairingCodeMutation = useMutation({
-    mutationFn: async (kiosk: Kiosk) => {
+    mutationFn: async (kiosk: PairingKiosk) => {
       const res = await createKioskPairingCode({
         path: { id: kiosk.id },
       });
@@ -233,9 +277,12 @@ export function KiosksPanel() {
     onSuccess: ({ kiosk, data }) => {
       if (data?.code) {
         setPairingModal({
+          kioskId: kiosk.id,
           kioskName: kiosk.name,
           code: data.code,
-          expiresAt: data.expiresAt ? new Date(data.expiresAt).toLocaleTimeString() : "10 minutes",
+          expiresAt: data.expiresAt ?? null,
+          location: kiosk.location,
+          fallbackToken: kiosk.fallbackToken,
         });
       }
     },
@@ -263,11 +310,15 @@ export function KiosksPanel() {
     },
   });
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string) => {
+    await navigator.clipboard.writeText(text);
     setHasCopied(true);
-    toast.success("Copied to clipboard");
     setTimeout(() => setHasCopied(false), 2500);
+  };
+
+  const issuePairingCode = (kiosk: PairingKiosk) => {
+    setPairingModal({ kioskId: kiosk.id, kioskName: kiosk.name, location: kiosk.location, code: null, expiresAt: null });
+    pairingCodeMutation.mutate(kiosk);
   };
 
   const isQuietKiosk = (kiosk: Kiosk) => {
@@ -413,7 +464,7 @@ export function KiosksPanel() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-52">
-                                <DropdownMenuItem onClick={() => pairingCodeMutation.mutate(kiosk)}>
+                                <DropdownMenuItem disabled={!isActive || pairingCodeMutation.isPending} onClick={() => issuePairingCode(kiosk)}>
                                   <QrCode className="size-4 mr-2" />
                                   Issue Pairing Code
                                 </DropdownMenuItem>
@@ -649,7 +700,7 @@ export function KiosksPanel() {
                 size="sm"
                 variant="secondary"
                 className="absolute top-2 right-2 gap-1.5"
-                onClick={() => revealedToken && copyToClipboard(revealedToken.token)}
+                onClick={() => revealedToken && void copyToClipboard(revealedToken.token)}
               >
                 {hasCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 {hasCopied ? "Copied" : "Copy"}
@@ -677,19 +728,38 @@ export function KiosksPanel() {
               Pair Kiosk: {pairingModal?.kioskName}
             </DialogTitle>
             <DialogDescription className="text-center">
-              Enter this single-use code on the tablet setup screen to automatically pair and mint a secure token.
+              Enter this single-use code on the tablet setup screen. It works once; issuing another code cancels this one.
             </DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
-            <div className="font-mono text-4xl tracking-widest font-bold py-4 px-6 bg-primary/10 text-primary rounded-xl border border-primary/20 inline-block select-all">
-              {pairingModal?.code}
-            </div>
+            {pairingModal?.code ? (
+              <div className="space-y-3">
+                <div data-testid="pairing-code" className="font-mono text-4xl tracking-[0.35em] font-bold py-4 px-6 bg-primary/10 text-primary rounded-xl border border-primary/20 inline-block select-all">
+                  {pairingModal.code.slice(0, 3)} {pairingModal.code.slice(3)}
+                </div>
+                <div>
+                  <Button variant="outline" size="sm" onClick={() => void copyToClipboard(pairingModal.code!)}>
+                    {hasCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {hasCopied ? "Copied" : "Copy code"}
+                  </Button>
+                  <span className="sr-only" aria-live="polite">{hasCopied ? "Pairing code copied" : ""}</span>
+                </div>
+              </div>
+            ) : pairingCodeMutation.isPending ? (
+              <p className="text-sm text-muted-foreground">Issuing pairing code...</p>
+            ) : null}
             <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
               <Clock className="size-3.5" />
-              Expires at {pairingModal?.expiresAt}
+              {pairingModal?.expiresAt ? `Expires ${new Date(pairingModal.expiresAt).toLocaleString()}` : "No active code"}
             </p>
+            {pairingModal && <PairingCountdown expiresAt={pairingModal.expiresAt} onExpired={() => setPairingModal((current) => current ? { ...current, code: null, expiresAt: null } : null)} />}
+            {pairingModal?.location && <p className="text-xs text-muted-foreground">Location: {pairingModal.location}</p>}
           </div>
           <DialogFooter className="sm:justify-center">
+            {!pairingCodeMutation.isPending && (
+              <Button variant="outline" onClick={() => pairingModal && issuePairingCode({ id: pairingModal.kioskId, name: pairingModal.kioskName, location: pairingModal.location, enabledSources: [], status: "active", createdAt: "" })}>
+                {pairingModal?.code ? "Issue new code" : "Issue new code"}
+              </Button>
+            )}
             <Button onClick={() => setPairingModal(null)} className="w-full sm:w-auto">
               Close
             </Button>

@@ -78,7 +78,7 @@ The scan layer decouples physical input mechanisms from business state:
 Phase 4 engineers building the Admin Console should take note of the following integration points established in Phase 3:
 
 1. **Kiosk Device Fleet Management & Pairing (`POST /v1/kiosks/{id}/pairing-code`):**
-   - Admin console generates 6-digit one-time pairing codes with 15-minute expiration (`POST /v1/kiosks/{id}/pairing-code`).
+   - Admin console generates 6-digit one-time pairing codes with 10-minute expiration (`POST /v1/kiosks/{id}/pairing-code`).
    - Admin UI should show pairing state (`unpaired`, `paired`, `last_heartbeat_at`, `kiosk_name`).
 2. **Scan Events Telemetry Stream (`GET /v1/events/stream` & `scan_events` audit table):**
    - Every rejected, unbound, or unknown scan produces a structured `scan_events` record.

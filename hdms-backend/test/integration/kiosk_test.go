@@ -89,8 +89,13 @@ func TestKioskPairingCodeRedeemsExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IssuePairingCode: %v", err)
 	}
-	if len(code) < 6 || len(code) > 8 {
-		t.Fatalf("pairing code length = %d, want 6-8", len(code))
+	if len(code) != 6 {
+		t.Fatalf("pairing code length = %d, want 6", len(code))
+	}
+	for _, digit := range code {
+		if digit < '0' || digit > '9' {
+			t.Fatalf("pairing code = %q, want decimal digits only", code)
+		}
 	}
 	if !expiresAt.After(time.Now()) {
 		t.Fatalf("pairing code expiresAt = %v, want in the future", expiresAt)
@@ -155,6 +160,11 @@ func TestKioskPairingCodeConsumedAndExpiredAreIndistinguishable(t *testing.T) {
 	}
 	if !errors.Is(expiredErr, auth.ErrPairingCodeInvalid) {
 		t.Fatalf("expired code redeem error = %v, want ErrPairingCodeInvalid", expiredErr)
+	}
+	for _, malformedCode := range []string{"12345", "1234567", "12A456"} {
+		if _, _, _, err := svc.RedeemPairingCode(ctx, malformedCode); !errors.Is(err, auth.ErrPairingCodeInvalid) {
+			t.Fatalf("malformed code %q redeem error = %v, want ErrPairingCodeInvalid", malformedCode, err)
+		}
 	}
 }
 

@@ -35,6 +35,7 @@ every paper page is typed in here. Two consequences shape the whole breakdown:
 | [4.9](4.9-reports-and-audit.md) | Reports API + UI, streaming CSV, audit viewer | 4.8, 4.9 | 4.2a | ✔ Done |
 | [4.10](4.10-settings.md) | Categories and policy, kiosks, printing templates | 4.10 | 4.1a | ✔ Done |
 | [4.11](4.11-quality-and-exit.md) | Accessibility, tests, performance, exit run | 4.11 | all above | ✔ Done |
+| [4.12](4.12-kiosk-pairing.md) | Guided admin-to-kiosk pairing workflow | post-exit gap | 4.10b, Phase 3 pairing | Planned |
 
 ≈ 30.5 developer-days remaining after 4.0a.
 
@@ -64,6 +65,7 @@ block a kiosk or a card.
                  ├─ 4.9a reports API ─ 4.9b ─ 4.9c CSV
                  └─ 4.10a settings ─ 4.10b kiosks ─ 4.10c templates
                                                               └── 4.11a/b/c/d exit
+4.10b kiosk management ── 4.12a contract ── 4.12b admin workflow ── 4.12c browser E2E
 ```
 
 Three tracks that barely touch after 4.2b:

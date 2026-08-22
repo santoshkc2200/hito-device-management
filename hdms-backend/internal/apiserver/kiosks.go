@@ -119,11 +119,6 @@ func (s *Server) PairKiosk(w http.ResponseWriter, r *http.Request, _ gen.PairKio
 		return
 	}
 
-	if body.Code == "" {
-		writeValidationFailed(w, r, "code is required", []string{"code"})
-		return
-	}
-
 	kioskID, name, token, err := s.auth.RedeemPairingCode(r.Context(), body.Code)
 	if err != nil {
 		s.writeServiceError(w, r, err)
@@ -177,7 +172,6 @@ func (s *Server) EnableKiosk(w http.ResponseWriter, r *http.Request, id gen.IDPa
 	}
 	writeJSON(w, http.StatusOK, mapKiosk(kiosk))
 }
-
 
 func mapKiosk(k auth.Kiosk) gen.Kiosk {
 	return gen.Kiosk{

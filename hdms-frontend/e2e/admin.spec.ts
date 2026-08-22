@@ -8,6 +8,46 @@ test("admin loads over HTTPS and redirects an unauthenticated visitor to login",
   await expect(page.getByLabel("Email")).toBeVisible();
 });
 
+test("E20_AdminRegistersAndPairsKioskWithoutCLI", async ({ page, browser }) => {
+  const kioskContext = await browser.newContext({ ignoreHTTPSErrors: true });
+  const kioskPage = await kioskContext.newPage();
+  const kioskName = `E20 Kiosk ${Date.now().toString().slice(-6)}`;
+
+  try {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill("admin@example.org");
+    await page.getByLabel("Password").fill("correct horse battery staple");
+    await page.getByLabel("Authenticator code").fill(generateTotp(process.env.HDMS_TEST_ADMIN_TOTP_SECRET || "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7"));
+    await page.getByRole("button", { name: /sign in/i }).click();
+    await expect(page).not.toHaveURL(/\/login$/, { timeout: 10_000 });
+
+    await page.goto("/settings?tab=kiosks");
+    await page.getByRole("button", { name: "Register Kiosk" }).click();
+    const registration = page.getByRole("dialog");
+    await registration.getByLabel("Kiosk Name").fill(kioskName);
+    await registration.getByRole("button", { name: "Register Kiosk" }).click();
+
+    const pairingDialog = page.getByRole("dialog");
+    const code = (await pairingDialog.getByTestId("pairing-code").innerText()).replace(/\D/g, "");
+    expect(code).toMatch(/^\d{6}$/);
+
+    await kioskPage.goto("https://localhost:5173/");
+    await expect(kioskPage.getByTestId("pairing-screen")).toBeVisible();
+    for (const digit of code) await kioskPage.getByTestId(`pairing-key-${digit}`).click();
+    await kioskPage.getByTestId("pairing-submit-button").click();
+    await expect(kioskPage.getByTestId("idle-prompt")).toBeVisible({ timeout: 10_000 });
+    await expect(kioskPage.getByText(kioskName)).toBeVisible();
+
+    const secondKiosk = await kioskContext.newPage();
+    await secondKiosk.goto("https://localhost:5173/");
+    for (const digit of code) await secondKiosk.getByTestId(`pairing-key-${digit}`).click();
+    await secondKiosk.getByTestId("pairing-submit-button").click();
+    await expect(secondKiosk.getByTestId("pairing-error-message")).toBeVisible({ timeout: 10_000 });
+  } finally {
+    await kioskContext.close();
+  }
+});
+
 test("E8b_RegisterBorrowerWithBlankCard_ThenBorrowAtKiosk", async ({ page }) => {
   const api = new TestApiClient();
   await api.login();
@@ -150,4 +190,3 @@ test("E15_ForceReturn_AuditsOverrideAndReason", async ({ page }) => {
   await expect(page.getByText(/loan\.force_returned/i)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/Device returned to charge bay by orderly without scanning/i)).toBeVisible();
 });
-

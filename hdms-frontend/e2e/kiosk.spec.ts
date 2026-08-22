@@ -356,11 +356,14 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
   });
 
   test("E13_CameraFallbackDecodesRenderedQr (FR-61)", async ({ page }) => {
+    await prePairKiosk(page, kiosk, ["camera"]);
     await page.goto("/");
     await expect(page.getByTestId("idle-prompt")).toBeVisible();
 
-    // Open camera viewfinder modal
-    await page.getByRole("button", { name: /camera/i }).click();
+    // Start hardware scanning, then use the inline fallback when no HID scanner is configured.
+    await page.getByRole("button", { name: "Start" }).click();
+    await expect(page.getByTestId("scanner-unavailable-card")).toBeVisible();
+    await page.getByRole("button", { name: "Yes, start camera" }).click();
 
     // Assert camera viewfinder overlay is rendered
     await expect(page.getByRole("heading", { name: "Camera Barcode Scanner" })).toBeVisible({

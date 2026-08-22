@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-
 	authstore "github.com/hito-hospital/hdms/internal/platform/auth/store"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
@@ -150,7 +149,6 @@ func (s *Service) UpdateKiosk(ctx context.Context, kioskID string, name, locatio
 	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
 }
 
-
 // RegisterKiosk mints a new kiosk row and its bearer token, returning the
 // plaintext token — the only time it is ever available again.
 func (s *Service) RegisterKiosk(ctx context.Context, name, location string) (id, plainToken string, err error) {
@@ -206,7 +204,7 @@ func (s *Service) IssuePairingCode(ctx context.Context, kioskID string) (code st
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("auth: invalid kiosk id: %w", err)
 	}
-	code, err = randomDigits(8)
+	code, err = randomDigits(6)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -232,6 +230,14 @@ func (s *Service) IssuePairingCode(ctx context.Context, kioskID string) (code st
 // endpoint built on this in 2.6 cannot be used to probe which kiosk ids or
 // codes exist.
 func (s *Service) RedeemPairingCode(ctx context.Context, code string) (kioskID, name, plainToken string, err error) {
+	if len(code) != 6 {
+		return "", "", "", ErrPairingCodeInvalid
+	}
+	for _, digit := range code {
+		if digit < '0' || digit > '9' {
+			return "", "", "", ErrPairingCodeInvalid
+		}
+	}
 	q := authstore.New(db.Conn(ctx, s.pool))
 	codeHash := hashToken(code, s.pepper)
 	row, err := q.GetKioskByPairingCodeHash(ctx, codeHash)

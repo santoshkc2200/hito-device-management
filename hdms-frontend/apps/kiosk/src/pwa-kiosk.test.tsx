@@ -78,7 +78,9 @@ describe("PWA and Kiosk Mode (Phase 3.7)", () => {
       await screen.findByText(/Emergency Room Kiosk/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Scan your ID card or a device barcode/i)
+      screen.getByText(
+        /Tap Start, then scan your staff ID card or a device barcode in any order\./i
+      )
     ).toBeInTheDocument();
   });
 
@@ -142,7 +144,9 @@ describe("PWA and Kiosk Mode (Phase 3.7)", () => {
     const { container } = render(<App />);
 
     expect(
-      await screen.findByText(/Scan your ID card or a device barcode/i)
+      await screen.findByText(
+        /Tap Start, then scan your staff ID card or a device barcode in any order\./i
+      )
     ).toBeInTheDocument();
 
     // Verify token does not appear in DOM HTML

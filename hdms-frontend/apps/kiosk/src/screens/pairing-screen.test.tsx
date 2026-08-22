@@ -67,6 +67,29 @@ describe("PairingScreen", () => {
     expect(submitBtn).toBeDisabled();
   });
 
+  it("accepts a six-digit code pasted into the input", async () => {
+    const user = userEvent.setup();
+    render(<PairingScreen />);
+
+    const input = screen.getByTestId("pairing-code-hidden-input");
+    await user.click(input);
+    await user.paste("12 34-56");
+
+    expect(input).toHaveValue("123456");
+    expect(screen.getByTestId("pairing-submit-button")).toBeEnabled();
+  });
+
+  it("accepts paste when focus is outside the hidden input", async () => {
+    const user = userEvent.setup();
+    render(<PairingScreen />);
+
+    await user.click(screen.getByTestId("pairing-title"));
+    await user.paste("654321");
+
+    expect(screen.getByTestId("pairing-code-hidden-input")).toHaveValue("654321");
+    expect(screen.getByTestId("pairing-submit-button")).toBeEnabled();
+  });
+
   it("pairingExchangeStoresTokenAndEntersIdle on successful code submission", async () => {
     const user = userEvent.setup();
     const onPaired = vi.fn();

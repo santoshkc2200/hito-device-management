@@ -221,7 +221,40 @@ describe("Phase 3.9 — Visual Design & Typography System", () => {
       );
 
       expect(screen.getByTestId("idle-prompt")).toBeInTheDocument();
-      expect(container.textContent).toContain("Scan your ID card or a device barcode");
+      expect(container.textContent).toContain(
+        "Tap Start, then scan your staff ID card or a device barcode in any order."
+      );
+    });
+
+    it.each([
+      ["iPad mini portrait", 744, 1133],
+      ["iPad portrait", 768, 1024],
+      ["iPad Air portrait", 820, 1180],
+      ["iPad Pro portrait", 1024, 1366],
+      ["iPad landscape", 1024, 768],
+      ["iPad Air landscape", 1180, 820],
+      ["iPad Pro landscape", 1366, 1024],
+    ] as const)("keeps idle actions available at %s (%spx × %spx)", (_name, width, height) => {
+      const { rerender } = render(
+        <div style={{ width: `${width}px`, height: `${height}px` }}>
+          <IdleScreen onStartScanning={vi.fn()} />
+        </div>
+      );
+
+      const actionStack = screen.getByTestId("idle-action-stack");
+      expect(actionStack).toHaveClass("min-[700px]:flex-row");
+      expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
+      expect(screen.getByTestId("scan-guidance-card")).toBeInTheDocument();
+
+      rerender(
+        <div style={{ width: `${width}px`, height: `${height}px`, fontSize: "150%" }}>
+          <IdleScreen onStartScanning={vi.fn()} />
+        </div>
+      );
+
+      expect(screen.getByTestId("idle-prompt")).toHaveTextContent(
+        "Tap Start, then scan your staff ID card or a device barcode in any order."
+      );
     });
   });
 

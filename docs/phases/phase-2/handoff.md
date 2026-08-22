@@ -104,7 +104,7 @@ For pairing a physical iPad kiosk running the PWA:
 
 1. **Admin generates pairing code:**
    - Admin in Admin Console calls: `POST /v1/kiosks/{id}/pairing-code`
-   - Returns: `{ "code": "839201", "expiresAt": "2026-08-20T10:15:00Z" }` (valid for 15 minutes).
+   - Returns: `{ "code": "839201", "expiresAt": "2026-08-20T10:15:00Z" }` (valid for 10 minutes).
 2. **Kiosk redeems code:**
    - iPad displays pairing setup screen. Attendant enters 6-digit code.
    - iPad sends unauthenticated: `POST /v1/kiosks/pair` with `{ "code": "839201" }`.

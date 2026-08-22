@@ -63,8 +63,13 @@ func TestHTTPKiosksLifecycle(t *testing.T) {
 		t.Fatalf("Cache-Control header = %s, want no-store", resp.Header.Get("Cache-Control"))
 	}
 	pairing := decodeBody[gen.KioskPairingCode](t, resp)
-	if pairing.Code == "" {
-		t.Fatal("Pairing code is empty")
+	if len(pairing.Code) != 6 {
+		t.Fatalf("pairing code length = %d, want 6", len(pairing.Code))
+	}
+	for _, digit := range pairing.Code {
+		if digit < '0' || digit > '9' {
+			t.Fatalf("pairing code = %q, want six decimal digits", pairing.Code)
+		}
 	}
 
 	// 5. Redeem pairing code (unauthenticated)

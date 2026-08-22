@@ -4,8 +4,8 @@
 needs a developer or a SQL client.
 **Duration:** ~2 weeks · **Depends on:** Phase 2 (frozen contract) · **Parallel with:** Phase 3
 
-**Detailed breakdown:** [`phase-4/`](phase-4/) splits the tasks below into twelve
-sub-phases and forty-two executable units, each with its file paths, tests and
+**Detailed breakdown:** [`phase-4/`](phase-4/) splits the tasks below into thirteen
+sub-phases, each with its file paths, tests and
 exit criteria, plus the build order that puts registration ahead of the parent's
 numbering and the three tracks that make the two-week estimate achievable. Start
 there; this page stays the summary.
@@ -138,6 +138,13 @@ one most likely to be built as a lazy CRUD form and then quietly abandoned.
 - [ ] axe clean
 - [ ] Component tests for the destructive flows (reissue, force return, write off)
 - [ ] E2E scenarios E14–E19
+
+### 4.12 Kiosk pairing workflow
+- [ ] Align backend, OpenAPI, admin, kiosk, and runbooks on exactly six digits
+      and a 10-minute lifetime
+- [ ] Continue directly from kiosk registration to pairing in the admin console
+- [ ] Show a single-use code with countdown, copy feedback, expiry, and reissue
+- [ ] Prove admin-to-kiosk pairing in separate browser contexts without CLI use
 
 ## Deliverables
 

@@ -30,6 +30,7 @@ export function KioskApp() {
     kioskName,
     scannerReady,
     scannerFresh,
+    isScanning,
     isCameraOpen,
     isDiagnosticsOpen,
     isAttendantOpen,
@@ -42,6 +43,7 @@ export function KioskApp() {
     setIsDiagnosticsOpen,
     setIsAttendantOpen,
     dismissOutcome,
+    startScanning,
     scan,
     returnLoan,
     close,
@@ -51,6 +53,11 @@ export function KioskApp() {
   // Screen Wake Lock & deferred SW update during active transactions
   useScreenWakeLock(paired);
   useDeferredServiceWorkerUpdate(state);
+
+  const openCameraFallback = React.useCallback(() => {
+    void startScanning();
+    setIsCameraOpen(true);
+  }, [setIsCameraOpen, startScanning]);
 
   // Kiosk lockdown: suppress context menu
   React.useEffect(() => {
@@ -80,7 +87,7 @@ export function KioskApp() {
         <OfflineScreen
           kioskName={kioskName}
           supportCode={context.supportCode}
-          onToggleCamera={() => setIsCameraOpen(true)}
+          onToggleCamera={openCameraFallback}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
           onOpenManualEntry={() => setIsAttendantOpen(true)}
         />
@@ -98,7 +105,7 @@ export function KioskApp() {
           supportCode={context.supportCode}
           scannerReady={scannerReady}
           scannerFresh={scannerFresh}
-          onToggleCamera={() => setIsCameraOpen(true)}
+          onToggleCamera={openCameraFallback}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
           onOpenManualEntry={() => setIsAttendantOpen(true)}
         />
@@ -112,7 +119,7 @@ export function KioskApp() {
           supportCode={context.supportCode}
           scannerReady={scannerReady}
           scannerFresh={scannerFresh}
-          onToggleCamera={() => setIsCameraOpen(true)}
+          onToggleCamera={openCameraFallback}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
           onOpenManualEntry={() => setIsAttendantOpen(true)}
         />
@@ -125,7 +132,9 @@ export function KioskApp() {
               supportCode={context.supportCode}
               scannerReady={scannerReady}
               scannerFresh={scannerFresh}
-              onToggleCamera={() => setIsCameraOpen(true)}
+              isScanning={isScanning}
+              onStartScanning={() => void startScanning()}
+              onStartCamera={openCameraFallback}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
               onOpenManualEntry={() => setIsAttendantOpen(true)}
             />
@@ -140,7 +149,7 @@ export function KioskApp() {
               pendingDevice={context.pendingDevice}
               expiresAt={context.expiresAt}
               onCancel={cancel}
-              onToggleCamera={() => setIsCameraOpen(true)}
+              onToggleCamera={openCameraFallback}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
               onOpenManualEntry={() => setIsAttendantOpen(true)}
             />
@@ -157,7 +166,7 @@ export function KioskApp() {
               expiresAt={context.expiresAt}
               onReturnLoan={returnLoan}
               onClose={close}
-              onToggleCamera={() => setIsCameraOpen(true)}
+              onToggleCamera={openCameraFallback}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
               onOpenManualEntry={() => setIsAttendantOpen(true)}
             />

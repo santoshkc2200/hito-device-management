@@ -31,7 +31,9 @@ describe("App (Kiosk Entrypoint)", () => {
     const { container } = render(<App />);
 
     expect(
-      await screen.findByText(/Scan your ID card or a device barcode/i)
+      await screen.findByText(
+        /Tap Start, then scan your staff ID card or a device barcode in any order\./i
+      )
     ).toBeInTheDocument();
     expect(screen.getByText("HDMS Kiosk")).toBeInTheDocument();
     expect(screen.getByText(/Scanner Ready/i)).toBeInTheDocument();

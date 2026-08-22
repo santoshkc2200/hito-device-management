@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
@@ -188,6 +188,52 @@ describe("Settings Panels", () => {
         expect(screen.getByText("Scanner & Card Reader Diagnostic")).toBeInTheDocument();
         expect(screen.getByText("Launch Diagnostic Tool")).toBeInTheDocument();
       });
+    });
+
+    it("issues, displays, and clears a six-digit pairing code from a kiosk row", async () => {
+      const user = userEvent.setup();
+      vi.spyOn(apiClient, "createKioskPairingCode").mockResolvedValue({
+        data: { code: "123456", expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() },
+        error: undefined,
+        request: new Request("http://localhost/v1/kiosks/kiosk-1/pairing-code"),
+        response: new Response(),
+      });
+      renderWithClient(<KiosksPanel />);
+
+      await user.click(await screen.findByLabelText("Actions for Ward 3 Station"));
+      await user.click(await screen.findByText("Issue Pairing Code"));
+
+      await waitFor(() => expect(apiClient.createKioskPairingCode).toHaveBeenCalledWith({ path: { id: "kiosk-1" } }));
+      expect(await screen.findByTestId("pairing-code")).toHaveTextContent("123 456");
+      expect(screen.getByText(/It works once; issuing another code cancels this one/)).toBeInTheDocument();
+
+      await user.click(screen.getAllByRole("button", { name: "Close" })[0]);
+      await waitFor(() => expect(screen.queryByTestId("pairing-code")).not.toBeInTheDocument());
+    });
+
+    it("continues kiosk registration directly into pairing", async () => {
+      const user = userEvent.setup();
+      vi.spyOn(apiClient, "createKiosk").mockResolvedValue({
+        data: { ...mockKiosks[0], id: "kiosk-new", name: "New Ward Kiosk", token: "one-shot-token" },
+        error: undefined,
+        request: new Request("http://localhost/v1/kiosks"),
+        response: new Response(),
+      });
+      vi.spyOn(apiClient, "createKioskPairingCode").mockResolvedValue({
+        data: { code: "654321", expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() },
+        error: undefined,
+        request: new Request("http://localhost/v1/kiosks/kiosk-new/pairing-code"),
+        response: new Response(),
+      });
+      renderWithClient(<KiosksPanel />);
+
+      await user.click(await screen.findByRole("button", { name: "Register Kiosk" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText("Kiosk Name"), "New Ward Kiosk");
+      await user.click(within(dialog).getByRole("button", { name: "Register Kiosk" }));
+
+      await waitFor(() => expect(apiClient.createKioskPairingCode).toHaveBeenCalledWith({ path: { id: "kiosk-new" } }));
+      expect(await screen.findByText("Pair Kiosk: New Ward Kiosk")).toBeInTheDocument();
     });
   });
 

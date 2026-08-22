@@ -20,8 +20,12 @@ describe("useScanRouter", () => {
     const router = result.current.getRouter();
     const registered = router.getRegisteredSources();
 
-    expect(registered).toHaveLength(2);
-    expect(registered.map((s) => s.id)).toEqual(["scanner", "camera"]);
+    expect(registered).toHaveLength(1);
+    expect(registered.map((s) => s.id)).toEqual(["scanner"]);
+
+    // Camera stays unregistered and lazy. CameraOverlay starts it only after
+    // explicit fallback use, so startup cannot request camera permission.
+    expect(registered.some((s) => s.id === "camera")).toBe(false);
 
     const listener = vi.fn();
     const unsubscribe = result.current.subscribe(listener);

@@ -43,6 +43,17 @@ export function PairingScreen({
     setCode("");
   };
 
+  const handlePastedText = React.useCallback((text: string) => {
+    const cleaned = text.replace(/\D/g, "").slice(0, 6);
+    setCode(cleaned);
+    setErrorMessage(null);
+  }, []);
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    handlePastedText(e.clipboardData.getData("text"));
+  };
+
   const handlePair = React.useCallback(
     async (codeToSubmit: string) => {
       const trimmed = codeToSubmit.trim();
@@ -107,6 +118,16 @@ export function PairingScreen({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [code, handlePair]);
+
+  // Kiosk operators may paste while focus remains on the page, not hidden input.
+  React.useEffect(() => {
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      handlePastedText(e.clipboardData?.getData("text") ?? "");
+    };
+    window.addEventListener("paste", handleWindowPaste);
+    return () => window.removeEventListener("paste", handleWindowPaste);
+  }, [handlePastedText]);
 
   return (
     <div
@@ -174,6 +195,7 @@ export function PairingScreen({
               setCode(cleaned);
               setErrorMessage(null);
             }}
+            onPaste={handlePaste}
             className="sr-only"
             aria-label="6-Digit Pairing Code"
           />

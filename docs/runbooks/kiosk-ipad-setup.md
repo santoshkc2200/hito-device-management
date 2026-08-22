@@ -69,7 +69,7 @@ Scan the configuration programming barcodes from the scanner's quick-start refer
 
 1. On initial launch, the app displays the **"This iPad is not yet paired"** screen with a 6-digit numeric keypad.
 2. Log into the **HDMS Admin Console** on your workstation:
-   - Navigate to **Kiosks → Select Kiosk Station → Actions → Generate Pairing Code**.
+   - Navigate to **Settings → Kiosks**, register the station, then select **Pair this kiosk now**. For an existing active station, select **Actions → Issue pairing code**.
    - Note the 6-digit numeric code (valid for 10 minutes).
 3. On the iPad Kiosk screen:
    - Enter the 6-digit pairing code using the on-screen keypad.
@@ -78,18 +78,19 @@ Scan the configuration programming barcodes from the scanner's quick-start refer
    - The station token, ID, and name are stored securely in local appliance storage.
    - The screen immediately transitions to the **Idle Screen** displaying the kiosk name and **"Scanner Ready"** status.
    - *Note*: The long-lived token is never displayed or accessible to borrowers.
+5. If the code expires or is replaced, select **Issue new code** in the pairing dialog. A replacement immediately invalidates the previous code.
 
 ---
 
-## Step 5: Grant Camera Permission for Fallback Scanner
+## Step 5: Test Camera Permission for Fallback Scanner (Optional)
 
-1. On the Idle screen, tap the top-right **Camera** button.
+1. Start a kiosk scan. If the Bluetooth scanner cannot read the barcode, tap the top-right **Camera** button.
 2. When iPadOS displays the system prompt:
    > *"“HDMS Kiosk” Would Like to Access the Camera"*
 3. Tap **Allow**.
 4. Aim the camera viewfinder at a test asset tag to confirm decoding.
 5. Tap **Close** or the X button to return to standard idle mode.
-6. *Note*: In standalone PWA mode, this permission persists permanently.
+6. *Note*: Camera permission is not requested during kiosk startup. In standalone PWA mode, permission persists after this fallback is used.
 
 ---
 
@@ -182,7 +183,7 @@ Before clearing any kiosk station for live clinical lending:
 ### 3.10.A Device Only (iPad) — Verification Checklist
 - [x] **Standalone Mode**: Added to Home Screen; confirmed zero Safari URL/tab chrome.
 - [x] **Token Persistence**: Kiosk token survives hard reboot, force-quit, and 24h idle.
-- [x] **Camera Permission**: Camera access granted once; persists permanently in PWA mode.
+- [x] **Camera Fallback**: Camera permission requested only when scanner fallback is used; persists in PWA mode.
 - [x] **Lighting Resilience**: Camera decodes asset tags at arm's length in corridor and low-light conditions.
 - [x] **Guided Access Lockdown**: Single-app mode active with passcode; escape gestures disabled.
 - [x] **Display & Wake Lock**: Auto-Lock set to Never; screen remains awake continuously.

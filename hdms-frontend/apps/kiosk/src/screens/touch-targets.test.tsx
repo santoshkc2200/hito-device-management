@@ -43,7 +43,7 @@ describe("Touch Target Audit (WCAG 2.2 / iPad Kiosk Sizing)", () => {
   it("IdleScreen satisfies all touch-target requirements (all >= 48px)", () => {
     const { container } = render(
       <IdleScreen
-        onToggleCamera={vi.fn()}
+        onStartScanning={vi.fn()}
         onOpenDiagnostics={vi.fn()}
       />
     );

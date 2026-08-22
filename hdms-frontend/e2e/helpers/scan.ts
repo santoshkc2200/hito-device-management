@@ -9,6 +9,11 @@ export async function simulateScan(
   token: string,
   interKeyDelayMs = 0
 ): Promise<void> {
+  const startButton = page.getByTestId("start-scanning-button");
+  if (await startButton.isVisible().catch(() => false)) {
+    await startButton.click();
+  }
+
   await page.evaluate(
     async ({ token, delay }) => {
       // Warm up event listener and clear any partial buffer

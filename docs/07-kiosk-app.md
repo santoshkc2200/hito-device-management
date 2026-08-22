@@ -301,7 +301,7 @@ Documented as a runbook checklist in Phase 3; the substance:
 4. Register the kiosk: the admin creates it in the console, the iPad is given a
    one-time registration code, and the resulting kiosk token is stored in the
    app's local storage.
-5. Grant camera permission once.
+5. Camera permission is requested only when the attendant or borrower chooses the camera fallback after the scanner cannot read a barcode.
 6. **Guided Access** (Settings → Accessibility → Guided Access) with a passcode,
    locking the iPad to the app. Also: Auto-Lock = Never, Screen Time app limits
    off, auto-brightness suited to the corridor.

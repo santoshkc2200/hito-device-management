@@ -491,7 +491,8 @@ export class TestApiClient {
  */
 export async function prePairKiosk(
   page: Page,
-  kiosk: { id: string; name: string; token: string }
+  kiosk: { id: string; name: string; token: string },
+  enabledSources: string[] = ["hid", "camera", "manual"]
 ): Promise<void> {
   await page.addInitScript(
     (cfg) => {
@@ -503,7 +504,7 @@ export async function prePairKiosk(
           kioskName: cfg.name,
           token: cfg.token,
           muteEnabled: true, // Mute audio in automated tests to prevent noisy audio contexts
-          enabledSources: ["hid", "camera", "manual"],
+          enabledSources,
         })
       );
     },

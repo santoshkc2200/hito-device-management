@@ -5,7 +5,7 @@ import { axe } from "vitest-axe";
 import { IdleScreen } from "./idle-screen";
 
 describe("IdleScreen", () => {
-  it("renders prompt at required size and passes vitest-axe", async () => {
+  it("renders scan guidance and passes vitest-axe", async () => {
     const { container } = render(
       <IdleScreen
         kioskName="East Wing Kiosk"
@@ -17,10 +17,9 @@ describe("IdleScreen", () => {
 
     const prompt = screen.getByTestId("idle-prompt");
     expect(prompt).toBeInTheDocument();
-    expect(prompt).toHaveTextContent("Scan your ID card or a device barcode");
-
-    // Must be styled with large text class
-    expect(prompt.className).toMatch(/text-kiosk-prompt|text-4xl|text-5xl/);
+    expect(prompt).toHaveTextContent(
+      "Tap Start, then scan your staff ID card or a device barcode in any order."
+    );
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
@@ -58,14 +57,70 @@ describe("IdleScreen", () => {
     );
   });
 
-  it("fires camera toggle callback when camera button clicked", async () => {
+  it("uses header camera fallback after scanning starts, including when HID reports available", async () => {
     const user = userEvent.setup();
-    const onToggleCamera = vi.fn();
+    const onStartCamera = vi.fn();
 
-    render(<IdleScreen onToggleCamera={onToggleCamera} />);
+    render(
+      <IdleScreen
+        isScanning={true}
+        scannerReady={true}
+        onStartCamera={onStartCamera}
+      />
+    );
 
-    const cameraButton = screen.getByRole("button", { name: /camera/i });
-    await user.click(cameraButton);
-    expect(onToggleCamera).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("scan-status")).toHaveTextContent(
+      "Scan with the device scanner, or use the camera instead."
+    );
+    expect(screen.queryByTestId("camera-fallback-card")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Toggle camera barcode scanner" })
+    );
+    expect(onStartCamera).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts scanner only after start card is tapped", async () => {
+    const user = userEvent.setup();
+    const onStartScanning = vi.fn();
+
+    render(
+      <IdleScreen
+        onStartScanning={onStartScanning}
+        onStartCamera={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("start-scanning-button")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Toggle camera barcode scanner" })
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByTestId("start-scanning-button"));
+
+    expect(onStartScanning).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Start as the only scan action and groups non-interactive scan choices", () => {
+    render(<IdleScreen onStartScanning={vi.fn()} />);
+
+    const startButton = screen.getByRole("button", { name: "Start" });
+    const actionStack = screen.getByTestId("idle-action-stack");
+    const guidanceCard = screen.getByTestId("scan-guidance-card");
+    const staffCard = screen.getByTestId("staff-id-card");
+    const deviceCard = screen.getByTestId("device-barcode-card");
+
+    expect(screen.queryByRole("button", { name: /staff id card/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /device barcode/i })).not.toBeInTheDocument();
+    expect(guidanceCard).toHaveTextContent(
+      "Tap Start, then scan your staff ID card or a device barcode in any order."
+    );
+    expect(startButton).toHaveClass("min-h-48", "max-w-sm");
+    expect(staffCard).toHaveClass("min-h-20");
+    expect(deviceCard).toHaveClass("min-h-20");
+    expect(actionStack).toHaveClass("flex-col", "min-[700px]:flex-row");
+    expect(startButton.compareDocumentPosition(guidanceCard)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(guidanceCard.contains(staffCard)).toBe(true);
+    expect(guidanceCard.contains(deviceCard)).toBe(true);
+    expect(startButton).toHaveTextContent("Start");
+    expect(startButton).not.toHaveTextContent("Start scanning");
   });
 });

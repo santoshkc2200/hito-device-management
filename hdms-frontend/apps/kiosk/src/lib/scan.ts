@@ -1,8 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ScanRouter,
   HidWedgeSource,
-  CameraSource,
   ManualSource,
   type ScanEvent,
   type ScanSource,
@@ -10,12 +9,14 @@ import {
 } from "@hdms/scan";
 import { getKioskConfig, type ScanSourceType } from "./kiosk-config";
 
-function mapConfigTypeToSource(type: ScanSourceType): ScanSource {
+function mapConfigTypeToSource(type: ScanSourceType): ScanSource | null {
   switch (type) {
     case "hid":
       return new HidWedgeSource();
     case "camera":
-      return new CameraSource();
+      // CameraSource starts from CameraOverlay only. Registering it here
+      // would call getUserMedia during kiosk startup.
+      return null;
     case "manual":
       return new ManualSource();
   }
@@ -25,6 +26,8 @@ function mapConfigTypeToSource(type: ScanSourceType): ScanSource {
 export interface UseScanRouterResult {
   subscribe: (listener: (event: ScanEvent) => void) => Unsubscribe;
   getRouter: () => ScanRouter;
+  start: () => Promise<void>;
+  stop: () => Promise<void>;
 }
 
 /**
@@ -38,21 +41,25 @@ export function useScanRouter(): UseScanRouterResult {
     const enabledSources = config?.enabledSources ?? ["hid", "camera", "manual"];
 
     for (const sourceType of enabledSources) {
-      r.register(mapConfigTypeToSource(sourceType));
+      const source = mapConfigTypeToSource(sourceType);
+      if (source) r.register(source);
     }
     return r;
   }, []);
 
   useEffect(() => {
-    void router.start();
-
     return () => {
       void router.stop();
     };
   }, [router]);
 
+  const start = useCallback(() => router.start(), [router]);
+  const stop = useCallback(() => router.stop(), [router]);
+
   return {
     subscribe: (listener) => router.subscribe(listener),
     getRouter: () => router,
+    start,
+    stop,
   };
 }

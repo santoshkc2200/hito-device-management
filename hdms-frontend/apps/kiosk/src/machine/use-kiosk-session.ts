@@ -2,6 +2,7 @@ import * as React from "react";
 import { useSyncExternalStore } from "react";
 import { createActor } from "xstate";
 import type { ScanSource, Outcome, SessionMessage } from "@hdms/api-client";
+import { CameraSource } from "@hdms/scan";
 import type { SessionState } from "@hdms/domain";
 import {
   sessionMachine,
@@ -40,7 +41,12 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const kioskId = config?.kioskId ?? "unpaired-kiosk";
   const isMuted = config?.muteEnabled ?? false;
 
-  const { subscribe: subscribeScan, getRouter } = useScanRouter();
+  const {
+    subscribe: subscribeScan,
+    getRouter,
+    start: startScanRouter,
+    stop: stopScanRouter,
+  } = useScanRouter();
   const { isOffline } = useConnectivity();
 
   const setIsOffline = React.useCallback((offline: boolean) => {
@@ -71,6 +77,37 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const [scannerFresh, setScannerFresh] = React.useState(true);
   const [scannerReady, setScannerReady] = React.useState(true);
   const [isOutcomeDismissed, setIsOutcomeDismissed] = React.useState(false);
+  const [isScanning, setIsScanning] = React.useState(false);
+  const isScanningRef = React.useRef(false);
+
+  const startScanning = React.useCallback(async () => {
+    if (isScanningRef.current) return;
+
+    isScanningRef.current = true;
+    setIsScanning(true);
+
+    const hasHardwareScanner = getRouter()
+      .getRegisteredSources()
+      .some((source) => source.id === "scanner" || source.id === "hid");
+    setScannerReady(hasHardwareScanner);
+    await startScanRouter();
+  }, [getRouter, startScanRouter]);
+
+  const stopScanning = React.useCallback(async () => {
+    isScanningRef.current = false;
+    setIsScanning(false);
+    await stopScanRouter();
+  }, [stopScanRouter]);
+
+  const previousStateRef = React.useRef(state);
+  React.useEffect(() => {
+    if (state !== "idle" && !isScanningRef.current) {
+      void startScanning();
+    } else if (previousStateRef.current !== "idle" && state === "idle") {
+      void stopScanning();
+    }
+    previousStateRef.current = state;
+  }, [state, startScanning, stopScanning]);
 
   // Resync session on reconnect from offline
   React.useEffect(() => {
@@ -148,6 +185,8 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   // Handle hardware scan and camera scan routing
   const handleScan = React.useCallback(
     async (token: string, source: ScanSource = "scanner") => {
+      if (!isScanningRef.current) return;
+
       try {
         const result = await executeScan({
           sessionId: snapshot.context.sessionId,
@@ -157,6 +196,13 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
         });
         setIsOutcomeDismissed(false);
         actor.send({ type: "APPLY_SCAN_RESULT", result });
+        if (
+          result.session.state === "idle" ||
+          (result.session.state as string) === "closed" ||
+          result.session.state === "completed"
+        ) {
+          void stopScanning();
+        }
       } catch (err: any) {
         if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
           return;
@@ -166,19 +212,24 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
         actor.send({ type: "SET_PROBLEM", problem });
       }
     },
-    [actor, kioskId, snapshot.context.sessionId]
+    [actor, kioskId, snapshot.context.sessionId, stopScanning]
   );
 
   // Subscribe to ScanRouter events
   React.useEffect(() => {
     const unsubscribe = subscribeScan((event) => {
-      if (event.kind === "scan") {
+      if (event.kind === "source-state" && (event.id === "scanner" || event.id === "hid")) {
+        setScannerReady(event.available);
+        if (!event.available) setScannerFresh(false);
+      } else if (event.kind === "scan") {
         const scanSource: ScanSource =
           event.scan.source === "camera"
             ? "camera"
             : event.scan.source === "manual"
             ? "manual"
             : "scanner";
+        setScannerReady(true);
+        setScannerFresh(true);
         void handleScan(event.scan.token, scanSource);
       }
     });
@@ -259,14 +310,11 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     }
   }, [snapshot, snapshot.context.sessionId]);
 
-  const cameraSource = React.useMemo(() => {
-    try {
-      const sources = getRouter().getRegisteredSources();
-      return (sources.find((s) => s.id === "camera") as any) ?? null;
-    } catch {
-      return null;
-    }
-  }, [getRouter]);
+  const cameraEnabled = config?.enabledSources?.includes("camera") ?? true;
+  const cameraSource = React.useMemo(
+    () => (cameraEnabled ? new CameraSource() : null),
+    [cameraEnabled]
+  );
 
   const hidSource = React.useMemo(() => {
     try {
@@ -328,6 +376,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     kioskName,
     scannerReady,
     scannerFresh,
+    isScanning,
     isCameraOpen,
     isDiagnosticsOpen,
     isAttendantOpen,
@@ -341,6 +390,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     setIsAttendantOpen,
     setIsOffline,
     dismissOutcome,
+    startScanning,
     scan: handleScan,
     returnLoan: handleReturnLoan,
     close: handleClose,
