@@ -234,5 +234,30 @@ describe("LoanDetailPage — Phase 4.8b/c", () => {
     const reasonInput = screen.getByLabelText(/reason for write-off/i);
     fireEvent.change(reasonInput, { target: { value: "Crushed by elevator door" } });
     expect(confirmBtn).toBeEnabled();
+
+    // Cancel branch
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("correct attribution dialog opens and can cancel", async () => {
+    renderLoanDetailPage("admin");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("correct-attribution-button")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("correct-attribution-button"));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Correct Loan Attribution")).toBeInTheDocument();
+
+    // Cancel closes dialog
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 });

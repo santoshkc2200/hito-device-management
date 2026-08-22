@@ -21,20 +21,20 @@ every paper page is typed in here. Two consequences shape the whole breakdown:
 
 ## The sub-phases
 
-| # | Sub-phase | Parent § | Depends on | Est. |
+| # | Sub-phase | Parent § | Depends on | Status |
 |---|---|---|---|---|
-| [4.0](4.0-contract-and-shell.md) | Additive contract v1.1.0 (**done**) + admin shell | — (new) | Phase 2 freeze | 1 d + 1 d ✔/☐ |
-| [4.1](4.1-auth-and-roles.md) | Role model, server-side enforcement, account lifecycle, auth UI | 4.1 | 4.0 | 3.5 d |
-| [4.2](4.2-list-infrastructure.md) | Shared list contract + `DataTable` | — (new) | 4.0b | 2.5 d |
-| [4.4](4.4-users-and-registration.md) | Users, **register borrower ★**, detail, CSV import, timed trial | 4.4 | 4.2, 4.1a | 3.75 d |
-| [4.5](4.5-credentials.md) | Credential panel, destructive flows, blank stock, reader test | 4.5 | 4.4a | 2.25 d |
-| [4.6](4.6-paper-backfill.md) | Paper backfill ★★ — entry bar, resolution, batch, conflicts, follow-through | 4.6 | 4.4b, 4.5c | 4.75 d |
-| [4.7](4.7-dashboard.md) | Static panels, SSE live feed, attention strip | 4.2 | 4.5c, 4.6e | 1.75 d |
-| [4.3](4.3-devices.md) | Device table, detail, mutations, CSV import | 4.3 | 4.2b, 4.5a | 2 d |
-| [4.8](4.8-loans.md) | Loan tables, detail, overrides | 4.7 | 4.2b | 1.75 d |
-| [4.9](4.9-reports-and-audit.md) | Reports API + UI, streaming CSV, audit viewer | 4.8, 4.9 | 4.2a | 3 d |
-| [4.10](4.10-settings.md) | Categories and policy, kiosks, printing templates | 4.10 | 4.1a | 1.75 d |
-| [4.11](4.11-quality-and-exit.md) | Accessibility, tests, performance, exit run | 4.11 | all above | 2.5 d |
+| [4.0](4.0-contract-and-shell.md) | Additive contract v1.1.0 + admin shell | — (new) | Phase 2 freeze | ✔ Done |
+| [4.1](4.1-auth-and-roles.md) | Role model, server-side enforcement, account lifecycle, auth UI | 4.1 | 4.0 | ✔ Done |
+| [4.2](4.2-list-infrastructure.md) | Shared list contract + `DataTable` | — (new) | 4.0b | ✔ Done |
+| [4.4](4.4-users-and-registration.md) | Users, **register borrower ★**, detail, CSV import, timed trial | 4.4 | 4.2, 4.1a | ✔ Done |
+| [4.5](4.5-credentials.md) | Credential panel, destructive flows, blank stock, reader test | 4.5 | 4.4a | ✔ Done |
+| [4.6](4.6-paper-backfill.md) | Paper backfill ★★ — entry bar, resolution, batch, conflicts, follow-through | 4.6 | 4.4b, 4.5c | ✔ Done |
+| [4.7](4.7-dashboard.md) | Static panels, SSE live feed, attention strip | 4.2 | 4.5c, 4.6e | ✔ Done |
+| [4.3](4.3-devices.md) | Device table, detail, mutations, CSV import | 4.3 | 4.2b, 4.5a | ✔ Done |
+| [4.8](4.8-loans.md) | Loan tables, detail, overrides | 4.7 | 4.2b | ✔ Done |
+| [4.9](4.9-reports-and-audit.md) | Reports API + UI, streaming CSV, audit viewer | 4.8, 4.9 | 4.2a | ✔ Done |
+| [4.10](4.10-settings.md) | Categories and policy, kiosks, printing templates | 4.10 | 4.1a | ✔ Done |
+| [4.11](4.11-quality-and-exit.md) | Accessibility, tests, performance, exit run | 4.11 | all above | ✔ Done |
 
 ≈ 30.5 developer-days remaining after 4.0a.
 
@@ -183,17 +183,17 @@ a desk.
 
 ## Definition of done — applies to every sub-phase
 
-- [ ] `task lint` green, including the depguard boundary rules
-- [ ] `task test:backend` and `task test:integration` green under `-race`
-- [ ] `pnpm -r lint`, `pnpm -r test`, `pnpm -r build` green
-- [ ] `task generate` produces no diff (spec and generated code committed together)
-- [ ] Every endpoint the sub-phase adds appears in the role matrix test and in the
+- [x] `task lint` green, including the depguard boundary rules
+- [x] `task test:backend` and `task test:integration` green under `-race`
+- [x] `pnpm -r lint`, `pnpm -r test`, `pnpm -r build` green
+- [x] `task generate` produces no diff (spec and generated code committed together)
+- [x] Every endpoint the sub-phase adds appears in the role matrix test and in the
       kiosk-scope classification — both suites fail on an unclassified operation
-- [ ] Every new invariant or rule has a test named after it
-- [ ] axe reports no violations on any screen the sub-phase touched
-- [ ] Loading, empty and error states exist for every view the sub-phase adds
-- [ ] The sub-phase's own exit criteria, in its own file, are checked off
-- [ ] `docs/` updated if the implementation deviated from the design docs — the
+- [x] Every new invariant or rule has a test named after it
+- [x] axe reports no violations on any screen the sub-phase touched
+- [x] Loading, empty and error states exist for every view the sub-phase adds
+- [x] The sub-phase's own exit criteria, in its own file, are checked off
+- [x] `docs/` updated if the implementation deviated from the design docs — the
       docs are the contract for Phases 5–6, so drift is a defect
 
 ## Gaps in the tree this breakdown found

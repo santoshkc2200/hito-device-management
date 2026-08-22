@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { PolicyPanel } from "@/components/settings/policy-panel";
@@ -20,7 +21,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 });
 
 // Mock ResizeObserver for Radix UI components
-global.ResizeObserver = class ResizeObserver {
+window.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -63,12 +64,14 @@ const mockCategories: apiClient.Category[] = [
     name: "Infusion Pump",
     defaultLoanPeriodSeconds: 604800, // 7 days
     requiresApproval: false,
+    createdAt: "2026-08-01T00:00:00Z",
   },
   {
     id: "cat-2",
     name: "Ultrasound Probe",
     defaultLoanPeriodSeconds: 86400, // 1 day
     requiresApproval: true,
+    createdAt: "2026-08-01T00:00:00Z",
   },
 ];
 
@@ -206,6 +209,23 @@ describe("Settings Panels", () => {
         expect(screen.getByText("A4 Standard (3 × 8 — 24 Labels)")).toBeInTheDocument();
         expect(screen.getByText("A4 Compact (4 × 10 — 40 Labels)")).toBeInTheDocument();
       });
+    });
+
+    it("passes axe accessibility checks across settings panels", async () => {
+      const { container: c1 } = renderWithClient(<PolicyPanel />);
+      await waitFor(() => expect(screen.getByText("Strict Overdue Enforcement")).toBeInTheDocument());
+      const r1 = await axe(c1);
+      expect(r1).toHaveNoViolations();
+
+      const { container: c2 } = renderWithClient(<KiosksPanel />);
+      await waitFor(() => expect(screen.getByText("Registered Kiosk Terminals")).toBeInTheDocument());
+      const r2 = await axe(c2);
+      expect(r2).toHaveNoViolations();
+
+      const { container: c3 } = renderWithClient(<TemplatesPanel />);
+      await waitFor(() => expect(screen.getByText("Adhesive Label Sheet Layout")).toBeInTheDocument());
+      const r3 = await axe(c3);
+      expect(r3).toHaveNoViolations();
     });
   });
 });

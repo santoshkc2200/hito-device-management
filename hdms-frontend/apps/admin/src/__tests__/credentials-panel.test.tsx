@@ -319,6 +319,43 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     });
   });
 
+  it("destructive revoke flow requires mandatory reason and supports cancel", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
+      data: { items: mockUserCredentials },
+      error: undefined,
+    } as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CredentialsPanel
+          subjectType="user"
+          subjectId="user-1"
+          subject={{
+            type: "user",
+            fullName: "Dr. Taro Yamada",
+            employeeNo: "HH-1001",
+            department: "Emergency Department",
+          }}
+        />
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText("Issue #2")).toBeInTheDocument();
+    const revokeBtn = screen.getByRole("button", { name: /^Revoke$/i });
+    await user.click(revokeBtn);
+
+    // Revoke dialog opens
+    expect(screen.getByText("Revoke this credential?")).toBeInTheDocument();
+    const submitBtn = screen.getByRole("button", { name: /Revoke Credential/i });
+    expect(submitBtn).toBeDisabled();
+
+    // Cancel branch
+    const cancelBtn = screen.getByRole("button", { name: /Cancel/i });
+    await user.click(cancelBtn);
+    expect(apiClient.revokeCredential).not.toHaveBeenCalled();
+  });
+
   it("passes axe accessibility checks", async () => {
     vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
       data: { items: mockUserCredentials },

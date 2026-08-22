@@ -551,8 +551,9 @@ export function TemplatesPanel() {
               {/* Form Input Columns */}
               <div className="lg:col-span-2 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Sheet Width (mm)</label>
+                  <label htmlFor="sheetWidthMm" className="text-xs font-medium">Sheet Width (mm)</label>
                   <Input
+                    id="sheetWidthMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -561,8 +562,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Sheet Height (mm)</label>
+                  <label htmlFor="sheetHeightMm" className="text-xs font-medium">Sheet Height (mm)</label>
                   <Input
+                    id="sheetHeightMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -571,8 +573,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Grid Columns</label>
+                  <label htmlFor="columns" className="text-xs font-medium">Grid Columns</label>
                   <Input
+                    id="columns"
                     type="number"
                     min={1}
                     max={20}
@@ -582,8 +585,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Grid Rows</label>
+                  <label htmlFor="rows" className="text-xs font-medium">Grid Rows</label>
                   <Input
+                    id="rows"
                     type="number"
                     min={1}
                     max={50}
@@ -593,8 +597,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Margin Top (mm)</label>
+                  <label htmlFor="marginTopMm" className="text-xs font-medium">Margin Top (mm)</label>
                   <Input
+                    id="marginTopMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -603,8 +608,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Margin Left (mm)</label>
+                  <label htmlFor="marginLeftMm" className="text-xs font-medium">Margin Left (mm)</label>
                   <Input
+                    id="marginLeftMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -613,8 +619,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Horizontal Gap (mm)</label>
+                  <label htmlFor="gutterXMm" className="text-xs font-medium">Horizontal Gap (mm)</label>
                   <Input
+                    id="gutterXMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -623,8 +630,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Vertical Gap (mm)</label>
+                  <label htmlFor="gutterYMm" className="text-xs font-medium">Vertical Gap (mm)</label>
                   <Input
+                    id="gutterYMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -633,8 +641,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Label Width (mm)</label>
+                  <label htmlFor="labelWidthMm" className="text-xs font-medium">Label Width (mm)</label>
                   <Input
+                    id="labelWidthMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -643,8 +652,9 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Label Height (mm)</label>
+                  <label htmlFor="labelHeightMm" className="text-xs font-medium">Label Height (mm)</label>
                   <Input
+                    id="labelHeightMm"
                     type="number"
                     step="0.1"
                     disabled={!isAdmin}
@@ -727,8 +737,9 @@ export function TemplatesPanel() {
           >
             <div className="grid gap-6 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Hospital Header Name</label>
+                <label htmlFor="hospitalName" className="text-xs font-medium">Hospital Header Name</label>
                 <Input
+                  id="hospitalName"
                   disabled={!isAdmin}
                   {...slipForm.register("hospitalName")}
                 />
@@ -738,8 +749,9 @@ export function TemplatesPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Page Reference Code Format</label>
+                <label htmlFor="pageRefFormat" className="text-xs font-medium">Page Reference Code Format</label>
                 <Input
+                  id="pageRefFormat"
                   disabled={!isAdmin}
                   {...slipForm.register("pageRefFormat")}
                 />
@@ -749,8 +761,9 @@ export function TemplatesPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Rows Per Page</label>
+                <label htmlFor="rowsPerPage" className="text-xs font-medium">Rows Per Page</label>
                 <Input
+                  id="rowsPerPage"
                   type="number"
                   min={5}
                   max={100}

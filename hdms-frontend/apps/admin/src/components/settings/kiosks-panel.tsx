@@ -408,7 +408,7 @@ export function KiosksPanel() {
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon-sm">
+                                <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${kiosk.name}`}>
                                   <MoreHorizontal className="size-4" />
                                 </Button>
                               </DropdownMenuTrigger>
