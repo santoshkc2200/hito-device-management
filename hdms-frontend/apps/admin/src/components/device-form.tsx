@@ -8,8 +8,10 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { generateAssetTag } from "./asset-tag";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -79,7 +81,27 @@ export function DeviceForm({
       <FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <Field data-invalid={!!form.formState.errors.assetTag}>
-            <FieldLabel htmlFor="assetTag">Asset tag</FieldLabel>
+            <div className="flex items-center justify-between gap-2">
+              <FieldLabel htmlFor="assetTag">Asset tag</FieldLabel>
+              {!device && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  title="Generate asset tag"
+                  aria-label="Generate asset tag"
+                  onClick={() => {
+                    const category = categories.find((c) => c.id === form.getValues("categoryId"));
+                    form.setValue("assetTag", generateAssetTag(category?.name), {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                >
+                  <RefreshCw />
+                </Button>
+              )}
+            </div>
             <Input id="assetTag" className="font-identifier" autoFocus {...form.register("assetTag")} />
             {form.formState.errors.assetTag && (
               <FieldError>{form.formState.errors.assetTag.message}</FieldError>
