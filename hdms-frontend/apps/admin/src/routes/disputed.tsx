@@ -19,6 +19,7 @@ import { useMemo, useState } from "react";
 import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/components/data-table";
 import { LoanOriginBadge, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 function formatDate(iso?: string | null): string {
@@ -39,6 +40,7 @@ function formatDate(iso?: string | null): string {
 const columnHelper = createColumnHelper<Loan>();
 
 export function DisputedLoansPage() {
+  const t = useT();
   const [searchFilter, setSearchFilter] = useState("");
 
   const { data: usersData } = useQuery({
@@ -107,7 +109,7 @@ export function DisputedLoansPage() {
     () => [
       columnHelper.accessor("deviceId", {
         id: "device",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Device" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("loans.columnDevice")} />,
         cell: ({ row }) => {
           const loan = row.original;
           const device = deviceMap.get(loan.deviceId);
@@ -118,7 +120,7 @@ export function DisputedLoansPage() {
                 params={{ deviceId: loan.deviceId }}
                 className="font-medium text-foreground hover:text-primary hover:underline"
               >
-                {device?.name || "Unknown device"}
+                {device?.name || t("loans.unknownDevice")}
               </Link>
               <span className="font-identifier text-muted-foreground text-xs">
                 {device?.assetTag || loan.deviceId.slice(0, 8)}
@@ -129,7 +131,7 @@ export function DisputedLoansPage() {
       }),
       columnHelper.accessor("userId", {
         id: "borrower",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Recorded Borrower" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("disputed.columnRecordedBorrower")} />,
         cell: ({ row }) => {
           const loan = row.original;
           const user = userMap.get(loan.userId);
@@ -140,7 +142,7 @@ export function DisputedLoansPage() {
                 params={{ userId: loan.userId }}
                 className="font-medium text-foreground hover:text-primary hover:underline"
               >
-                {user?.fullName || "Unknown borrower"}
+                {user?.fullName || t("loans.unknownBorrower")}
               </Link>
               {user?.employeeNo && (
                 <span className="text-muted-foreground text-xs">
@@ -153,7 +155,7 @@ export function DisputedLoansPage() {
       }),
       columnHelper.accessor("origin", {
         id: "origin",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Origin & Status" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("disputed.columnOriginStatus")} />,
         cell: ({ row }) => {
           const loan = row.original;
           return (
@@ -166,22 +168,23 @@ export function DisputedLoansPage() {
       }),
       columnHelper.accessor("borrowedAt", {
         id: "borrowedAt",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Claimed Window" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("disputed.columnClaimedWindow")} />,
         cell: ({ row }) => {
           const loan = row.original;
           return (
             <div className="flex flex-col text-xs text-muted-foreground">
-              <span>Out: {formatDate(loan.borrowedAt)}</span>
-              {loan.returnedAt && <span>In: {formatDate(loan.returnedAt)}</span>}
+              <span>{t("disputed.outPrefix")} {formatDate(loan.borrowedAt)}</span>
+              {loan.returnedAt && <span>{t("disputed.inPrefix")} {formatDate(loan.returnedAt)}</span>}
             </div>
           );
         },
       }),
       columnHelper.accessor("notes", {
         id: "conflictNotes",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Conflict / Correction Notes" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("disputed.columnConflictNotes")} />,
         cell: ({ getValue, row }) => {
-          const val = getValue() || row.original.backfillNote || "Recorded outside custody exclusion constraint";
+          const val =
+            getValue() || row.original.backfillNote || t("disputed.fallbackConflictNote");
           return (
             <div className="max-w-md text-xs text-muted-foreground truncate" title={val}>
               {val}
@@ -191,7 +194,7 @@ export function DisputedLoansPage() {
       }),
       columnHelper.display({
         id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
+        header: () => <span className="sr-only">{t("columns.actions")}</span>,
         cell: ({ row }) => {
           const loan = row.original;
           return (
@@ -199,7 +202,7 @@ export function DisputedLoansPage() {
               <Button variant="ghost" size="sm" asChild className="h-8 px-2 text-xs">
                 <Link to="/loans/$loanId" params={{ loanId: loan.id }}>
                   <ExternalLink className="size-3.5 mr-1" />
-                  View detail
+                  {t("disputed.viewDetail")}
                 </Link>
               </Button>
             </div>
@@ -207,7 +210,7 @@ export function DisputedLoansPage() {
         },
       }),
     ],
-    [userMap, deviceMap],
+    [userMap, deviceMap, t],
   );
 
   return (
@@ -217,10 +220,10 @@ export function DisputedLoansPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
             <AlertCircle className="size-6 text-rose-600 dark:text-rose-400" />
-            Disputed Loans
+            {t("disputed.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Records forced past a custody conflict or reattributed during audit. Permanently excluded from custody calculations.
+            {t("disputed.subtitle")}
           </p>
         </div>
 
@@ -230,7 +233,7 @@ export function DisputedLoansPage() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium text-foreground hover:bg-muted"
           >
             <FileCheck2 className="size-3.5" />
-            Back to loans list
+            {t("disputed.backToLoans")}
           </Link>
         </div>
       </div>
@@ -239,9 +242,9 @@ export function DisputedLoansPage() {
       <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-4 text-xs text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300 flex items-start gap-3">
         <HelpCircle className="size-4 shrink-0 mt-0.5" />
         <div>
-          <p className="font-semibold">Why are these records disputed?</p>
+          <p className="font-semibold">{t("disputed.whyTitle")}</p>
           <p className="mt-0.5 text-rose-800 dark:text-rose-400 leading-relaxed">
-            When a paper backfill record or attribution correction conflicts with existing custody facts, the claim is preserved here for historical audit rather than overwriting original data.
+            {t("disputed.whyExplanation")}
           </p>
         </div>
       </div>
@@ -256,11 +259,11 @@ export function DisputedLoansPage() {
         onRetry={() => disputedQuery.refetch()}
         searchQuery={searchFilter}
         onSearchChange={setSearchFilter}
-        searchPlaceholder="Search by device, borrower, employee # or conflict notes…"
+        searchPlaceholder={t("disputed.searchPlaceholder")}
         isFiltered={Boolean(searchFilter)}
         onResetFilters={() => setSearchFilter("")}
-        emptyTitle="No disputed loans"
-        emptyExplanation="There are currently no disputed claims or unresolved custody conflicts."
+        emptyTitle={t("disputed.emptyTitle")}
+        emptyExplanation={t("disputed.emptyExplanation")}
       />
     </div>
   );
