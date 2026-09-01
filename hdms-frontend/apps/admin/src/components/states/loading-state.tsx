@@ -1,11 +1,15 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/i18n";
 
 interface LoadingStateProps {
   message?: string;
   className?: string;
 }
 
-export function LoadingState({ message = "Loading...", className = "" }: LoadingStateProps) {
+export function LoadingState({ message, className = "" }: LoadingStateProps) {
+  const t = useT();
+  const displayMessage = message ?? t("states.loading");
+
   return (
     <div
       role="status"
@@ -18,7 +22,7 @@ export function LoadingState({ message = "Loading...", className = "" }: Loading
         <Skeleton className="h-4 w-5/6 mx-auto" />
         <Skeleton className="h-10 w-32 mx-auto mt-4" />
       </div>
-      <span className="sr-only">{message}</span>
+      <span className="sr-only">{displayMessage}</span>
     </div>
   );
 }

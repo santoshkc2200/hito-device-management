@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { cardReaderTestRoute } from "../routes/card-reader-test";
 
 const CardReaderTestPage = cardReaderTestRoute.options.component!;
@@ -52,9 +55,9 @@ describe("Card Reader Diagnostic Tool (4.5d)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Card & Scanner Diagnostic Tool")).toBeInTheDocument();
-    expect(screen.getByText("Waiting for Scan Input…")).toBeInTheDocument();
-    expect(screen.getByText("Hardware Scanner Listener Active")).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.title)).toBeInTheDocument();
+    expect(screen.getByText(ja.cardReaderTest.waitingForScan)).toBeInTheDocument();
+    expect(screen.getByText(ja.cardReaderTest.listenerActive)).toBeInTheDocument();
   });
 
   it("analyzes valid user token with Crockford Base32 breakdown and DB resolution", async () => {
@@ -75,21 +78,21 @@ describe("Card Reader Diagnostic Tool (4.5d)", () => {
       </QueryClientProvider>
     );
 
-    const input = screen.getByPlaceholderText(/Scan barcode with USB reader/i);
+    const input = screen.getByPlaceholderText(ja.cardReaderTest.inputPlaceholder);
     await user.type(input, "HD-U-B3G6822S6K-H");
 
-    const analyzeBtn = screen.getByRole("button", { name: /Analyze String/i });
+    const analyzeBtn = screen.getByRole("button", { name: ja.cardReaderTest.analyzeString });
     await user.click(analyzeBtn);
 
     // Grammar & Checksum Analysis
-    expect(await screen.findByText("Valid HDMS Token")).toBeInTheDocument();
-    expect(screen.getByText("User / Staff Badge")).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.validToken)).toBeInTheDocument();
+    expect(screen.getByText(ja.cardReaderTest.userStaffBadge)).toBeInTheDocument();
     expect(screen.getByText("B3G6822S6K")).toBeInTheDocument();
     expect(screen.getByText("H")).toBeInTheDocument();
     expect(screen.getAllByText("HD-U-B3G6822S6K-H").length).toBeGreaterThan(0);
 
     // DB Resolution
-    expect(await screen.findByText("View Borrower Profile")).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.viewBorrowerProfile)).toBeInTheDocument();
     expect(screen.getByText("cred-user-101")).toBeInTheDocument();
   });
 
@@ -111,12 +114,12 @@ describe("Card Reader Diagnostic Tool (4.5d)", () => {
       </QueryClientProvider>
     );
 
-    const input = screen.getByPlaceholderText(/Scan barcode with USB reader/i);
+    const input = screen.getByPlaceholderText(ja.cardReaderTest.inputPlaceholder);
     await user.type(input, "HD-D-BRH8VFTBAA-7");
-    await user.click(screen.getByRole("button", { name: /Analyze String/i }));
+    await user.click(screen.getByRole("button", { name: ja.cardReaderTest.analyzeString }));
 
-    expect(await screen.findByText("Device / Equipment Label")).toBeInTheDocument();
-    expect(await screen.findByText("View Device Record")).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.deviceEquipmentLabel)).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.viewDeviceRecord)).toBeInTheDocument();
   });
 
   it("handles invalid checksum with specific diagnostic guidance", async () => {
@@ -127,12 +130,18 @@ describe("Card Reader Diagnostic Tool (4.5d)", () => {
       </QueryClientProvider>
     );
 
-    const input = screen.getByPlaceholderText(/Scan barcode with USB reader/i);
+    const input = screen.getByPlaceholderText(ja.cardReaderTest.inputPlaceholder);
     await user.type(input, "hd-u-b3g6822s6k-9");
-    await user.click(screen.getByRole("button", { name: /Analyze String/i }));
+    await user.click(screen.getByRole("button", { name: ja.cardReaderTest.analyzeString }));
 
-    expect(await screen.findByText("Invalid Token")).toBeInTheDocument();
-    expect(screen.getByText(/Failure Reason: invalid-checksum/i)).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.invalidToken)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        translate(catalogues, "ja", "cardReaderTest.failureReason", { reason: "invalid-checksum" })
+      )
+    ).toBeInTheDocument();
+    // The token-parsing guidance is produced by the shared domain package and is
+    // not part of the admin i18n catalogue — it stays in English regardless of locale.
     expect(
       screen.getByText(/That code doesn't look right — check the last character/i)
     ).toBeInTheDocument();
@@ -154,7 +163,7 @@ describe("Card Reader Diagnostic Tool (4.5d)", () => {
       </QueryClientProvider>
     );
 
-    await screen.findByText("Waiting for Scan Input…");
+    await screen.findByText(ja.cardReaderTest.waitingForScan);
 
     // Simulate rapid USB wedge keystrokes outside input focus
     const scanString = "HD-U-B3G6822S6K-H";
@@ -163,9 +172,9 @@ describe("Card Reader Diagnostic Tool (4.5d)", () => {
     }
     fireEvent.keyDown(window, { key: "Enter" });
 
-    expect(await screen.findByText("USB Wedge Scanner")).toBeInTheDocument();
-    expect(screen.getByText("Valid HDMS Token")).toBeInTheDocument();
-    expect(await screen.findByText("Ready to be assigned to a borrower")).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.usbWedgeScanner)).toBeInTheDocument();
+    expect(screen.getByText(ja.cardReaderTest.validToken)).toBeInTheDocument();
+    expect(await screen.findByText(ja.cardReaderTest.readyToAssign)).toBeInTheDocument();
   });
 
   it("passes axe accessibility audit", async () => {
@@ -175,7 +184,7 @@ describe("Card Reader Diagnostic Tool (4.5d)", () => {
       </QueryClientProvider>
     );
 
-    await screen.findByText("Card & Scanner Diagnostic Tool");
+    await screen.findByText(ja.cardReaderTest.title);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

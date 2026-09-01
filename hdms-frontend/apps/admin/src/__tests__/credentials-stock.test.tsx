@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { credentialsRoute } from "../routes/credentials";
 
 const CredentialsPage = credentialsRoute.options.component!;
@@ -31,6 +34,10 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
     ),
   };
 });
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -62,8 +69,8 @@ describe("Blank Card Stock & Quick Bind (4.5c)", () => {
     );
 
     expect(await screen.findByText("25")).toBeInTheDocument();
-    expect(screen.getByText("cards ready")).toBeInTheDocument();
-    expect(screen.queryByText(/Stock running low/i)).not.toBeInTheDocument();
+    expect(screen.getByText(ja.credentials.cardsReady)).toBeInTheDocument();
+    expect(screen.queryByText(ja.credentials.lowStockWarning)).not.toBeInTheDocument();
   });
 
   it("displays running low warning when unbound stock < 10", async () => {
@@ -79,7 +86,7 @@ describe("Blank Card Stock & Quick Bind (4.5c)", () => {
     );
 
     expect(await screen.findByText("4")).toBeInTheDocument();
-    expect(screen.getByText(/Stock running low \(under 10\)/i)).toBeInTheDocument();
+    expect(screen.getByText(ja.credentials.lowStockWarning)).toBeInTheDocument();
   });
 
   it("mints batch and transitions to sheet printing view", async () => {
@@ -104,18 +111,20 @@ describe("Blank Card Stock & Quick Bind (4.5c)", () => {
       </QueryClientProvider>
     );
 
-    await screen.findByText("Blank Card Stock & Credentials");
-    const mintBtn = screen.getByRole("button", { name: /Mint & Print 10 Blank Cards/i });
+    await screen.findByText(ja.credentials.title);
+    const mintBtn = screen.getByRole("button", {
+      name: translate(catalogues, "ja", "credentials.mintAndPrint", { count: 10 }),
+    });
     await user.click(mintBtn);
 
-    expect(await screen.findByText("Print New Card Batch")).toBeInTheDocument();
+    expect(await screen.findByText(ja.credentials.batchTitle)).toBeInTheDocument();
     expect(screen.getByText("HD-U-1111111111-1")).toBeInTheDocument();
     expect(screen.getByText("HD-U-2222222222-2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Print sheet/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: ja.credentials.printSheet })).toBeInTheDocument();
 
     // Click Done to return
-    await user.click(screen.getByRole("button", { name: /Done/i }));
-    expect(screen.getByText("Blank Card Stock & Credentials")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: ja.credentials.done }));
+    expect(screen.getByText(ja.credentials.title)).toBeInTheDocument();
   });
 
   it("binds an unbound blank card to an existing borrower", async () => {
@@ -160,22 +169,26 @@ describe("Blank Card Stock & Quick Bind (4.5c)", () => {
       </QueryClientProvider>
     );
 
-    await screen.findByText("Bind Blank Card to Borrower");
+    await screen.findByText(ja.credentials.quickBindTitle);
 
     // Search user
-    const searchInput = screen.getByPlaceholderText(/Search by name or employee number/i);
+    const searchInput = screen.getByPlaceholderText(ja.credentials.userSearchPlaceholder);
     await user.type(searchInput, "Clara");
 
     const userOption = await screen.findByText("Nurse Clara Barton");
     await user.click(userOption);
 
-    expect(screen.getByText(/Selected: Nurse Clara Barton/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        new RegExp(`${escapeRegExp(ja.credentials.selectedPrefix)} Nurse Clara Barton`)
+      )
+    ).toBeInTheDocument();
 
     // Enter token
-    const tokenInput = screen.getByPlaceholderText("HD-U-...");
+    const tokenInput = screen.getByPlaceholderText(ja.credentials.tokenPlaceholder);
     await user.type(tokenInput, "HD-U-B3G6822S6K-H");
 
-    const bindBtn = screen.getByRole("button", { name: /Bind and Activate Card/i });
+    const bindBtn = screen.getByRole("button", { name: ja.credentials.bindAndActivate });
     expect(bindBtn).toBeEnabled();
     await user.click(bindBtn);
 
@@ -189,7 +202,13 @@ describe("Blank Card Stock & Quick Bind (4.5c)", () => {
       });
     });
 
-    expect(await screen.findByText(/Card successfully bound to Nurse Clara Barton/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        translate(catalogues, "ja", "credentials.boundSuccess", {
+          user: "Nurse Clara Barton (EMP-4200)",
+        })
+      )
+    ).toBeInTheDocument();
   });
 
   it("passes axe accessibility audit", async () => {
@@ -204,7 +223,7 @@ describe("Blank Card Stock & Quick Bind (4.5c)", () => {
       </QueryClientProvider>
     );
 
-    await screen.findByText("Blank Card Stock & Credentials");
+    await screen.findByText(ja.credentials.title);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

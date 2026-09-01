@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useT } from "@/i18n";
 
 interface UserWithCredential {
   user: User;
@@ -42,6 +43,7 @@ export function UserImportDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,7 +81,7 @@ export function UserImportDialog({
         throw new Error(
           (resp.error as { detail?: string; title?: string }).detail ||
             (resp.error as { title?: string }).title ||
-            "Failed to parse CSV file",
+            t("deviceImportDialog.failedToParseCsv"),
         );
       }
       return resp.data as ImportPreview;
@@ -89,7 +91,7 @@ export function UserImportDialog({
       setStep("preview");
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to validate CSV");
+      toast.error(err.message || t("deviceImportDialog.failedToValidateCsv"));
     },
   });
 
@@ -102,7 +104,7 @@ export function UserImportDialog({
         throw new Error(
           (resp.error as { detail?: string; title?: string }).detail ||
             (resp.error as { title?: string }).title ||
-            "Failed to commit import",
+            t("deviceImportDialog.failedToCommit"),
         );
       }
       return resp.data as ImportResult;
@@ -112,7 +114,10 @@ export function UserImportDialog({
       setStep("done");
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success(
-        `Import completed: ${data.createdCount} created, ${data.updatedCount} updated`,
+        t("deviceImportDialog.importCompletedToast", {
+          created: data.createdCount,
+          updated: data.updatedCount,
+        }),
       );
 
       // Load newly created users info
@@ -132,7 +137,7 @@ export function UserImportDialog({
       }
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to commit import");
+      toast.error(err.message || t("deviceImportDialog.failedToCommit"));
     },
   });
 
@@ -180,9 +185,9 @@ export function UserImportDialog({
       }
       setIssuedUsers(updated);
       queryClient.invalidateQueries({ queryKey: ["credentials"] });
-      toast.success("Cards issued to new borrowers");
+      toast.success(t("userImportDialog.cardsIssuedToast"));
     } catch {
-      toast.error("Failed to issue some cards");
+      toast.error(t("userImportDialog.issueCardsFailedToast"));
     } finally {
       setIsIssuingCards(false);
     }
@@ -197,17 +202,14 @@ export function UserImportDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            {step === "upload" && "Import users from CSV"}
-            {step === "preview" && "Preview user import"}
-            {step === "done" && "Import summary & card distribution"}
+            {step === "upload" && t("userImportDialog.titleUpload")}
+            {step === "preview" && t("userImportDialog.titlePreview")}
+            {step === "done" && t("userImportDialog.titleDone")}
           </DialogTitle>
           <DialogDescription>
-            {step === "upload" &&
-              "Upload a CSV file of hospital staff. Columns: employee_no and full_name are required. Optional: department, email, phone, notes."}
-            {step === "preview" &&
-              `Review validated rows from ${fileName} before writing to the database.`}
-            {step === "done" &&
-              "Import batch committed. Issue cards and print the distribution sheet for newly registered staff."}
+            {step === "upload" && t("userImportDialog.descUpload")}
+            {step === "preview" && t("userImportDialog.descPreview", { fileName })}
+            {step === "done" && t("userImportDialog.descDone")}
           </DialogDescription>
         </DialogHeader>
 
@@ -219,9 +221,9 @@ export function UserImportDialog({
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="mb-2 size-8 text-muted-foreground" />
-              <p className="text-sm font-medium">Click to select CSV file</p>
+              <p className="text-sm font-medium">{t("deviceImportDialog.clickToSelectCsv")}</p>
               <p className="text-xs text-muted-foreground">
-                staff.csv with columns: employee_no, full_name, department, email, phone, notes
+                {t("userImportDialog.csvColumnsHint")}
               </p>
               <input
                 ref={fileInputRef}
@@ -233,7 +235,7 @@ export function UserImportDialog({
             </div>
             {previewMutation.isPending && (
               <p className="text-sm text-muted-foreground animate-pulse">
-                Validating CSV rows…
+                {t("deviceImportDialog.validatingRows")}
               </p>
             )}
           </div>
@@ -245,19 +247,19 @@ export function UserImportDialog({
             {/* Summary metrics */}
             <div className="grid grid-cols-4 gap-2 text-center text-xs sm:text-sm">
               <div className="rounded-md border p-2 bg-background">
-                <span className="text-muted-foreground">Total Rows</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.totalRows")}</span>
                 <p className="text-lg font-semibold">{preview.summary.totalRows}</p>
               </div>
               <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-2 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <span className="text-muted-foreground">To Create</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.toCreate")}</span>
                 <p className="text-lg font-semibold">{preview.summary.createCount}</p>
               </div>
               <div className="rounded-md border border-blue-200 bg-blue-50/50 p-2 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-                <span className="text-muted-foreground">To Update</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.toUpdate")}</span>
                 <p className="text-lg font-semibold">{preview.summary.updateCount}</p>
               </div>
               <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-destructive">
-                <span className="text-muted-foreground">Invalid</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.invalid")}</span>
                 <p className="text-lg font-semibold">{preview.summary.invalidCount}</p>
               </div>
             </div>
@@ -266,7 +268,9 @@ export function UserImportDialog({
               <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
                 <AlertTriangle className="size-4 shrink-0" />
                 <span>
-                  This file contains {preview.summary.invalidCount} invalid row(s). Please fix the errors and re-upload before committing.
+                  {t("deviceImportDialog.invalidRowsWarning", {
+                    count: preview.summary.invalidCount,
+                  })}
                 </span>
               </div>
             )}
@@ -276,12 +280,12 @@ export function UserImportDialog({
               <table className="w-full text-left">
                 <thead className="sticky top-0 bg-muted font-medium text-muted-foreground">
                   <tr>
-                    <th className="p-2">Line</th>
-                    <th className="p-2">Employee #</th>
-                    <th className="p-2">Full Name</th>
-                    <th className="p-2">Department</th>
-                    <th className="p-2">Action</th>
-                    <th className="p-2">Validation Notes</th>
+                    <th className="p-2">{t("deviceImportDialog.colLine")}</th>
+                    <th className="p-2">{t("userImportDialog.colEmployeeNo")}</th>
+                    <th className="p-2">{t("userImportDialog.colFullName")}</th>
+                    <th className="p-2">{t("users.columnDepartment")}</th>
+                    <th className="p-2">{t("deviceImportDialog.colAction")}</th>
+                    <th className="p-2">{t("deviceImportDialog.colValidationNotes")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -305,16 +309,16 @@ export function UserImportDialog({
                       <td className="p-2">
                         {row.action === "create" && (
                           <Badge variant="outline" className="border-emerald-500 text-emerald-600">
-                            Create
+                            {t("deviceImportDialog.actionCreate")}
                           </Badge>
                         )}
                         {row.action === "update" && (
                           <Badge variant="outline" className="border-blue-500 text-blue-600">
-                            Update
+                            {t("deviceImportDialog.actionUpdate")}
                           </Badge>
                         )}
                         {row.action === "invalid" && (
-                          <Badge variant="destructive">Invalid</Badge>
+                          <Badge variant="destructive">{t("deviceImportDialog.invalid")}</Badge>
                         )}
                       </td>
                       <td className="p-2">
@@ -325,9 +329,13 @@ export function UserImportDialog({
                             ))}
                           </div>
                         ) : row.action === "update" ? (
-                          <span className="text-muted-foreground">Existing live borrower</span>
+                          <span className="text-muted-foreground">
+                            {t("userImportDialog.existingBorrowerNote")}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground">New borrower</span>
+                          <span className="text-muted-foreground">
+                            {t("userImportDialog.newBorrowerNote")}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -344,10 +352,14 @@ export function UserImportDialog({
             <div className="flex items-center gap-3 rounded-md border border-emerald-500/40 bg-emerald-50/30 p-4 text-sm text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-200">
               <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
               <div>
-                <p className="font-semibold">Import batch committed</p>
+                <p className="font-semibold">{t("deviceImportDialog.importBatchCommitted")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Batch ID: <span className="font-mono">{importResult.importId}</span> ·{" "}
-                  {importResult.createdCount} created, {importResult.updatedCount} updated.
+                  {t("deviceImportDialog.batchIdLabel")}{" "}
+                  <span className="font-mono">{importResult.importId}</span> ·{" "}
+                  {t("deviceImportDialog.batchCounts", {
+                    created: importResult.createdCount,
+                    updated: importResult.updatedCount,
+                  })}
                 </p>
               </div>
             </div>
@@ -356,9 +368,11 @@ export function UserImportDialog({
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-semibold">Name-to-card distribution sheet</h4>
+                    <h4 className="text-sm font-semibold">
+                      {t("userImportDialog.distributionSheetHeading")}
+                    </h4>
                     <p className="text-xs text-muted-foreground">
-                      FR-77: Issue QR cards to the {issuedUsers.length} newly registered staff and print the handout sheet.
+                      {t("userImportDialog.distributionSheetDesc", { count: issuedUsers.length })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -369,11 +383,13 @@ export function UserImportDialog({
                       onClick={handleIssueCards}
                     >
                       <CreditCard className="size-4" data-icon="inline-start" />
-                      {isIssuingCards ? "Issuing cards…" : "Issue cards to new staff"}
+                      {isIssuingCards
+                        ? t("userImportDialog.issuingCards")
+                        : t("userImportDialog.issueCardsToNewStaff")}
                     </Button>
                     <Button size="sm" onClick={() => window.print()}>
                       <Printer className="size-4" data-icon="inline-start" />
-                      Print sheet
+                      {t("userImportDialog.printSheet")}
                     </Button>
                   </div>
                 </div>
@@ -381,29 +397,43 @@ export function UserImportDialog({
                 {/* Printable distribution sheet area */}
                 <div
                   id="user-distribution-sheet"
-                  aria-label="Name-to-card distribution sheet"
+                  aria-label={t("userImportDialog.distributionSheetHeading")}
                   className="rounded-md border border-border bg-white p-6 text-black shadow-xs"
                 >
                   <div className="border-b pb-3 mb-3">
                     <h2 className="text-base font-bold tracking-tight">
-                      HITO HOSPITAL — BORROWER CARD DISTRIBUTION SHEET
+                      {t("userImportDialog.letterheadTitle")}
                     </h2>
                     <div className="flex justify-between text-xs text-gray-600 mt-1">
-                      <span>Import Batch: {importResult.importId}</span>
-                      <span>Date: {new Date().toLocaleDateString()}</span>
-                      <span>Total Staff: {issuedUsers.length}</span>
+                      <span>{t("userImportDialog.importBatchLabel", { id: importResult.importId })}</span>
+                      <span>
+                        {t("userImportDialog.dateLabel", {
+                          date: new Date().toLocaleDateString(),
+                        })}
+                      </span>
+                      <span>{t("userImportDialog.totalStaffLabel", { count: issuedUsers.length })}</span>
                     </div>
                   </div>
 
                   <table className="w-full border-collapse text-xs">
                     <thead>
                       <tr className="border-b bg-gray-50">
-                        <th className="p-1.5 text-left font-semibold">#</th>
-                        <th className="p-1.5 text-left font-semibold">EMPLOYEE #</th>
-                        <th className="p-1.5 text-left font-semibold">NAME</th>
-                        <th className="p-1.5 text-left font-semibold">DEPARTMENT</th>
-                        <th className="p-1.5 text-left font-semibold">CARD STATUS / TOKEN</th>
-                        <th className="p-1.5 text-left font-semibold">SIGNATURE / ACKNOWLEDGMENT</th>
+                        <th className="p-1.5 text-left font-semibold">
+                          {t("userImportDialog.colRowNumber")}
+                        </th>
+                        <th className="p-1.5 text-left font-semibold">
+                          {t("userImportDialog.colEmployeeNoUpper")}
+                        </th>
+                        <th className="p-1.5 text-left font-semibold">{t("userImportDialog.colNameUpper")}</th>
+                        <th className="p-1.5 text-left font-semibold">
+                          {t("userImportDialog.colDepartmentUpper")}
+                        </th>
+                        <th className="p-1.5 text-left font-semibold">
+                          {t("userImportDialog.colCardStatusToken")}
+                        </th>
+                        <th className="p-1.5 text-left font-semibold">
+                          {t("userImportDialog.colSignatureAck")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -420,7 +450,9 @@ export function UserImportDialog({
                                 <span className="font-mono text-[10px]">{token}</span>
                               </div>
                             ) : (
-                              <span className="text-gray-500 italic">Card not issued</span>
+                              <span className="text-gray-500 italic">
+                                {t("userImportDialog.cardNotIssued")}
+                              </span>
                             )}
                           </td>
                           <td className="p-1.5 border-b border-gray-300 w-48" />
@@ -437,28 +469,28 @@ export function UserImportDialog({
         <DialogFooter>
           {step === "upload" && (
             <Button variant="outline" onClick={() => handleClose(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           )}
 
           {step === "preview" && (
             <div className="flex w-full justify-between gap-2">
               <Button variant="outline" onClick={() => setStep("upload")}>
-                Choose another file
+                {t("deviceImportDialog.chooseAnotherFile")}
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => handleClose(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   disabled={hasInvalidRows || commitMutation.isPending}
                   onClick={() => preview?.previewId && commitMutation.mutate(preview.previewId)}
                 >
                   {commitMutation.isPending ? (
-                    "Committing import…"
+                    t("deviceImportDialog.committingImport")
                   ) : (
                     <>
-                      Commit import
+                      {t("deviceImportDialog.commitImport")}
                       <ArrowRight className="size-4" data-icon="inline-end" />
                     </>
                   )}
@@ -468,7 +500,7 @@ export function UserImportDialog({
           )}
 
           {step === "done" && (
-            <Button onClick={() => handleClose(false)}>Done</Button>
+            <Button onClick={() => handleClose(false)}>{t("deviceImportDialog.done")}</Button>
           )}
         </DialogFooter>
       </DialogContent>

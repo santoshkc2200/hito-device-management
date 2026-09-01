@@ -54,6 +54,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/i18n";
 import { RoleGate } from "@/lib/use-role";
 import { authenticatedRoute } from "./authenticated";
 
@@ -111,6 +112,7 @@ function ReasonOverrideDialog({
   onConfirm: (reason: string) => void;
   isPending: boolean;
 }) {
+  const t = useT();
   const [reason, setReason] = useState("");
 
   const handleClose = () => {
@@ -127,11 +129,11 @@ function ReasonOverrideDialog({
         </DialogHeader>
         <div className="py-2">
           <label htmlFor="override-reason" className="block text-xs font-medium text-foreground mb-1.5">
-            Reason for administrative override (required for audit)
+            {t("loans.overrideReasonLabel")}
           </label>
           <Textarea
             id="override-reason"
-            placeholder="e.g. Device returned without scan, or found in department."
+            placeholder={t("loans.overrideReasonPlaceholder")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
@@ -140,14 +142,14 @@ function ReasonOverrideDialog({
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={handleClose} disabled={isPending}>
-            Cancel
+            {t("loans.cancel")}
           </Button>
           <Button
             variant={confirmVariant}
             disabled={!reason.trim() || isPending}
             onClick={() => onConfirm(reason.trim())}
           >
-            {isPending ? "Processing…" : confirmLabel}
+            {isPending ? t("loans.processing") : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -158,6 +160,7 @@ function ReasonOverrideDialog({
 const columnHelper = createColumnHelper<Loan>();
 
 export function LoansPage() {
+  const t = useT();
   const navigate = useNavigate({ from: loansRoute.fullPath });
   const search = loansRoute.useSearch();
   const queryClient = useQueryClient();
@@ -244,11 +247,11 @@ export function LoansPage() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["devices"] }),
       ]);
-      toast.success("Loan closed administratively (force returned)");
+      toast.success(t("loans.forceReturnSuccess"));
       setForceReturnTarget(null);
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Failed to force return loan");
+      toast.error(err?.detail || err?.title || t("loans.forceReturnFailed"));
     },
   });
 
@@ -267,11 +270,11 @@ export function LoansPage() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["devices"] }),
       ]);
-      toast.success("Loan written off (declared lost/destroyed)");
+      toast.success(t("loans.writeOffSuccess"));
       setWriteOffTarget(null);
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Failed to write off loan");
+      toast.error(err?.detail || err?.title || t("loans.writeOffFailed"));
     },
   });
 
@@ -279,18 +282,23 @@ export function LoansPage() {
     const user = userMap.get(loan.userId);
     const device = deviceMap.get(loan.deviceId);
     const formattedDue = formatDate(loan.dueAt);
-    const userName = user?.fullName || "Borrower";
-    const devName = device?.name || "Device";
+    const userName = user?.fullName || t("loans.reminderUserFallback");
+    const devName = device?.name || t("loans.reminderDeviceFallback");
     const assetTag = device?.assetTag || "";
 
-    const message = `Hi ${userName}, your loan for ${devName} (${assetTag}) was due on ${formattedDue}. Please return the device to any HDMS kiosk or admin station as soon as possible.`;
+    const message = t("loans.reminderMessage", {
+      user: userName,
+      device: devName,
+      assetTag,
+      dueAt: formattedDue,
+    });
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(message);
       }
-      toast.success("Reminder message copied to clipboard");
+      toast.success(t("loans.reminderCopied"));
     } catch {
-      toast.error("Could not copy reminder message to clipboard");
+      toast.error(t("loans.reminderCopyFailed"));
     }
   };
 
@@ -302,7 +310,7 @@ export function LoansPage() {
     // Filter by overdue if status === "overdue"
     if (search.status === "overdue") {
       items = items.filter(
-        (l) => l.status === "open" && l.dueAt && new Date(l.dueAt).getTime() < Date.now(),
+        (l) => l.status === "open" && l.dueAt && Date.now() > new Date(l.dueAt).getTime(),
       );
       // Sort worst first (highest days overdue / earliest due date)
       items.sort((a, b) => {
@@ -337,7 +345,7 @@ export function LoansPage() {
     () => [
       columnHelper.accessor("deviceId", {
         id: "device",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Device" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("loans.columnDevice")} />,
         cell: ({ row }) => {
           const loan = row.original;
           const device = deviceMap.get(loan.deviceId);
@@ -348,7 +356,7 @@ export function LoansPage() {
                 params={{ deviceId: loan.deviceId }}
                 className="font-medium text-foreground hover:text-primary hover:underline"
               >
-                {device?.name || "Unknown device"}
+                {device?.name || t("loans.unknownDevice")}
               </Link>
               <span className="font-identifier text-muted-foreground text-xs">
                 {device?.assetTag || loan.deviceId.slice(0, 8)}
@@ -359,7 +367,7 @@ export function LoansPage() {
       }),
       columnHelper.accessor("userId", {
         id: "borrower",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Borrower" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("loans.columnBorrower")} />,
         cell: ({ row }) => {
           const loan = row.original;
           const user = userMap.get(loan.userId);
@@ -370,7 +378,7 @@ export function LoansPage() {
                 params={{ userId: loan.userId }}
                 className="font-medium text-foreground hover:text-primary hover:underline"
               >
-                {user?.fullName || "Unknown borrower"}
+                {user?.fullName || t("loans.unknownBorrower")}
               </Link>
               {user?.employeeNo && (
                 <span className="text-muted-foreground text-xs">
@@ -383,7 +391,7 @@ export function LoansPage() {
       }),
       columnHelper.accessor("status", {
         id: "status",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Status & Origin" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("loans.columnStatusOrigin")} />,
         cell: ({ row }) => {
           const loan = row.original;
           const isOverdue =
@@ -392,7 +400,11 @@ export function LoansPage() {
             new Date(loan.dueAt).getTime() < Date.now();
 
           const tone = isOverdue ? "warning" : loanStatusTone[loan.status] || "muted";
-          const statusLabel = isOverdue ? "Overdue" : loan.status === "written_off" ? "Written off" : loan.status;
+          const statusLabel = isOverdue
+            ? t("loans.statusOverdue")
+            : loan.status === "written_off"
+              ? t("loans.statusWrittenOff")
+              : loan.status;
 
           return (
             <div className="flex items-center gap-2 flex-wrap">
@@ -404,7 +416,7 @@ export function LoansPage() {
       }),
       columnHelper.accessor("borrowedAt", {
         id: "borrowedAt",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Borrowed" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("loans.columnBorrowed")} />,
         cell: ({ getValue }) => (
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {formatDate(getValue())}
@@ -413,7 +425,7 @@ export function LoansPage() {
       }),
       columnHelper.accessor("dueAt", {
         id: "dueAt",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Due Date" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("loans.columnDueDate")} />,
         cell: ({ row }) => {
           const loan = row.original;
           if (!loan.dueAt) return <span className="text-xs text-muted-foreground">—</span>;
@@ -427,7 +439,7 @@ export function LoansPage() {
               <span className="text-xs text-foreground">{formatDate(loan.dueAt)}</span>
               {isOverdue && (
                 <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                  {days === 1 ? "1 day late" : `${days} days late`}
+                  {days === 1 ? t("loans.oneDayLate") : t("loans.daysLate", { days })}
                 </span>
               )}
             </div>
@@ -436,7 +448,7 @@ export function LoansPage() {
       }),
       columnHelper.accessor("returnedAt", {
         id: "returnedAt",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Returned" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("loans.columnReturned")} />,
         cell: ({ getValue }) => (
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {formatDate(getValue())}
@@ -445,7 +457,7 @@ export function LoansPage() {
       }),
       columnHelper.display({
         id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
+        header: () => <span className="sr-only">{t("columns.actions")}</span>,
         cell: ({ row }) => {
           const loan = row.original;
           const isOpen = loan.status === "open";
@@ -458,25 +470,25 @@ export function LoansPage() {
                   size="sm"
                   className="h-8 px-2 text-xs"
                   onClick={() => handleCopyReminder(loan)}
-                  title="Copy prepared reminder message to clipboard"
+                  title={t("loans.remindTooltip")}
                   data-testid={`remind-btn-${loan.id}`}
                 >
                   <Copy className="size-3.5 mr-1" />
-                  Remind
+                  {t("loans.remind")}
                 </Button>
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="size-8" data-testid={`loan-actions-${loan.id}`}>
                     <MoreHorizontal className="size-4" />
-                    <span className="sr-only">Open menu</span>
+                    <span className="sr-only">{t("columns.openMenu")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
                     <Link to="/loans/$loanId" params={{ loanId: loan.id }}>
                       <ExternalLink className="size-4 mr-2" />
-                      View loan detail
+                      {t("loans.viewLoanDetail")}
                     </Link>
                   </DropdownMenuItem>
 
@@ -488,7 +500,7 @@ export function LoansPage() {
                           className="text-amber-800 dark:text-amber-300"
                         >
                           <CornerDownLeft className="size-4 mr-2" />
-                          Force return…
+                          {t("loans.forceReturnAction")}
                         </DropdownMenuItem>
                       </RoleGate>
 
@@ -498,7 +510,7 @@ export function LoansPage() {
                           className="text-destructive focus:text-destructive"
                         >
                           <Trash2 className="size-4 mr-2" />
-                          Write off loan…
+                          {t("loans.writeOffAction")}
                         </DropdownMenuItem>
                       </RoleGate>
                     </>
@@ -510,7 +522,7 @@ export function LoansPage() {
         },
       }),
     ],
-    [userMap, deviceMap],
+    [userMap, deviceMap, t],
   );
 
   const isFiltered = Boolean(search.q || search.status || search.origin);
@@ -526,10 +538,10 @@ export function LoansPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <FileCheck2 className="size-5 text-primary" />
-            Loans
+            {t("loans.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Custody history, overdue priority tracking, and administrative overrides.
+            {t("loans.subtitle")}
           </p>
         </div>
 
@@ -540,7 +552,7 @@ export function LoansPage() {
               className="inline-flex items-center gap-1.5 text-xs text-rose-800 dark:text-rose-300"
             >
               <AlertCircle className="size-3.5 text-rose-600" />
-              Disputed loans
+              {t("loans.disputedLoans")}
             </Link>
           </Button>
         </div>
@@ -556,18 +568,18 @@ export function LoansPage() {
         onRetry={() => loansQuery.refetch()}
         searchQuery={search.q ?? ""}
         onSearchChange={(q) => updateSearch({ q: q || undefined })}
-        searchPlaceholder="Search by device, borrower, employee # or paper slip…"
+        searchPlaceholder={t("loans.searchPlaceholder")}
         isFiltered={isFiltered}
         onResetFilters={() => updateSearch({ q: undefined, status: undefined, origin: undefined })}
         onRowClick={(row) => void navigate({ to: "/loans/$loanId", params: { loanId: row.id } })}
         hasNextPage={loansQuery.hasNextPage}
         isFetchingNextPage={loansQuery.isFetchingNextPage}
         onFetchNextPage={() => loansQuery.fetchNextPage()}
-        emptyTitle="No loans found"
+        emptyTitle={t("loans.emptyTitle")}
         emptyExplanation={
           isFiltered
-            ? "No loan records match your current filters. Try clearing filters or refining your search."
-            : "No loans have been recorded yet in HDMS."
+            ? t("loans.emptyExplanationFiltered")
+            : t("loans.emptyExplanation")
         }
         filterControls={
           <>
@@ -575,15 +587,15 @@ export function LoansPage() {
               value={search.status || "all"}
               onValueChange={(val) => updateSearch({ status: val as any })}
             >
-              <SelectTrigger className="w-[140px] h-8 text-xs" aria-label="Filter by status">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="w-[140px] h-8 text-xs" aria-label={t("loans.filterByStatusAria")}>
+                <SelectValue placeholder={t("loans.statusPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="returned">Returned</SelectItem>
-                <SelectItem value="written_off">Written off</SelectItem>
+                <SelectItem value="all">{t("loans.allStatuses")}</SelectItem>
+                <SelectItem value="open">{t("loans.statusOpen")}</SelectItem>
+                <SelectItem value="overdue">{t("loans.statusOverdue")}</SelectItem>
+                <SelectItem value="returned">{t("loans.statusReturned")}</SelectItem>
+                <SelectItem value="written_off">{t("loans.statusWrittenOff")}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -591,15 +603,15 @@ export function LoansPage() {
               value={search.origin || "all"}
               onValueChange={(val) => updateSearch({ origin: val as any })}
             >
-              <SelectTrigger className="w-[130px] h-8 text-xs" aria-label="Filter by origin">
-                <SelectValue placeholder="Origin" />
+              <SelectTrigger className="w-[130px] h-8 text-xs" aria-label={t("loans.filterByOriginAria")}>
+                <SelectValue placeholder={t("loans.originPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All origins</SelectItem>
-                <SelectItem value="kiosk">Kiosk</SelectItem>
-                <SelectItem value="paper">Paper</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="import">Import</SelectItem>
+                <SelectItem value="all">{t("loans.allOrigins")}</SelectItem>
+                <SelectItem value="kiosk">{t("loans.originKiosk")}</SelectItem>
+                <SelectItem value="paper">{t("loans.originPaper")}</SelectItem>
+                <SelectItem value="admin">{t("loans.originAdmin")}</SelectItem>
+                <SelectItem value="import">{t("loans.originImport")}</SelectItem>
               </SelectContent>
             </Select>
           </>
@@ -610,15 +622,15 @@ export function LoansPage() {
       <ReasonOverrideDialog
         open={Boolean(forceReturnTarget)}
         onOpenChange={(open) => !open && setForceReturnTarget(null)}
-        title="Force Return Loan"
-        description={`Administratively close loan for ${
-          deviceMap.get(forceReturnTarget?.deviceId || "")?.name || "device"
-        } (${
-          deviceMap.get(forceReturnTarget?.deviceId || "")?.assetTag || ""
-        }) borrowed by ${
-          userMap.get(forceReturnTarget?.userId || "")?.fullName || "borrower"
-        }.`}
-        confirmLabel="Confirm return"
+        title={t("loans.forceReturnTitle")}
+        description={t("loans.forceReturnDescription", {
+          device:
+            deviceMap.get(forceReturnTarget?.deviceId || "")?.name || t("loans.deviceFallback"),
+          assetTag: deviceMap.get(forceReturnTarget?.deviceId || "")?.assetTag || "",
+          borrower:
+            userMap.get(forceReturnTarget?.userId || "")?.fullName || t("loans.borrowerFallback"),
+        })}
+        confirmLabel={t("loans.confirmReturn")}
         confirmVariant="default"
         isPending={forceReturnMutation.isPending}
         onConfirm={(reason) => {
@@ -632,13 +644,12 @@ export function LoansPage() {
       <ReasonOverrideDialog
         open={Boolean(writeOffTarget)}
         onOpenChange={(open) => !open && setWriteOffTarget(null)}
-        title="Write Off Loan"
-        description={`Declare device ${
-          deviceMap.get(writeOffTarget?.deviceId || "")?.name || "device"
-        } (${
-          deviceMap.get(writeOffTarget?.deviceId || "")?.assetTag || ""
-        }) lost or destroyed. This permanently closes the custody window and releases the temporal custody constraint.`}
-        confirmLabel="Write off loan"
+        title={t("loans.writeOffTitle")}
+        description={t("loans.writeOffDescription", {
+          device: deviceMap.get(writeOffTarget?.deviceId || "")?.name || t("loans.deviceFallback"),
+          assetTag: deviceMap.get(writeOffTarget?.deviceId || "")?.assetTag || "",
+        })}
+        confirmLabel={t("loans.confirmWriteOff")}
         confirmVariant="destructive"
         isPending={writeOffMutation.isPending}
         onConfirm={(reason) => {

@@ -4,9 +4,31 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { backfillRoute } from "../routes/backfill";
 
 const BackfillPage = backfillRoute.options.component!;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// i18n helpers — assert through the catalogue even where the count is dynamic
+// ─────────────────────────────────────────────────────────────────────────────
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Turns a `{count}`-templated catalogue string into a regex matching any count. */
+function localizedCountPattern(template: string): RegExp {
+  return new RegExp(template.split("{count}").map(escapeRegExp).join("\\d+"));
+}
+
+const stagedRowsHeadingPattern = localizedCountPattern(ja.backfill.stagedRowsHeading);
+
+function stagedRowsHeading(count: number): string {
+  return translate(catalogues, "ja", "backfill.stagedRowsHeading", { count });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock @hdms/api-client
@@ -100,30 +122,30 @@ describe("Paper Backfill — Phase 4.6", () => {
   describe("4.6a — Entry bar", () => {
     it("renders page reference and date context inputs", async () => {
       renderPage();
-      expect(screen.getByLabelText(/page reference/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/page date/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(ja.backfill.pageReferenceLabel)).toBeInTheDocument();
+      expect(screen.getByLabelText(ja.backfill.pageDateLabel)).toBeInTheDocument();
     });
 
     it("shows entry bar only after paperRef is set", async () => {
       const user = userEvent.setup();
       renderPage();
 
-      expect(screen.queryByText(/new entry/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(ja.backfill.newEntryHeading)).not.toBeInTheDocument();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "R");
 
-      expect(await screen.findByText(/new entry/i)).toBeInTheDocument();
+      expect(await screen.findByText(ja.backfill.newEntryHeading)).toBeInTheDocument();
     });
 
     it("focuses device field on load and after Escape reset", async () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "A"); // minimal ref to show entry bar
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       // Click the device field to focus, then type
       await user.click(deviceInput);
       await user.keyboard("HDMS-001");
@@ -140,16 +162,16 @@ describe("Paper Backfill — Phase 4.6", () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "X");
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-ENTER");
       await user.keyboard("{Enter}");
 
       // The staged rows table should appear
-      expect(await screen.findByText(/staged rows/i)).toBeInTheDocument();
+      expect(await screen.findByText(stagedRowsHeadingPattern)).toBeInTheDocument();
 
       // Device field should be cleared and refocused
       await waitFor(() => expect(deviceInput).toHaveValue(""));
@@ -160,31 +182,31 @@ describe("Paper Backfill — Phase 4.6", () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "Y");
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-CTRL");
       await user.keyboard("{Control>}{Enter}{/Control}");
 
-      expect(await screen.findByText(/staged rows/i)).toBeInTheDocument();
+      expect(await screen.findByText(stagedRowsHeadingPattern)).toBeInTheDocument();
     });
 
     it("Escape clears in-progress row without removing staged rows", async () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "Z");
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
 
       // Stage first row
       await user.click(deviceInput);
       await user.keyboard("HDMS-001");
       await user.keyboard("{Enter}");
-      expect(await screen.findByText(/staged rows \(1\)/i)).toBeInTheDocument();
+      expect(await screen.findByText(stagedRowsHeading(1))).toBeInTheDocument();
 
       // Start a second row, then escape
       await user.click(deviceInput);
@@ -194,7 +216,7 @@ describe("Paper Backfill — Phase 4.6", () => {
       // In-progress row is cleared
       expect(deviceInput).toHaveValue("");
       // Staged rows remain untouched
-      expect(screen.getByText(/staged rows \(1\)/i)).toBeInTheDocument();
+      expect(screen.getByText(stagedRowsHeading(1))).toBeInTheDocument();
     });
   });
 
@@ -224,11 +246,11 @@ describe("Paper Backfill — Phase 4.6", () => {
       } as any);
 
       renderPage();
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "P");
-      await screen.findByText(/new entry/i);
+      await screen.findByText(ja.backfill.newEntryHeading);
 
-      const personInput = screen.getByPlaceholderText(/name or employee no/i);
+      const personInput = screen.getByPlaceholderText(ja.backfill.personPlaceholder);
       await user.click(personInput);
       await user.keyboard("Sharma");
 
@@ -243,53 +265,53 @@ describe("Paper Backfill — Phase 4.6", () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "Q");
-      await screen.findByText(/new entry/i);
+      await screen.findByText(ja.backfill.newEntryHeading);
 
       // Stage one row first
-      const deviceInput = screen.getByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = screen.getByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-STAGED");
       await user.keyboard("{Enter}");
-      expect(await screen.findByText(/staged rows \(1\)/i)).toBeInTheDocument();
+      expect(await screen.findByText(stagedRowsHeading(1))).toBeInTheDocument();
 
       // Click the create-new-person button
-      const createBtn = screen.getByRole("button", { name: /create new person/i });
+      const createBtn = screen.getByRole("button", { name: ja.backfill.createNewPerson });
       await user.click(createBtn);
 
       // Dialog appears
-      expect(await screen.findByText(/create new person/i)).toBeInTheDocument();
-      expect(screen.getByText(/staged rows are not affected/i)).toBeInTheDocument();
+      expect(await screen.findByText(ja.backfill.createNewPerson)).toBeInTheDocument();
+      expect(screen.getByText(ja.backfillInlineUserDialog.description)).toBeInTheDocument();
 
       // Staged rows should still be visible
-      expect(screen.getByText(/staged rows \(1\)/i)).toBeInTheDocument();
+      expect(screen.getByText(stagedRowsHeading(1))).toBeInTheDocument();
     });
 
     it("inline person creation marks the person as NEW in staged table", async () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "N");
-      await screen.findByText(/new entry/i);
+      await screen.findByText(ja.backfill.newEntryHeading);
 
-      const createBtn = screen.getByRole("button", { name: /create new person/i });
+      const createBtn = screen.getByRole("button", { name: ja.backfill.createNewPerson });
       await user.click(createBtn);
 
-      await screen.findByLabelText(/full name/i);
-      await user.type(screen.getByLabelText(/full name/i), "Tanaka Hiroshi");
-      await user.click(screen.getByRole("button", { name: /add to batch/i }));
+      await screen.findByLabelText(ja.userDetail.fullNameLabel);
+      await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Tanaka Hiroshi");
+      await user.click(screen.getByRole("button", { name: ja.backfillInlineUserDialog.addToBatch }));
 
       // Now commit the row
-      const deviceInput = screen.getByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = screen.getByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-NEW");
       await user.keyboard("{Enter}");
 
       // Staged table should show NEW badge
-      expect(await screen.findByText(/staged rows/i)).toBeInTheDocument();
-      expect(screen.getAllByText("NEW")).toHaveLength(1);
+      expect(await screen.findByText(stagedRowsHeadingPattern)).toBeInTheDocument();
+      expect(screen.getAllByText(ja.backfill.newBadge)).toHaveLength(1);
     });
   });
 
@@ -300,7 +322,7 @@ describe("Paper Backfill — Phase 4.6", () => {
       const user = userEvent.setup();
       const { unmount } = renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "A");
       await user.type(refInput, "B");
       // Clear and retype to get a known value
@@ -316,13 +338,13 @@ describe("Paper Backfill — Phase 4.6", () => {
       });
       await waitFor(() => expect(refInput).toHaveValue("REG-PERSIST"));
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-CRASH");
       await user.keyboard("{Enter}");
 
       await waitFor(() =>
-        expect(screen.getByText(/staged rows \(1\)/i)).toBeInTheDocument(),
+        expect(screen.getByText(stagedRowsHeading(1))).toBeInTheDocument(),
       );
 
       // Verify localStorage was written
@@ -343,18 +365,18 @@ describe("Paper Backfill — Phase 4.6", () => {
       );
 
       // paperRef should be restored from localStorage
-      const refInput2 = screen.getByLabelText(/page reference/i);
+      const refInput2 = screen.getByLabelText(ja.backfill.pageReferenceLabel);
       expect(refInput2).toHaveValue("REG-PERSIST");
 
       // Staged rows should survive the simulated crash
-      expect(await screen.findByText(/staged rows \(1\)/i)).toBeInTheDocument();
+      expect(await screen.findByText(stagedRowsHeading(1))).toBeInTheDocument();
     });
 
     it("two page references keep separate staged sets", async () => {
       const user = userEvent.setup();
       const { unmount: _ } = renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
 
       // Set paperRef to "page-A" directly (no intermediate empty state)
       const fireChange = (val: string) => {
@@ -369,11 +391,11 @@ describe("Paper Backfill — Phase 4.6", () => {
       fireChange("page-A");
       await waitFor(() => expect(refInput).toHaveValue("page-A"));
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-A");
       await user.keyboard("{Enter}");
-      expect(await screen.findByText(/staged rows \(1\)/i)).toBeInTheDocument();
+      expect(await screen.findByText(stagedRowsHeading(1))).toBeInTheDocument();
 
       // Verify "page-A"'s row is in localStorage
       await waitFor(() => {
@@ -387,7 +409,7 @@ describe("Paper Backfill — Phase 4.6", () => {
 
       // page-B has no staged rows
       await waitFor(
-        () => expect(screen.queryByText(/staged rows/i)).not.toBeInTheDocument(),
+        () => expect(screen.queryByText(stagedRowsHeadingPattern)).not.toBeInTheDocument(),
         { timeout: 3000 },
       );
 
@@ -396,9 +418,10 @@ describe("Paper Backfill — Phase 4.6", () => {
       await waitFor(() => expect(refInput).toHaveValue("page-A"));
 
       // page-A's row should be restored from localStorage
-      expect(await screen.findByText(/staged rows \(1\)/i, {}, { timeout: 3000 })).toBeInTheDocument();
+      expect(
+        await screen.findByText(stagedRowsHeading(1), {}, { timeout: 3000 }),
+      ).toBeInTheDocument();
     });
-
 
 
 
@@ -407,21 +430,21 @@ describe("Paper Backfill — Phase 4.6", () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "V");
-      await screen.findByText(/new entry/i);
+      await screen.findByText(ja.backfill.newEntryHeading);
 
       // Look for the action combobox by label
-      const actionCombobox = screen.getByLabelText(/^action/i);
+      const actionCombobox = screen.getByLabelText(ja.backfill.actionLabel);
       expect(actionCombobox).toBeInTheDocument();
 
-      const deviceInput = screen.getByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = screen.getByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-OVR");
       await user.keyboard("{Enter}");
 
       // Staged row should appear (action = null by default = "auto")
-      expect(await screen.findByText(/staged rows/i)).toBeInTheDocument();
+      expect(await screen.findByText(stagedRowsHeadingPattern)).toBeInTheDocument();
     });
   });
 
@@ -432,28 +455,28 @@ describe("Paper Backfill — Phase 4.6", () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "C");
-      await screen.findByText(/new entry/i);
+      await screen.findByText(ja.backfill.newEntryHeading);
 
       // No staged rows yet, so the save button section doesn't render
-      expect(screen.queryByRole("button", { name: /save batch/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: ja.backfill.saveBatch })).not.toBeInTheDocument();
     });
 
     it("Save batch is enabled after staging rows with no conflicts", async () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "D");
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
 
       await user.click(deviceInput);
       await user.keyboard("HDMS-OK");
       await user.keyboard("{Enter}");
 
       // After staging, save button should exist
-      const saveButton = await screen.findByRole("button", { name: /save batch/i });
+      const saveButton = await screen.findByRole("button", { name: ja.backfill.saveBatch });
       expect(saveButton).toBeInTheDocument();
     });
 
@@ -461,9 +484,9 @@ describe("Paper Backfill — Phase 4.6", () => {
       const user = userEvent.setup();
       renderPage();
 
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "L");
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
 
       await user.click(deviceInput);
       await user.keyboard("HDMS-LOOP");
@@ -505,21 +528,23 @@ describe("Paper Backfill — Phase 4.6", () => {
       });
 
       renderPage();
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "S");
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-REC");
       await user.keyboard("{Enter}");
 
-      const saveButton = await screen.findByRole("button", { name: /save batch/i });
+      const saveButton = await screen.findByRole("button", { name: ja.backfill.saveBatch });
       await user.click(saveButton);
 
       // Success dialog should appear
       expect(await screen.findByTestId("commit-success-dialog")).toBeInTheDocument();
       // No new users, so no issue-cards prompt
-      expect(screen.queryByRole("button", { name: /issue cards/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: localizedCountPattern(ja.backfill.issueCardsOne) }),
+      ).not.toBeInTheDocument();
     });
 
 
@@ -528,19 +553,19 @@ describe("Paper Backfill — Phase 4.6", () => {
 
       // Set up staged rows: one with newUser
       renderPage();
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "F");
-      await screen.findByText(/new entry/i);
+      await screen.findByText(ja.backfill.newEntryHeading);
 
       // Create a new person inline
-      const createBtn = screen.getByRole("button", { name: /create new person/i });
+      const createBtn = screen.getByRole("button", { name: ja.backfill.createNewPerson });
       await user.click(createBtn);
 
-      const nameInput = await screen.findByLabelText(/full name/i);
+      const nameInput = await screen.findByLabelText(ja.userDetail.fullNameLabel);
       await user.type(nameInput, "Nakamura Yuki");
-      await user.click(screen.getByRole("button", { name: /add to batch/i }));
+      await user.click(screen.getByRole("button", { name: ja.backfillInlineUserDialog.addToBatch }));
 
-      const deviceInput = screen.getByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = screen.getByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-FOLLOW");
       await user.keyboard("{Enter}");
@@ -565,12 +590,14 @@ describe("Paper Backfill — Phase 4.6", () => {
         } as any;
       });
 
-      const saveButton = await screen.findByRole("button", { name: /save batch/i });
+      const saveButton = await screen.findByRole("button", { name: ja.backfill.saveBatch });
       await user.click(saveButton);
 
       // Follow-through dialog with card issuance button
       await screen.findByTestId("commit-success-dialog");
-      expect(screen.getByRole("button", { name: /issue cards to/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: localizedCountPattern(ja.backfill.issueCardsOne) }),
+      ).toBeInTheDocument();
     });
 
 
@@ -596,22 +623,22 @@ describe("Paper Backfill — Phase 4.6", () => {
       });
 
       renderPage();
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "T");
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-REC2");
       await user.keyboard("{Enter}");
 
-      await user.click(await screen.findByRole("button", { name: /save batch/i }));
+      await user.click(await screen.findByRole("button", { name: ja.backfill.saveBatch }));
 
       // Wait for the dialog to appear, then click record another page
       await screen.findByTestId("commit-success-dialog");
-      await user.click(screen.getByRole("button", { name: /record another page/i }));
+      await user.click(screen.getByRole("button", { name: ja.backfill.recordAnother }));
 
       // paperRef should be cleared
-      await waitFor(() => expect(screen.getByLabelText(/page reference/i)).toHaveValue(""));
+      await waitFor(() => expect(screen.getByLabelText(ja.backfill.pageReferenceLabel)).toHaveValue(""));
     });
 
     it("follow-through lists only new people from THIS batch", async () => {
@@ -639,10 +666,10 @@ describe("Paper Backfill — Phase 4.6", () => {
       });
 
       renderPage();
-      const refInput = screen.getByLabelText(/page reference/i) as HTMLInputElement;
+      const refInput = screen.getByLabelText(ja.backfill.pageReferenceLabel) as HTMLInputElement;
       await user.type(refInput, "O");
 
-      const deviceInput = await screen.findByLabelText(/device.*asset tag or scan/i);
+      const deviceInput = await screen.findByLabelText(ja.backfill.deviceLabel);
       await user.click(deviceInput);
       await user.keyboard("HDMS-EXISTING");
       await user.keyboard("{Enter}");
@@ -650,13 +677,15 @@ describe("Paper Backfill — Phase 4.6", () => {
       await user.keyboard("HDMS-NEWUSER");
       await user.keyboard("{Enter}");
 
-      await user.click(await screen.findByRole("button", { name: /save batch/i }));
+      await user.click(await screen.findByRole("button", { name: ja.backfill.saveBatch }));
 
       // Dialog should appear
       await screen.findByTestId("commit-success-dialog");
 
       // Only 1 new person (not 2 rows total)
-      expect(screen.getByText(/1 new person was created/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(translate(catalogues, "ja", "backfill.newPeopleOne", { count: 1 })),
+      ).toBeInTheDocument();
     });
 
   });

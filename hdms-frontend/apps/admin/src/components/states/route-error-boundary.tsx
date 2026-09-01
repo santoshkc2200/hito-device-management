@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { useT } from "@/i18n";
 import { ErrorState } from "./error-state";
 
 interface Props {
@@ -9,6 +10,25 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+function RouteErrorFallback({
+  error,
+  onRetry,
+}: {
+  error: Error | null;
+  onRetry: () => void;
+}) {
+  const t = useT();
+  return (
+    <div className="p-6">
+      <ErrorState
+        title={t("states.pageFailedToRender")}
+        detail={error?.message || t("states.unexpectedRenderingError")}
+        onRetry={onRetry}
+      />
+    </div>
+  );
 }
 
 export class RouteErrorBoundary extends Component<Props, State> {
@@ -32,16 +52,13 @@ export class RouteErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="p-6">
-          <ErrorState
-            title="Page failed to render"
-            detail={this.state.error?.message || "An unexpected rendering error occurred."}
-            onRetry={() => {
-              this.setState({ hasError: false, error: null });
-              window.location.reload();
-            }}
-          />
-        </div>
+        <RouteErrorFallback
+          error={this.state.error}
+          onRetry={() => {
+            this.setState({ hasError: false, error: null });
+            window.location.reload();
+          }}
+        />
       );
     }
 

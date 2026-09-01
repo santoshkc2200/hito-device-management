@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { toast } from "sonner";
 import {
   getSettings,
@@ -36,20 +36,21 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/states";
 import { useRole } from "@/lib/use-role";
 import { PencilLine, Plus, Save, Clock, AlertTriangle } from "lucide-react";
+import { useT } from "@/i18n";
 
 
 const policyFormSchema = z.object({
   blockOnOverdue: z.boolean(),
-  sessionIdleTimeoutSeconds: z.number().int().min(5, "Timeout must be at least 5 seconds").max(600, "Timeout cannot exceed 10 minutes"),
+  sessionIdleTimeoutSeconds: z.number().int().min(5, "validation.sessionTimeoutMin").max(600, "validation.sessionTimeoutMax"),
   kioskSoundEnabled: z.boolean(),
-  lowStockThreshold: z.number().int().min(0, "Threshold must be 0 or greater").max(10000, "Threshold too high"),
-  paperBacklogHours: z.number().int().min(1, "Backlog threshold must be at least 1 hour").max(720, "Backlog threshold too high"),
+  lowStockThreshold: z.number().int().min(0, "validation.thresholdMin").max(10000, "validation.thresholdMax"),
+  paperBacklogHours: z.number().int().min(1, "validation.backlogThresholdMin").max(720, "validation.backlogThresholdMax"),
 });
 
 type PolicyFormValues = z.infer<typeof policyFormSchema>;
 
 const categoryFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "validation.nameRequired"),
   defaultLoanPeriodDays: z.number().int().min(0).optional(),
   requiresApproval: z.boolean(),
 });
@@ -57,6 +58,7 @@ const categoryFormSchema = z.object({
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 export function PolicyPanel() {
+  const t = useT();
   const queryClient = useQueryClient();
   const { role } = useRole();
   const isAdmin = role === "admin";
@@ -99,7 +101,7 @@ export function PolicyPanel() {
     reset,
     formState: { errors, isDirty },
   } = useForm<PolicyFormValues>({
-    resolver: zodResolver(policyFormSchema),
+    resolver: useLocalizedResolver(policyFormSchema),
     defaultValues: {
       blockOnOverdue: false,
       sessionIdleTimeoutSeconds: 45,
@@ -134,16 +136,16 @@ export function PolicyPanel() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["settings"], data);
-      toast.success("Policy settings updated successfully");
+      toast.success(t("policyPanel.policyUpdated"));
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Failed to update policy settings");
+      toast.error(err?.detail || err?.title || t("policyPanel.policyUpdateFailed"));
     },
   });
 
   // 5. Category Form setup
   const categoryForm = useForm<CategoryFormValues>({
-    resolver: zodResolver(categoryFormSchema),
+    resolver: useLocalizedResolver(categoryFormSchema),
     defaultValues: {
       name: "",
       defaultLoanPeriodDays: 7,
@@ -205,24 +207,24 @@ export function PolicyPanel() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast.success(editingCategory ? "Category updated" : "Category created");
+      toast.success(editingCategory ? t("categoryManagerDialog.categoryUpdated") : t("categoryManagerDialog.categoryCreated"));
       setCategoryModalOpen(false);
     },
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to save category");
+      toast.error(err?.detail || t("policyPanel.categorySaveFailed"));
     },
   });
 
   if (isSettingsLoading || isCategoriesLoading) {
-    return <LoadingState message="Loading system settings and categories..." />;
+    return <LoadingState message={t("policyPanel.loadingSettings")} />;
   }
 
   if (settingsError) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center text-destructive">
         <AlertTriangle className="size-8 mb-2" />
-        <p className="font-semibold">Failed to load system settings</p>
-        <p className="text-xs text-muted-foreground mt-1">Please try refreshing the page.</p>
+        <p className="font-semibold">{t("policyPanel.loadFailedTitle")}</p>
+        <p className="text-xs text-muted-foreground mt-1">{t("kiosksPanel.tryRefreshing")}</p>
       </div>
     );
   }
@@ -233,15 +235,13 @@ export function PolicyPanel() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div>
-            <CardTitle>Device Categories</CardTitle>
-            <CardDescription>
-              Categories define default loan duration and borrow approval policies for devices.
-            </CardDescription>
+            <CardTitle>{t("policyPanel.deviceCategoriesTitle")}</CardTitle>
+            <CardDescription>{t("policyPanel.deviceCategoriesDescription")}</CardDescription>
           </div>
           {isAdmin && (
             <Button size="sm" onClick={openNewCategoryModal} className="gap-1.5">
               <Plus className="size-4" />
-              New Category
+              {t("policyPanel.newCategory")}
             </Button>
           )}
         </CardHeader>
@@ -250,10 +250,10 @@ export function PolicyPanel() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Category Name</TableHead>
-                  <TableHead>Default Loan Period</TableHead>
-                  <TableHead>Approval Policy</TableHead>
-                  {isAdmin && <TableHead className="w-16 text-right">Action</TableHead>}
+                  <TableHead>{t("policyPanel.colCategoryName")}</TableHead>
+                  <TableHead>{t("policyPanel.colDefaultLoanPeriod")}</TableHead>
+                  <TableHead>{t("policyPanel.colApprovalPolicy")}</TableHead>
+                  {isAdmin && <TableHead className="w-16 text-right">{t("policyPanel.colAction")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -265,20 +265,22 @@ export function PolicyPanel() {
                         {cat.defaultLoanPeriodSeconds ? (
                           <span className="flex items-center gap-1.5">
                             <Clock className="size-3.5 text-muted-foreground" />
-                            {Math.round(cat.defaultLoanPeriodSeconds / 86400)} days
+                            {t("categoryManagerDialog.daysSuffix", {
+                              days: Math.round(cat.defaultLoanPeriodSeconds / 86400),
+                            })}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground italic">Indefinite (No limit)</span>
+                          <span className="text-xs text-muted-foreground italic">{t("policyPanel.indefiniteNoLimit")}</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {cat.requiresApproval ? (
                           <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
-                            Requires Approval
+                            {t("policyPanel.requiresApprovalBadge")}
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-muted-foreground">
-                            Standard
+                            {t("policyPanel.standardBadge")}
                           </Badge>
                         )}
                       </TableCell>
@@ -288,7 +290,7 @@ export function PolicyPanel() {
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => openEditCategoryModal(cat)}
-                            title={`Edit ${cat.name}`}
+                            title={t("categoryManagerDialog.editAria", { name: cat.name })}
                           >
                             <PencilLine className="size-4" />
                           </Button>
@@ -299,7 +301,7 @@ export function PolicyPanel() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-6 text-muted-foreground">
-                      No categories configured. Click "New Category" to add one.
+                      {t("policyPanel.noCategoriesConfigured")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -312,10 +314,8 @@ export function PolicyPanel() {
       {/* System Policy & Thresholds Card */}
       <Card>
         <CardHeader>
-          <CardTitle>System & Checkout Policy</CardTitle>
-          <CardDescription>
-            Configure operational guardrails, kiosk session timeouts, and dashboard alert thresholds.
-          </CardDescription>
+          <CardTitle>{t("policyPanel.systemPolicyTitle")}</CardTitle>
+          <CardDescription>{t("policyPanel.systemPolicyDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit((v) => updatePolicyMutation.mutate(v))} className="space-y-6">
@@ -339,11 +339,9 @@ export function PolicyPanel() {
                     htmlFor="blockOnOverdue"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                   >
-                    Strict Overdue Enforcement
+                    {t("policyPanel.strictOverdueEnforcementLabel")}
                   </label>
-                  <p className="text-xs text-muted-foreground">
-                    Block new borrows at kiosk terminals if the borrower currently holds any overdue equipment.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t("policyPanel.strictOverdueEnforcementHint")}</p>
                 </div>
               </div>
 
@@ -366,11 +364,9 @@ export function PolicyPanel() {
                     htmlFor="kioskSoundEnabled"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                   >
-                    Kiosk Sound Feedback
+                    {t("policyPanel.kioskSoundLabel")}
                   </label>
-                  <p className="text-xs text-muted-foreground">
-                    Play auditory chimes and warning sounds on scan success and error events at kiosk tablets.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t("policyPanel.kioskSoundHint")}</p>
                 </div>
               </div>
             </div>
@@ -379,7 +375,7 @@ export function PolicyPanel() {
               {/* Session Timeout */}
               <div className="space-y-2">
                 <label htmlFor="sessionIdleTimeoutSeconds" className="text-sm font-medium">
-                  Kiosk Session Timeout (Seconds)
+                  {t("policyPanel.sessionTimeoutLabel")}
                 </label>
                 <Input
                   id="sessionIdleTimeoutSeconds"
@@ -389,9 +385,7 @@ export function PolicyPanel() {
                   disabled={!isAdmin}
                   {...register("sessionIdleTimeoutSeconds", { valueAsNumber: true })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Inactivity seconds before an active kiosk scan session resets to idle.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("policyPanel.sessionTimeoutHint")}</p>
                 {errors.sessionIdleTimeoutSeconds && (
                   <p className="text-xs text-destructive">{errors.sessionIdleTimeoutSeconds.message}</p>
                 )}
@@ -400,7 +394,7 @@ export function PolicyPanel() {
               {/* Blank Stock Threshold */}
               <div className="space-y-2">
                 <label htmlFor="lowStockThreshold" className="text-sm font-medium">
-                  Low Stock Threshold (Cards)
+                  {t("policyPanel.lowStockThresholdLabel")}
                 </label>
                 <Input
                   id="lowStockThreshold"
@@ -410,9 +404,7 @@ export function PolicyPanel() {
                   disabled={!isAdmin}
                   {...register("lowStockThreshold", { valueAsNumber: true })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Dashboard alerts when unassigned blank credential inventory drops below this number.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("policyPanel.lowStockThresholdHint")}</p>
                 {errors.lowStockThreshold && (
                   <p className="text-xs text-destructive">{errors.lowStockThreshold.message}</p>
                 )}
@@ -421,7 +413,7 @@ export function PolicyPanel() {
               {/* Paper Backlog Hours */}
               <div className="space-y-2">
                 <label htmlFor="paperBacklogHours" className="text-sm font-medium">
-                  Paper Ledger Warning (Hours)
+                  {t("policyPanel.paperBacklogHoursLabel")}
                 </label>
                 <Input
                   id="paperBacklogHours"
@@ -431,9 +423,7 @@ export function PolicyPanel() {
                   disabled={!isAdmin}
                   {...register("paperBacklogHours", { valueAsNumber: true })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Dashboard alerts if no paper ledger entries have been digitized in this timeframe.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("policyPanel.paperBacklogHoursHint")}</p>
                 {errors.paperBacklogHours && (
                   <p className="text-xs text-destructive">{errors.paperBacklogHours.message}</p>
                 )}
@@ -445,8 +435,10 @@ export function PolicyPanel() {
                 <div className="text-xs text-muted-foreground">
                   {settingsData?.updatedAt && (
                     <span>
-                      Last modified: {new Date(settingsData.updatedAt).toLocaleString()}
-                      {settingsData.updatedBy && ` by ${settingsData.updatedBy}`}
+                      {t("policyPanel.lastModified", {
+                        date: new Date(settingsData.updatedAt).toLocaleString(),
+                      })}
+                      {settingsData.updatedBy && t("policyPanel.byActor", { actor: settingsData.updatedBy })}
                     </span>
                   )}
                 </div>
@@ -456,7 +448,7 @@ export function PolicyPanel() {
                   className="gap-2"
                 >
                   <Save className="size-4" />
-                  {updatePolicyMutation.isPending ? "Saving..." : "Save Policy Settings"}
+                  {updatePolicyMutation.isPending ? t("policyPanel.savingPolicy") : t("policyPanel.savePolicySettings")}
                 </Button>
               </div>
             )}
@@ -468,10 +460,8 @@ export function PolicyPanel() {
       <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingCategory ? "Edit Category" : "New Category"}</DialogTitle>
-            <DialogDescription>
-              Specify the default borrowing duration and approval policy for this equipment category.
-            </DialogDescription>
+            <DialogTitle>{editingCategory ? t("policyPanel.editCategory") : t("policyPanel.newCategory")}</DialogTitle>
+            <DialogDescription>{t("policyPanel.categoryModalDescription")}</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={categoryForm.handleSubmit((v) => saveCategoryMutation.mutate(v))}
@@ -479,11 +469,11 @@ export function PolicyPanel() {
           >
             <div className="space-y-2">
               <label htmlFor="modal-cat-name" className="text-sm font-medium">
-                Category Name
+                {t("policyPanel.colCategoryName")}
               </label>
               <Input
                 id="modal-cat-name"
-                placeholder="e.g. Infusion Pump, Ultrasound Probe"
+                placeholder={t("policyPanel.categoryNamePlaceholder")}
                 autoFocus
                 {...categoryForm.register("name")}
               />
@@ -494,18 +484,16 @@ export function PolicyPanel() {
 
             <div className="space-y-2">
               <label htmlFor="modal-cat-days" className="text-sm font-medium">
-                Default Loan Period (Days)
+                {t("policyPanel.defaultLoanPeriodDaysLabel")}
               </label>
               <Input
                 id="modal-cat-days"
                 type="number"
                 min={0}
-                placeholder="Leave blank or 0 for indefinite loan period"
+                placeholder={t("policyPanel.loanPeriodPlaceholder")}
                 {...categoryForm.register("defaultLoanPeriodDays", { valueAsNumber: true })}
               />
-              <p className="text-xs text-muted-foreground">
-                Set to 0 or leave empty for items that don't have a mandatory due date.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("policyPanel.loanPeriodHint")}</p>
             </div>
 
             <div className="flex items-start space-x-3 rounded-lg border p-3">
@@ -525,11 +513,9 @@ export function PolicyPanel() {
                   htmlFor="modal-cat-approval"
                   className="text-sm font-medium cursor-pointer"
                 >
-                  Requires Approval
+                  {t("policyPanel.requiresApprovalBadge")}
                 </label>
-                <p className="text-xs text-muted-foreground">
-                  High-value or specialty equipment requiring clinical supervisor sign-off before loan release.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("policyPanel.requiresApprovalHint")}</p>
               </div>
             </div>
 
@@ -539,14 +525,14 @@ export function PolicyPanel() {
                 variant="outline"
                 onClick={() => setCategoryModalOpen(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={saveCategoryMutation.isPending}>
                 {saveCategoryMutation.isPending
-                  ? "Saving..."
+                  ? t("policyPanel.savingPolicy")
                   : editingCategory
-                  ? "Save Changes"
-                  : "Create Category"}
+                  ? t("policyPanel.saveChanges")
+                  : t("policyPanel.createCategory")}
               </Button>
             </DialogFooter>
           </form>

@@ -136,6 +136,14 @@ linters:
             - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; only cmd/hdms-api's composition root may import it"}
             - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; only cmd/hdms-api's composition root may import it"}
 
+        api-emits-codes-not-prose:
+          files: ["**/internal/apiserver/**"]
+          deny:
+            - pkg: github.com/hito-hospital/hdms/internal/platform/i18n$
+              desc: "API responses carry codes, never translated prose — the client renders the words (docs/superpowers/specs/2026-08-31-i18n-l10n-design.md)"
+            - pkg: golang.org/x/text/message$
+              desc: "API responses carry codes, never translated prose — the client renders the words"
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

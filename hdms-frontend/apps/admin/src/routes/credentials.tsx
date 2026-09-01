@@ -28,6 +28,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 const CARD_SHEET_SETTINGS = {
@@ -44,6 +45,7 @@ const CARD_SHEET_SETTINGS = {
 };
 
 function QuickBindCardSection({ onBound }: { onBound: () => void }) {
+  const t = useT();
   const [tokenInput, setTokenInput] = useState("");
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -76,17 +78,17 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
       return data;
     },
     onSuccess: () => {
-      setSuccessMsg(`Card successfully bound to ${selectedUserName}!`);
+      setSuccessMsg(t("credentials.boundSuccess", { user: selectedUserName ?? "" }));
       setTokenInput("");
       setEmployeeSearch("");
       setSelectedUserId(null);
       setSelectedUserName(null);
       setErrorMsg(null);
-      toast.success("Card bound and activated");
+      toast.success(t("credentials.boundToast"));
       onBound();
     },
     onError: (err: any) => {
-      setErrorMsg(err?.detail ?? err?.message ?? "Could not bind card to user");
+      setErrorMsg(err?.detail ?? err?.message ?? t("credentials.bindFailed"));
     },
   });
 
@@ -95,19 +97,19 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
     setSuccessMsg(null);
 
     if (!selectedUserId) {
-      setErrorMsg("Please select a borrower to assign this card to");
+      setErrorMsg(t("credentials.selectBorrowerFirst"));
       return;
     }
 
     const trimmedToken = tokenInput.trim();
     if (!trimmedToken) {
-      setErrorMsg("Please scan or type a blank card token");
+      setErrorMsg(t("credentials.scanTokenFirst"));
       return;
     }
 
     const inspection = inspectToken(trimmedToken);
     if (!inspection.isValid) {
-      setErrorMsg(inspection.errorMessage ?? "Invalid token structure");
+      setErrorMsg(inspection.errorMessage ?? t("credentials.invalidTokenStructure"));
       return;
     }
 
@@ -117,20 +119,25 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
         query: { token: trimmedToken },
       });
       if (resolveErr || !resolved) {
-        setErrorMsg("Card token not found in database");
+        setErrorMsg(t("credentials.tokenNotFound"));
         setIsVerifying(false);
         return;
       }
 
       if (resolved.type !== "unbound") {
-        setErrorMsg(`This card is already bound or active (Type: ${resolved.type}, Status: ${resolved.credentialStatus})`);
+        setErrorMsg(
+          t("credentials.tokenAlreadyBound", {
+            type: resolved.type,
+            status: resolved.credentialStatus,
+          }),
+        );
         setIsVerifying(false);
         return;
       }
 
       bindMutation.mutate({ cardId: resolved.credentialId, userId: selectedUserId });
     } catch (err: any) {
-      setErrorMsg(err?.message ?? "Failed to verify token");
+      setErrorMsg(err?.message ?? t("credentials.verifyFailed"));
     } finally {
       setIsVerifying(false);
     }
@@ -141,9 +148,9 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
       <div className="flex items-center gap-2">
         <LinkIcon className="size-5 text-primary" />
         <div>
-          <h2 className="text-base font-semibold text-foreground">Bind Blank Card to Borrower</h2>
+          <h2 className="text-base font-semibold text-foreground">{t("credentials.quickBindTitle")}</h2>
           <p className="text-xs text-muted-foreground">
-            Take a pre-printed blank card from the drawer and assign it to an existing registered borrower.
+            {t("credentials.quickBindSubtitle")}
           </p>
         </div>
       </div>
@@ -152,11 +159,11 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
         {/* Step 1: Pick User */}
         <div className="flex flex-col gap-2">
           <label htmlFor="user-search-input" className="text-xs font-semibold text-foreground">
-            1. Select Borrower
+            {t("credentials.step1")}
           </label>
           <Input
             id="user-search-input"
-            placeholder="Search by name or employee number…"
+            placeholder={t("credentials.userSearchPlaceholder")}
             value={employeeSearch}
             onChange={(e) => {
               setEmployeeSearch(e.target.value);
@@ -197,7 +204,7 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
 
           {selectedUserId && (
             <div className="flex items-center justify-between rounded-md bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary">
-              <span className="font-medium">Selected: {selectedUserName}</span>
+              <span className="font-medium">{t("credentials.selectedPrefix")} {selectedUserName}</span>
               <button
                 type="button"
                 className="underline hover:opacity-80"
@@ -207,7 +214,7 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
                   setEmployeeSearch("");
                 }}
               >
-                Change
+                {t("credentials.change")}
               </button>
             </div>
           )}
@@ -216,11 +223,11 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
         {/* Step 2: Scan / Type Blank Card */}
         <div className="flex flex-col gap-2">
           <label htmlFor="card-token-input" className="text-xs font-semibold text-foreground">
-            2. Scan or Enter Blank Card Token
+            {t("credentials.step2")}
           </label>
           <Input
             id="card-token-input"
-            placeholder="HD-U-..."
+            placeholder={t("credentials.tokenPlaceholder")}
             value={tokenInput}
             onChange={(e) => {
               setTokenInput(e.target.value);
@@ -236,7 +243,7 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
             className="font-mono"
           />
           <p className="text-[11px] text-muted-foreground">
-            USB wedge scanners will automatically fill this input when focused.
+            {t("credentials.wedgeHint")}
           </p>
         </div>
       </div>
@@ -261,7 +268,9 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
           onClick={handleBind}
         >
           <LinkIcon className="size-4" data-icon="inline-start" />
-          {isVerifying || bindMutation.isPending ? "Activating Card…" : "Bind and Activate Card"}
+          {isVerifying || bindMutation.isPending
+            ? t("credentials.activatingCard")
+            : t("credentials.bindAndActivate")}
         </Button>
       </div>
     </div>
@@ -269,6 +278,7 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
 }
 
 function CredentialsPage() {
+  const t = useT();
   const queryClient = useQueryClient();
   const [count, setCount] = useState(10);
   const [kind, setKind] = useState<CredentialKind>("qr");
@@ -289,9 +299,9 @@ function CredentialsPage() {
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["credentials", "unbound-count"] });
       setBatch(data!.items.map((c) => c.token));
-      toast.success(`${data!.items.length} blank cards minted`);
+      toast.success(t("credentials.minted", { count: data!.items.length }));
     },
-    onError: () => toast.error("Could not mint the batch"),
+    onError: () => toast.error(t("credentials.mintFailed")),
   });
 
   if (batch) {
@@ -299,18 +309,18 @@ function CredentialsPage() {
       <div className="flex flex-col gap-4 max-w-5xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Print New Card Batch</h1>
+            <h1 className="text-xl font-semibold text-foreground">{t("credentials.batchTitle")}</h1>
             <p className="text-sm text-muted-foreground">
-              {batch.length} pre-minted cards — print, laminate, and store in the desk drawer for on-the-spot registration.
+              {t("credentials.batchSubtitle", { count: batch.length })}
             </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setBatch(null)}>
-              Done
+              {t("credentials.done")}
             </Button>
             <Button onClick={() => window.print()}>
               <Printer className="size-4" data-icon="inline-start" />
-              Print sheet
+              {t("credentials.printSheet")}
             </Button>
           </div>
         </div>
@@ -333,16 +343,16 @@ function CredentialsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Blank Card Stock & Credentials
+            {t("credentials.title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage physical blank card drawer inventory, print badge stock, and bind cards to staff borrowers.
+            {t("credentials.subtitle")}
           </p>
         </div>
         <Link to="/card-reader-test">
           <Button variant="outline" size="sm">
             <Radio className="size-4" data-icon="inline-start" />
-            Scanner Diagnostic Tool
+            {t("credentials.scannerDiagnostic")}
           </Button>
         </Link>
       </div>
@@ -356,7 +366,7 @@ function CredentialsPage() {
         }`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Unbound Drawer Stock
+              {t("credentials.unboundStockLabel")}
             </span>
             <Layers className="size-4 text-primary" />
           </div>
@@ -368,12 +378,12 @@ function CredentialsPage() {
                 {unboundCount ?? 0}
               </span>
             )}
-            <span className="text-xs text-muted-foreground">cards ready</span>
+            <span className="text-xs text-muted-foreground">{t("credentials.cardsReady")}</span>
           </div>
           {isLowStock && (
             <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
               <AlertTriangle className="size-3.5" />
-              <span>Stock running low (under 10). Mint more.</span>
+              <span>{t("credentials.lowStockWarning")}</span>
             </div>
           )}
         </div>
@@ -381,31 +391,31 @@ function CredentialsPage() {
         <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Label Sheet Capacity
+              {t("credentials.sheetCapacityLabel")}
             </span>
             <Printer className="size-4 text-muted-foreground" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-3xl font-bold text-foreground">10</span>
-            <span className="text-xs text-muted-foreground">cards per A4 sheet (2×5)</span>
+            <span className="text-xs text-muted-foreground">{t("credentials.cardsPerSheet")}</span>
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Standard 85.6 × 54 mm ISO card layout.
+            {t("credentials.cardLayoutNote")}
           </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Symbology Standard
+              {t("credentials.symbologyLabel")}
             </span>
             <CreditCard className="size-4 text-muted-foreground" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-lg font-bold text-foreground">Crockford Base32</span>
+            <span className="text-lg font-bold text-foreground">{t("credentials.symbologyValue")}</span>
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Mod-37 checksum with ambiguous character protection.
+            {t("credentials.symbologyNote")}
           </p>
         </div>
       </div>
@@ -422,16 +432,16 @@ function CredentialsPage() {
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="size-5 text-primary" />
           <div>
-            <h2 className="text-base font-semibold text-foreground">Mint Batch of Blank Cards</h2>
+            <h2 className="text-base font-semibold text-foreground">{t("credentials.mintTitle")}</h2>
             <p className="text-xs text-muted-foreground">
-              Generate pre-allocated unbound credential tokens and print them on perforated badge stock.
+              {t("credentials.mintSubtitle")}
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field>
-            <FieldLabel htmlFor="batch-count">Number of Cards (1–200)</FieldLabel>
+            <FieldLabel htmlFor="batch-count">{t("credentials.countLabel")}</FieldLabel>
             <Input
               id="batch-count"
               type="number"
@@ -441,23 +451,23 @@ function CredentialsPage() {
               onChange={(e) => setCount(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Tip: Minting multiples of 10 matches full A4 sheet grids.
+              {t("credentials.countHint")}
             </p>
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="batch-kind">Barcode Format</FieldLabel>
+            <FieldLabel htmlFor="batch-kind">{t("credentials.formatLabel")}</FieldLabel>
             <Select value={kind} onValueChange={(v) => setKind(v as CredentialKind)}>
               <SelectTrigger id="batch-kind" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="qr">QR Code (2D 15mm – Recommended)</SelectItem>
-                <SelectItem value="code128">Code 128 (1D Barcode)</SelectItem>
+                <SelectItem value="qr">{t("credentials.formatQr")}</SelectItem>
+                <SelectItem value="code128">{t("credentials.formatCode128")}</SelectItem>
               </SelectContent>
             </Select>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Every minted card includes a legible plaintext token code for manual typing.
+              {t("credentials.formatHint")}
             </p>
           </Field>
         </div>
@@ -468,7 +478,9 @@ function CredentialsPage() {
             onClick={() => mutation.mutate()}
           >
             <Printer className="size-4" data-icon="inline-start" />
-            {mutation.isPending ? "Generating tokens…" : `Mint & Print ${count} Blank Cards`}
+            {mutation.isPending
+              ? t("credentials.generatingTokens")
+              : t("credentials.mintAndPrint", { count })}
           </Button>
         </div>
       </div>

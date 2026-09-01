@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useT } from "@/i18n";
 
 export interface CreatedPerson {
   /** newUser payload the backfill row will carry */
@@ -47,6 +48,7 @@ export function InlineUserDialog({
   onConfirm,
   initialName = "",
 }: InlineUserDialogProps) {
+  const t = useT();
   const [fullName, setFullName] = useState(initialName);
   const [employeeNo, setEmployeeNo] = useState("");
   const [departmentId, setDepartmentId] = useState<string | undefined>();
@@ -97,25 +99,20 @@ export function InlineUserDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
-            Create new person
+            {t("backfill.createNewPerson")}
           </DialogTitle>
-          <DialogDescription>
-            The person will be created atomically when this batch is saved.
-            Staged rows are not affected.
-          </DialogDescription>
+          <DialogDescription>{t("backfillInlineUserDialog.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">
           <Field>
-            <FieldLabel htmlFor="iud-fullname">
-              Full name
-            </FieldLabel>
+            <FieldLabel htmlFor="iud-fullname">{t("userDetail.fullNameLabel")}</FieldLabel>
             <Input
               id="iud-fullname"
               ref={nameRef}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Tanaka Hiroshi"
+              placeholder={t("backfillInlineUserDialog.fullNamePlaceholder")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleConfirm();
               }}
@@ -124,12 +121,12 @@ export function InlineUserDialog({
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="iud-empno">Employee no.</FieldLabel>
+            <FieldLabel htmlFor="iud-empno">{t("users.columnEmployeeNo")}</FieldLabel>
             <Input
               id="iud-empno"
               value={employeeNo}
               onChange={(e) => setEmployeeNo(e.target.value)}
-              placeholder="E-1234"
+              placeholder="E-1234" // i18n-allow-literal: employee number format example, not translatable prose
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleConfirm();
               }}
@@ -137,10 +134,10 @@ export function InlineUserDialog({
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="iud-dept">Department</FieldLabel>
+            <FieldLabel htmlFor="iud-dept">{t("users.columnDepartment")}</FieldLabel>
             <Select value={departmentId ?? ""} onValueChange={(val) => setDepartmentId(val || undefined)}>
               <SelectTrigger id="iud-dept">
-                <SelectValue placeholder="Select department (optional)" />
+                <SelectValue placeholder={t("backfillInlineUserDialog.selectDepartmentPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {departments?.map((d) => (
@@ -155,10 +152,10 @@ export function InlineUserDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleConfirm} disabled={!fullName.trim()}>
-            Add to batch
+            {t("backfillInlineUserDialog.addToBatch")}
           </Button>
         </DialogFooter>
       </DialogContent>

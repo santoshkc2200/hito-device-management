@@ -3,8 +3,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { AdminAccountsPanel } from "@/components/admin-accounts-panel";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 
 // Mock TanStack Router
 vi.mock("@tanstack/react-router", async (importOriginal) => {
@@ -85,22 +88,38 @@ describe("4.1c Admin Accounts Management & Role Gating", () => {
     expect(screen.getByText("Lead Technician")).toBeInTheDocument();
     expect(screen.getByText("Locked Account")).toBeInTheDocument();
 
-    expect(screen.getByText("Locked")).toBeInTheDocument();
+    expect(screen.getByText(ja.adminAccountsPanel.statusLocked)).toBeInTheDocument();
   });
 
   it("admin role sees 'Add administrator' button and action menus", async () => {
     renderPanel("admin");
 
-    expect(await screen.findByRole("button", { name: /add administrator/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /actions for system admin/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: ja.adminAccountsPanel.addAdministrator })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: translate(catalogues, "ja", "adminAccountsPanel.actionsForAria", {
+          name: "System Admin",
+        }),
+      })
+    ).toBeInTheDocument();
   });
 
   it("viewer role cannot see 'Add administrator' button or action menus", async () => {
     renderPanel("viewer");
 
     expect(await screen.findByText("System Admin")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /add administrator/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /actions for system admin/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: ja.adminAccountsPanel.addAdministrator })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: translate(catalogues, "ja", "adminAccountsPanel.actionsForAria", {
+          name: "System Admin",
+        }),
+      })
+    ).not.toBeInTheDocument();
   });
 
   it("creates a new admin and presents enrolment QR code and recovery codes", async () => {
@@ -127,15 +146,22 @@ describe("4.1c Admin Accounts Management & Role Gating", () => {
     renderPanel("admin");
 
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /add administrator/i }));
+    await user.click(
+      await screen.findByRole("button", { name: ja.adminAccountsPanel.addAdministrator })
+    );
 
-    expect(screen.getByRole("heading", { name: /add administrator/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: ja.adminAccountsPanel.addAdministrator })
+    ).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(/full name/i), "New Administrator");
-    await user.type(screen.getByLabelText(/email/i), "newadmin@hito.local");
-    await user.type(screen.getByLabelText(/initial password/i), "SecureInitialPassword123!");
+    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "New Administrator");
+    await user.type(screen.getByLabelText(ja.userDetail.emailLabel), "newadmin@hito.local");
+    await user.type(
+      screen.getByLabelText(ja.adminAccountsPanel.initialPasswordLabel),
+      "SecureInitialPassword123!"
+    );
 
-    await user.click(screen.getByRole("button", { name: /create account/i }));
+    await user.click(screen.getByRole("button", { name: ja.adminAccountsPanel.createAccount }));
 
     await waitFor(() => {
       expect(createSpy).toHaveBeenCalledWith({
@@ -149,7 +175,9 @@ describe("4.1c Admin Accounts Management & Role Gating", () => {
     });
 
     // Enrolment result dialog is shown with QR secret & recovery codes
-    expect(await screen.findByText(/administrator credentials created/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(ja.adminAccountsPanel.credentialsCreatedTitle)
+    ).toBeInTheDocument();
     expect(screen.getByText("NEWSECRET123")).toBeInTheDocument();
     expect(screen.getByText("REC-1111")).toBeInTheDocument();
     expect(screen.getByText("REC-4444")).toBeInTheDocument();
@@ -164,15 +192,33 @@ describe("4.1c Admin Accounts Management & Role Gating", () => {
     renderPanel("admin");
 
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /actions for lead technician/i }));
-    await user.click(screen.getByRole("menuitem", { name: /reset password/i }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: translate(catalogues, "ja", "adminAccountsPanel.actionsForAria", {
+          name: "Lead Technician",
+        }),
+      })
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: ja.adminAccountsPanel.resetPasswordAction })
+    );
 
-    expect(screen.getByRole("heading", { name: /reset password/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: ja.adminAccountsPanel.resetPasswordAction })
+    ).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(/new password/i), "BrandNewPassword123!");
-    await user.type(screen.getByLabelText(/audit reason/i), "Employee requested reset after lockout");
+    await user.type(
+      screen.getByLabelText(ja.forcedPasswordChangeDialog.newPasswordLabel),
+      "BrandNewPassword123!"
+    );
+    await user.type(
+      screen.getByLabelText(ja.adminAccountsPanel.auditReasonLabel),
+      "Employee requested reset after lockout"
+    );
 
-    await user.click(screen.getByRole("button", { name: /^reset password$/i }));
+    await user.click(
+      screen.getByRole("button", { name: ja.adminAccountsPanel.resetPasswordAction })
+    );
 
     await waitFor(() => {
       expect(resetSpy).toHaveBeenCalledWith({
@@ -197,13 +243,26 @@ describe("4.1c Admin Accounts Management & Role Gating", () => {
     renderPanel("admin");
 
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /actions for lead technician/i }));
-    await user.click(screen.getByRole("menuitem", { name: /force totp re-enrolment/i }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: translate(catalogues, "ja", "adminAccountsPanel.actionsForAria", {
+          name: "Lead Technician",
+        }),
+      })
+    );
+    await user.click(screen.getByRole("menuitem", { name: ja.adminAccountsPanel.forceTotpAction }));
 
-    expect(screen.getByRole("heading", { name: /force totp re-enrolment/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: ja.adminAccountsPanel.forceTotpAction })
+    ).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(/audit reason/i), "Replacement mobile phone issued");
-    await user.click(screen.getByRole("button", { name: /force re-enrolment/i }));
+    await user.type(
+      screen.getByLabelText(ja.adminAccountsPanel.auditReasonLabel),
+      "Replacement mobile phone issued"
+    );
+    await user.click(
+      screen.getByRole("button", { name: ja.adminAccountsPanel.forceReenrolment })
+    );
 
     await waitFor(() => {
       expect(forceSpy).toHaveBeenCalledWith({
@@ -214,7 +273,13 @@ describe("4.1c Admin Accounts Management & Role Gating", () => {
       });
     });
 
-    expect(await screen.findByText(/new totp secret for lead technician/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        translate(catalogues, "ja", "adminAccountsPanel.newTotpSecretTitle", {
+          name: "Lead Technician",
+        })
+      )
+    ).toBeInTheDocument();
     expect(screen.getByText("RESETSECRET456")).toBeInTheDocument();
   });
 
@@ -227,13 +292,28 @@ describe("4.1c Admin Accounts Management & Role Gating", () => {
     renderPanel("admin");
 
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /actions for locked account/i }));
-    await user.click(screen.getByRole("menuitem", { name: /unlock account/i }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: translate(catalogues, "ja", "adminAccountsPanel.actionsForAria", {
+          name: "Locked Account",
+        }),
+      })
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: ja.adminAccountsPanel.unlockAccountAction })
+    );
 
-    expect(screen.getByRole("heading", { name: /unlock administrator account/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: ja.adminAccountsPanel.unlockAccountTitle })
+    ).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(/audit reason/i), "Identity verified in person at helpdesk");
-    await user.click(screen.getByRole("button", { name: /unlock account/i }));
+    await user.type(
+      screen.getByLabelText(ja.adminAccountsPanel.auditReasonLabel),
+      "Identity verified in person at helpdesk"
+    );
+    await user.click(
+      screen.getByRole("button", { name: ja.adminAccountsPanel.unlockAccountAction })
+    );
 
     await waitFor(() => {
       expect(unlockSpy).toHaveBeenCalledWith({

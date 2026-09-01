@@ -71,6 +71,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 // ─────────────────────────────────────────────────────────────
@@ -199,6 +200,7 @@ function TimeInput({
   onEscape?: () => void;
   inputRef?: React.Ref<HTMLInputElement>;
 }) {
+  const t = useT();
   const parsed = value ? parseForgivingTime(value, baseDate) : null;
   const preview = parsed?.ok ? parsed.formatted : null;
   const error = parsed && !parsed.ok ? parsed.error : null;
@@ -217,7 +219,7 @@ function TimeInput({
               const p = raw ? parseForgivingTime(raw, baseDate) : null;
               onChange(raw, p?.ok ? p.iso : null);
             }}
-            placeholder="09:15"
+            placeholder={t("backfill.timePlaceholder")}
             className={error ? "border-red-500" : undefined}
             tabIndex={tabIndex}
             onKeyDown={(e) => {
@@ -261,6 +263,7 @@ function PersonInput({
   onEscape?: () => void;
   inputRef?: React.Ref<HTMLInputElement>;
 }) {
+  const t = useT();
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -309,7 +312,7 @@ function PersonInput({
   return (
     <div ref={wrapperRef} className="relative">
       <Field>
-        <FieldLabel htmlFor="pv-person">Person</FieldLabel>
+        <FieldLabel htmlFor="pv-person">{t("backfill.personLabel")}</FieldLabel>
         <div className="flex gap-1">
           <div className="relative flex-1">
             <Input
@@ -324,7 +327,7 @@ function PersonInput({
               onFocus={() => {
                 if (!person) setShowDropdown(true);
               }}
-              placeholder="Name or employee no."
+              placeholder={t("backfill.personPlaceholder")}
               tabIndex={tabIndex}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
@@ -340,7 +343,7 @@ function PersonInput({
             )}
             {person?.isNew && (
               <Badge variant="secondary" className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] py-0">
-                NEW
+                {t("backfill.newBadge")}
               </Badge>
             )}
           </div>
@@ -349,7 +352,7 @@ function PersonInput({
             variant="outline"
             size="icon"
             tabIndex={-1}
-            aria-label="Create new person"
+            aria-label={t("backfill.createNewPersonAria")}
             onClick={() => onCreateNew(value)}
             className="shrink-0"
           >
@@ -392,13 +395,13 @@ function PersonInput({
             </ul>
           ) : (
             <div className="px-3 py-2 text-sm text-muted-foreground">
-              No matches.{" "}
+              {t("backfill.noMatches")}{" "}
               <button
                 type="button"
                 className="text-primary underline hover:no-underline"
                 onClick={() => { setShowDropdown(false); onCreateNew(value); }}
               >
-                Create new person
+                {t("backfill.createNewPerson")}
               </button>
             </div>
           )}
@@ -412,12 +415,12 @@ function PersonInput({
 // Status / conflict badge helpers
 // ─────────────────────────────────────────────────────────────
 
-function statusLabel(s: BackfillRowStatus): string {
+function statusLabel(t: ReturnType<typeof useT>, s: BackfillRowStatus): string {
   switch (s) {
-    case "ok": return "OK";
-    case "conflict": return "Conflict";
-    case "unresolved": return "Unresolved";
-    case "discarded": return "Discarded";
+    case "ok": return t("backfill.statusOk");
+    case "conflict": return t("backfill.statusConflict");
+    case "unresolved": return t("backfill.statusUnresolved");
+    case "discarded": return t("backfill.statusDiscarded");
   }
 }
 
@@ -445,6 +448,7 @@ function ConflictPanel({
   conflict: BackfillConflict;
   onResolve: (resolution: BackfillResolution) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(true);
   const el = conflict.existingLoan;
 
@@ -456,7 +460,7 @@ function ConflictPanel({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <span>Row {rowIndex + 1}: Overlapping custody conflict</span>
+        <span>{t("backfill.conflictHeading", { row: rowIndex + 1 })}</span>
         {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
 
@@ -466,22 +470,26 @@ function ConflictPanel({
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="rounded border bg-background p-3">
               <p className="mb-1 font-semibold uppercase tracking-wide text-muted-foreground">
-                Existing record
+                {t("backfill.existingRecord")}
               </p>
               <p className="font-medium">{el.userDisplay}</p>
               {el.department && <p className="text-muted-foreground">{el.department}</p>}
               <p className="mt-1">
-                Out: {new Date(el.borrowedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {t("backfill.outAt", {
+                  time: new Date(el.borrowedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                })}
                 {el.returnedAt
-                  ? ` → In: ${new Date(el.returnedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : " (still on loan)"}
+                  ? t("backfill.inAt", {
+                      time: new Date(el.returnedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                    })
+                  : t("backfill.stillOnLoan")}
               </p>
-              <p className="mt-1 text-muted-foreground">Origin: {el.origin}</p>
+              <p className="mt-1 text-muted-foreground">{t("backfill.originLabel", { origin: el.origin })}</p>
             </div>
 
             <div className="rounded border bg-background p-3">
               <p className="mb-1 font-semibold uppercase tracking-wide text-muted-foreground">
-                Paper entry
+                {t("backfill.paperEntry")}
               </p>
               <p className="font-medium">{row.person?.label ?? "—"}</p>
               <p className="mt-1">
@@ -490,13 +498,17 @@ function ConflictPanel({
               </p>
               <p className="mt-1">
                 {row.outTime
-                  ? `Out: ${new Date(row.outTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : "Out: —"}
+                  ? t("backfill.outAt", {
+                      time: new Date(row.outTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                    })
+                  : t("backfill.outUnknown")}
                 {row.inTime
-                  ? ` → In: ${new Date(row.inTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  ? t("backfill.inAt", {
+                      time: new Date(row.inTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                    })
                   : ""}
               </p>
-              <p className="mt-1 text-muted-foreground">Action: {row.action ?? "auto"}</p>
+              <p className="mt-1 text-muted-foreground">{t("backfill.actionValueLabel", { action: row.action ?? "auto" })}</p>
             </div>
           </div>
 
@@ -504,17 +516,17 @@ function ConflictPanel({
           <div className="flex flex-wrap gap-2">
             {conflict.resolutions.includes("truncate-existing") && (
               <Button size="sm" variant="outline" onClick={() => onResolve("truncate-existing")}>
-                Correct existing end time
+                {t("backfill.resolveTruncate")}
               </Button>
             )}
             {conflict.resolutions.includes("change-device") && (
               <Button size="sm" variant="outline" onClick={() => onResolve("change-device")}>
-                Change asset tag
+                {t("backfill.resolveChangeDevice")}
               </Button>
             )}
             {conflict.resolutions.includes("discard-row") && (
               <Button size="sm" variant="outline" onClick={() => onResolve("discard-row")}>
-                Discard this row
+                {t("backfill.resolveDiscard")}
               </Button>
             )}
             {conflict.resolutions.includes("record-as-disputed") && (
@@ -524,15 +536,14 @@ function ConflictPanel({
                 className="border-amber-500 text-amber-700 hover:bg-amber-50"
                 onClick={() => onResolve("record-as-disputed")}
               >
-                Record as disputed
+                {t("backfill.resolveDisputed")}
               </Button>
             )}
           </div>
 
           <p className="text-xs text-muted-foreground">
-            <strong>Disputed entries</strong> are stored outside the exclusion
-            constraint, badged permanently, and listed in the disputed loans view.
-            Use this when the truth is genuinely unknown.
+            <strong>{t("backfill.disputedNoteLead")}</strong>
+            {t("backfill.disputedNoteRest")}
           </p>
         </div>
       )}
@@ -559,6 +570,7 @@ function FollowThroughDialog({
   onRecordAnother: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const navigate = useNavigate();
 
   return (
@@ -567,19 +579,21 @@ function FollowThroughDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-green-700">
             <CheckCircle2 className="h-5 w-5" />
-            {summary.totalRows} {summary.totalRows === 1 ? "entry" : "entries"} recorded
+            {summary.totalRows === 1
+              ? t("backfill.committedOne", { count: summary.totalRows })
+              : t("backfill.committedOther", { count: summary.totalRows })}
           </DialogTitle>
           <DialogDescription>
-            From page reference <strong>{summary.paperRef}</strong>
+            {t("backfill.fromPageReference")} <strong>{summary.paperRef}</strong>
           </DialogDescription>
         </DialogHeader>
 
         {summary.newUsers.length > 0 && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-4">
             <p className="mb-2 font-medium text-amber-800">
-              {summary.newUsers.length} new{" "}
-              {summary.newUsers.length === 1 ? "person was" : "people were"} created
-              and {summary.newUsers.length === 1 ? "has" : "have"} no card yet.
+              {summary.newUsers.length === 1
+                ? t("backfill.newPeopleOne", { count: summary.newUsers.length })
+                : t("backfill.newPeopleOther", { count: summary.newUsers.length })}
             </p>
             <ul className="mb-3 space-y-1 text-sm text-amber-700">
               {summary.newUsers.map((u) => (
@@ -594,17 +608,18 @@ function FollowThroughDialog({
               }}
             >
               <UserPlus className="mr-2 h-4 w-4" />
-              Issue cards to {summary.newUsers.length}{" "}
-              {summary.newUsers.length === 1 ? "person" : "people"}
+              {summary.newUsers.length === 1
+                ? t("backfill.issueCardsOne", { count: summary.newUsers.length })
+                : t("backfill.issueCardsOther", { count: summary.newUsers.length })}
             </Button>
           </div>
         )}
 
         <DialogFooter className="gap-2 sm:flex-row">
           <Button variant="outline" onClick={onRecordAnother}>
-            Record another page
+            {t("backfill.recordAnother")}
           </Button>
-          <Button onClick={onDone}>Done</Button>
+          <Button onClick={onDone}>{t("backfill.done")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -616,6 +631,7 @@ function FollowThroughDialog({
 // ─────────────────────────────────────────────────────────────
 
 function BackfillPage() {
+  const t = useT();
   // ── Sticky context (4.6c) ──
   const [paperRef, setPaperRef] = useState<string>(() => {
     return localStorage.getItem(LS_REF_KEY) ?? "";
@@ -748,11 +764,16 @@ function BackfillPage() {
       }));
       const { data, error } = await recordBackfillBatch({ body: { paperRef, rows } });
       if (error) {
-        toast.error(`Commit failed: ${(error as { message?: string }).message ?? "Unknown error"}`);
+        toast.error(
+          t("backfill.commitFailed", {
+            message:
+              (error as { message?: string }).message ?? t("backfill.commitUnknownError"),
+          }),
+        );
         return;
       }
       if (!data.committed) {
-        toast.error("Server did not commit the batch — check for conflicts and retry.");
+        toast.error(t("backfill.notCommitted"));
         return;
       }
 
@@ -846,11 +867,14 @@ function BackfillPage() {
       <div>
         <h1 className="text-xl font-semibold flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5" />
-          Paper register backfill
+          {t("backfill.title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Keyboard-only entry — <kbd className="rounded border px-1 py-0.5 text-xs font-mono">Enter</kbd> commits each row,{" "}
-          <kbd className="rounded border px-1 py-0.5 text-xs font-mono">Escape</kbd> clears the in-progress row.
+          {t("backfill.keyboardHintPrefix")}
+          <kbd className="rounded border px-1 py-0.5 text-xs font-mono">{t("backfill.keyboardHintEnter")}</kbd>
+          {t("backfill.keyboardHintMiddle")}
+          <kbd className="rounded border px-1 py-0.5 text-xs font-mono">{t("backfill.keyboardHintEscape")}</kbd>
+          {t("backfill.keyboardHintSuffix")}
         </p>
       </div>
 
@@ -858,18 +882,18 @@ function BackfillPage() {
       <div className="flex flex-wrap gap-4 rounded-md border bg-muted/30 p-4">
         <Field className="flex-1 min-w-48">
           <FieldLabel htmlFor="ctx-ref">
-            Page reference
+            {t("backfill.pageReferenceLabel")}
           </FieldLabel>
           <Input
             id="ctx-ref"
             value={paperRef}
             onChange={(e) => setPaperRef(e.target.value)}
-            placeholder="REG-2026-08-20-A"
+            placeholder={t("backfill.pageReferencePlaceholder")}
           />
         </Field>
         <Field className="flex-1 min-w-40">
           <FieldLabel htmlFor="ctx-date">
-            Page date
+            {t("backfill.pageDateLabel")}
           </FieldLabel>
           <Input
             id="ctx-date"
@@ -882,19 +906,19 @@ function BackfillPage() {
 
       {!paperRef.trim() && (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
-          Set a page reference to begin — it will be stamped on every loan this batch writes.
+          {t("backfill.setPageReferenceHint")}
         </div>
       )}
 
       {/* ── Entry bar (4.6a, 4.6b) ────────────────── */}
       {paperRef.trim() && (
         <div className="rounded-md border p-4 space-y-3">
-          <h2 className="text-sm font-medium">New entry</h2>
+          <h2 className="text-sm font-medium">{t("backfill.newEntryHeading")}</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {/* Device */}
             <Field>
               <FieldLabel htmlFor="entry-device">
-                Device (asset tag or scan)
+                {t("backfill.deviceLabel")}
               </FieldLabel>
               <Input
                 id="entry-device"
@@ -907,7 +931,7 @@ function BackfillPage() {
                     deviceLabel: null,
                   }))
                 }
-                placeholder="HD-D-XXXX or asset tag"
+                placeholder={t("backfill.devicePlaceholder")}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") { e.preventDefault(); commitRow(); }
@@ -935,10 +959,10 @@ function BackfillPage() {
             {/* Action */}
             <Field>
               <FieldLabel htmlFor="entry-action">
-                Action
+                {t("backfill.actionLabel")}
                 {entry.actionOverridden && (
                   <Badge variant="secondary" className="ml-2 text-[10px]">
-                    Override
+                    {t("backfill.overrideBadge")}
                   </Badge>
                 )}
               </FieldLabel>
@@ -956,9 +980,9 @@ function BackfillPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auto">Auto (server decides)</SelectItem>
-                  <SelectItem value="borrow">Borrow</SelectItem>
-                  <SelectItem value="return">Return</SelectItem>
+                  <SelectItem value="auto">{t("backfill.actionAuto")}</SelectItem>
+                  <SelectItem value="borrow">{t("backfill.actionBorrow")}</SelectItem>
+                  <SelectItem value="return">{t("backfill.actionReturn")}</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
@@ -966,7 +990,7 @@ function BackfillPage() {
             {/* Out time */}
             <TimeInput
               id="entry-out"
-              label="Out time (borrowedAt)"
+              label={t("backfill.outTimeLabel")}
               value={outTimeRaw}
               onChange={(raw, iso) => {
                 setOutTimeRaw(raw);
@@ -981,7 +1005,7 @@ function BackfillPage() {
             {/* In time */}
             <TimeInput
               id="entry-in"
-              label="In time (returnedAt, optional)"
+              label={t("backfill.inTimeLabel")}
               value={inTimeRaw}
               onChange={(raw, iso) => {
                 setInTimeRaw(raw);
@@ -995,14 +1019,14 @@ function BackfillPage() {
 
             {/* Note */}
             <Field>
-              <FieldLabel htmlFor="entry-note">Note (optional)</FieldLabel>
+              <FieldLabel htmlFor="entry-note">{t("backfill.noteLabel")}</FieldLabel>
               <Input
                 id="entry-note"
                 value={entry.note}
                 onChange={(e) =>
                   setEntry((prev) => ({ ...prev, note: e.target.value }))
                 }
-                placeholder="Any remark from the paper slip"
+                placeholder={t("backfill.notePlaceholder")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") { e.preventDefault(); commitRow(); }
                   if (e.key === "Escape") { e.preventDefault(); resetEntry(); }
@@ -1017,11 +1041,11 @@ function BackfillPage() {
               disabled={!entry.deviceRef.trim()}
             >
               <Plus className="mr-1 h-4 w-4" />
-              Stage row (Enter)
+              {t("backfill.stageRow")}
             </Button>
             <Button variant="outline" onClick={resetEntry}>
               <X className="mr-1 h-4 w-4" />
-              Clear (Esc)
+              {t("backfill.clearEntry")}
             </Button>
           </div>
         </div>
@@ -1032,7 +1056,7 @@ function BackfillPage() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium">
-              Staged rows ({staged.length})
+              {t("backfill.stagedRowsHeading", { count: staged.length })}
               {isPreviewing && (
                 <Loader2 className="ml-2 inline h-3 w-3 animate-spin text-muted-foreground" />
               )}
@@ -1044,7 +1068,7 @@ function BackfillPage() {
               onClick={() => setDiscardConfirmOpen(true)}
             >
               <Trash2 className="mr-1 h-3 w-3" />
-              Discard all ({staged.length} rows)
+              {t("backfill.discardAll", { count: staged.length })}
             </Button>
           </div>
 
@@ -1053,12 +1077,12 @@ function BackfillPage() {
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 text-left w-8">#</th>
-                  <th className="px-3 py-2 text-left">Device</th>
-                  <th className="px-3 py-2 text-left">Person</th>
-                  <th className="px-3 py-2 text-left">Action</th>
-                  <th className="px-3 py-2 text-left">Times</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
+                  <th className="px-3 py-2 text-left">{t("backfill.colDevice")}</th>
+                  <th className="px-3 py-2 text-left">{t("backfill.colPerson")}</th>
+                  <th className="px-3 py-2 text-left">{t("backfill.colAction")}</th>
+                  <th className="px-3 py-2 text-left">{t("backfill.colTimes")}</th>
+                  <th className="px-3 py-2 text-left">{t("backfill.colStatus")}</th>
+                  <th className="px-3 py-2 text-right">{t("backfill.colActions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -1084,7 +1108,7 @@ function BackfillPage() {
                             <span>
                               {row.person.label}
                               {row.person.isNew && (
-                                <Badge variant="secondary" className="ml-1 text-[10px]">NEW</Badge>
+                                <Badge variant="secondary" className="ml-1 text-[10px]">{t("backfill.newBadge")}</Badge>
                               )}
                             </span>
                           ) : (
@@ -1093,10 +1117,10 @@ function BackfillPage() {
                         </td>
                         <td className="px-3 py-2">
                           {serverAction ?? row.action ?? (
-                            <span className="text-muted-foreground">auto</span>
+                            <span className="text-muted-foreground">{t("backfill.autoFallback")}</span>
                           )}
                           {row.actionOverridden && (
-                            <Badge variant="outline" className="ml-1 text-[10px]">Override</Badge>
+                            <Badge variant="outline" className="ml-1 text-[10px]">{t("backfill.overrideBadge")}</Badge>
                           )}
                         </td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">
@@ -1110,7 +1134,7 @@ function BackfillPage() {
                         <td className="px-3 py-2">
                           {status ? (
                             <Badge variant={statusVariant(status)}>
-                              {resolution ? `${statusLabel(status)} (${resolution})` : statusLabel(status)}
+                              {resolution ? `${statusLabel(t, status)} (${resolution})` : statusLabel(t, status)}
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
@@ -1123,7 +1147,7 @@ function BackfillPage() {
                               variant="ghost"
                               className="h-7 w-7"
                               onClick={() => editRow(row)}
-                              aria-label="Edit row"
+                              aria-label={t("backfill.editRowAria")}
                             >
                               <Edit2 className="h-3 w-3" />
                             </Button>
@@ -1132,7 +1156,7 @@ function BackfillPage() {
                               variant="ghost"
                               className="h-7 w-7 text-destructive hover:text-destructive"
                               onClick={() => removeRow(row.clientRowId)}
-                              aria-label="Remove row"
+                              aria-label={t("backfill.removeRowAria")}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -1176,11 +1200,15 @@ function BackfillPage() {
               {unresolvedCount > 0 ? (
                 <p className="text-sm text-destructive font-medium flex items-center gap-1">
                   <AlertTriangle className="h-4 w-4" />
-                  {unresolvedCount} unresolved {unresolvedCount === 1 ? "conflict" : "conflicts"} — resolve before saving
+                  {unresolvedCount === 1
+                    ? t("backfill.unresolvedOne", { count: unresolvedCount })
+                    : t("backfill.unresolvedOther", { count: unresolvedCount })}
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  {staged.length} {staged.length === 1 ? "row" : "rows"} ready to save
+                  {staged.length === 1
+                    ? t("backfill.readyOne", { count: staged.length })
+                    : t("backfill.readyOther", { count: staged.length })}
                 </p>
               )}
             </div>
@@ -1190,7 +1218,7 @@ function BackfillPage() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Save batch
+              {t("backfill.saveBatch")}
             </Button>
           </div>
         </div>
@@ -1219,16 +1247,16 @@ function BackfillPage() {
         <Dialog open onOpenChange={setDiscardConfirmOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Discard all staged rows?</DialogTitle>
+              <DialogTitle>{t("backfill.discardConfirmTitle")}</DialogTitle>
               <DialogDescription>
-                This will remove all {staged.length} staged{" "}
-                {staged.length === 1 ? "row" : "rows"} from the batch. This cannot
-                be undone.
+                {staged.length === 1
+                  ? t("backfill.discardConfirmOne", { count: staged.length })
+                  : t("backfill.discardConfirmOther", { count: staged.length })}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDiscardConfirmOpen(false)}>
-                Cancel
+                {t("backfill.cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -1240,7 +1268,9 @@ function BackfillPage() {
                   setDiscardConfirmOpen(false);
                 }}
               >
-                Discard {staged.length} {staged.length === 1 ? "row" : "rows"}
+                {staged.length === 1
+                  ? t("backfill.discardConfirmButtonOne", { count: staged.length })
+                  : t("backfill.discardConfirmButtonOther", { count: staged.length })}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -46,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 const reportsSearchSchema = z.object({
@@ -99,14 +100,14 @@ function formatDate(iso?: string | null): string {
   }
 }
 
-function downloadFile(url: string, filename: string) {
+function downloadFile(url: string, filename: string, successMessage: string) {
   const link = document.createElement("a");
   link.href = url;
   link.setAttribute("download", filename);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  toast.success(`Exporting ${filename}`);
+  toast.success(successMessage);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ function downloadFile(url: string, filename: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SummaryTabContent({ summary }: { summary: ReportSummary }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       {/* 4 Stat Tiles */}
@@ -121,7 +123,7 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Transactions
+              {t("reports.totalTransactions")}
             </CardTitle>
             <Layers className="h-4 w-4 text-primary" />
           </CardHeader>
@@ -130,7 +132,7 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
               {summary.totalLoans}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Loans initiated within selected window
+              {t("reports.totalTransactionsHint")}
             </p>
           </CardContent>
         </Card>
@@ -138,7 +140,7 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Open Loans
+              {t("reports.openLoans")}
             </CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
@@ -147,7 +149,7 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
               {summary.openLoans}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Currently in circulation
+              {t("reports.openLoansHint")}
             </p>
           </CardContent>
         </Card>
@@ -155,7 +157,7 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Overdue Loans
+              {t("reports.overdueLoans")}
             </CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
@@ -165,11 +167,11 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
                 {summary.overdueCount}
               </span>
               <span className="text-xs text-muted-foreground">
-                ({(summary.overdueRate * 100).toFixed(1)}% rate)
+                {t("reports.overdueRate", { rate: (summary.overdueRate * 100).toFixed(1) })}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Past expected return deadline
+              {t("reports.overdueLoansHint")}
             </p>
           </CardContent>
         </Card>
@@ -177,7 +179,7 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Avg Loan Duration
+              {t("reports.avgDuration")}
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-emerald-600" />
           </CardHeader>
@@ -188,7 +190,7 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
                 : "—"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Average custody holding time
+              {t("reports.avgDurationHint")}
             </p>
           </CardContent>
         </Card>
@@ -199,25 +201,25 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
         {/* Category Utilisation Table */}
         <Card className="lg:col-span-7">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Category Utilisation</CardTitle>
+            <CardTitle className="text-base font-semibold">{t("reports.categoryUtilisationTitle")}</CardTitle>
             <CardDescription>
-              Fleet utilization percentage based on cumulative hours held vs total fleet capacity.
+              {t("reports.categoryUtilisationSubtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {summary.utilisationByCategory.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                No category data available in this timeframe.
+                {t("reports.noCategoryData")}
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Live Fleet</TableHead>
-                    <TableHead className="text-right">Loans</TableHead>
-                    <TableHead className="text-right">Avg Hours</TableHead>
-                    <TableHead className="w-36 text-right">Utilisation %</TableHead>
+                    <TableHead>{t("reports.colCategory")}</TableHead>
+                    <TableHead className="text-right">{t("reports.colLiveFleet")}</TableHead>
+                    <TableHead className="text-right">{t("reports.colLoans")}</TableHead>
+                    <TableHead className="text-right">{t("reports.colAvgHours")}</TableHead>
+                    <TableHead className="w-36 text-right">{t("reports.colUtilisationPct")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -255,23 +257,23 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
         {/* Top Borrowers Table */}
         <Card className="lg:col-span-5">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Top Borrowers</CardTitle>
+            <CardTitle className="text-base font-semibold">{t("reports.topBorrowersTitle")}</CardTitle>
             <CardDescription>
-              Staff members with the highest transaction volume in this window.
+              {t("reports.topBorrowersSubtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {summary.topBorrowers.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                No borrowing activity recorded in this timeframe.
+                {t("reports.noBorrowingActivity")}
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Staff Member</TableHead>
-                    <TableHead>Employee No</TableHead>
-                    <TableHead className="text-right">Loan Count</TableHead>
+                    <TableHead>{t("reports.colStaffMember")}</TableHead>
+                    <TableHead>{t("reports.colEmployeeNo")}</TableHead>
+                    <TableHead className="text-right">{t("reports.colLoanCount")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -301,12 +303,13 @@ function SummaryTabContent({ summary }: { summary: ReportSummary }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function OriginTabContent({ report }: { report: OriginReport }) {
+  const t = useT();
   if (report.buckets.length === 0) {
     return (
       <EmptyState
         icon={BarChart3}
-        title="No transaction history"
-        explanation="There were no loan transactions recorded during the selected period."
+        title={t("reports.noTransactionHistoryTitle")}
+        explanation={t("reports.noTransactionHistoryExplanation")}
       />
     );
   }
@@ -316,9 +319,9 @@ function OriginTabContent({ report }: { report: OriginReport }) {
       {/* Visual representation of buckets */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Origin Breakdown over Time</CardTitle>
+          <CardTitle className="text-base font-semibold">{t("reports.originBreakdownTitle")}</CardTitle>
           <CardDescription>
-            Comparison of transaction sources (Kiosk, Paper Backfill, Admin Overrides, Bulk Import).
+            {t("reports.originBreakdownSubtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -327,7 +330,7 @@ function OriginTabContent({ report }: { report: OriginReport }) {
               <div key={b.periodStart} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium">{formatDate(b.periodStart)}</span>
-                  <span className="text-muted-foreground">{b.total} transactions</span>
+                  <span className="text-muted-foreground">{t("reports.transactionsCount", { count: b.total })}</span>
                 </div>
                 {b.total > 0 ? (
                   <div className="w-full bg-secondary h-4 rounded flex overflow-hidden">
@@ -354,7 +357,7 @@ function OriginTabContent({ report }: { report: OriginReport }) {
                   </div>
                 ) : (
                   <div className="w-full bg-secondary/50 h-4 rounded flex items-center justify-center text-[10px] text-muted-foreground">
-                    0 transactions
+                    {t("reports.zeroTransactions")}
                   </div>
                 )}
               </div>
@@ -364,19 +367,19 @@ function OriginTabContent({ report }: { report: OriginReport }) {
           <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded bg-emerald-500" />
-              <span>Kiosk</span>
+              <span>{t("reports.legendKiosk")}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded bg-amber-500" />
-              <span>Paper Backfill</span>
+              <span>{t("reports.legendPaper")}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded bg-blue-500" />
-              <span>Admin Override</span>
+              <span>{t("reports.legendAdmin")}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded bg-purple-500" />
-              <span>Bulk Import</span>
+              <span>{t("reports.legendImport")}</span>
             </div>
           </div>
         </CardContent>
@@ -385,18 +388,18 @@ function OriginTabContent({ report }: { report: OriginReport }) {
       {/* Bucket breakdown Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Period Totals</CardTitle>
+          <CardTitle className="text-base font-semibold">{t("reports.periodTotalsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Period Start</TableHead>
-                <TableHead className="text-right">Kiosk</TableHead>
-                <TableHead className="text-right">Paper</TableHead>
-                <TableHead className="text-right">Admin</TableHead>
-                <TableHead className="text-right">Import</TableHead>
-                <TableHead className="text-right font-semibold">Total</TableHead>
+                <TableHead>{t("reports.colPeriodStart")}</TableHead>
+                <TableHead className="text-right">{t("reports.colKiosk")}</TableHead>
+                <TableHead className="text-right">{t("reports.colPaper")}</TableHead>
+                <TableHead className="text-right">{t("reports.colAdmin")}</TableHead>
+                <TableHead className="text-right">{t("reports.colImport")}</TableHead>
+                <TableHead className="text-right font-semibold">{t("reports.colTotal")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -427,6 +430,7 @@ function OriginTabContent({ report }: { report: OriginReport }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function HealthTabContent({ health }: { health: OperationalHealth }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       {/* 3 Stat Tiles */}
@@ -434,7 +438,7 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Scans Attempted
+              {t("reports.totalScans")}
             </CardTitle>
             <Activity className="h-4 w-4 text-primary" />
           </CardHeader>
@@ -443,7 +447,7 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
               {health.totalScans}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Live barcode & token scans across all kiosks
+              {t("reports.totalScansHint")}
             </p>
           </CardContent>
         </Card>
@@ -451,7 +455,7 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Manual Entries
+              {t("reports.manualEntries")}
             </CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
@@ -460,7 +464,7 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
               {health.manualEntryCount}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Typing fallback used instead of optical scanning
+              {t("reports.manualEntriesHint")}
             </p>
           </CardContent>
         </Card>
@@ -468,7 +472,7 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Camera Fallbacks
+              {t("reports.cameraFallbacks")}
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-blue-500" />
           </CardHeader>
@@ -477,7 +481,7 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
               {health.cameraFallbackCount}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Webcam scanned when USB scanner was unavailable
+              {t("reports.cameraFallbacksHint")}
             </p>
           </CardContent>
         </Card>
@@ -488,15 +492,15 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
         {/* Scans by Source */}
         <Card className="lg:col-span-6">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Scans by Input Source</CardTitle>
+            <CardTitle className="text-base font-semibold">{t("reports.scansBySourceTitle")}</CardTitle>
             <CardDescription>
-              Hardware scanner reliability vs fallback channels.
+              {t("reports.scansBySourceSubtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {health.scansBySource.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                No scan events recorded in this timeframe.
+                {t("reports.noScanEvents")}
               </div>
             ) : (
               <div className="space-y-4">
@@ -527,34 +531,34 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
         {/* Turnaway / Rejection Reasons */}
         <Card className="lg:col-span-6">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Staff Turnaway Signals</CardTitle>
+            <CardTitle className="text-base font-semibold">{t("reports.turnawayTitle")}</CardTitle>
             <CardDescription>
-              Reasons staff members were turned away at kiosks (e.g. unissued badges).
+              {t("reports.turnawaySubtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {health.rejectionReasons.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                No rejections recorded. Kiosks operated with 100% success.
+                {t("reports.noRejections")}
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Rejection Reason</TableHead>
-                    <TableHead>Classification</TableHead>
-                    <TableHead className="text-right">Turnaways</TableHead>
+                    <TableHead>{t("reports.colRejectionReason")}</TableHead>
+                    <TableHead>{t("reports.colClassification")}</TableHead>
+                    <TableHead className="text-right">{t("reports.colTurnaways")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {health.rejectionReasons.map((rr, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-medium">
-                        {rr.reason || "Unrecognised or invalid token"}
+                        {rr.reason || t("reports.unknownRejectionReason")}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
-                          {rr.resolvedType || "unknown"}
+                          {rr.resolvedType || t("reports.unknownClassification")}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-bold text-destructive">
@@ -577,6 +581,7 @@ function HealthTabContent({ health }: { health: OperationalHealth }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ReportsPage() {
+  const t = useT();
   const navigate = useNavigate({ from: reportsRoute.fullPath });
   const search = reportsRoute.useSearch();
 
@@ -612,7 +617,7 @@ function ReportsPage() {
     const fromDate = new Date(`${customFrom}T00:00:00.000Z`);
     const toDate = new Date(`${customTo}T23:59:59.999Z`);
     if (fromDate > toDate) {
-      toast.error("'From' date must be before 'To' date");
+      toast.error(t("reports.invalidRange"));
       return;
     }
     navigate({
@@ -694,9 +699,9 @@ function ReportsPage() {
       {/* Header with Title and Export Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("reports.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Utilization metrics, transaction origin trends, and operational kiosk health.
+            {t("reports.subtitle")}
           </p>
         </div>
 
@@ -705,7 +710,7 @@ function ReportsPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2" data-testid="export-csv-dropdown">
                 <Download className="h-4 w-4" />
-                <span>Export CSV</span>
+                <span>{t("reports.exportCsv")}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -713,31 +718,46 @@ function ReportsPage() {
                 onClick={() =>
                   downloadFile(
                     `/v1/reports/loans.csv?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`,
-                    `loans-report-${customFrom}-to-${customTo}.csv`
+                    `loans-report-${customFrom}-to-${customTo}.csv`,
+                    t("reports.exporting", {
+                      filename: `loans-report-${customFrom}-to-${customTo}.csv`,
+                    })
                   )
                 }
                 data-testid="export-loans-csv"
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" />
-                <span>Export Loans (.csv)</span>
+                <span>{t("reports.exportLoans")}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() =>
-                  downloadFile(`/v1/reports/devices.csv`, `devices-export-${new Date().toISOString().slice(0, 10)}.csv`)
+                  downloadFile(
+                    `/v1/reports/devices.csv`,
+                    `devices-export-${new Date().toISOString().slice(0, 10)}.csv`,
+                    t("reports.exporting", {
+                      filename: `devices-export-${new Date().toISOString().slice(0, 10)}.csv`,
+                    })
+                  )
                 }
                 data-testid="export-devices-csv"
               >
                 <Layers className="mr-2 h-4 w-4 text-primary" />
-                <span>Export Devices (.csv)</span>
+                <span>{t("reports.exportDevices")}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() =>
-                  downloadFile(`/v1/reports/users.csv`, `users-export-${new Date().toISOString().slice(0, 10)}.csv`)
+                  downloadFile(
+                    `/v1/reports/users.csv`,
+                    `users-export-${new Date().toISOString().slice(0, 10)}.csv`,
+                    t("reports.exporting", {
+                      filename: `users-export-${new Date().toISOString().slice(0, 10)}.csv`,
+                    })
+                  )
                 }
                 data-testid="export-users-csv"
               >
                 <Users className="mr-2 h-4 w-4 text-primary" />
-                <span>Export Users (.csv)</span>
+                <span>{t("reports.exportUsers")}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -750,7 +770,7 @@ function ReportsPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              <span>Timeframe:</span>
+              <span>{t("reports.timeframeLabel")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               {(["today", "7d", "30d", "90d", "custom"] as const).map((p) => (
@@ -762,7 +782,15 @@ function ReportsPage() {
                   className="h-8 text-xs capitalize"
                   data-testid={`preset-${p}`}
                 >
-                  {p === "7d" ? "7 Days" : p === "30d" ? "30 Days" : p === "90d" ? "90 Days" : p}
+                  {p === "7d"
+                    ? t("reports.preset7d")
+                    : p === "30d"
+                      ? t("reports.preset30d")
+                      : p === "90d"
+                        ? t("reports.preset90d")
+                        : p === "today"
+                          ? t("reports.presetToday")
+                          : t("reports.presetCustom")}
                 </Button>
               ))}
             </div>
@@ -771,7 +799,7 @@ function ReportsPage() {
           {preset === "custom" && (
             <div className="flex items-center gap-2 text-xs">
               <div className="flex items-center gap-1">
-                <Label htmlFor="custom-from" className="text-xs">From:</Label>
+                <Label htmlFor="custom-from" className="text-xs">{t("reports.fromLabel")}</Label>
                 <Input
                   id="custom-from"
                   type="date"
@@ -781,7 +809,7 @@ function ReportsPage() {
                 />
               </div>
               <div className="flex items-center gap-1">
-                <Label htmlFor="custom-to" className="text-xs">To:</Label>
+                <Label htmlFor="custom-to" className="text-xs">{t("reports.toLabel")}</Label>
                 <Input
                   id="custom-to"
                   type="date"
@@ -791,13 +819,15 @@ function ReportsPage() {
                 />
               </div>
               <Button size="sm" onClick={handleApplyCustomDates} className="h-8 text-xs">
-                Apply
+                {t("reports.apply")}
               </Button>
             </div>
           )}
 
           <div className="text-xs text-muted-foreground">
-            Showing data from <span className="font-medium text-foreground">{formatDate(fromIso)}</span> to{" "}
+            {t("reports.showingDataFrom")}{" "}
+            <span className="font-medium text-foreground">{formatDate(fromIso)}</span>{" "}
+            {t("reports.showingDataTo")}{" "}
             <span className="font-medium text-foreground">{formatDate(toIso)}</span>
           </div>
         </CardContent>
@@ -808,15 +838,15 @@ function ReportsPage() {
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="summary" className="gap-2" data-testid="tab-summary">
             <TrendingUp className="h-4 w-4" />
-            <span>Summary</span>
+            <span>{t("reports.tabSummary")}</span>
           </TabsTrigger>
           <TabsTrigger value="origin" className="gap-2" data-testid="tab-origin">
             <BarChart3 className="h-4 w-4" />
-            <span>Origin Trends</span>
+            <span>{t("reports.tabOrigin")}</span>
           </TabsTrigger>
           <TabsTrigger value="health" className="gap-2" data-testid="tab-health">
             <Activity className="h-4 w-4" />
-            <span>Operational Health</span>
+            <span>{t("reports.tabHealth")}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -836,8 +866,8 @@ function ReportsPage() {
             </div>
           ) : summaryQuery.isError || !summaryQuery.data ? (
             <ErrorState
-              title="Could not load report summary"
-              detail="Failed to compute utilization and duration metrics. Please try again."
+              title={t("reports.summaryErrorTitle")}
+              detail={t("reports.summaryErrorDetail")}
               onRetry={() => summaryQuery.refetch()}
             />
           ) : (
@@ -849,7 +879,7 @@ function ReportsPage() {
         <TabsContent value="origin" className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-muted-foreground">
-              Grouping interval:
+              {t("reports.groupingInterval")}
             </div>
             <div className="flex items-center gap-1.5">
               {(["day", "week", "month"] as const).map((b) => (
@@ -861,7 +891,11 @@ function ReportsPage() {
                   className="h-8 text-xs capitalize"
                   data-testid={`bucket-${b}`}
                 >
-                  {b}
+                  {b === "day"
+                    ? t("reports.bucketDay")
+                    : b === "week"
+                      ? t("reports.bucketWeek")
+                      : t("reports.bucketMonth")}
                 </Button>
               ))}
             </div>
@@ -874,8 +908,8 @@ function ReportsPage() {
             </div>
           ) : originQuery.isError || !originQuery.data ? (
             <ErrorState
-              title="Could not load origin trends"
-              detail="Failed to aggregate transaction counts by origin. Please try again."
+              title={t("reports.originErrorTitle")}
+              detail={t("reports.originErrorDetail")}
               onRetry={() => originQuery.refetch()}
             />
           ) : (
@@ -899,8 +933,8 @@ function ReportsPage() {
             </div>
           ) : healthQuery.isError || !healthQuery.data ? (
             <ErrorState
-              title="Could not load operational health metrics"
-              detail="Failed to fetch scan breakdown and turnaway counts. Please try again."
+              title={t("reports.healthErrorTitle")}
+              detail={t("reports.healthErrorDetail")}
               onRetry={() => healthQuery.refetch()}
             />
           ) : (

@@ -3,6 +3,8 @@ import { CheckCircle2, Clock, Layers, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@hdms/ui";
 
+import { useT } from "@/i18n";
+
 interface StatTilesProps {
   availableCount: number;
   onLoanCount: number;
@@ -16,12 +18,14 @@ export function StatTiles({
   overdueCount,
   maintenanceCount,
 }: StatTilesProps) {
+  const t = useT();
+
   const stats = [
     {
       id: "available",
-      label: "Available",
+      label: t("dashboard.stats.availableLabel"),
       count: availableCount,
-      description: "Ready for checkout",
+      description: t("dashboard.stats.availableDescription"),
       icon: CheckCircle2,
       color: "text-emerald-600 dark:text-emerald-400",
       bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
@@ -30,9 +34,9 @@ export function StatTiles({
     },
     {
       id: "on_loan",
-      label: "On Loan",
+      label: t("dashboard.stats.onLoanLabel"),
       count: onLoanCount,
-      description: "Active borrower custody",
+      description: t("dashboard.stats.onLoanDescription"),
       icon: Layers,
       color: "text-blue-600 dark:text-blue-400",
       bgColor: "bg-blue-50 dark:bg-blue-950/30",
@@ -41,9 +45,9 @@ export function StatTiles({
     },
     {
       id: "overdue",
-      label: "Overdue",
+      label: t("dashboard.stats.overdueLabel"),
       count: overdueCount,
-      description: "Past scheduled return date",
+      description: t("dashboard.stats.overdueDescription"),
       icon: Clock,
       color: overdueCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
       bgColor: overdueCount > 0 ? "bg-amber-50 dark:bg-amber-950/30" : "bg-muted/30",
@@ -52,9 +56,9 @@ export function StatTiles({
     },
     {
       id: "maintenance",
-      label: "In Service / Maintenance",
+      label: t("dashboard.stats.maintenanceLabel"),
       count: maintenanceCount,
-      description: "Under repair or inspection",
+      description: t("dashboard.stats.maintenanceDescription"),
       icon: Wrench,
       color: "text-purple-600 dark:text-purple-400",
       bgColor: "bg-purple-50 dark:bg-purple-950/30",

@@ -10,6 +10,7 @@ import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { ErrorState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 function DashboardSkeleton() {
@@ -43,6 +44,7 @@ function DashboardSkeleton() {
 }
 
 function DashboardPage() {
+  const t = useT();
   const {
     data: dashboard,
     isLoading,
@@ -67,11 +69,11 @@ function DashboardPage() {
   if (isError || !dashboard) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <h1 className="text-xl font-semibold">{t("nav.dashboard")}</h1>
         <ErrorState
           error={error}
-          title="Could not load dashboard overview"
-          detail="Failed to fetch operational statistics and overdue loans. Check your connection or retry."
+          title={t("dashboard.errorTitle")}
+          detail={t("dashboard.errorDetail")}
           onRetry={() => refetch()}
         />
       </div>
@@ -84,10 +86,10 @@ function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            Equipment Operations
+            {t("dashboard.headerTitle")}
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Work queue, custody health, stock warnings, and real-time activity
+            {t("dashboard.headerSubtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -97,10 +99,10 @@ function DashboardPage() {
             onClick={() => refetch()}
             disabled={isFetching}
             className="h-8 text-xs"
-            title="Refresh dashboard metrics"
+            title={t("dashboard.refreshTooltip")}
           >
             <RefreshCw className={`size-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
-            Refresh
+            {t("dashboard.refreshButton")}
           </Button>
         </div>
       </div>

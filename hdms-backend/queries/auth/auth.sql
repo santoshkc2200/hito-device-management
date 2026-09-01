@@ -3,7 +3,7 @@ INSERT INTO admin_accounts (id, email, full_name, password_hash, totp_secret_enc
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, email, full_name, password_hash, totp_secret_enc, role, status,
           failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
-          last_login_at, totp_pending_secret_enc, created_at, updated_at;
+          last_login_at, totp_pending_secret_enc, created_at, updated_at, locale;
 
 -- name: GetAdminAccountByEmail :one
 -- Only used at login, where a non-existent email must fail the same way a
@@ -11,18 +11,18 @@ RETURNING id, email, full_name, password_hash, totp_secret_enc, role, status,
 -- not this query's behaviour, to keep that response uniform.
 SELECT id, email, full_name, password_hash, totp_secret_enc, role, status,
        failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
-       last_login_at, totp_pending_secret_enc, created_at, updated_at
+       last_login_at, totp_pending_secret_enc, created_at, updated_at, locale
 FROM admin_accounts WHERE lower(email) = lower($1);
 
 -- name: GetAdminAccountByID :one
 SELECT id, email, full_name, password_hash, totp_secret_enc, role, status,
        failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
-       last_login_at, totp_pending_secret_enc, created_at, updated_at
+       last_login_at, totp_pending_secret_enc, created_at, updated_at, locale
 FROM admin_accounts WHERE id = $1;
 
 -- name: ListAdmins :many
 SELECT id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
-       must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at
+       must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale
 FROM admin_accounts
 ORDER BY created_at ASC;
 
@@ -34,7 +34,15 @@ SET full_name = COALESCE(sqlc.narg('full_name'), full_name),
     updated_at = now()
 WHERE id = sqlc.arg('id')
 RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
-          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at;
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale;
+
+-- name: UpdateAdminLocale :one
+UPDATE admin_accounts
+SET locale = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale;
 
 -- name: ResetAdminPassword :one
 UPDATE admin_accounts
@@ -95,7 +103,7 @@ SET failed_attempts = 0,
     updated_at = now()
 WHERE id = $1
 RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
-          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at;
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale;
 
 -- name: UnlockAdminAccountByEmail :one
 UPDATE admin_accounts
@@ -140,7 +148,7 @@ RETURNING id, admin_id, session_token_hash, csrf_token, created_at, last_seen_at
 SELECT
     s.id, s.admin_id, s.session_token_hash, s.csrf_token, s.created_at, s.last_seen_at, s.expires_at,
     a.email, a.full_name, a.role, a.status AS admin_status,
-    a.must_change_password, a.must_reenrol_totp, a.locked_until, a.last_login_at
+    a.must_change_password, a.must_reenrol_totp, a.locked_until, a.last_login_at, a.locale
 FROM admin_sessions s
 JOIN admin_accounts a ON a.id = s.admin_id
 WHERE s.session_token_hash = $1;

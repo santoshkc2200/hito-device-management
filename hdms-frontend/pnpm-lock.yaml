@@ -26,6 +26,9 @@ importers:
       '@hdms/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@hdms/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@hdms/ui':
         specifier: workspace:*
         version: link:../../packages/ui

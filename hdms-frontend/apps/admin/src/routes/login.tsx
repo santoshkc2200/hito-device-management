@@ -1,4 +1,3 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { createRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
@@ -13,11 +12,13 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { loginAdmin } from "@/lib/auth";
+import { useT } from "@/i18n";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { rootRoute } from "./root";
 
 const loginSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().min(1, "validation.emailRequired").email("validation.emailInvalid"),
+  password: z.string().min(1, "validation.passwordRequired"),
   totpCode: z.string().optional(),
   recoveryCode: z.string().optional(),
 });
@@ -25,12 +26,13 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
+  const t = useT();
   const router = useRouter();
   const navigate = useNavigate();
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
 
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: useLocalizedResolver(loginSchema),
     defaultValues: { email: "", password: "", totpCode: "", recoveryCode: "" },
   });
 
@@ -41,7 +43,7 @@ export function LoginPage() {
       await navigate({ to: "/" });
     },
     onError: (error: unknown) => {
-      let message = "Invalid email, password or code.";
+      let message = t("login.invalidCredentials");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -56,7 +58,7 @@ export function LoginPage() {
   const handleSubmit = (values: LoginFormValues) => {
     if (useRecoveryCode) {
       if (!values.recoveryCode || values.recoveryCode.trim().length === 0) {
-        form.setError("recoveryCode", { message: "Enter your single-use recovery code" });
+        form.setError("recoveryCode", { message: t("login.enterRecoveryCode") });
         return;
       }
       mutation.mutate({
@@ -66,7 +68,7 @@ export function LoginPage() {
       });
     } else {
       if (!values.totpCode || values.totpCode.trim().length < 6) {
-        form.setError("totpCode", { message: "Enter the 6-digit authenticator code" });
+        form.setError("totpCode", { message: t("login.enterTotpCode") });
         return;
       }
       mutation.mutate({
@@ -82,16 +84,16 @@ export function LoginPage() {
       <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8 shadow-sm">
         <div className="mb-6">
           <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
-            Hito Hospital
+            {t("login.hospitalName")}
           </p>
           <h1 className="mt-1 text-2xl font-semibold text-card-foreground">
-            Device management
+            {t("login.systemTitle")}
           </h1>
         </div>
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="email">{t("login.emailLabel")}</FieldLabel>
               <Input
                 id="email"
                 type="email"
@@ -105,7 +107,7 @@ export function LoginPage() {
               )}
             </Field>
             <Field data-invalid={!!form.formState.errors.password}>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <FieldLabel htmlFor="password">{t("login.passwordLabel")}</FieldLabel>
               <Input
                 id="password"
                 type="password"
@@ -122,13 +124,13 @@ export function LoginPage() {
 
             {!useRecoveryCode ? (
               <Field data-invalid={!!form.formState.errors.totpCode}>
-                <FieldLabel htmlFor="totpCode">Authenticator code</FieldLabel>
+                <FieldLabel htmlFor="totpCode">{t("login.totpLabel")}</FieldLabel>
                 <Input
                   id="totpCode"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   maxLength={6}
-                  placeholder="6-digit code"
+                  placeholder={t("login.totpPlaceholder")}
                   className="font-mono tracking-widest"
                   aria-invalid={!!form.formState.errors.totpCode}
                   {...form.register("totpCode")}
@@ -141,12 +143,12 @@ export function LoginPage() {
               </Field>
             ) : (
               <Field data-invalid={!!form.formState.errors.recoveryCode}>
-                <FieldLabel htmlFor="recoveryCode">Recovery code</FieldLabel>
+                <FieldLabel htmlFor="recoveryCode">{t("login.recoveryCodeLabel")}</FieldLabel>
                 <Input
                   id="recoveryCode"
                   type="text"
                   autoComplete="off"
-                  placeholder="e.g. abcd-1234 or 10-char code"
+                  placeholder={t("login.recoveryCodePlaceholder")}
                   className="font-mono uppercase tracking-wider"
                   aria-invalid={!!form.formState.errors.recoveryCode}
                   {...form.register("recoveryCode")}
@@ -170,8 +172,8 @@ export function LoginPage() {
                 }}
               >
                 {useRecoveryCode
-                  ? "Use authenticator code instead"
-                  : "Lost authenticator? Use a recovery code"}
+                  ? t("login.useTotpInstead")
+                  : t("login.useRecoveryInstead")}
               </button>
             </div>
 
@@ -182,7 +184,7 @@ export function LoginPage() {
             )}
 
             <Button type="submit" disabled={mutation.isPending} className="mt-2 w-full">
-              {mutation.isPending ? "Signing in…" : "Sign in"}
+              {mutation.isPending ? t("login.signingIn") : t("login.signIn")}
             </Button>
           </FieldGroup>
         </form>

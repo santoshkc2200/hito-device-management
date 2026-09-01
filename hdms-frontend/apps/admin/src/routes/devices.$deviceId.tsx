@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RoleGate } from "@/lib/use-role";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 const DEVICE_TRANSITIONS: Record<DeviceStatus, DeviceStatus[]> = {
@@ -92,6 +93,7 @@ function ReasonActionDialog({
   onConfirm: (reason: string) => void;
   isPending: boolean;
 }) {
+  const t = useT();
   const [reason, setReason] = useState("");
 
   const handleClose = () => {
@@ -108,7 +110,7 @@ function ReasonActionDialog({
         </DialogHeader>
         <div className="py-2">
           <Textarea
-            placeholder="Reason (required)"
+            placeholder={t("deviceDetail.reasonPlaceholder")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
@@ -117,14 +119,14 @@ function ReasonActionDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={isPending}>
-            Cancel
+            {t("deviceDetail.cancel")}
           </Button>
           <Button
             variant={confirmVariant}
             disabled={!reason.trim() || isPending}
             onClick={() => onConfirm(reason.trim())}
           >
-            {isPending ? "Processing…" : confirmLabel}
+            {isPending ? t("deviceDetail.processing") : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -141,6 +143,7 @@ function StatusChangeDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [targetStatus, setTargetStatus] = useState<DeviceStatus | "">("");
   const [reason, setReason] = useState("");
@@ -159,11 +162,11 @@ function StatusChangeDialog({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success("Device status updated");
+      toast.success(t("devices.statusDialog.updated"));
       handleClose();
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Could not change status");
+      toast.error(err?.detail || err?.title || t("devices.statusDialog.updateFailed"));
     },
   });
 
@@ -177,22 +180,23 @@ function StatusChangeDialog({
     <Dialog open={open} onOpenChange={(o) => (!o ? handleClose() : onOpenChange(true))}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change status: {device.assetTag}</DialogTitle>
+          <DialogTitle>{t("deviceDetail.statusDialog.title", { assetTag: device.assetTag })}</DialogTitle>
           <DialogDescription>
-            Current status is <strong>{labelize(device.status)}</strong>. A mandatory reason is required
-            for audit tracking.
+            {t("deviceDetail.statusDialog.descriptionPrefix")}{" "}
+            <strong>{labelize(device.status)}</strong>
+            {t("deviceDetail.statusDialog.descriptionSuffix")}
           </DialogDescription>
         </DialogHeader>
 
         {options.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            Retired devices have no further transitions.
+            {t("deviceDetail.statusDialog.noTransitions")}
           </p>
         ) : (
           <div className="flex flex-col gap-3 py-2">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">
-                Target status
+                {t("deviceDetail.statusDialog.targetLabel")}
               </label>
               <div className="mt-1">
                 <Select
@@ -200,7 +204,7 @@ function StatusChangeDialog({
                   onValueChange={(v) => setTargetStatus(v as DeviceStatus)}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select new status…" />
+                    <SelectValue placeholder={t("deviceDetail.statusDialog.selectNewStatusPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {options.map((s) => (
@@ -215,11 +219,11 @@ function StatusChangeDialog({
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">
-                Reason (required)
+                {t("deviceDetail.statusDialog.reasonLabel")}
               </label>
               <div className="mt-1">
                 <Textarea
-                  placeholder="State reason for this transition…"
+                  placeholder={t("deviceDetail.statusDialog.reasonPlaceholder")}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={3}
@@ -231,13 +235,15 @@ function StatusChangeDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={mutation.isPending}>
-            Cancel
+            {t("deviceDetail.statusDialog.cancel")}
           </Button>
           <Button
             disabled={!targetStatus || !reason.trim() || mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "Applying…" : "Apply status change"}
+            {mutation.isPending
+              ? t("deviceDetail.statusDialog.applying")
+              : t("deviceDetail.statusDialog.apply")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -246,6 +252,7 @@ function StatusChangeDialog({
 }
 
 export function DeviceDetailPage() {
+  const t = useT();
   const { deviceId } = deviceDetailRoute.useParams();
   const queryClient = useQueryClient();
 
@@ -324,24 +331,24 @@ export function DeviceDetailPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["devices"] });
       await queryClient.invalidateQueries({ queryKey: ["loans"] });
-      toast.success("Device force-returned successfully");
+      toast.success(t("deviceDetail.forceReturnSuccess"));
       setForceReturnOpen(false);
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Could not force return device");
+      toast.error(err?.detail || err?.title || t("deviceDetail.forceReturnFailed"));
     },
   });
 
   if (isDeviceLoading) {
-    return <LoadingState message="Loading device details…" />;
+    return <LoadingState message={t("deviceDetail.loadingDevice")} />;
   }
 
   if (isDeviceError || !device) {
     return (
       <ErrorState
         error={deviceError}
-        title="Device not found"
-        detail="Could not load details for this equipment item."
+        title={t("deviceDetail.notFoundTitle")}
+        detail={t("deviceDetail.notFoundDetail")}
         onRetry={() => refetchDevice()}
       />
     );
@@ -353,7 +360,7 @@ export function DeviceDetailPage() {
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link to="/devices" className="flex items-center gap-1.5 hover:text-foreground">
           <ArrowLeft className="size-4" />
-          <span>Devices</span>
+          <span>{t("deviceDetail.breadcrumbDevices")}</span>
         </Link>
         <span>/</span>
         <span className="font-identifier text-foreground">{device.assetTag}</span>
@@ -383,9 +390,13 @@ export function DeviceDetailPage() {
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {device.manufacturer ? `${device.manufacturer} · ` : ""}
-              {device.model ? `Model ${device.model} · ` : ""}
-              Registered on {new Date(device.createdAt).toLocaleDateString()}
+              {device.manufacturer
+                ? t("deviceDetail.manufacturerPrefix", { manufacturer: device.manufacturer })
+                : ""}
+              {device.model ? t("deviceDetail.modelPrefix", { model: device.model }) : ""}
+              {t("deviceDetail.registeredOn", {
+                date: new Date(device.createdAt).toLocaleDateString(),
+              })}
             </p>
           </div>
         </div>
@@ -395,15 +406,15 @@ export function DeviceDetailPage() {
           <RoleGate minRole="technician">
             <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
               <Edit3 className="size-4" data-icon="inline-start" />
-              Edit
+              {t("deviceDetail.edit")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setStatusOpen(true)}>
               <RotateCw className="size-4" data-icon="inline-start" />
-              Change status
+              {t("deviceDetail.changeStatus")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setLabelSheetOpen(true)}>
               <Tag className="size-4" data-icon="inline-start" />
-              Print label
+              {t("deviceDetail.printLabel")}
             </Button>
           </RoleGate>
         </div>
@@ -415,50 +426,50 @@ export function DeviceDetailPage() {
         <div className="flex flex-col gap-6 lg:col-span-2">
           {/* Attributes Card */}
           <div className="rounded-lg border border-border bg-card p-6">
-            <h2 className="text-base font-semibold text-foreground">Equipment Attributes</h2>
+            <h2 className="text-base font-semibold text-foreground">{t("deviceDetail.attributesHeading")}</h2>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Asset Tag</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.assetTagLabel")}</span>
                 <p className="font-identifier text-sm font-semibold text-foreground mt-0.5">
                   {device.assetTag}
                 </p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Name</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.nameLabel")}</span>
                 <p className="text-sm font-medium text-foreground mt-0.5">{device.name}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Category</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.categoryLabel")}</span>
                 <p className="text-sm text-foreground mt-0.5">{categoryName || "—"}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Condition</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.conditionLabel")}</span>
                 <p className="text-sm text-foreground mt-0.5">{labelize(device.condition)}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Manufacturer</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.manufacturerLabel")}</span>
                 <p className="text-sm text-foreground mt-0.5">{device.manufacturer || "—"}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Model</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.modelLabel")}</span>
                 <p className="text-sm text-foreground mt-0.5">{device.model || "—"}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Serial Number</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.serialNumberLabel")}</span>
                 <p className="font-identifier text-sm text-foreground mt-0.5">{device.serialNo || "—"}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Home Location</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.homeLocationLabel")}</span>
                 <p className="text-sm text-foreground mt-0.5">{device.homeLocation || "—"}</p>
               </div>
               {device.acquiredOn && (
                 <div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Acquired On</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.acquiredOnLabel")}</span>
                   <p className="text-sm text-foreground mt-0.5">{device.acquiredOn}</p>
                 </div>
               )}
               <div>
-                <span className="text-xs font-medium text-muted-foreground uppercase">Status</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.statusLabel")}</span>
                 <div className="mt-0.5">
                   <StatusBadge
                     label={labelize(device.status)}
@@ -470,24 +481,24 @@ export function DeviceDetailPage() {
 
             {device.notes && (
               <div className="mt-4 border-t border-border pt-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase">Notes</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.notesLabel")}</span>
                 <p className="text-sm text-foreground mt-0.5 whitespace-pre-wrap">{device.notes}</p>
               </div>
             )}
 
             <div className="mt-6 border-t border-border pt-4">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Lifecycle & Timestamps
+                {t("deviceDetail.lifecycleHeading")}
               </h3>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
                 <div>
-                  <span className="text-muted-foreground">Created:</span>
+                  <span className="text-muted-foreground">{t("deviceDetail.createdLabel")}</span>
                   <p className="font-medium text-foreground mt-0.5">
                     {new Date(device.createdAt).toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Last updated:</span>
+                  <span className="text-muted-foreground">{t("deviceDetail.lastUpdatedLabel")}</span>
                   <p className="font-medium text-foreground mt-0.5">
                     {new Date(device.updatedAt).toLocaleString()}
                   </p>
@@ -501,24 +512,24 @@ export function DeviceDetailPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <UserIcon className="size-4 text-primary" />
-                <h2 className="text-base font-semibold text-foreground">Current Holder & Custody</h2>
+                <h2 className="text-base font-semibold text-foreground">{t("deviceDetail.custodyHeading")}</h2>
               </div>
               {activeLoan && (
                 <Badge variant="outline" className="border-primary text-primary text-xs">
-                  On Loan
+                  {t("deviceDetail.onLoan")}
                 </Badge>
               )}
             </div>
 
             {isLoansLoading && (
               <div className="mt-4">
-                <LoadingState message="Checking custody status…" />
+                <LoadingState message={t("deviceDetail.checkingCustody")} />
               </div>
             )}
 
             {!isLoansLoading && !activeLoan && (
               <p className="mt-4 text-sm text-muted-foreground">
-                Device is currently available / not on loan.
+                {t("deviceDetail.notOnLoan")}
               </p>
             )}
 
@@ -527,9 +538,9 @@ export function DeviceDetailPage() {
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground uppercase">Borrower:</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase">{t("deviceDetail.borrowerLabel")}</span>
                       {isBorrowerLoading ? (
-                        <span className="text-sm text-muted-foreground">Loading borrower…</span>
+                        <span className="text-sm text-muted-foreground">{t("deviceDetail.loadingBorrower")}</span>
                       ) : activeBorrower ? (
                         <Link
                           to="/users/$userId"
@@ -540,7 +551,7 @@ export function DeviceDetailPage() {
                         </Link>
                       ) : (
                         <span className="font-identifier text-sm font-semibold">
-                          User {activeLoan.userId}
+                          {t("deviceDetail.userFallback", { userId: activeLoan.userId })}
                         </span>
                       )}
                     </div>
@@ -548,20 +559,20 @@ export function DeviceDetailPage() {
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="size-3.5" />
-                        Borrowed: {new Date(activeLoan.borrowedAt).toLocaleString()}
+                        {t("deviceDetail.borrowedAt", { date: new Date(activeLoan.borrowedAt).toLocaleString() })}
                       </span>
                       {activeLoan.dueAt && (
                         <span className="flex items-center gap-1">
                           <Calendar className="size-3.5" />
-                          Due: {new Date(activeLoan.dueAt).toLocaleString()}
+                          {t("deviceDetail.dueAt", { date: new Date(activeLoan.dueAt).toLocaleString() })}
                           {new Date(activeLoan.dueAt) < new Date() && (
                             <Badge variant="destructive" className="ml-1 text-[10px] py-0 px-1">
-                              Overdue
+                              {t("deviceDetail.overdue")}
                             </Badge>
                           )}
                         </span>
                       )}
-                      {activeLoan.paperRef && <span>Paper slip: {activeLoan.paperRef}</span>}
+                      {activeLoan.paperRef && <span>{t("deviceDetail.paperSlip", { ref: activeLoan.paperRef })}</span>}
                     </div>
                   </div>
 
@@ -569,7 +580,7 @@ export function DeviceDetailPage() {
                     <Button size="sm" variant="ghost" asChild>
                       <Link to="/loans/$loanId" params={{ loanId: activeLoan.id }} className="text-xs">
                         <ExternalLink className="mr-1 size-3.5" />
-                        View loan
+                        {t("deviceDetail.viewLoan")}
                       </Link>
                     </Button>
                     <RoleGate minRole="technician">
@@ -579,7 +590,7 @@ export function DeviceDetailPage() {
                         onClick={() => setForceReturnOpen(true)}
                         className="text-xs text-destructive hover:text-destructive"
                       >
-                        Force return
+                        {t("deviceDetail.forceReturn")}
                       </Button>
                     </RoleGate>
                   </div>
@@ -593,20 +604,20 @@ export function DeviceDetailPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <History className="size-4 text-primary" />
-                <h2 className="text-base font-semibold text-foreground">Loan History</h2>
+                <h2 className="text-base font-semibold text-foreground">{t("deviceDetail.historyHeading")}</h2>
               </div>
-              <span className="text-xs text-muted-foreground">{loans.length} total</span>
+              <span className="text-xs text-muted-foreground">{t("deviceDetail.totalCount", { count: loans.length })}</span>
             </div>
 
             {isLoansLoading && (
               <div className="mt-4">
-                <LoadingState message="Loading loan history…" />
+                <LoadingState message={t("deviceDetail.loadingHistory")} />
               </div>
             )}
 
             {!isLoansLoading && loans.length === 0 && (
               <p className="mt-4 text-sm text-muted-foreground">
-                No loan history for this device.
+                {t("deviceDetail.noHistory")}
               </p>
             )}
 
@@ -615,12 +626,12 @@ export function DeviceDetailPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="border-b border-border text-xs text-muted-foreground uppercase">
                     <tr>
-                      <th className="pb-2 font-medium">Borrower / User ID</th>
-                      <th className="pb-2 font-medium">Status</th>
-                      <th className="pb-2 font-medium">Origin</th>
-                      <th className="pb-2 font-medium">Borrowed</th>
-                      <th className="pb-2 font-medium">Returned / Due</th>
-                      <th className="pb-2 font-medium text-right">Action</th>
+                      <th className="pb-2 font-medium">{t("deviceDetail.colBorrower")}</th>
+                      <th className="pb-2 font-medium">{t("deviceDetail.colStatus")}</th>
+                      <th className="pb-2 font-medium">{t("deviceDetail.colOrigin")}</th>
+                      <th className="pb-2 font-medium">{t("deviceDetail.colBorrowed")}</th>
+                      <th className="pb-2 font-medium">{t("deviceDetail.colReturnedDue")}</th>
+                      <th className="pb-2 font-medium text-right">{t("deviceDetail.colAction")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -668,7 +679,7 @@ export function DeviceDetailPage() {
                             params={{ loanId: loan.id }}
                             className="text-xs font-medium text-primary hover:underline"
                           >
-                            View
+                            {t("deviceDetail.view")}
                           </Link>
                         </td>
                       </tr>
@@ -701,8 +712,8 @@ export function DeviceDetailPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit device</DialogTitle>
-            <DialogDescription>Update equipment attributes and location.</DialogDescription>
+            <DialogTitle>{t("deviceDetail.editTitle")}</DialogTitle>
+            <DialogDescription>{t("deviceDetail.editDescription")}</DialogDescription>
           </DialogHeader>
           <DeviceForm
             device={device}
@@ -730,9 +741,12 @@ export function DeviceDetailPage() {
       <ReasonActionDialog
         open={forceReturnOpen}
         onOpenChange={setForceReturnOpen}
-        title="Force return device"
-        description={`Administratively close the open loan for ${device.name} (${device.assetTag}).`}
-        confirmLabel="Force return"
+        title={t("deviceDetail.forceReturnTitle")}
+        description={t("deviceDetail.forceReturnDescription", {
+          name: device.name,
+          assetTag: device.assetTag,
+        })}
+        confirmLabel={t("deviceDetail.forceReturn")}
         confirmVariant="destructive"
         onConfirm={(reason) => forceReturnMutation.mutate(reason)}
         isPending={forceReturnMutation.isPending}

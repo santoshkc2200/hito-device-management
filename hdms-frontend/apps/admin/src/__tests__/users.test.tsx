@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { ja } from "@/i18n/ja";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { UsersPage, usersRoute } from "../routes/users";
 
@@ -124,7 +125,7 @@ describe("4.4a Users Table & Actions", () => {
     renderUsersPage("admin");
 
     expect(await screen.findByText("Dr. Taro Yamada")).toBeInTheDocument();
-    const badges = await screen.findAllByText("no card issued");
+    const badges = await screen.findAllByText(ja.users.noCardIssued);
     expect(badges.length).toBe(mockUsers.length);
   });
 
@@ -134,11 +135,11 @@ describe("4.4a Users Table & Actions", () => {
     await screen.findByText("Dr. Taro Yamada");
 
     // Click card status filter
-    const cardStatusTrigger = screen.getByRole("combobox", { name: /filter by card status/i });
+    const cardStatusTrigger = screen.getByRole("combobox", { name: ja.users.filterByCardStatusAria });
     const user = userEvent.setup();
     await user.pointer({ keys: "[MouseLeft]", target: cardStatusTrigger });
 
-    const noCardOption = await screen.findByRole("option", { name: /no card issued/i });
+    const noCardOption = await screen.findByRole("option", { name: ja.users.noCardIssuedFilter });
     await user.click(noCardOption);
 
     expect(mockNavigate).toHaveBeenCalledWith({
@@ -161,13 +162,13 @@ describe("4.4a Users Table & Actions", () => {
     await screen.findByText("Dr. Taro Yamada");
 
     const user = userEvent.setup();
-    const suspendButtons = screen.getAllByRole("button", { name: /^suspend$/i });
+    const suspendButtons = screen.getAllByRole("button", { name: ja.users.suspend });
     await user.click(suspendButtons[0]);
 
-    expect(screen.getByRole("heading", { name: /suspend borrower/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: ja.users.suspendTitle })).toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText(/reason \(required\)/i), "Misplaced badge");
-    await user.click(screen.getByRole("button", { name: /^suspend$/i }));
+    await user.type(screen.getByPlaceholderText(ja.users.reasonPlaceholder), "Misplaced badge");
+    await user.click(screen.getByRole("button", { name: ja.users.suspend }));
 
     await waitFor(() => {
       expect(suspendSpy).toHaveBeenCalledWith({
@@ -188,13 +189,13 @@ describe("4.4a Users Table & Actions", () => {
     await screen.findByText("Dr. Taro Yamada");
 
     const user = userEvent.setup();
-    const archiveButtons = screen.getAllByRole("button", { name: /^archive$/i });
+    const archiveButtons = screen.getAllByRole("button", { name: ja.users.archive });
     await user.click(archiveButtons[0]);
 
-    expect(screen.getByRole("heading", { name: /archive borrower/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: ja.users.archiveTitle })).toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText(/reason \(required\)/i), "Staff departed hospital");
-    await user.click(screen.getByRole("button", { name: /^archive$/i }));
+    await user.type(screen.getByPlaceholderText(ja.users.reasonPlaceholder), "Staff departed hospital");
+    await user.click(screen.getByRole("button", { name: ja.users.archive }));
 
     await waitFor(() => {
       expect(archiveSpy).toHaveBeenCalledWith({

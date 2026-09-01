@@ -1,6 +1,7 @@
 import type { Table } from "@tanstack/react-table";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ export function DataTablePagination<TData>({
   onPageSizeChange,
   pageSizeOptions = [25, 50, 100, 200],
 }: DataTablePaginationProps<TData>) {
+  const t = useT();
   const rowCount = totalLoaded ?? table.getRowModel().rows.length;
   const selectedCount = table.getFilteredSelectedRowModel().rows.length;
 
@@ -39,19 +41,22 @@ export function DataTablePagination<TData>({
         <span>
           {selectedCount > 0 ? (
             <>
-              <strong className="text-foreground">{selectedCount}</strong> of{" "}
-              <strong className="text-foreground">{rowCount}</strong> row(s) selected
+              <strong className="text-foreground">{selectedCount}</strong>{" "}
+              {t("table.selectedOfPrefix")}{" "}
+              <strong className="text-foreground">{rowCount}</strong>{" "}
+              {t("table.rowsSelectedSuffix")}
             </>
           ) : (
             <>
-              Showing <strong className="text-foreground">{rowCount}</strong> row{rowCount === 1 ? "" : "s"}
+              {t("table.showingPrefix")} <strong className="text-foreground">{rowCount}</strong>{" "}
+              {rowCount === 1 ? t("table.rowsSuffixSingular") : t("table.rowsSuffixPlural")}
             </>
           )}
         </span>
 
         {pageSize && onPageSizeChange && (
           <div className="flex items-center gap-1.5 ml-4">
-            <span>Rows per page</span>
+            <span>{t("table.rowsPerPage")}</span>
             <Select
               value={String(pageSize)}
               onValueChange={(val) => onPageSizeChange(Number(val))}
@@ -82,12 +87,12 @@ export function DataTablePagination<TData>({
           {isFetchingNextPage ? (
             <>
               <Loader2 className="mr-2 size-3.5 animate-spin" />
-              Loading more…
+              {t("table.loadingMore")}
             </>
           ) : (
             <>
               <ChevronDown className="mr-1.5 size-3.5" />
-              Load more
+              {t("table.loadMore")}
             </>
           )}
         </Button>

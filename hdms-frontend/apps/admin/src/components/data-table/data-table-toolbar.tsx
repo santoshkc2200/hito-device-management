@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTableColumnVisibility } from "./column-visibility";
 import { cn } from "@hdms/ui";
+import { useT } from "@/i18n";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
@@ -25,7 +26,7 @@ export function DataTableToolbar<TData>({
   tableId,
   searchQuery = "",
   onSearchChange,
-  searchPlaceholder = "Search…",
+  searchPlaceholder,
   isFiltered = false,
   onResetFilters,
   children,
@@ -33,6 +34,8 @@ export function DataTableToolbar<TData>({
   className,
   enableColumnVisibility = true,
 }: DataTableToolbarProps<TData>) {
+  const t = useT();
+  const placeholder = searchPlaceholder ?? t("table.searchPlaceholder");
   const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery);
   const [internalSearch, setInternalSearch] = useState(searchQuery);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -77,7 +80,7 @@ export function DataTableToolbar<TData>({
             <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
               ref={searchInputRef}
-              placeholder={searchPlaceholder}
+              placeholder={placeholder}
               value={internalSearch}
               onChange={(e) => setInternalSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -95,7 +98,7 @@ export function DataTableToolbar<TData>({
                 }
               }}
               className="pl-8 pr-14 h-8 text-xs"
-              aria-label={searchPlaceholder}
+              aria-label={placeholder}
             />
             {internalSearch ? (
               <button
@@ -106,7 +109,7 @@ export function DataTableToolbar<TData>({
                   searchInputRef.current?.focus();
                 }}
                 className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm"
-                aria-label="Clear search text"
+                aria-label={t("table.clearSearchText")}
               >
                 <X className="size-3.5" />
               </button>
@@ -128,7 +131,7 @@ export function DataTableToolbar<TData>({
             size="sm"
           >
             <X className="mr-1.5 size-3.5" />
-            Reset filters
+            {t("table.resetFilters")}
           </Button>
         )}
       </div>

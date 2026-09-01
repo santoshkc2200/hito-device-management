@@ -27,6 +27,7 @@ var RequiredRoles = map[string]string{
 	// --- Self-Service Auth (any authenticated admin) -------------------------
 	"POST /v1/auth/logout":         "viewer",
 	"GET /v1/auth/me":              "viewer",
+	"PATCH /v1/auth/me/locale":     "viewer",
 	"POST /v1/auth/password":       "viewer",
 	"POST /v1/auth/totp/reenrol":   "viewer",
 	"POST /v1/auth/totp/confirm":   "viewer",

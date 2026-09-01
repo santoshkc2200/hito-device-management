@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { useState } from "react";
+import { ja } from "@/i18n/ja";
 import {
   DataTable,
   DataTableColumnHeader,
@@ -122,7 +123,7 @@ describe("4.2b DataTable Component", () => {
       expect(
         screen.getByText("No devices have been added to the inventory yet.")
       ).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /clear filters/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: ja.table.clearFilters })).not.toBeInTheDocument();
     });
 
     it("renders empty-with-filters state and clear filters action when isFiltered is true", () => {
@@ -146,12 +147,12 @@ describe("4.2b DataTable Component", () => {
         />
       );
 
-      expect(screen.getByText("No matching results")).toBeInTheDocument();
+      expect(screen.getByText(ja.table.noMatchingResults)).toBeInTheDocument();
       expect(
-        screen.getByText("No records match your active search and filter criteria.")
+        screen.getByText(ja.table.noMatchingResultsExplanation)
       ).toBeInTheDocument();
 
-      const clearBtn = screen.getByRole("button", { name: /clear filters/i });
+      const clearBtn = screen.getByRole("button", { name: ja.table.clearFilters });
       expect(clearBtn).toBeInTheDocument();
       fireEvent.click(clearBtn);
       expect(handleReset).toHaveBeenCalledTimes(1);
@@ -180,7 +181,7 @@ describe("4.2b DataTable Component", () => {
         />
       );
 
-      const tableRegion = screen.getByRole("region", { name: /data table/i });
+      const tableRegion = screen.getByRole("region", { name: ja.table.regionAria });
       tableRegion.focus();
 
       // Press ArrowDown to focus first row
@@ -318,22 +319,24 @@ describe("4.2b DataTable Component", () => {
 
       render(<SelectableTable />);
 
-      expect(screen.queryByRole("region", { name: /bulk actions/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: ja.table.bulkActionsAria })).not.toBeInTheDocument();
 
       // Select first row
       const firstCheckbox = screen.getByRole("checkbox", { name: "Select row 1" });
       await user.click(firstCheckbox);
 
-      expect(screen.getByRole("region", { name: /bulk actions/i })).toBeInTheDocument();
-      expect(screen.getByRole("region", { name: /bulk actions/i })).toHaveTextContent(/1 item selected/i);
+      const bulkRegion = screen.getByRole("region", { name: ja.table.bulkActionsAria });
+      expect(bulkRegion).toBeInTheDocument();
+      expect(bulkRegion).toHaveTextContent("1");
+      expect(bulkRegion).toHaveTextContent(ja.table.itemsSelectedSuffix);
       expect(screen.getByTestId("bulk-export-btn")).toHaveTextContent("Export (1)");
 
       // Deselect all
-      const deselectBtn = screen.getByRole("button", { name: /deselect all/i });
+      const deselectBtn = screen.getByRole("button", { name: ja.table.deselectAll });
       await user.click(deselectBtn);
 
       await waitFor(() => {
-        expect(screen.queryByRole("region", { name: /bulk actions/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole("region", { name: ja.table.bulkActionsAria })).not.toBeInTheDocument();
       });
     });
   });

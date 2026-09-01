@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
 import { currentAdminQueryKey } from "@/lib/auth";
+import { ja } from "@/i18n/ja";
 import { auditRoute } from "../routes/audit";
 
 const mockNavigate = vi.fn();
@@ -107,8 +108,8 @@ describe("AuditPage (4.9d)", () => {
 
     await user.click(screen.getByTestId("view-event-evt-1"));
 
-    expect(screen.getByText(/Audit Event Details/i)).toBeInTheDocument();
-    expect(screen.getByText(/Event ID: evt-1/i)).toBeInTheDocument();
+    expect(screen.getByText(ja.audit.detailsTitle)).toBeInTheDocument();
+    expect(screen.getByText(`${ja.audit.eventIdLabel} evt-1`)).toBeInTheDocument();
     expect(screen.getByText(/TAB-999/i)).toBeInTheDocument();
   });
 

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { ja } from "@/i18n/ja";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { LoanDetailPage, loanDetailRoute } from "../routes/loans.$loanId";
 
@@ -198,19 +199,19 @@ describe("LoanDetailPage — Phase 4.8b/c", () => {
     fireEvent.click(screen.getByTestId("force-return-button"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Force Return Loan")).toBeInTheDocument();
+    expect(screen.getByText(ja.loanDetail.forceReturnTitle)).toBeInTheDocument();
 
     // Confirm button is disabled without reason
-    const confirmBtn = screen.getByRole("button", { name: /confirm return/i });
+    const confirmBtn = screen.getByRole("button", { name: ja.loanDetail.confirmReturn });
     expect(confirmBtn).toBeDisabled();
 
     // Fill in reason
-    const reasonInput = screen.getByLabelText(/reason for administrative return/i);
+    const reasonInput = screen.getByLabelText(ja.loanDetail.forceReturnReasonLabel);
     fireEvent.change(reasonInput, { target: { value: "Returned without badge" } });
     expect(confirmBtn).toBeEnabled();
 
     // Cancel closes dialog
-    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    fireEvent.click(screen.getByRole("button", { name: ja.loanDetail.cancel }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
@@ -226,17 +227,17 @@ describe("LoanDetailPage — Phase 4.8b/c", () => {
     fireEvent.click(screen.getByTestId("write-off-button"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText(/permanently closes the custody window/i)).toBeInTheDocument();
+    expect(screen.getByText(/この操作は保管記録を完全に終了させ/)).toBeInTheDocument();
 
-    const confirmBtn = screen.getByRole("button", { name: /write off loan/i });
+    const confirmBtn = screen.getByRole("button", { name: ja.loanDetail.confirmWriteOff });
     expect(confirmBtn).toBeDisabled();
 
-    const reasonInput = screen.getByLabelText(/reason for write-off/i);
+    const reasonInput = screen.getByLabelText(ja.loanDetail.writeOffReasonLabel);
     fireEvent.change(reasonInput, { target: { value: "Crushed by elevator door" } });
     expect(confirmBtn).toBeEnabled();
 
     // Cancel branch
-    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    fireEvent.click(screen.getByRole("button", { name: ja.loanDetail.cancel }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
@@ -252,10 +253,10 @@ describe("LoanDetailPage — Phase 4.8b/c", () => {
     fireEvent.click(screen.getByTestId("correct-attribution-button"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Correct Loan Attribution")).toBeInTheDocument();
+    expect(screen.getByText(ja.loanDetail.correctTitle)).toBeInTheDocument();
 
     // Cancel closes dialog
-    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    fireEvent.click(screen.getByRole("button", { name: ja.loanDetail.cancel }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });

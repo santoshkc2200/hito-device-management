@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useT } from "@/i18n";
 import { defaultLabelSheetSettings, useLabelSheetSettings } from "@/lib/label-settings";
 import { authenticatedRoute } from "./authenticated";
 
@@ -35,6 +36,7 @@ function SettingsField({
 }
 
 function SheetSettingsTab() {
+  const t = useT();
   const [settings, setSettings] = useLabelSheetSettings();
   const previewCount = settings.columns * Math.min(settings.rows, 3);
 
@@ -44,63 +46,63 @@ function SheetSettingsTab() {
         <FieldGroup>
           <div className="grid grid-cols-2 gap-3">
             <SettingsField
-              label="Columns"
+              label={t("labelsPage.columnsLabel")}
               value={settings.columns}
               onChange={(v) => setSettings({ ...settings, columns: v })}
             />
             <SettingsField
-              label="Rows"
+              label={t("labelsPage.rowsLabel")}
               value={settings.rows}
               onChange={(v) => setSettings({ ...settings, rows: v })}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <SettingsField
-              label="Label width (mm)"
+              label={t("labelsPage.labelWidthLabel")}
               value={settings.labelWidthMm}
               onChange={(v) => setSettings({ ...settings, labelWidthMm: v })}
             />
             <SettingsField
-              label="Label height (mm)"
+              label={t("labelsPage.labelHeightLabel")}
               value={settings.labelHeightMm}
               onChange={(v) => setSettings({ ...settings, labelHeightMm: v })}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <SettingsField
-              label="Top margin (mm)"
+              label={t("labelsPage.topMarginLabel")}
               value={settings.marginTopMm}
               onChange={(v) => setSettings({ ...settings, marginTopMm: v })}
             />
             <SettingsField
-              label="Left margin (mm)"
+              label={t("labelsPage.leftMarginLabel")}
               value={settings.marginLeftMm}
               onChange={(v) => setSettings({ ...settings, marginLeftMm: v })}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <SettingsField
-              label="Column gap (mm)"
+              label={t("labelsPage.columnGapLabel")}
               value={settings.gapXMm}
               onChange={(v) => setSettings({ ...settings, gapXMm: v })}
             />
             <SettingsField
-              label="Row gap (mm)"
+              label={t("labelsPage.rowGapLabel")}
               value={settings.gapYMm}
               onChange={(v) => setSettings({ ...settings, gapYMm: v })}
             />
           </div>
         </FieldGroup>
         <Button variant="outline" size="sm" onClick={() => setSettings(defaultLabelSheetSettings)}>
-          Reset to default
+          {t("labelsPage.resetToDefault")}
         </Button>
       </div>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium">Preview — what prints is what you see</p>
+          <p className="text-sm font-medium">{t("labelsPage.previewHint")}</p>
           <Button size="sm" onClick={() => window.print()}>
             <Printer className="size-4" data-icon="inline-start" />
-            Print test sheet
+            {t("labelsPage.printTestSheet")}
           </Button>
         </div>
         <div className="overflow-auto rounded-md border border-border bg-secondary p-4">
@@ -124,13 +126,14 @@ function SheetSettingsTab() {
 }
 
 function RegisterSlipTab() {
+  const t = useT();
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Paper register pad — printed for the counter</p>
+        <p className="text-sm font-medium">{t("labelsPage.registerSlipHint")}</p>
         <Button size="sm" onClick={() => window.print()}>
           <Printer className="size-4" data-icon="inline-start" />
-          Print page
+          {t("labelsPage.printPage")}
         </Button>
       </div>
       <div className="overflow-auto rounded-md border border-border bg-secondary p-4">
@@ -141,13 +144,14 @@ function RegisterSlipTab() {
 }
 
 function LabelsPage() {
+  const t = useT();
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Labels</h1>
+      <h1 className="text-xl font-semibold">{t("labelsPage.title")}</h1>
       <Tabs defaultValue="sheet">
         <TabsList>
-          <TabsTrigger value="sheet">Label sheet</TabsTrigger>
-          <TabsTrigger value="slip">Register slip</TabsTrigger>
+          <TabsTrigger value="sheet">{t("labelsPage.sheetTab")}</TabsTrigger>
+          <TabsTrigger value="slip">{t("labelsPage.slipTab")}</TabsTrigger>
         </TabsList>
         <TabsContent value="sheet">
           <SheetSettingsTab />

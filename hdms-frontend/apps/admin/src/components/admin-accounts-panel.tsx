@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   createAdmin,
@@ -60,6 +59,7 @@ import { RecoveryCodesDialog } from "@/components/recovery-codes-dialog";
 import { Barcode } from "@/components/barcode";
 import { useRole } from "@/lib/use-role";
 import { regenerateRecoveryCodesAdmin } from "@/lib/auth";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { queryClient } from "@/lib/query-client";
 import { toast } from "sonner";
 import {
@@ -76,6 +76,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { useT } from "@/i18n";
 
 export const adminsQueryKey = ["admins"] as const;
 
@@ -84,16 +85,16 @@ export const adminsQueryKey = ["admins"] as const;
 // -----------------------------------------------------------------------------
 
 const createAdminSchema = z.object({
-  fullName: z.string().min(1, "Full name is required"),
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+  fullName: z.string().min(1, "validation.fullNameRequired"),
+  email: z.string().min(1, "validation.emailRequired").email("validation.emailInvalid"),
   role: z.enum(["admin", "technician", "viewer"] as const),
-  password: z.string().min(12, "Initial password must be at least 12 characters"),
+  password: z.string().min(12, "validation.initialPasswordMin"),
 });
 
 type CreateAdminFormValues = z.infer<typeof createAdminSchema>;
 
 const editAdminSchema = z.object({
-  fullName: z.string().min(1, "Full name is required"),
+  fullName: z.string().min(1, "validation.fullNameRequired"),
   role: z.enum(["admin", "technician", "viewer"] as const),
   status: z.enum(["active", "disabled"] as const),
 });
@@ -101,14 +102,14 @@ const editAdminSchema = z.object({
 type EditAdminFormValues = z.infer<typeof editAdminSchema>;
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(12, "New password must be at least 12 characters"),
-  reason: z.string().min(3, "Reason is required for audit recording"),
+  password: z.string().min(12, "validation.newPasswordMin"),
+  reason: z.string().min(3, "validation.reasonRequired"),
 });
 
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
 const actionWithReasonSchema = z.object({
-  reason: z.string().min(3, "Reason is required for audit recording"),
+  reason: z.string().min(3, "validation.reasonRequired"),
 });
 
 type ActionWithReasonFormValues = z.infer<typeof actionWithReasonSchema>;
@@ -118,6 +119,7 @@ type ActionWithReasonFormValues = z.infer<typeof actionWithReasonSchema>;
 // -----------------------------------------------------------------------------
 
 export function AdminAccountsPanel() {
+  const t = useT();
   const { isAdmin, admin: currentAdmin } = useRole();
 
   const { data, isLoading, error } = useQuery({
@@ -149,23 +151,23 @@ export function AdminAccountsPanel() {
       setSelfRecoveryCodes(res?.codes ?? []);
     },
     onError: () => {
-      toast.error("Failed to regenerate recovery codes.");
+      toast.error(t("adminAccountsPanel.regenRecoveryFailed"));
     },
   });
 
   if (isLoading) {
-    return <LoadingState message="Loading administrator accounts…" />;
+    return <LoadingState message={t("adminAccountsPanel.loadingAdmins")} />;
   }
 
   if (error) {
     return (
       <EmptyState
         icon={ShieldAlert}
-        title="Failed to load admin accounts"
+        title={t("adminAccountsPanel.loadFailedTitle")}
         explanation={
           error && typeof error === "object" && "detail" in error
             ? String((error as { detail: string }).detail)
-            : "An unexpected error occurred."
+            : t("states.unexpectedError")
         }
       />
     );
@@ -178,11 +180,9 @@ export function AdminAccountsPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-foreground">
-            Administrator accounts
+            {t("adminAccountsPanel.title")}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Manage console operators, assign role-based access, and oversee credentials.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("adminAccountsPanel.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -194,7 +194,7 @@ export function AdminAccountsPanel() {
             className="gap-1.5"
           >
             <KeyRound className="size-4" />
-            My recovery codes
+            {t("adminAccountsPanel.myRecoveryCodes")}
           </Button>
           {isAdmin && (
             <Button
@@ -204,7 +204,7 @@ export function AdminAccountsPanel() {
               className="gap-1.5"
             >
               <UserPlus className="size-4" />
-              Add administrator
+              {t("adminAccountsPanel.addAdministrator")}
             </Button>
           )}
         </div>
@@ -213,19 +213,19 @@ export function AdminAccountsPanel() {
       {admins.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No administrator accounts found"
-          explanation="No administrators exist yet in the directory."
+          title={t("adminAccountsPanel.noAdminsFoundTitle")}
+          explanation={t("adminAccountsPanel.noAdminsFoundExplanation")}
         />
       ) : (
         <div className="rounded-lg border border-border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Administrator</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last login</TableHead>
-                {isAdmin && <TableHead className="w-16 text-right">Actions</TableHead>}
+                <TableHead>{t("adminAccountsPanel.colAdministrator")}</TableHead>
+                <TableHead>{t("adminAccountsPanel.colRole")}</TableHead>
+                <TableHead>{t("columns.status")}</TableHead>
+                <TableHead>{t("adminAccountsPanel.colLastLogin")}</TableHead>
+                {isAdmin && <TableHead className="w-16 text-right">{t("columns.actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -242,7 +242,7 @@ export function AdminAccountsPanel() {
                         {account.fullName}
                         {isCurrentAccount && (
                           <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                            You
+                            {t("adminAccountsPanel.youBadge")}
                           </span>
                         )}
                       </div>
@@ -268,23 +268,23 @@ export function AdminAccountsPanel() {
                       {isLocked ? (
                         <Badge variant="destructive" className="gap-1">
                           <Lock className="size-3" />
-                          Locked
+                          {t("adminAccountsPanel.statusLocked")}
                         </Badge>
                       ) : account.status === "disabled" ? (
                         <Badge variant="secondary" className="gap-1 text-muted-foreground">
-                          Disabled
+                          {t("adminAccountsPanel.statusDisabled")}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="gap-1 border-green-500/30 text-green-700 dark:text-green-400 bg-green-500/10">
                           <Check className="size-3" />
-                          Active
+                          {t("adminAccountsPanel.statusActive")}
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {account.lastLoginAt
                         ? new Date(account.lastLoginAt).toLocaleString()
-                        : "Never"}
+                        : t("adminAccountsPanel.neverLoggedIn")}
                     </TableCell>
                     {isAdmin && (
                       <TableCell className="text-right">
@@ -294,7 +294,7 @@ export function AdminAccountsPanel() {
                               variant="ghost"
                               size="sm"
                               className="size-8 p-0"
-                              aria-label={`Actions for ${account.fullName}`}
+                              aria-label={t("adminAccountsPanel.actionsForAria", { name: account.fullName })}
                             >
                               <MoreHorizontal className="size-4" />
                             </Button>
@@ -302,15 +302,15 @@ export function AdminAccountsPanel() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setEditAdminTarget(account)}>
                               <UserCheck className="size-4 mr-2" />
-                              Edit role & status
+                              {t("adminAccountsPanel.editRoleStatus")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setResetPasswordTarget(account)}>
                               <KeyRound className="size-4 mr-2" />
-                              Reset password
+                              {t("adminAccountsPanel.resetPasswordAction")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setForceTotpTarget(account)}>
                               <QrCode className="size-4 mr-2" />
-                              Force TOTP re-enrolment
+                              {t("adminAccountsPanel.forceTotpAction")}
                             </DropdownMenuItem>
                             {isLocked && (
                               <>
@@ -320,7 +320,7 @@ export function AdminAccountsPanel() {
                                   className="text-amber-600 dark:text-amber-400"
                                 >
                                   <Unlock className="size-4 mr-2" />
-                                  Unlock account
+                                  {t("adminAccountsPanel.unlockAccountAction")}
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -425,8 +425,8 @@ export function AdminAccountsPanel() {
         <RecoveryCodesDialog
           open={Boolean(selfRecoveryCodes)}
           codes={selfRecoveryCodes}
-          title="Your New Recovery Codes"
-          description="Your previous recovery codes have been invalidated. Save these newly generated codes."
+          title={t("adminAccountsPanel.newRecoveryCodesTitle")}
+          description={t("adminAccountsPanel.newRecoveryCodesDescription")}
           onDismiss={() => setSelfRecoveryCodes(null)}
         />
       )}
@@ -447,8 +447,9 @@ function CreateAdminDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: (enrolment: AdminEnrolment) => void;
 }) {
+  const t = useT();
   const form = useForm<CreateAdminFormValues>({
-    resolver: zodResolver(createAdminSchema),
+    resolver: useLocalizedResolver(createAdminSchema),
     defaultValues: {
       fullName: "",
       email: "",
@@ -466,12 +467,12 @@ function CreateAdminDialog({
     onSuccess: (data) => {
       if (data) {
         form.reset();
-        toast.success("Administrator account created.");
+        toast.success(t("adminAccountsPanel.accountCreated"));
         onSuccess(data);
       }
     },
     onError: (error: unknown) => {
-      let message = "Failed to create administrator.";
+      let message = t("adminAccountsPanel.createFailed");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -487,15 +488,13 @@ function CreateAdminDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add administrator</DialogTitle>
-          <DialogDescription>
-            Create a new console account. You will receive one-time setup credentials and recovery codes upon creation.
-          </DialogDescription>
+          <DialogTitle>{t("adminAccountsPanel.addAdministrator")}</DialogTitle>
+          <DialogDescription>{t("adminAccountsPanel.createDialogDescription")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="mt-3">
             <Field data-invalid={!!form.formState.errors.fullName}>
-              <FieldLabel htmlFor="create-admin-name">Full name</FieldLabel>
+              <FieldLabel htmlFor="create-admin-name">{t("userDetail.fullNameLabel")}</FieldLabel>
               <Input
                 id="create-admin-name"
                 autoFocus
@@ -508,7 +507,7 @@ function CreateAdminDialog({
             </Field>
 
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="create-admin-email">Email</FieldLabel>
+              <FieldLabel htmlFor="create-admin-email">{t("userDetail.emailLabel")}</FieldLabel>
               <Input
                 id="create-admin-email"
                 type="email"
@@ -521,7 +520,7 @@ function CreateAdminDialog({
             </Field>
 
             <Field data-invalid={!!form.formState.errors.role}>
-              <FieldLabel htmlFor="create-admin-role">Role</FieldLabel>
+              <FieldLabel htmlFor="create-admin-role">{t("adminAccountsPanel.colRole")}</FieldLabel>
               <Select
                 value={form.watch("role")}
                 onValueChange={(val) =>
@@ -529,12 +528,12 @@ function CreateAdminDialog({
                 }
               >
                 <SelectTrigger id="create-admin-role">
-                  <SelectValue placeholder="Select role" />
+                  <SelectValue placeholder={t("adminAccountsPanel.selectRolePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin (Full Access & User Management)</SelectItem>
-                  <SelectItem value="technician">Technician (Inventory & Label Operations)</SelectItem>
-                  <SelectItem value="viewer">Viewer (Read-only)</SelectItem>
+                  <SelectItem value="admin">{t("adminAccountsPanel.roleAdminFull")}</SelectItem>
+                  <SelectItem value="technician">{t("adminAccountsPanel.roleTechnicianFull")}</SelectItem>
+                  <SelectItem value="viewer">{t("adminAccountsPanel.roleViewerFull")}</SelectItem>
                 </SelectContent>
               </Select>
               {form.formState.errors.role && (
@@ -543,11 +542,11 @@ function CreateAdminDialog({
             </Field>
 
             <Field data-invalid={!!form.formState.errors.password}>
-              <FieldLabel htmlFor="create-admin-password">Initial password</FieldLabel>
+              <FieldLabel htmlFor="create-admin-password">{t("adminAccountsPanel.initialPasswordLabel")}</FieldLabel>
               <Input
                 id="create-admin-password"
                 type="password"
-                placeholder="At least 12 characters"
+                placeholder={t("adminAccountsPanel.atLeast12CharsPlaceholder")}
                 aria-invalid={!!form.formState.errors.password}
                 {...form.register("password")}
               />
@@ -568,10 +567,10 @@ function CreateAdminDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Creating…" : "Create account"}
+                {mutation.isPending ? t("adminAccountsPanel.creating") : t("adminAccountsPanel.createAccount")}
               </Button>
             </DialogFooter>
           </FieldGroup>
@@ -596,8 +595,9 @@ function EditAdminDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }) {
+  const t = useT();
   const form = useForm<EditAdminFormValues>({
-    resolver: zodResolver(editAdminSchema),
+    resolver: useLocalizedResolver(editAdminSchema),
     defaultValues: {
       fullName: admin.fullName,
       role: (admin.role === "superadmin" ? "admin" : admin.role === "operator" ? "technician" : admin.role) as "admin" | "technician" | "viewer",
@@ -619,11 +619,11 @@ function EditAdminDialog({
       return res.data;
     },
     onSuccess: () => {
-      toast.success("Administrator account updated.");
+      toast.success(t("adminAccountsPanel.accountUpdated"));
       onSuccess();
     },
     onError: (error: unknown) => {
-      let message = "Failed to update administrator.";
+      let message = t("adminAccountsPanel.updateFailed");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -639,15 +639,15 @@ function EditAdminDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit administrator</DialogTitle>
+          <DialogTitle>{t("adminAccountsPanel.editAdministrator")}</DialogTitle>
           <DialogDescription>
-            Update profile details, role, and account status for {admin.email}.
+            {t("adminAccountsPanel.editDialogDescription", { email: admin.email })}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="mt-3">
             <Field data-invalid={!!form.formState.errors.fullName}>
-              <FieldLabel htmlFor="edit-admin-name">Full name</FieldLabel>
+              <FieldLabel htmlFor="edit-admin-name">{t("userDetail.fullNameLabel")}</FieldLabel>
               <Input
                 id="edit-admin-name"
                 aria-invalid={!!form.formState.errors.fullName}
@@ -659,7 +659,7 @@ function EditAdminDialog({
             </Field>
 
             <Field data-invalid={!!form.formState.errors.role}>
-              <FieldLabel htmlFor="edit-admin-role">Role</FieldLabel>
+              <FieldLabel htmlFor="edit-admin-role">{t("adminAccountsPanel.colRole")}</FieldLabel>
               <Select
                 value={form.watch("role")}
                 onValueChange={(val) =>
@@ -667,12 +667,12 @@ function EditAdminDialog({
                 }
               >
                 <SelectTrigger id="edit-admin-role">
-                  <SelectValue placeholder="Select role" />
+                  <SelectValue placeholder={t("adminAccountsPanel.selectRolePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="technician">Technician</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="admin">{t("adminAccountsPanel.roleAdmin")}</SelectItem>
+                  <SelectItem value="technician">{t("adminAccountsPanel.roleTechnician")}</SelectItem>
+                  <SelectItem value="viewer">{t("adminAccountsPanel.roleViewer")}</SelectItem>
                 </SelectContent>
               </Select>
               {form.formState.errors.role && (
@@ -681,7 +681,7 @@ function EditAdminDialog({
             </Field>
 
             <Field data-invalid={!!form.formState.errors.status}>
-              <FieldLabel htmlFor="edit-admin-status">Account status</FieldLabel>
+              <FieldLabel htmlFor="edit-admin-status">{t("adminAccountsPanel.accountStatusLabel")}</FieldLabel>
               <Select
                 value={form.watch("status")}
                 onValueChange={(val) =>
@@ -689,11 +689,11 @@ function EditAdminDialog({
                 }
               >
                 <SelectTrigger id="edit-admin-status">
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder={t("adminAccountsPanel.selectStatusPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="disabled">Disabled</SelectItem>
+                  <SelectItem value="active">{t("adminAccountsPanel.statusActive")}</SelectItem>
+                  <SelectItem value="disabled">{t("adminAccountsPanel.statusDisabled")}</SelectItem>
                 </SelectContent>
               </Select>
               {form.formState.errors.status && (
@@ -713,10 +713,10 @@ function EditAdminDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving…" : "Save changes"}
+                {mutation.isPending ? t("adminAccountsPanel.savingChanges") : t("adminAccountsPanel.saveChanges")}
               </Button>
             </DialogFooter>
           </FieldGroup>
@@ -741,8 +741,9 @@ function ResetPasswordDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }) {
+  const t = useT();
   const form = useForm<ResetPasswordFormValues>({
-    resolver: zodResolver(resetPasswordSchema),
+    resolver: useLocalizedResolver(resetPasswordSchema),
     defaultValues: { password: "", reason: "" },
   });
 
@@ -759,11 +760,11 @@ function ResetPasswordDialog({
       return res.data;
     },
     onSuccess: () => {
-      toast.success(`Password reset for ${admin.fullName}.`);
+      toast.success(t("adminAccountsPanel.passwordResetToast", { name: admin.fullName }));
       onSuccess();
     },
     onError: (error: unknown) => {
-      let message = "Failed to reset password.";
+      let message = t("adminAccountsPanel.resetPasswordFailed");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -779,20 +780,20 @@ function ResetPasswordDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Reset password</DialogTitle>
+          <DialogTitle>{t("adminAccountsPanel.resetPasswordAction")}</DialogTitle>
           <DialogDescription>
-            Set a new temporary password for {admin.fullName} ({admin.email}).
+            {t("adminAccountsPanel.resetPasswordDescription", { name: admin.fullName, email: admin.email })}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="mt-3">
             <Field data-invalid={!!form.formState.errors.password}>
-              <FieldLabel htmlFor="reset-admin-password">New password</FieldLabel>
+              <FieldLabel htmlFor="reset-admin-password">{t("forcedPasswordChangeDialog.newPasswordLabel")}</FieldLabel>
               <Input
                 id="reset-admin-password"
                 type="password"
                 autoFocus
-                placeholder="At least 12 characters"
+                placeholder={t("adminAccountsPanel.atLeast12CharsPlaceholder")}
                 aria-invalid={!!form.formState.errors.password}
                 {...form.register("password")}
               />
@@ -802,10 +803,10 @@ function ResetPasswordDialog({
             </Field>
 
             <Field data-invalid={!!form.formState.errors.reason}>
-              <FieldLabel htmlFor="reset-admin-reason">Audit reason</FieldLabel>
+              <FieldLabel htmlFor="reset-admin-reason">{t("adminAccountsPanel.auditReasonLabel")}</FieldLabel>
               <Input
                 id="reset-admin-reason"
-                placeholder="e.g. Account lockout recovery, forgotten password"
+                placeholder={t("adminAccountsPanel.resetReasonPlaceholder")}
                 aria-invalid={!!form.formState.errors.reason}
                 {...form.register("reason")}
               />
@@ -826,10 +827,10 @@ function ResetPasswordDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Resetting…" : "Reset password"}
+                {mutation.isPending ? t("adminAccountsPanel.resetting") : t("adminAccountsPanel.resetPasswordAction")}
               </Button>
             </DialogFooter>
           </FieldGroup>
@@ -854,8 +855,9 @@ function ForceTotpDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: (enrolment: TotpEnrolment) => void;
 }) {
+  const t = useT();
   const form = useForm<ActionWithReasonFormValues>({
-    resolver: zodResolver(actionWithReasonSchema),
+    resolver: useLocalizedResolver(actionWithReasonSchema),
     defaultValues: { reason: "" },
   });
 
@@ -870,12 +872,12 @@ function ForceTotpDialog({
     },
     onSuccess: (data) => {
       if (data) {
-        toast.success(`TOTP re-enrolment triggered for ${admin.fullName}.`);
+        toast.success(t("adminAccountsPanel.totpTriggeredToast", { name: admin.fullName }));
         onSuccess(data);
       }
     },
     onError: (error: unknown) => {
-      let message = "Failed to trigger TOTP re-enrolment.";
+      let message = t("adminAccountsPanel.totpTriggerFailed");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -891,19 +893,19 @@ function ForceTotpDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Force TOTP re-enrolment</DialogTitle>
+          <DialogTitle>{t("adminAccountsPanel.forceTotpAction")}</DialogTitle>
           <DialogDescription>
-            Invalidates {admin.fullName}&apos;s existing authenticator secret. A new secret and QR code will be generated immediately.
+            {t("adminAccountsPanel.forceTotpDescription", { name: admin.fullName })}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="mt-3">
             <Field data-invalid={!!form.formState.errors.reason}>
-              <FieldLabel htmlFor="force-totp-reason">Audit reason</FieldLabel>
+              <FieldLabel htmlFor="force-totp-reason">{t("adminAccountsPanel.auditReasonLabel")}</FieldLabel>
               <Input
                 id="force-totp-reason"
                 autoFocus
-                placeholder="e.g. Lost device, security review"
+                placeholder={t("adminAccountsPanel.forceTotpReasonPlaceholder")}
                 aria-invalid={!!form.formState.errors.reason}
                 {...form.register("reason")}
               />
@@ -924,10 +926,10 @@ function ForceTotpDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Generating…" : "Force re-enrolment"}
+                {mutation.isPending ? t("adminAccountsPanel.generating") : t("adminAccountsPanel.forceReenrolment")}
               </Button>
             </DialogFooter>
           </FieldGroup>
@@ -952,8 +954,9 @@ function UnlockAdminDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }) {
+  const t = useT();
   const form = useForm<ActionWithReasonFormValues>({
-    resolver: zodResolver(actionWithReasonSchema),
+    resolver: useLocalizedResolver(actionWithReasonSchema),
     defaultValues: { reason: "" },
   });
 
@@ -967,11 +970,11 @@ function UnlockAdminDialog({
       return res.data;
     },
     onSuccess: () => {
-      toast.success(`Account unlocked for ${admin.fullName}.`);
+      toast.success(t("adminAccountsPanel.accountUnlockedToast", { name: admin.fullName }));
       onSuccess();
     },
     onError: (error: unknown) => {
-      let message = "Failed to unlock account.";
+      let message = t("adminAccountsPanel.unlockFailed");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -987,19 +990,19 @@ function UnlockAdminDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Unlock administrator account</DialogTitle>
+          <DialogTitle>{t("adminAccountsPanel.unlockAccountTitle")}</DialogTitle>
           <DialogDescription>
-            Clear the temporary lockout for {admin.fullName} ({admin.email}) and allow immediate login attempts.
+            {t("adminAccountsPanel.unlockDescription", { name: admin.fullName, email: admin.email })}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <FieldGroup className="mt-3">
             <Field data-invalid={!!form.formState.errors.reason}>
-              <FieldLabel htmlFor="unlock-admin-reason">Audit reason</FieldLabel>
+              <FieldLabel htmlFor="unlock-admin-reason">{t("adminAccountsPanel.auditReasonLabel")}</FieldLabel>
               <Input
                 id="unlock-admin-reason"
                 autoFocus
-                placeholder="e.g. Identity verified by supervisor"
+                placeholder={t("adminAccountsPanel.unlockReasonPlaceholder")}
                 aria-invalid={!!form.formState.errors.reason}
                 {...form.register("reason")}
               />
@@ -1020,10 +1023,10 @@ function UnlockAdminDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Unlocking…" : "Unlock account"}
+                {mutation.isPending ? t("adminAccountsPanel.unlocking") : t("adminAccountsPanel.unlockAccountAction")}
               </Button>
             </DialogFooter>
           </FieldGroup>
@@ -1046,6 +1049,7 @@ function EnrolmentResultDialog({
   enrolment: AdminEnrolment;
   onDismiss: () => void;
 }) {
+  const t = useT();
   const [confirmed, setConfirmed] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [copiedCodes, setCopiedCodes] = useState(false);
@@ -1054,34 +1058,34 @@ function EnrolmentResultDialog({
     try {
       await navigator.clipboard.writeText(enrolment.enrolment.totpSecret);
       setCopiedSecret(true);
-      toast.success("TOTP secret copied");
+      toast.success(t("adminAccountsPanel.totpSecretCopied"));
       setTimeout(() => setCopiedSecret(false), 3000);
     } catch {
-      toast.error("Failed to copy secret");
+      toast.error(t("forcedTotpDialog.copyFailed"));
     }
   };
 
   const handleCopyCodes = async () => {
     try {
       const text = [
-        `Hito Hospital — Recovery Codes for ${enrolment.admin.fullName}`,
-        `Email: ${enrolment.admin.email}`,
-        `Generated: ${new Date().toISOString()}`,
+        t("adminAccountsPanel.recoveryCodesHeaderFor", { name: enrolment.admin.fullName }),
+        t("adminAccountsPanel.emailLine", { email: enrolment.admin.email }),
+        t("recoveryCodesDialog.clipboardGenerated", { date: new Date().toISOString() }),
         "",
         ...enrolment.recoveryCodes.codes.map((c, i) => `${i + 1}. ${c}`),
       ].join("\n");
       await navigator.clipboard.writeText(text);
       setCopiedCodes(true);
-      toast.success("Recovery codes copied");
+      toast.success(t("adminAccountsPanel.recoveryCodesCopied"));
       setTimeout(() => setCopiedCodes(false), 3000);
     } catch {
-      toast.error("Failed to copy recovery codes");
+      toast.error(t("adminAccountsPanel.recoveryCodesCopyFailed"));
     }
   };
 
   const handleClose = () => {
     if (!confirmed) {
-      toast.error("Please confirm credentials have been saved before closing.");
+      toast.error(t("adminAccountsPanel.confirmBeforeClose"));
       return;
     }
     setConfirmed(false);
@@ -1100,9 +1104,12 @@ function EnrolmentResultDialog({
         onPointerDownOutside={(e) => !confirmed && e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Administrator credentials created</DialogTitle>
+          <DialogTitle>{t("adminAccountsPanel.credentialsCreatedTitle")}</DialogTitle>
           <DialogDescription>
-            Hand off the 2FA setup and recovery codes to {enrolment.admin.fullName} ({enrolment.admin.email}).
+            {t("adminAccountsPanel.credentialsCreatedDescription", {
+              name: enrolment.admin.fullName,
+              email: enrolment.admin.email,
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -1110,7 +1117,7 @@ function EnrolmentResultDialog({
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <QrCode className="size-4 text-primary" />
-              1. Two-Factor Authenticator Setup
+              {t("adminAccountsPanel.step1TotpSetup")}
             </h3>
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="size-36 rounded-md border border-border bg-white p-2 flex items-center justify-center">
@@ -1122,9 +1129,7 @@ function EnrolmentResultDialog({
                 />
               </div>
               <div className="flex-1 space-y-2 text-xs">
-                <p className="text-muted-foreground">
-                  Scan this QR code in Google Authenticator or 1Password.
-                </p>
+                <p className="text-muted-foreground">{t("adminAccountsPanel.scanQrHint")}</p>
                 <div className="rounded bg-muted p-2 font-mono text-[11px] break-all">
                   {enrolment.enrolment.totpSecret}
                 </div>
@@ -1136,7 +1141,7 @@ function EnrolmentResultDialog({
                   className="gap-1.5 h-7 text-xs"
                 >
                   {copiedSecret ? <Check className="size-3 text-green-600" /> : <Copy className="size-3" />}
-                  Copy secret
+                  {t("forcedTotpDialog.copySecret")}
                 </Button>
               </div>
             </div>
@@ -1146,7 +1151,7 @@ function EnrolmentResultDialog({
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <ShieldCheck className="size-4 text-primary" />
-                2. Single-Use Recovery Codes
+                {t("adminAccountsPanel.step2RecoveryCodes")}
               </h3>
               <div className="flex gap-2">
                 <Button
@@ -1157,7 +1162,7 @@ function EnrolmentResultDialog({
                   className="gap-1.5 h-7 text-xs"
                 >
                   {copiedCodes ? <Check className="size-3 text-green-600" /> : <Copy className="size-3" />}
-                  Copy codes
+                  {t("adminAccountsPanel.copyCodes")}
                 </Button>
                 <Button
                   type="button"
@@ -1166,7 +1171,7 @@ function EnrolmentResultDialog({
                   onClick={() => window.print()}
                   className="gap-1.5 h-7 text-xs"
                 >
-                  Print
+                  {t("tokenRevealDialog.print")}
                 </Button>
               </div>
             </div>
@@ -1191,7 +1196,7 @@ function EnrolmentResultDialog({
               htmlFor="confirm-enrolment-saved"
               className="text-xs font-medium text-foreground cursor-pointer leading-snug"
             >
-              I have provided or saved these credentials for the administrator. I understand this is the only time they will be visible.
+              {t("adminAccountsPanel.confirmProvidedLabel")}
             </label>
           </div>
         </div>
@@ -1203,7 +1208,7 @@ function EnrolmentResultDialog({
             onClick={handleClose}
             className="w-full sm:w-auto"
           >
-            Done & close
+            {t("recoveryCodesDialog.doneAndClose")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1226,16 +1231,17 @@ function TotpSetupResultDialog({
   enrolment: TotpEnrolment;
   onDismiss: () => void;
 }) {
+  const t = useT();
   const [copiedSecret, setCopiedSecret] = useState(false);
 
   const handleCopySecret = async () => {
     try {
       await navigator.clipboard.writeText(enrolment.totpSecret);
       setCopiedSecret(true);
-      toast.success("Secret copied");
+      toast.success(t("adminAccountsPanel.secretCopied"));
       setTimeout(() => setCopiedSecret(false), 3000);
     } catch {
-      toast.error("Failed to copy secret");
+      toast.error(t("forcedTotpDialog.copyFailed"));
     }
   };
 
@@ -1243,9 +1249,9 @@ function TotpSetupResultDialog({
     <Dialog open={open} onOpenChange={(open) => !open && onDismiss()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New TOTP secret for {adminName}</DialogTitle>
+          <DialogTitle>{t("adminAccountsPanel.newTotpSecretTitle", { name: adminName })}</DialogTitle>
           <DialogDescription>
-            Provide this QR code or secret key to {adminName} to complete their authenticator setup.
+            {t("adminAccountsPanel.newTotpSecretDescription", { name: adminName })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -1261,14 +1267,14 @@ function TotpSetupResultDialog({
           </div>
           <div className="rounded-md border border-border bg-muted/40 p-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>Secret key</span>
+              <span>{t("adminAccountsPanel.secretKeyLabel")}</span>
               <button
                 type="button"
                 onClick={handleCopySecret}
                 className="flex items-center gap-1 font-medium text-foreground hover:underline cursor-pointer"
               >
                 {copiedSecret ? <Check className="size-3 text-green-600" /> : <Copy className="size-3" />}
-                Copy
+                {t("adminAccountsPanel.copy")}
               </button>
             </div>
             <p className="font-mono text-xs font-semibold tracking-wider text-foreground select-all break-all">
@@ -1278,7 +1284,7 @@ function TotpSetupResultDialog({
         </div>
         <DialogFooter className="mt-2">
           <Button type="button" onClick={onDismiss} className="w-full">
-            Done
+            {t("adminAccountsPanel.done")}
           </Button>
         </DialogFooter>
       </DialogContent>

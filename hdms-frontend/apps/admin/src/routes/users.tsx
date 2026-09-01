@@ -15,11 +15,17 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CredentialsPanel } from "@/components/credentials-panel";
-import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/components/data-table";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  useDataTableColumns,
+  useTextSortingFn,
+} from "@/components/data-table";
 import { userStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserImportDialog } from "@/components/user-import-dialog";
+import { useT } from "@/i18n";
 import { RoleGate } from "@/lib/use-role";
 import {
   Dialog,
@@ -74,6 +80,7 @@ function ReasonActionDialog({
   onConfirm: (reason: string) => void;
   isPending: boolean;
 }) {
+  const t = useT();
   const [reason, setReason] = useState("");
 
   const handleClose = () => {
@@ -90,7 +97,7 @@ function ReasonActionDialog({
         </DialogHeader>
         <div className="py-2">
           <Textarea
-            placeholder="Reason (required)"
+            placeholder={t("users.reasonPlaceholder")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
@@ -99,14 +106,14 @@ function ReasonActionDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={isPending}>
-            Cancel
+            {t("users.cancel")}
           </Button>
           <Button
             variant={confirmVariant}
             disabled={!reason.trim() || isPending}
             onClick={() => onConfirm(reason.trim())}
           >
-            {isPending ? "Processing…" : confirmLabel}
+            {isPending ? t("users.processing") : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -127,6 +134,7 @@ function UserDetailSheet({
   onSuspend: (user: User) => void;
   onArchive: (user: User) => void;
 }) {
+  const t = useT();
   const departmentName = departments.find((d) => d.id === user.departmentId)?.name;
 
   return (
@@ -137,14 +145,14 @@ function UserDetailSheet({
             <SheetTitle className="font-identifier">{user.employeeNo}</SheetTitle>
             <Button size="sm" variant="ghost" asChild>
               <Link to="/users/$userId" params={{ userId: user.id }} className="text-xs">
-                Full profile →
+                {t("users.fullProfile")}
               </Link>
             </Button>
           </div>
         </SheetHeader>
         <div className="flex flex-col gap-6 px-4 pb-6">
           <div>
-            <h3 className="mb-2 text-sm font-semibold">Status</h3>
+            <h3 className="mb-2 text-sm font-semibold">{t("users.statusHeading")}</h3>
             <div className="flex items-center gap-2">
               <StatusBadge label={labelize(user.status)} tone={userStatusTone[user.status] ?? "muted"} />
             </div>
@@ -152,7 +160,7 @@ function UserDetailSheet({
               {user.status === "active" && (
                 <RoleGate minRole="technician">
                   <Button size="sm" variant="outline" onClick={() => onSuspend(user)}>
-                    Suspend
+                    {t("users.suspend")}
                   </Button>
                 </RoleGate>
               )}
@@ -164,21 +172,21 @@ function UserDetailSheet({
                     className="text-destructive hover:text-destructive"
                     onClick={() => onArchive(user)}
                   >
-                    Archive
+                    {t("users.archive")}
                   </Button>
                 </RoleGate>
               )}
             </div>
           </div>
           <div>
-            <h3 className="mb-2 text-sm font-semibold">Details</h3>
+            <h3 className="mb-2 text-sm font-semibold">{t("users.detailsHeading")}</h3>
             <RoleGate
               minRole="technician"
               fallback={
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  <p><span className="font-medium text-foreground">Name:</span> {user.fullName}</p>
-                  <p><span className="font-medium text-foreground">Employee No:</span> {user.employeeNo}</p>
-                  {departmentName && <p><span className="font-medium text-foreground">Department:</span> {departmentName}</p>}
+                  <p><span className="font-medium text-foreground">{t("users.nameLabel")}</span> {user.fullName}</p>
+                  <p><span className="font-medium text-foreground">{t("users.employeeNoLabel")}</span> {user.employeeNo}</p>
+                  {departmentName && <p><span className="font-medium text-foreground">{t("users.departmentLabel")}</span> {departmentName}</p>}
                 </div>
               }
             >
@@ -204,6 +212,8 @@ function UserDetailSheet({
 }
 
 export function UsersPage() {
+  const t = useT();
+  const sortText = useTextSortingFn<User>();
   const search = usersRoute.useSearch();
   const navigate = useNavigate({ from: usersRoute.fullPath });
   const [createOpen, setCreateOpen] = useState(false);
@@ -262,11 +272,11 @@ export function UsersPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("Borrower suspended");
+      toast.success(t("users.suspended"));
       setSuspendTarget(null);
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Could not suspend borrower");
+      toast.error(err?.detail || err?.title || t("users.suspendFailed"));
     },
   });
 
@@ -278,38 +288,41 @@ export function UsersPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("Borrower archived");
+      toast.success(t("users.archived"));
       setArchiveTarget(null);
       if (selectedId === archiveTarget?.id) {
         setSelectedId(null);
       }
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Could not archive borrower");
+      toast.error(err?.detail || err?.title || t("users.archiveFailed"));
     },
   });
 
   const columns = useDataTableColumns(
     () => [
       columnHelper.accessor("employeeNo", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Employee no." />,
+        sortingFn: sortText,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("users.columnEmployeeNo")} />,
         cell: (c) => <span className="font-identifier">{c.getValue()}</span>,
       }),
       columnHelper.accessor("fullName", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+        sortingFn: sortText,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.name")} />,
       }),
       columnHelper.accessor("departmentId", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
+        sortingFn: sortText,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("users.columnDepartment")} />,
         cell: (c) => (c.getValue() ? (departmentName.get(c.getValue()!) ?? "—") : "—"),
       }),
       columnHelper.accessor("status", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.status")} />,
         cell: (c) => (
           <div className="flex items-center gap-2">
             <StatusBadge label={labelize(c.getValue())} tone={userStatusTone[c.getValue()] ?? "muted"} />
             {search.hasCredential === false && (
               <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-normal text-xs">
-                no card issued
+                {t("users.noCardIssued")}
               </Badge>
             )}
           </div>
@@ -317,7 +330,7 @@ export function UsersPage() {
       }),
       columnHelper.display({
         id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
+        header: () => <span className="sr-only">{t("columns.actions")}</span>,
         cell: ({ row }) => {
           const u = row.original;
           return (
@@ -327,7 +340,7 @@ export function UsersPage() {
                 variant="ghost"
                 onClick={() => setSelectedId(u.id)}
               >
-                View
+                {t("users.view")}
               </Button>
               {u.status === "active" && (
                 <RoleGate minRole="technician">
@@ -336,7 +349,7 @@ export function UsersPage() {
                     variant="ghost"
                     onClick={() => setSuspendTarget(u)}
                   >
-                    Suspend
+                    {t("users.suspend")}
                   </Button>
                 </RoleGate>
               )}
@@ -348,7 +361,7 @@ export function UsersPage() {
                     className="text-destructive hover:text-destructive"
                     onClick={() => setArchiveTarget(u)}
                   >
-                    Archive
+                    {t("users.archive")}
                   </Button>
                 </RoleGate>
               )}
@@ -357,7 +370,7 @@ export function UsersPage() {
         },
       }),
     ],
-    [departmentName, search.hasCredential],
+    [departmentName, search.hasCredential, t, sortText],
   );
 
   const isFiltered = Boolean(search.q || search.status || search.department || search.hasCredential !== undefined);
@@ -366,16 +379,16 @@ export function UsersPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Users</h1>
+        <h1 className="text-xl font-semibold">{t("users.title")}</h1>
         <RoleGate minRole="technician">
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
               <Upload className="size-4" data-icon="inline-start" />
-              Import CSV
+              {t("users.importCsv")}
             </Button>
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" data-icon="inline-start" />
-              New user
+              {t("users.newUser")}
             </Button>
           </div>
         </RoleGate>
@@ -391,26 +404,26 @@ export function UsersPage() {
         onRetry={() => query.refetch()}
         searchQuery={search.q ?? ""}
         onSearchChange={(q) => updateSearch({ q: q || undefined })}
-        searchPlaceholder="Search name, employee no.…"
+        searchPlaceholder={t("users.searchPlaceholder")}
         isFiltered={isFiltered}
         onResetFilters={() => updateSearch({ q: undefined, status: undefined, department: undefined, hasCredential: undefined })}
         onRowClick={(row) => setSelectedId(row.id)}
         hasNextPage={query.hasNextPage}
         isFetchingNextPage={query.isFetchingNextPage}
         onFetchNextPage={() => query.fetchNextPage()}
-        emptyTitle="No users found"
-        emptyExplanation="No borrowers match the selected filters."
+        emptyTitle={t("users.emptyTitle")}
+        emptyExplanation={t("users.emptyExplanation")}
         filterControls={
           <>
             <Select
               value={search.status ?? "all"}
               onValueChange={(v) => updateSearch({ status: v === "all" ? undefined : (v as UserStatus) })}
             >
-              <SelectTrigger className="h-8 w-36 text-xs" aria-label="Filter by status">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="h-8 w-36 text-xs" aria-label={t("users.filterByStatusAria")}>
+                <SelectValue placeholder={t("users.statusPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">{t("users.allStatuses")}</SelectItem>
                 {USER_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {labelize(s)}
@@ -423,11 +436,11 @@ export function UsersPage() {
               value={search.department ?? "all"}
               onValueChange={(v) => updateSearch({ department: v === "all" ? undefined : v })}
             >
-              <SelectTrigger className="h-8 w-40 text-xs" aria-label="Filter by department">
-                <SelectValue placeholder="Department" />
+              <SelectTrigger className="h-8 w-40 text-xs" aria-label={t("users.filterByDepartmentAria")}>
+                <SelectValue placeholder={t("users.departmentPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All departments</SelectItem>
+                <SelectItem value="all">{t("users.allDepartments")}</SelectItem>
                 {departments?.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name}
@@ -444,13 +457,13 @@ export function UsersPage() {
                 })
               }
             >
-              <SelectTrigger className="h-8 w-48 text-xs" aria-label="Filter by card status">
-                <SelectValue placeholder="Card status" />
+              <SelectTrigger className="h-8 w-48 text-xs" aria-label={t("users.filterByCardStatusAria")}>
+                <SelectValue placeholder={t("users.cardStatusPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All card statuses</SelectItem>
-                <SelectItem value="no_card">No card issued (work queue)</SelectItem>
-                <SelectItem value="has_card">Card issued</SelectItem>
+                <SelectItem value="all">{t("users.allCardStatuses")}</SelectItem>
+                <SelectItem value="no_card">{t("users.noCardIssuedFilter")}</SelectItem>
+                <SelectItem value="has_card">{t("users.cardIssuedFilter")}</SelectItem>
               </SelectContent>
             </Select>
           </>
@@ -460,7 +473,7 @@ export function UsersPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Register a user</DialogTitle>
+            <DialogTitle>{t("users.registerTitle")}</DialogTitle>
           </DialogHeader>
           <UserForm departments={departments ?? []} onDone={() => setCreateOpen(false)} />
         </DialogContent>
@@ -481,9 +494,12 @@ export function UsersPage() {
       <ReasonActionDialog
         open={Boolean(suspendTarget)}
         onOpenChange={(open) => !open && setSuspendTarget(null)}
-        title="Suspend borrower"
-        description={`Suspend ${suspendTarget?.fullName} (${suspendTarget?.employeeNo}). They will not be able to borrow devices until reactivated.`}
-        confirmLabel="Suspend"
+        title={t("users.suspendTitle")}
+        description={t("users.suspendDescription", {
+          fullName: suspendTarget?.fullName ?? "",
+          employeeNo: suspendTarget?.employeeNo ?? "",
+        })}
+        confirmLabel={t("users.suspend")}
         confirmVariant="destructive"
         onConfirm={(reason) => suspendTarget && suspendMutation.mutate({ id: suspendTarget.id, reason })}
         isPending={suspendMutation.isPending}
@@ -492,9 +508,12 @@ export function UsersPage() {
       <ReasonActionDialog
         open={Boolean(archiveTarget)}
         onOpenChange={(open) => !open && setArchiveTarget(null)}
-        title="Archive borrower"
-        description={`Archive ${archiveTarget?.fullName} (${archiveTarget?.employeeNo}). Archiving is permanent and will be refused if they hold any open loans.`}
-        confirmLabel="Archive"
+        title={t("users.archiveTitle")}
+        description={t("users.archiveDescription", {
+          fullName: archiveTarget?.fullName ?? "",
+          employeeNo: archiveTarget?.employeeNo ?? "",
+        })}
+        confirmLabel={t("users.archive")}
         confirmVariant="destructive"
         onConfirm={(reason) => archiveTarget && archiveMutation.mutate({ id: archiveTarget.id, reason })}
         isPending={archiveMutation.isPending}

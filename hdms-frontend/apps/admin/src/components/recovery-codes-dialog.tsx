@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useT } from "@/i18n";
 
 export interface RecoveryCodesDialogProps {
   open: boolean;
@@ -22,29 +23,32 @@ export interface RecoveryCodesDialogProps {
 export function RecoveryCodesDialog({
   open,
   codes,
-  title = "Recovery Codes",
-  description = "Single-use recovery codes for accessing your account if you lose your authenticator device.",
+  title,
+  description,
   onDismiss,
 }: RecoveryCodesDialogProps) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const resolvedTitle = title ?? t("recoveryCodesDialog.defaultTitle");
+  const resolvedDescription = description ?? t("recoveryCodesDialog.defaultDescription");
 
   const handleCopy = async () => {
     try {
       const text = [
-        "Hito Hospital Device Management — Recovery Codes",
-        `Generated: ${new Date().toISOString()}`,
+        t("recoveryCodesDialog.clipboardHeader"),
+        t("recoveryCodesDialog.clipboardGenerated", { date: new Date().toISOString() }),
         "",
         ...codes.map((c, i) => `${i + 1}. ${c}`),
         "",
-        "Keep these codes in a secure, confidential place.",
+        t("recoveryCodesDialog.clipboardFooter"),
       ].join("\n");
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      toast.success("Recovery codes copied to clipboard");
+      toast.success(t("recoveryCodesDialog.copiedToast"));
       setTimeout(() => setCopied(false), 3000);
     } catch {
-      toast.error("Failed to copy to clipboard");
+      toast.error(t("recoveryCodesDialog.copyFailedToast"));
     }
   };
 
@@ -54,7 +58,7 @@ export function RecoveryCodesDialog({
 
   const handleClose = () => {
     if (!confirmed) {
-      toast.error("Please confirm you have saved your recovery codes before closing.");
+      toast.error(t("recoveryCodesDialog.confirmBeforeClose"));
       return;
     }
     setConfirmed(false);
@@ -77,20 +81,17 @@ export function RecoveryCodesDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{resolvedTitle}</DialogTitle>
+          <DialogDescription>{resolvedDescription}</DialogDescription>
         </DialogHeader>
 
         <div className="my-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
           <ShieldAlert className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
           <div className="space-y-1 text-xs leading-relaxed">
             <p className="font-semibold text-amber-950 dark:text-amber-100">
-              Important: These codes are only shown once.
+              {t("recoveryCodesDialog.shownOnceWarning")}
             </p>
-            <p>
-              Store them in a secure password manager or print a physical copy now.
-              Once this dialog is closed, you cannot retrieve them.
-            </p>
+            <p>{t("recoveryCodesDialog.storeSecurelyHint")}</p>
           </div>
         </div>
 
@@ -119,12 +120,12 @@ export function RecoveryCodesDialog({
               {copied ? (
                 <>
                   <Check className="size-4 text-green-600" />
-                  Copied
+                  {t("forcedTotpDialog.copied")}
                 </>
               ) : (
                 <>
                   <Copy className="size-4" />
-                  Copy all codes
+                  {t("recoveryCodesDialog.copyAllCodes")}
                 </>
               )}
             </Button>
@@ -136,7 +137,7 @@ export function RecoveryCodesDialog({
               className="gap-1.5"
             >
               <Printer className="size-4" />
-              Print codes
+              {t("recoveryCodesDialog.printCodes")}
             </Button>
           </div>
         </div>
@@ -153,7 +154,7 @@ export function RecoveryCodesDialog({
             htmlFor="confirm-saved-codes"
             className="text-xs font-medium text-foreground cursor-pointer leading-snug"
           >
-            I have securely saved or printed these recovery codes and understand they will not be shown again.
+            {t("recoveryCodesDialog.confirmCheckboxLabel")}
           </label>
         </div>
 
@@ -164,7 +165,7 @@ export function RecoveryCodesDialog({
             onClick={handleClose}
             className="w-full sm:w-auto"
           >
-            Done & close
+            {t("recoveryCodesDialog.doneAndClose")}
           </Button>
         </DialogFooter>
       </DialogContent>

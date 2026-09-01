@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authenticatedRoute } from "./authenticated";
+import { useT } from "@/i18n";
 
 interface RawScanData {
   raw: string;
@@ -31,6 +32,7 @@ interface RawScanData {
 }
 
 export function CardReaderTestPage() {
+  const t = useT();
   const [manualInput, setManualInput] = useState("");
   const [activeScan, setActiveScan] = useState<RawScanData | null>(null);
   const [isListening, setIsListening] = useState(true);
@@ -135,20 +137,18 @@ export function CardReaderTestPage() {
               to="/credentials"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <ArrowLeft className="size-3" /> Back to Credentials
+              <ArrowLeft className="size-3" /> {t("cardReaderTest.backToCredentials")}
             </Link>
             <span className="text-muted-foreground">·</span>
             <Badge variant="outline" className="text-[11px] font-mono border-primary/30 text-primary">
-              Diagnostic Surface
+              {t("cardReaderTest.diagnosticSurfaceBadge")}
             </Badge>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
             <Radio className="size-6 text-primary" />
-            Card & Scanner Diagnostic Tool
+            {t("cardReaderTest.title")}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Test hardware USB barcode scanners, RFID/NFC wedge readers, and raw credential token grammar.
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("cardReaderTest.subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -161,14 +161,14 @@ export function CardReaderTestPage() {
                 isListening ? "bg-success animate-pulse" : "bg-muted-foreground"
               }`}
             />
-            {isListening ? "Hardware Scanner Listener Active" : "Listener Paused"}
+            {isListening ? t("cardReaderTest.listenerActive") : t("cardReaderTest.listenerPaused")}
           </Badge>
           <Button
             size="sm"
             variant="outline"
             onClick={() => setIsListening(!isListening)}
           >
-            {isListening ? "Pause Listener" : "Resume Listener"}
+            {isListening ? t("cardReaderTest.pauseListener") : t("cardReaderTest.resumeListener")}
           </Button>
         </div>
       </div>
@@ -176,11 +176,11 @@ export function CardReaderTestPage() {
       {/* Quick Test / Manual Input Box */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          1. Scan Hardware or Input String
+          {t("cardReaderTest.step1Heading")}
         </h2>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
-            placeholder="Scan barcode with USB reader, or paste/type raw string here…"
+            placeholder={t("cardReaderTest.inputPlaceholder")}
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
             onKeyDown={(e) => {
@@ -193,13 +193,13 @@ export function CardReaderTestPage() {
           />
           <Button onClick={() => handleManualAnalyze()}>
             <Search className="size-4" data-icon="inline-start" />
-            Analyze String
+            {t("cardReaderTest.analyzeString")}
           </Button>
         </div>
 
         {/* Quick Sample Chips */}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Quick Samples:</span>
+          <span>{t("cardReaderTest.quickSamples")}</span>
           <button
             type="button"
             className="rounded bg-muted px-2 py-1 font-mono text-[11px] text-foreground hover:bg-muted/80 transition-colors"
@@ -208,7 +208,7 @@ export function CardReaderTestPage() {
               handleManualAnalyze("HD-U-B3G6822S6K-H");
             }}
           >
-            Valid User QR (HD-U-B3G6822S6K-H)
+            {t("cardReaderTest.sampleValidUserQr")}
           </button>
           <button
             type="button"
@@ -218,7 +218,7 @@ export function CardReaderTestPage() {
               handleManualAnalyze("HD-D-BRH8VFTBAA-7");
             }}
           >
-            Valid Device Label (HD-D-BRH8VFTBAA-7)
+            {t("cardReaderTest.sampleValidDeviceLabel")}
           </button>
           <button
             type="button"
@@ -228,7 +228,7 @@ export function CardReaderTestPage() {
               handleManualAnalyze("hd-u-b3g6822s6k-9");
             }}
           >
-            Corrupted Checksum (hd-u-b3g6822s6k-9)
+            {t("cardReaderTest.sampleCorruptedChecksum")}
           </button>
           <button
             type="button"
@@ -238,7 +238,7 @@ export function CardReaderTestPage() {
               handleManualAnalyze("E1234567890ABCDEF");
             }}
           >
-            Raw Hospital Mifare Card (Non-HDMS)
+            {t("cardReaderTest.sampleRawMifare")}
           </button>
         </div>
       </div>
@@ -250,9 +250,9 @@ export function CardReaderTestPage() {
             <Zap className="size-8 animate-pulse" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground">Waiting for Scan Input…</h3>
+            <h3 className="text-base font-semibold text-foreground">{t("cardReaderTest.waitingForScan")}</h3>
             <p className="text-xs text-muted-foreground max-w-md mt-1">
-              Aim your USB barcode or RFID reader at any staff badge or device label and pull the trigger, or paste a string into the input box above.
+              {t("cardReaderTest.waitingForScanHint")}
             </p>
           </div>
         </div>
@@ -266,16 +266,18 @@ export function CardReaderTestPage() {
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <Cpu className="size-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">Raw Capture Telemetry</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t("cardReaderTest.rawCaptureTelemetry")}</h3>
               </div>
               <Badge variant="outline" className="text-xs">
-                {activeScan.source === "scanner_usb" ? "USB Wedge Scanner" : "Manual Input"}
+                {activeScan.source === "scanner_usb"
+                  ? t("cardReaderTest.usbWedgeScanner")
+                  : t("cardReaderTest.manualInputBadge")}
               </Badge>
             </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="text-muted-foreground block mb-1">Raw Received String:</span>
+                <span className="text-muted-foreground block mb-1">{t("cardReaderTest.rawReceivedString")}</span>
                 <pre className="rounded-md bg-muted p-3 font-mono text-sm text-foreground overflow-x-auto select-all">
                   {activeScan.raw}
                 </pre>
@@ -283,11 +285,13 @@ export function CardReaderTestPage() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-md border border-border p-2.5">
-                  <span className="text-muted-foreground">Length:</span>
-                  <p className="text-sm font-bold text-foreground mt-0.5">{activeScan.raw.length} characters</p>
+                  <span className="text-muted-foreground">{t("cardReaderTest.lengthLabel")}</span>
+                  <p className="text-sm font-bold text-foreground mt-0.5">
+                    {t("cardReaderTest.charactersSuffix", { count: activeScan.raw.length })}
+                  </p>
                 </div>
                 <div className="rounded-md border border-border p-2.5">
-                  <span className="text-muted-foreground">Captured At:</span>
+                  <span className="text-muted-foreground">{t("cardReaderTest.capturedAtLabel")}</span>
                   <p className="text-xs font-semibold text-foreground mt-0.5">
                     {activeScan.timestamp.toLocaleTimeString()}
                   </p>
@@ -295,7 +299,7 @@ export function CardReaderTestPage() {
               </div>
 
               <div>
-                <span className="text-muted-foreground block mb-1">Hex Byte Sequence:</span>
+                <span className="text-muted-foreground block mb-1">{t("cardReaderTest.hexByteSequence")}</span>
                 <code className="block rounded bg-muted/60 p-2 font-mono text-[11px] text-muted-foreground break-all">
                   {hexDump}
                 </code>
@@ -308,13 +312,13 @@ export function CardReaderTestPage() {
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <Radio className="size-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">Grammar & Checksum Analysis</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t("cardReaderTest.grammarChecksumAnalysis")}</h3>
               </div>
               <Badge
                 variant={inspection?.isValid ? "default" : "destructive"}
                 className={`text-xs ${inspection?.isValid ? "bg-success text-success-foreground" : ""}`}
               >
-                {inspection?.isValid ? "Valid HDMS Token" : "Invalid Token"}
+                {inspection?.isValid ? t("cardReaderTest.validToken") : t("cardReaderTest.invalidToken")}
               </Badge>
             </div>
 
@@ -323,42 +327,40 @@ export function CardReaderTestPage() {
                 <div className="rounded-md bg-success/10 border border-success/20 p-3 flex items-start gap-2.5 text-success">
                   <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-xs">Checksum and Format Validated</span>
-                    <p className="text-[11px] text-foreground/80 mt-0.5">
-                      Matches HDMS Crockford Base32 mod-37 token specification.
-                    </p>
+                    <span className="font-semibold text-xs">{t("cardReaderTest.checksumValidated")}</span>
+                    <p className="text-[11px] text-foreground/80 mt-0.5">{t("cardReaderTest.matchesSpec")}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-md border border-border p-2.5">
-                    <span className="text-muted-foreground">Namespace:</span>
+                    <span className="text-muted-foreground">{t("cardReaderTest.namespaceLabel")}</span>
                     <p className="text-sm font-mono font-bold text-foreground mt-0.5">HD</p>
                   </div>
                   <div className="rounded-md border border-border p-2.5">
-                    <span className="text-muted-foreground">Subject Type:</span>
+                    <span className="text-muted-foreground">{t("cardReaderTest.subjectTypeLabel")}</span>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       {inspection.token.hint === "U" ? (
                         <>
                           <User className="size-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">User / Staff Badge</span>
+                          <span className="text-xs font-semibold text-foreground">{t("cardReaderTest.userStaffBadge")}</span>
                         </>
                       ) : (
                         <>
                           <Laptop className="size-3.5 text-primary" />
-                          <span className="text-xs font-semibold text-foreground">Device / Equipment Label</span>
+                          <span className="text-xs font-semibold text-foreground">{t("cardReaderTest.deviceEquipmentLabel")}</span>
                         </>
                       )}
                     </div>
                   </div>
                   <div className="rounded-md border border-border p-2.5">
-                    <span className="text-muted-foreground">Payload (Base32):</span>
+                    <span className="text-muted-foreground">{t("cardReaderTest.payloadLabel")}</span>
                     <p className="text-xs font-mono font-bold text-foreground mt-0.5">
                       {inspection.token.payload}
                     </p>
                   </div>
                   <div className="rounded-md border border-border p-2.5">
-                    <span className="text-muted-foreground">Check Character:</span>
+                    <span className="text-muted-foreground">{t("cardReaderTest.checkCharacterLabel")}</span>
                     <p className="text-xs font-mono font-bold text-foreground mt-0.5">
                       {inspection.token.check}
                     </p>
@@ -366,7 +368,7 @@ export function CardReaderTestPage() {
                 </div>
 
                 <div>
-                  <span className="text-muted-foreground block mb-1">Canonical Normalised Form:</span>
+                  <span className="text-muted-foreground block mb-1">{t("cardReaderTest.canonicalFormLabel")}</span>
                   <code className="block rounded bg-primary/10 border border-primary/20 p-2 font-mono text-xs font-bold text-primary select-all">
                     {formatToken(inspection.token)}
                   </code>
@@ -378,19 +380,24 @@ export function CardReaderTestPage() {
                   <AlertCircle className="size-4 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold text-xs capitalize">
-                      Failure Reason: {inspection?.reason ?? "Unrecognised structure"}
+                      {t("cardReaderTest.failureReason", {
+                        reason: inspection?.reason ?? t("cardReaderTest.unrecognisedStructure"),
+                      })}
                     </span>
                     <p className="text-[11px] text-foreground/80 mt-1">
-                      {inspection?.errorMessage ?? "The string does not conform to the HDMS token format."}
+                      {inspection?.errorMessage ?? t("cardReaderTest.defaultTokenFormatError")}
                     </p>
                   </div>
                 </div>
 
                 <div className="rounded-md border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground mb-1">Expected Format:</p>
-                  <p className="font-mono text-[11px]">HD-[U|D]-[10 Base32 Chars]-[Check Digit]</p>
+                  <p className="font-semibold text-foreground mb-1">{t("cardReaderTest.expectedFormat")}</p>
+                  <p className="font-mono text-[11px]">HD-[U|D]-[10 Base32 Chars]-[Check Digit]</p> {/* i18n-allow-literal: literal token grammar pattern, not translatable prose */}
                   <p className="mt-2 text-[11px]">
-                    Examples: <code className="text-foreground">HD-U-7K3M9QXA2F-4</code> or <code className="text-foreground">HD-D-8N4P0RYB3G-K</code>
+                    {t("cardReaderTest.examplesLabel")}{" "}
+                    <code className="text-foreground">HD-U-7K3M9QXA2F-4</code> {/* i18n-allow-literal: sample token, not translatable prose */}
+                    {t("cardReaderTest.orWord")}{" "}
+                    <code className="text-foreground">HD-D-8N4P0RYB3G-K</code> {/* i18n-allow-literal: sample token, not translatable prose */}
                   </p>
                 </div>
               </div>
@@ -403,12 +410,12 @@ export function CardReaderTestPage() {
               <div className="flex items-center gap-2">
                 <Layers className="size-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">
-                  Live HDMS Database Resolution
+                  {t("cardReaderTest.liveDbResolution")}
                 </h3>
               </div>
               <Button size="sm" variant="ghost" onClick={() => retryResolve()}>
                 <RefreshCw className="size-3.5" data-icon="inline-start" />
-                Re-query
+                {t("cardReaderTest.requery")}
               </Button>
             </div>
 
@@ -432,18 +439,20 @@ export function CardReaderTestPage() {
                             : ""
                         }
                       >
-                        {dbResolution.data?.credentialStatus ?? "Unknown Status"}
+                        {dbResolution.data?.credentialStatus ?? t("cardReaderTest.unknownStatus")}
                       </Badge>
                       <Badge variant="outline" className="uppercase font-mono text-[11px]">
                         {dbResolution.data?.type}
                       </Badge>
                     </div>
                     <p className="text-muted-foreground pt-1">
-                      Credential ID: <span className="font-mono text-foreground">{dbResolution.data?.credentialId}</span>
+                      {t("cardReaderTest.credentialIdLabel")}{" "}
+                      <span className="font-mono text-foreground">{dbResolution.data?.credentialId}</span>
                     </p>
                     {dbResolution.data?.subjectId && (
                       <p className="text-muted-foreground">
-                        Subject ID: <span className="font-mono text-foreground">{dbResolution.data?.subjectId}</span>
+                        {t("cardReaderTest.subjectIdLabel")}{" "}
+                        <span className="font-mono text-foreground">{dbResolution.data?.subjectId}</span>
                       </p>
                     )}
                   </div>
@@ -456,7 +465,7 @@ export function CardReaderTestPage() {
                     >
                       <Button size="sm">
                         <User className="size-4" data-icon="inline-start" />
-                        View Borrower Profile
+                        {t("cardReaderTest.viewBorrowerProfile")}
                       </Button>
                     </Link>
                   )}
@@ -469,7 +478,7 @@ export function CardReaderTestPage() {
                     >
                       <Button size="sm">
                         <Laptop className="size-4" data-icon="inline-start" />
-                        View Device Record
+                        {t("cardReaderTest.viewDeviceRecord")}
                       </Button>
                     </Link>
                   )}
@@ -477,7 +486,7 @@ export function CardReaderTestPage() {
                   {dbResolution.data?.type === "unbound" && (
                     <div className="text-xs text-primary font-medium flex items-center gap-1.5">
                       <CheckCircle2 className="size-4 text-primary" />
-                      <span>Ready to be assigned to a borrower</span>
+                      <span>{t("cardReaderTest.readyToAssign")}</span>
                     </div>
                   )}
                 </div>
@@ -487,10 +496,8 @@ export function CardReaderTestPage() {
                 <div className="rounded-lg border border-border bg-muted/10 p-4 text-xs text-muted-foreground flex items-center gap-3">
                   <HelpCircle className="size-5 text-muted-foreground shrink-0" />
                   <div>
-                    <p className="font-semibold text-foreground">Token Not Found in System</p>
-                    <p className="mt-0.5">
-                      This token has not been minted or registered in the HDMS PostgreSQL database.
-                    </p>
+                    <p className="font-semibold text-foreground">{t("cardReaderTest.tokenNotFound")}</p>
+                    <p className="mt-0.5">{t("cardReaderTest.tokenNotFoundHint")}</p>
                   </div>
                 </div>
               )}

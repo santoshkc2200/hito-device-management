@@ -5,7 +5,6 @@ import {
   updateCategory,
   zCreateCategoryRequest,
 } from "@hdms/api-client";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilLine, Plus } from "lucide-react";
 import { useState } from "react";
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   Table,
   TableBody,
@@ -31,9 +31,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useT } from "@/i18n";
 
 const categorySchema = zCreateCategoryRequest.extend({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "validation.nameRequired"),
   defaultLoanPeriodSeconds: z.number().int().min(0).optional(),
 });
 type CategoryFormValues = z.infer<typeof categorySchema>;
@@ -45,9 +46,10 @@ function CategoryForm({
   category?: Category;
   onDone: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const form = useForm<CategoryFormValues>({
-    resolver: zodResolver(categorySchema),
+    resolver: useLocalizedResolver(categorySchema),
     defaultValues: {
       name: category?.name ?? "",
       defaultLoanPeriodSeconds: category?.defaultLoanPeriodSeconds
@@ -74,24 +76,28 @@ function CategoryForm({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast.success(category ? "Category updated" : "Category created");
+      toast.success(
+        category ? t("categoryManagerDialog.categoryUpdated") : t("categoryManagerDialog.categoryCreated")
+      );
       onDone();
     },
-    onError: () => toast.error("Could not save the category"),
+    onError: () => toast.error(t("categoryManagerDialog.saveFailed")),
   });
 
   return (
     <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
       <FieldGroup>
         <Field data-invalid={!!form.formState.errors.name}>
-          <FieldLabel htmlFor="cat-name">Name</FieldLabel>
+          <FieldLabel htmlFor="cat-name">{t("categoryManagerDialog.nameLabel")}</FieldLabel>
           <Input id="cat-name" autoFocus {...form.register("name")} />
           {form.formState.errors.name && (
             <FieldError>{form.formState.errors.name.message}</FieldError>
           )}
         </Field>
         <Field>
-          <FieldLabel htmlFor="cat-loan-days">Default loan period (days)</FieldLabel>
+          <FieldLabel htmlFor="cat-loan-days">
+            {t("categoryManagerDialog.defaultLoanPeriodDaysLabel")}
+          </FieldLabel>
           <Input
             id="cat-loan-days"
             type="number"
@@ -107,15 +113,15 @@ function CategoryForm({
             {...form.register("requiresApproval")}
           />
           <FieldLabel htmlFor="cat-approval" className="font-normal">
-            Requires approval to borrow
+            {t("categoryManagerDialog.requiresApprovalLabel")}
           </FieldLabel>
         </Field>
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onDone}>
-            Cancel
+            {t("categoryManagerDialog.cancel")}
           </Button>
           <Button type="submit" disabled={mutation.isPending}>
-            {category ? "Save" : "Create"}
+            {category ? t("common.save") : t("categoryManagerDialog.create")}
           </Button>
         </div>
       </FieldGroup>
@@ -124,6 +130,7 @@ function CategoryForm({
 }
 
 export function CategoryManagerDialog() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | "new" | null>(null);
   const { data } = useQuery({
@@ -140,15 +147,13 @@ export function CategoryManagerDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          Manage categories
+          {t("categoryManagerDialog.manageCategories")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Device categories</DialogTitle>
-          <DialogDescription>
-            Categories set the default loan period new devices inherit.
-          </DialogDescription>
+          <DialogTitle>{t("categoryManagerDialog.title")}</DialogTitle>
+          <DialogDescription>{t("categoryManagerDialog.description")}</DialogDescription>
         </DialogHeader>
         {editing ? (
           <CategoryForm
@@ -160,8 +165,8 @@ export function CategoryManagerDialog() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Loan period</TableHead>
+                  <TableHead>{t("categoryManagerDialog.nameLabel")}</TableHead>
+                  <TableHead>{t("categoryManagerDialog.loanPeriodLabel")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -171,7 +176,9 @@ export function CategoryManagerDialog() {
                     <TableCell>{c.name}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {c.defaultLoanPeriodSeconds
-                        ? `${Math.round(c.defaultLoanPeriodSeconds / 86400)} days`
+                        ? t("categoryManagerDialog.daysSuffix", {
+                            days: String(Math.round(c.defaultLoanPeriodSeconds / 86400)),
+                          })
                         : "—"}
                     </TableCell>
                     <TableCell>
@@ -179,7 +186,7 @@ export function CategoryManagerDialog() {
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => setEditing(c)}
-                        aria-label={`Edit ${c.name}`}
+                        aria-label={t("categoryManagerDialog.editAria", { name: c.name })}
                       >
                         <PencilLine className="size-4" />
                       </Button>
@@ -189,7 +196,7 @@ export function CategoryManagerDialog() {
                 {data?.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={3} className="text-center text-muted-foreground">
-                      No categories yet.
+                      {t("categoryManagerDialog.noCategoriesYet")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -202,7 +209,7 @@ export function CategoryManagerDialog() {
               onClick={() => setEditing("new")}
             >
               <Plus className="size-4" data-icon="inline-start" />
-              New category
+              {t("categoryManagerDialog.newCategory")}
             </Button>
           </>
         )}

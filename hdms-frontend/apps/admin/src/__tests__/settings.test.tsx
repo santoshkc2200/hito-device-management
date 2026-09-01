@@ -4,10 +4,17 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { PolicyPanel } from "@/components/settings/policy-panel";
 import { KiosksPanel } from "@/components/settings/kiosks-panel";
 import { TemplatesPanel } from "@/components/settings/templates-panel";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 // Mock TanStack Router
 vi.mock("@tanstack/react-router", async (importOriginal) => {
@@ -148,11 +155,11 @@ describe("Settings Panels", () => {
       renderWithClient(<PolicyPanel />);
 
       await waitFor(() => {
-        expect(screen.getByText("Device Categories")).toBeInTheDocument();
+        expect(screen.getByText(ja.policyPanel.deviceCategoriesTitle)).toBeInTheDocument();
         expect(screen.getByText("Infusion Pump")).toBeInTheDocument();
         expect(screen.getByText("Ultrasound Probe")).toBeInTheDocument();
-        expect(screen.getByText("System & Checkout Policy")).toBeInTheDocument();
-        expect(screen.getByText("Strict Overdue Enforcement")).toBeInTheDocument();
+        expect(screen.getByText(ja.policyPanel.systemPolicyTitle)).toBeInTheDocument();
+        expect(screen.getByText(ja.policyPanel.strictOverdueEnforcementLabel)).toBeInTheDocument();
       });
     });
 
@@ -161,13 +168,13 @@ describe("Settings Panels", () => {
       renderWithClient(<PolicyPanel />);
 
       await waitFor(() => {
-        expect(screen.getByText("New Category")).toBeInTheDocument();
+        expect(screen.getByText(ja.policyPanel.newCategory)).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText("New Category"));
+      await user.click(screen.getByText(ja.policyPanel.newCategory));
 
       await waitFor(() => {
-        expect(screen.getByText("Specify the default borrowing duration and approval policy for this equipment category.")).toBeInTheDocument();
+        expect(screen.getByText(ja.policyPanel.categoryModalDescription)).toBeInTheDocument();
       });
     });
   });
@@ -177,7 +184,7 @@ describe("Settings Panels", () => {
       renderWithClient(<KiosksPanel />);
 
       await waitFor(() => {
-        expect(screen.getByText("Registered Kiosk Terminals")).toBeInTheDocument();
+        expect(screen.getByText(ja.kiosksPanel.registeredKioskTerminals)).toBeInTheDocument();
         expect(screen.getByText("Ward 3 Station")).toBeInTheDocument();
         expect(screen.getByText("ICU Backup Terminal")).toBeInTheDocument();
       });
@@ -187,8 +194,8 @@ describe("Settings Panels", () => {
       renderWithClient(<KiosksPanel />);
 
       await waitFor(() => {
-        expect(screen.getByText("Scanner & Card Reader Diagnostic")).toBeInTheDocument();
-        expect(screen.getByText("Launch Diagnostic Tool")).toBeInTheDocument();
+        expect(screen.getByText(ja.kiosksPanel.scannerDiagnosticHeading)).toBeInTheDocument();
+        expect(screen.getByText(ja.kiosksPanel.launchDiagnosticTool)).toBeInTheDocument();
       });
     });
 
@@ -202,14 +209,18 @@ describe("Settings Panels", () => {
       });
       renderWithClient(<KiosksPanel />);
 
-      await user.click(await screen.findByLabelText("Actions for Ward 3 Station"));
-      await user.click(await screen.findByText("Issue Pairing Code"));
+      await user.click(
+        await screen.findByLabelText(
+          translate(catalogues, "ja", "kiosksPanel.actionsForAria", { name: "Ward 3 Station" })
+        )
+      );
+      await user.click(await screen.findByText(ja.kiosksPanel.issuePairingCode));
 
       await waitFor(() => expect(apiClient.createKioskPairingCode).toHaveBeenCalledWith({ path: { id: "kiosk-1" } }));
       expect(await screen.findByTestId("pairing-code")).toHaveTextContent("123 456");
-      expect(screen.getByText(/It works once; issuing another code cancels this one/)).toBeInTheDocument();
+      expect(screen.getByText(ja.kiosksPanel.pairingDialogDescription)).toBeInTheDocument();
 
-      await user.click(screen.getAllByRole("button", { name: "Close" })[0]);
+      await user.click(screen.getAllByRole("button", { name: ja.common.close })[0]);
       await waitFor(() => expect(screen.queryByTestId("pairing-code")).not.toBeInTheDocument());
     });
 
@@ -229,13 +240,19 @@ describe("Settings Panels", () => {
       });
       renderWithClient(<KiosksPanel />);
 
-      await user.click(await screen.findByRole("button", { name: "Register Kiosk" }));
+      await user.click(
+        await screen.findByRole("button", { name: ja.kiosksPanel.registerKiosk })
+      );
       const dialog = screen.getByRole("dialog");
-      await user.type(within(dialog).getByLabelText("Kiosk Name"), "New Ward Kiosk");
-      await user.click(within(dialog).getByRole("button", { name: "Register Kiosk" }));
+      await user.type(within(dialog).getByLabelText(ja.kiosksPanel.kioskNameLabel), "New Ward Kiosk");
+      await user.click(within(dialog).getByRole("button", { name: ja.kiosksPanel.registerKiosk }));
 
       await waitFor(() => expect(apiClient.createKioskPairingCode).toHaveBeenCalledWith({ path: { id: "kiosk-new" } }));
-      expect(await screen.findByText("Pair Kiosk: New Ward Kiosk")).toBeInTheDocument();
+      expect(
+        await screen.findByText(
+          translate(catalogues, "ja", "kiosksPanel.pairKioskTitle", { name: "New Ward Kiosk" })
+        )
+      ).toBeInTheDocument();
     });
   });
 
@@ -244,9 +261,12 @@ describe("Settings Panels", () => {
       renderWithClient(<TemplatesPanel />);
 
       await waitFor(() => {
-        expect(screen.getByText("Adhesive Label Sheet Layout")).toBeInTheDocument();
-        expect(screen.getByText(/Live Layout Preview/)).toBeInTheDocument();
-        expect(screen.getByText("Physical Register Slip Pad Template")).toBeInTheDocument();
+        expect(screen.getByText(ja.templatesPanel.labelSheetLayoutTitle)).toBeInTheDocument();
+        const liveLayoutPreviewStem = ja.templatesPanel.liveLayoutPreview.split("{columns}")[0];
+        expect(
+          screen.getByText(new RegExp(escapeRegExp(liveLayoutPreviewStem)))
+        ).toBeInTheDocument();
+        expect(screen.getByText(ja.templatesPanel.slipPadTitle)).toBeInTheDocument();
       });
     });
 
@@ -254,24 +274,30 @@ describe("Settings Panels", () => {
       renderWithClient(<TemplatesPanel />);
 
       await waitFor(() => {
-        expect(screen.getByText("A4 Standard (3 × 8 — 24 Labels)")).toBeInTheDocument();
-        expect(screen.getByText("A4 Compact (4 × 10 — 40 Labels)")).toBeInTheDocument();
+        expect(screen.getByText(ja.templatesPanel.presetA4Standard)).toBeInTheDocument();
+        expect(screen.getByText(ja.templatesPanel.presetA4Compact)).toBeInTheDocument();
       });
     });
 
     it("passes axe accessibility checks across settings panels", async () => {
       const { container: c1 } = renderWithClient(<PolicyPanel />);
-      await waitFor(() => expect(screen.getByText("Strict Overdue Enforcement")).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByText(ja.policyPanel.strictOverdueEnforcementLabel)).toBeInTheDocument()
+      );
       const r1 = await axe(c1);
       expect(r1).toHaveNoViolations();
 
       const { container: c2 } = renderWithClient(<KiosksPanel />);
-      await waitFor(() => expect(screen.getByText("Registered Kiosk Terminals")).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByText(ja.kiosksPanel.registeredKioskTerminals)).toBeInTheDocument()
+      );
       const r2 = await axe(c2);
       expect(r2).toHaveNoViolations();
 
       const { container: c3 } = renderWithClient(<TemplatesPanel />);
-      await waitFor(() => expect(screen.getByText("Adhesive Label Sheet Layout")).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByText(ja.templatesPanel.labelSheetLayoutTitle)).toBeInTheDocument()
+      );
       const r3 = await axe(c3);
       expect(r3).toHaveNoViolations();
     });

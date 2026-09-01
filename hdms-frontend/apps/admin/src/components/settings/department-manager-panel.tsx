@@ -38,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useT } from "@/i18n";
 
 function errorDetail(error: unknown) {
   if (error && typeof error === "object" && "detail" in error) {
@@ -53,6 +54,7 @@ function DepartmentForm({
   department?: Department;
   onDone: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [name, setName] = useState(department?.name ?? "");
   const [error, setError] = useState("");
@@ -65,12 +67,12 @@ function DepartmentForm({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["departments"] });
-      toast.success(department ? "Department updated" : "Department created");
+      toast.success(department ? t("departmentManagerPanel.departmentUpdated") : t("departmentManagerPanel.departmentCreated"));
       onDone();
     },
     onError: (cause) => {
       const detail = errorDetail(cause);
-      setError(detail || "Could not save the department");
+      setError(detail || t("departmentManagerPanel.saveFailed"));
     },
   });
 
@@ -84,7 +86,7 @@ function DepartmentForm({
     >
       <FieldGroup>
         <Field data-invalid={!!error}>
-          <FieldLabel htmlFor="department-name">Name</FieldLabel>
+          <FieldLabel htmlFor="department-name">{t("columns.name")}</FieldLabel>
           <Input
             id="department-name"
             autoFocus
@@ -95,10 +97,10 @@ function DepartmentForm({
         </Field>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onDone} disabled={mutation.isPending}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={!name.trim() || mutation.isPending}>
-            {department ? "Save" : "Create"}
+            {department ? t("common.save") : t("departmentManagerPanel.create")}
           </Button>
         </DialogFooter>
       </FieldGroup>
@@ -107,6 +109,7 @@ function DepartmentForm({
 }
 
 export function DepartmentManagerPanel() {
+  const t = useT();
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<Department | "new" | null>(null);
   const [deleting, setDeleting] = useState<Department | null>(null);
@@ -125,11 +128,11 @@ export function DepartmentManagerPanel() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["departments"] });
-      toast.success("Department deleted");
+      toast.success(t("departmentManagerPanel.departmentDeleted"));
       setDeleting(null);
     },
     onError: (cause) => {
-      toast.error(errorDetail(cause) || "Could not delete the department");
+      toast.error(errorDetail(cause) || t("departmentManagerPanel.deleteFailed"));
       setDeleting(null);
     },
   });
@@ -138,22 +141,20 @@ export function DepartmentManagerPanel() {
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Departments</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage departments used when registering hospital staff.
-          </p>
+          <h2 className="text-lg font-semibold">{t("departmentManagerPanel.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("departmentManagerPanel.subtitle")}</p>
         </div>
         <Button size="sm" onClick={() => setEditor("new")}>
           <Plus className="size-4" data-icon="inline-start" />
-          New department
+          {t("departmentManagerPanel.newDepartment")}
         </Button>
       </div>
 
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="w-24 text-right">Actions</TableHead>
+            <TableHead>{t("columns.name")}</TableHead>
+            <TableHead className="w-24 text-right">{t("columns.actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -166,7 +167,7 @@ export function DepartmentManagerPanel() {
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setEditor(department)}
-                    aria-label={`Edit ${department.name}`}
+                    aria-label={t("departmentManagerPanel.editAria", { name: department.name })}
                   >
                     <PencilLine className="size-4" />
                   </Button>
@@ -175,7 +176,7 @@ export function DepartmentManagerPanel() {
                     size="icon-sm"
                     className="text-destructive hover:text-destructive"
                     onClick={() => setDeleting(department)}
-                    aria-label={`Delete ${department.name}`}
+                    aria-label={t("departmentManagerPanel.deleteAria", { name: department.name })}
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -186,7 +187,7 @@ export function DepartmentManagerPanel() {
           {!isLoading && departments.length === 0 && (
             <TableRow>
               <TableCell colSpan={2} className="text-center text-muted-foreground">
-                No departments yet.
+                {t("departmentManagerPanel.noDepartmentsYet")}
               </TableCell>
             </TableRow>
           )}
@@ -196,10 +197,8 @@ export function DepartmentManagerPanel() {
       <Dialog open={editor !== null} onOpenChange={(open) => !open && setEditor(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editor === "new" ? "New department" : "Edit department"}</DialogTitle>
-            <DialogDescription>
-              Department names appear in staff registration and reports.
-            </DialogDescription>
+            <DialogTitle>{editor === "new" ? t("departmentManagerPanel.newDepartment") : t("departmentManagerPanel.editDepartment")}</DialogTitle>
+            <DialogDescription>{t("departmentManagerPanel.dialogDescription")}</DialogDescription>
           </DialogHeader>
           {editor && (
             <DepartmentForm
@@ -213,14 +212,15 @@ export function DepartmentManagerPanel() {
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete department?</AlertDialogTitle>
+            <AlertDialogTitle>{t("departmentManagerPanel.deleteConfirmTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete {deleting?.name ?? "this department"}? Departments used by users cannot be
-              deleted.
+              {t("departmentManagerPanel.deleteConfirmDescription", {
+                name: deleting?.name ?? t("departmentManagerPanel.thisDepartmentFallback"),
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={deleteMutation.isPending || !deleting}
@@ -229,7 +229,7 @@ export function DepartmentManagerPanel() {
                 if (deleting) deleteMutation.mutate(deleting);
               }}
             >
-              Delete
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

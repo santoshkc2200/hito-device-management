@@ -35,6 +35,10 @@ export const zLoginRequest = z.object({
     recoveryCode: z.string().optional()
 });
 
+export const zUpdateLocaleRequest = z.object({
+    locale: z.enum(['ja', 'en'])
+});
+
 export const zDeviceStatus = z.enum([
     'available',
     'on_loan',
@@ -989,6 +993,13 @@ export const zLogoutResponse = z.void();
  * OK.
  */
 export const zGetCurrentAdminResponse = zAdmin;
+
+export const zUpdateMyLocaleBody = zUpdateLocaleRequest;
+
+/**
+ * OK.
+ */
+export const zUpdateMyLocaleResponse = zAdmin;
 
 export const zListDevicesQuery = z.object({
     status: zDeviceStatus.optional(),

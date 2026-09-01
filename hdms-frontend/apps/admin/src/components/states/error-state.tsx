@@ -1,6 +1,7 @@
 import type { Problem } from "@hdms/api-client";
 import { AlertTriangle, RefreshCw, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n";
 
 export interface ErrorStateProps {
   error?: unknown;
@@ -12,7 +13,10 @@ export interface ErrorStateProps {
   className?: string;
 }
 
-function parseProblemOrError(error: unknown): {
+function parseProblemOrError(
+  error: unknown,
+  t: ReturnType<typeof useT>
+): {
   title: string;
   detail?: string;
   requestId?: string;
@@ -20,11 +24,11 @@ function parseProblemOrError(error: unknown): {
   status?: number;
 } {
   if (!error) {
-    return { title: "An unexpected error occurred" };
+    return { title: t("states.unexpectedError") };
   }
 
   if (typeof error === "string") {
-    return { title: "Error", detail: error };
+    return { title: t("states.error"), detail: error };
   }
 
   if (typeof error === "object" && error !== null) {
@@ -41,7 +45,7 @@ function parseProblemOrError(error: unknown): {
         ? String(err.extensions.task)
         : undefined);
 
-    const title = err.title || (err.status === 501 ? "Not Implemented" : "Error");
+    const title = err.title || (err.status === 501 ? t("states.notImplemented") : t("states.error"));
     const detail = err.detail || err.message;
     const requestId = err.requestId;
     const status = err.status;
@@ -49,7 +53,7 @@ function parseProblemOrError(error: unknown): {
     return { title, detail, requestId, task, status };
   }
 
-  return { title: "An unexpected error occurred" };
+  return { title: t("states.unexpectedError") };
 }
 
 export function ErrorState({
@@ -61,7 +65,8 @@ export function ErrorState({
   onRetry,
   className = "",
 }: ErrorStateProps) {
-  const parsed = parseProblemOrError(error);
+  const t = useT();
+  const parsed = parseProblemOrError(error, t);
 
   const title = customTitle || parsed.title;
   const detail = customDetail || parsed.detail;
@@ -87,14 +92,14 @@ export function ErrorState({
       </div>
 
       <h3 className="text-base font-semibold text-foreground">
-        {isStub && task ? `Not built yet — task ${task}` : title}
+        {isStub && task ? t("states.notBuiltYet", { task }) : title}
       </h3>
 
       {detail && <p className="mt-2 max-w-md text-sm text-muted-foreground">{detail}</p>}
 
       {requestId && (
         <p className="mt-2 font-mono text-xs text-muted-foreground/80">
-          Request ID: <span className="select-all font-semibold">{requestId}</span>
+          {t("states.requestId")}: <span className="select-all font-semibold">{requestId}</span>
         </p>
       )}
 
@@ -102,7 +107,7 @@ export function ErrorState({
         <div className="mt-6">
           <Button variant="outline" size="sm" onClick={onRetry}>
             <RefreshCw className="mr-2 size-4" />
-            Try again
+            {t("states.tryAgain")}
           </Button>
         </div>
       )}

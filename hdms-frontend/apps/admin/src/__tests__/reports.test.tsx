@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { reportsRoute } from "../routes/reports";
 
@@ -191,11 +194,15 @@ describe("ReportsPage (4.9b)", () => {
     renderReportsPage(queryClient);
 
     await waitFor(() => {
-      expect(screen.getByText(/Origin Breakdown over Time/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.reports.originBreakdownTitle)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/15 transactions/i)).toBeInTheDocument();
-    expect(screen.getByText(/22 transactions/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(translate(catalogues, "ja", "reports.transactionsCount", { count: 15 }))
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(translate(catalogues, "ja", "reports.transactionsCount", { count: 22 }))
+    ).toBeInTheDocument();
   });
 
   it("switches to operational health tab and renders scan metrics & turnaways", async () => {

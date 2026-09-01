@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import {
@@ -19,6 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   currentAdminQueryOptions,
   loginAdmin,
@@ -26,10 +26,11 @@ import {
   onSessionExpired,
 } from "@/lib/auth";
 import { toast } from "sonner";
+import { useT } from "@/i18n";
 
 const reauthSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().min(1, "validation.emailRequired").email("validation.emailInvalid"),
+  password: z.string().min(1, "validation.passwordRequired"),
   totpCode: z.string().optional(),
   recoveryCode: z.string().optional(),
 });
@@ -37,6 +38,7 @@ const reauthSchema = z.object({
 type ReauthFormValues = z.infer<typeof reauthSchema>;
 
 export function ReauthDialog() {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const { data: admin } = useQuery(currentAdminQueryOptions);
@@ -44,7 +46,7 @@ export function ReauthDialog() {
   const navigate = useNavigate();
 
   const form = useForm<ReauthFormValues>({
-    resolver: zodResolver(reauthSchema),
+    resolver: useLocalizedResolver(reauthSchema),
     defaultValues: {
       email: admin?.email || "",
       password: "",
@@ -76,11 +78,11 @@ export function ReauthDialog() {
         totpCode: "",
         recoveryCode: "",
       });
-      toast.success("Session restored. You can continue where you left off.");
+      toast.success(t("reauthDialog.sessionRestored"));
       await router.invalidate();
     },
     onError: (error: unknown) => {
-      let message = "Invalid credentials or code.";
+      let message = t("reauthDialog.invalidCredentials");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -95,7 +97,7 @@ export function ReauthDialog() {
   const handleSubmit = (values: ReauthFormValues) => {
     if (useRecoveryCode) {
       if (!values.recoveryCode || values.recoveryCode.trim().length === 0) {
-        form.setError("recoveryCode", { message: "Enter your recovery code" });
+        form.setError("recoveryCode", { message: t("reauthDialog.enterRecoveryCode") });
         return;
       }
       mutation.mutate({
@@ -105,7 +107,7 @@ export function ReauthDialog() {
       });
     } else {
       if (!values.totpCode || values.totpCode.trim().length < 6) {
-        form.setError("totpCode", { message: "Enter the 6-digit authenticator code" });
+        form.setError("totpCode", { message: t("reauthDialog.enterTotpCode") });
         return;
       }
       mutation.mutate({
@@ -135,15 +137,13 @@ export function ReauthDialog() {
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Session expired</DialogTitle>
-          <DialogDescription>
-            Your session has timed out. Re-authenticate below to keep working without losing any form state.
-          </DialogDescription>
+          <DialogTitle>{t("reauthDialog.title")}</DialogTitle>
+          <DialogDescription>{t("reauthDialog.description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <FieldGroup className="mt-4">
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="reauth-email">Email</FieldLabel>
+              <FieldLabel htmlFor="reauth-email">{t("login.emailLabel")}</FieldLabel>
               <Input
                 id="reauth-email"
                 type="email"
@@ -157,7 +157,7 @@ export function ReauthDialog() {
             </Field>
 
             <Field data-invalid={!!form.formState.errors.password}>
-              <FieldLabel htmlFor="reauth-password">Password</FieldLabel>
+              <FieldLabel htmlFor="reauth-password">{t("login.passwordLabel")}</FieldLabel>
               <Input
                 id="reauth-password"
                 type="password"
@@ -173,13 +173,13 @@ export function ReauthDialog() {
 
             {!useRecoveryCode ? (
               <Field data-invalid={!!form.formState.errors.totpCode}>
-                <FieldLabel htmlFor="reauth-totp">Authenticator code</FieldLabel>
+                <FieldLabel htmlFor="reauth-totp">{t("login.totpLabel")}</FieldLabel>
                 <Input
                   id="reauth-totp"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   maxLength={6}
-                  placeholder="6-digit code"
+                  placeholder={t("login.totpPlaceholder")}
                   className="font-mono tracking-widest"
                   aria-invalid={!!form.formState.errors.totpCode}
                   {...form.register("totpCode")}
@@ -190,12 +190,12 @@ export function ReauthDialog() {
               </Field>
             ) : (
               <Field data-invalid={!!form.formState.errors.recoveryCode}>
-                <FieldLabel htmlFor="reauth-recovery">Recovery code</FieldLabel>
+                <FieldLabel htmlFor="reauth-recovery">{t("login.recoveryCodeLabel")}</FieldLabel>
                 <Input
                   id="reauth-recovery"
                   type="text"
                   autoComplete="off"
-                  placeholder="Single-use code"
+                  placeholder={t("reauthDialog.singleUseCodePlaceholder")}
                   className="font-mono uppercase tracking-wider"
                   aria-invalid={!!form.formState.errors.recoveryCode}
                   {...form.register("recoveryCode")}
@@ -217,8 +217,8 @@ export function ReauthDialog() {
                 }}
               >
                 {useRecoveryCode
-                  ? "Use authenticator code"
-                  : "Use recovery code"}
+                  ? t("reauthDialog.useAuthenticatorCode")
+                  : t("reauthDialog.useRecoveryCode")}
               </button>
             </div>
 
@@ -235,13 +235,15 @@ export function ReauthDialog() {
                 size="sm"
                 onClick={handleSignOut}
               >
-                Sign out
+                {t("nav.signOut")}
               </Button>
               <Button
                 type="submit"
                 disabled={mutation.isPending}
               >
-                {mutation.isPending ? "Re-authenticating…" : "Resume session"}
+                {mutation.isPending
+                  ? t("reauthDialog.reauthenticating")
+                  : t("reauthDialog.resumeSession")}
               </Button>
             </div>
           </FieldGroup>

@@ -34,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 const auditSearchSchema = z.object({
@@ -63,14 +64,14 @@ function formatDate(iso?: string | null): string {
   }
 }
 
-function downloadFile(url: string, filename: string) {
+function downloadFile(url: string, filename: string, successMessage: string) {
   const link = document.createElement("a");
   link.href = url;
   link.setAttribute("download", filename);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  toast.success(`Exporting ${filename}`);
+  toast.success(successMessage);
 }
 
 function getActionTone(action: string): "default" | "secondary" | "destructive" | "outline" {
@@ -86,6 +87,7 @@ function getActionTone(action: string): "default" | "secondary" | "destructive" 
 const columnHelper = createColumnHelper<AuditEvent>();
 
 function AuditPage() {
+  const t = useT();
   const navigate = useNavigate({ from: auditRoute.fullPath });
   const search = auditRoute.useSearch();
 
@@ -158,10 +160,8 @@ function AuditPage() {
     if (search.to) params.set("to", search.to);
 
     const queryStr = params.toString() ? `?${params.toString()}` : "";
-    downloadFile(
-      `/v1/audit.csv${queryStr}`,
-      `audit-log-${new Date().toISOString().slice(0, 10)}.csv`
-    );
+    const filename = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadFile(`/v1/audit.csv${queryStr}`, filename, t("audit.exporting", { filename }));
   };
 
   const columns = useDataTableColumns<AuditEvent>(
@@ -169,7 +169,7 @@ function AuditPage() {
       columnHelper.accessor("at", {
         id: "at",
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Timestamp" />
+          <DataTableColumnHeader column={column} title={t("audit.columnTimestamp")} />
         ),
         cell: (info) => (
           <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
@@ -180,7 +180,7 @@ function AuditPage() {
       columnHelper.accessor("actor", {
         id: "actor",
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Actor" />
+          <DataTableColumnHeader column={column} title={t("audit.actorLabel")} />
         ),
         cell: (info) => (
           <div className="flex flex-col">
@@ -196,7 +196,7 @@ function AuditPage() {
       columnHelper.accessor("action", {
         id: "action",
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Action" />
+          <DataTableColumnHeader column={column} title={t("audit.actionLabel")} />
         ),
         cell: (info) => (
           <Badge variant={getActionTone(info.getValue())} className="font-mono text-xs">
@@ -207,7 +207,7 @@ function AuditPage() {
       columnHelper.accessor("subject", {
         id: "subject",
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Subject" />
+          <DataTableColumnHeader column={column} title={t("audit.subjectLabel")} />
         ),
         cell: (info) => (
           <span className="font-mono text-xs text-muted-foreground">
@@ -217,7 +217,7 @@ function AuditPage() {
       }),
       columnHelper.display({
         id: "actions",
-        header: "Details",
+        header: () => t("audit.columnDetails"),
         cell: ({ row }) => (
           <Button
             variant="ghost"
@@ -227,12 +227,12 @@ function AuditPage() {
             data-testid={`view-event-${row.original.id}`}
           >
             <Code2 className="h-3.5 w-3.5" />
-            <span>Payload</span>
+            <span>{t("audit.payload")}</span>
           </Button>
         ),
       }),
     ],
-    []
+    [t]
   );
 
 
@@ -241,9 +241,9 @@ function AuditPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Audit Log</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("audit.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Immutable append-only system trail recording authentication, inventory mutations, and overrides.
+            {t("audit.subtitle")}
           </p>
         </div>
 
@@ -255,14 +255,14 @@ function AuditPage() {
             data-testid="export-audit-csv"
           >
             <Download className="h-4 w-4" />
-            <span>Export CSV</span>
+            <span>{t("audit.exportCsv")}</span>
           </Button>
           <Button
             variant="outline"
             size="icon"
             onClick={() => refetch()}
             disabled={isFetching}
-            title="Refresh log"
+            title={t("audit.refreshLog")}
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
@@ -273,10 +273,10 @@ function AuditPage() {
       <Card className="bg-card/50">
         <CardContent className="p-4 flex flex-wrap items-end gap-3">
           <div className="space-y-1">
-            <Label htmlFor="filter-actor" className="text-xs">Actor</Label>
+            <Label htmlFor="filter-actor" className="text-xs">{t("audit.actorLabel")}</Label>
             <Input
               id="filter-actor"
-              placeholder="e.g. admin:1 or kiosk:1"
+              placeholder={t("audit.actorPlaceholder")}
               value={actorInput}
               onChange={(e) => setActorInput(e.target.value)}
               className="h-8 w-44 text-xs"
@@ -285,10 +285,10 @@ function AuditPage() {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="filter-action" className="text-xs">Action</Label>
+            <Label htmlFor="filter-action" className="text-xs">{t("audit.actionLabel")}</Label>
             <Input
               id="filter-action"
-              placeholder="e.g. device.created"
+              placeholder={t("audit.actionPlaceholder")}
               value={actionInput}
               onChange={(e) => setActionInput(e.target.value)}
               className="h-8 w-44 text-xs"
@@ -297,10 +297,10 @@ function AuditPage() {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="filter-subject" className="text-xs">Subject</Label>
+            <Label htmlFor="filter-subject" className="text-xs">{t("audit.subjectLabel")}</Label>
             <Input
               id="filter-subject"
-              placeholder="e.g. device:019..."
+              placeholder={t("audit.subjectPlaceholder")}
               value={subjectInput}
               onChange={(e) => setSubjectInput(e.target.value)}
               className="h-8 w-44 text-xs"
@@ -309,7 +309,7 @@ function AuditPage() {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="filter-from" className="text-xs">From</Label>
+            <Label htmlFor="filter-from" className="text-xs">{t("audit.fromLabel")}</Label>
             <Input
               id="filter-from"
               type="date"
@@ -320,7 +320,7 @@ function AuditPage() {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="filter-to" className="text-xs">To</Label>
+            <Label htmlFor="filter-to" className="text-xs">{t("audit.toLabel")}</Label>
             <Input
               id="filter-to"
               type="date"
@@ -333,11 +333,11 @@ function AuditPage() {
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={handleApplyFilters} className="h-8 text-xs gap-1.5" data-testid="apply-filters-btn">
               <Search className="h-3.5 w-3.5" />
-              <span>Filter</span>
+              <span>{t("audit.filter")}</span>
             </Button>
             <Button size="sm" variant="ghost" onClick={handleClearFilters} className="h-8 text-xs gap-1">
               <X className="h-3.5 w-3.5" />
-              <span>Reset</span>
+              <span>{t("audit.reset")}</span>
             </Button>
           </div>
         </CardContent>
@@ -353,15 +353,15 @@ function AuditPage() {
         </div>
       ) : isError || !data ? (
         <ErrorState
-          title="Could not load audit log"
-          detail="Failed to query audit trail records. Verify your permissions or network connection."
+          title={t("audit.loadFailedTitle")}
+          detail={t("audit.loadFailedDetail")}
           onRetry={() => refetch()}
         />
       ) : data.items.length === 0 ? (
         <EmptyState
           icon={ShieldAlert}
-          title="No audit records found"
-          explanation="No events matched your current search filters."
+          title={t("audit.emptyTitle")}
+          explanation={t("audit.emptyExplanation")}
         />
       ) : (
         <div className="space-y-4">
@@ -392,7 +392,7 @@ function AuditPage() {
                   className="h-8 text-xs gap-1"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
-                  <span>First Page</span>
+                  <span>{t("audit.firstPage")}</span>
                 </Button>
               )}
               {data.nextCursor && (
@@ -410,7 +410,7 @@ function AuditPage() {
                   className="h-8 text-xs gap-1"
                   data-testid="next-page-btn"
                 >
-                  <span>Next Page</span>
+                  <span>{t("audit.nextPage")}</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               )}
@@ -425,10 +425,10 @@ function AuditPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <ShieldAlert className="h-5 w-5 text-primary" />
-              <span>Audit Event Details</span>
+              <span>{t("audit.detailsTitle")}</span>
             </DialogTitle>
             <DialogDescription className="font-mono text-xs">
-              Event ID: {selectedEvent?.id}
+              {t("audit.eventIdLabel")} {selectedEvent?.id}
             </DialogDescription>
           </DialogHeader>
 
@@ -436,37 +436,37 @@ function AuditPage() {
             <div className="space-y-4 py-2 text-xs">
               <div className="grid grid-cols-2 gap-3 p-3 bg-muted/40 rounded-lg">
                 <div>
-                  <span className="text-muted-foreground block text-[10px]">Action</span>
+                  <span className="text-muted-foreground block text-[10px]">{t("audit.actionLabel")}</span>
                   <span className="font-semibold">{selectedEvent.action}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px]">Timestamp</span>
+                  <span className="text-muted-foreground block text-[10px]">{t("audit.timestampLabel")}</span>
                   <span>{formatDate(selectedEvent.at)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px]">Actor</span>
+                  <span className="text-muted-foreground block text-[10px]">{t("audit.actorLabel")}</span>
                   <span className="font-mono">{selectedEvent.actor}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px]">Subject</span>
+                  <span className="text-muted-foreground block text-[10px]">{t("audit.subjectLabel")}</span>
                   <span className="font-mono">{selectedEvent.subject || "—"}</span>
                 </div>
                 {selectedEvent.actorIp && (
                   <div>
-                    <span className="text-muted-foreground block text-[10px]">Actor IP</span>
+                    <span className="text-muted-foreground block text-[10px]">{t("audit.actorIpLabel")}</span>
                     <span className="font-mono">{selectedEvent.actorIp}</span>
                   </div>
                 )}
                 {selectedEvent.requestId && (
                   <div>
-                    <span className="text-muted-foreground block text-[10px]">Request ID</span>
+                    <span className="text-muted-foreground block text-[10px]">{t("audit.requestIdLabel")}</span>
                     <span className="font-mono">{selectedEvent.requestId}</span>
                   </div>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Event Payload (JSON)</Label>
+                <Label className="text-xs font-semibold">{t("audit.payloadJsonLabel")}</Label>
                 <pre className="p-4 bg-secondary/80 text-foreground font-mono text-xs rounded-lg overflow-x-auto max-h-72 whitespace-pre-wrap">
                   {JSON.stringify(selectedEvent.payload, null, 2)}
                 </pre>

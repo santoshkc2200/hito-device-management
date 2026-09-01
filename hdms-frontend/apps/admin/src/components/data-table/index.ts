@@ -1,5 +1,6 @@
 export * from "./data-table";
 export * from "./use-data-table-columns";
+export * from "./use-text-sorting";
 export * from "./column-header";
 export * from "./column-visibility";
 export * from "./bulk-actions-bar";

@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@hdms/ui";
+import { useT } from "@/i18n";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -21,6 +22,8 @@ export function DataTableColumnHeader<TData, TValue>({
   title,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
+  const t = useT();
+
   if (!column.getCanSort()) {
     return <div className={cn("text-xs font-medium text-muted-foreground", className)}>{title}</div>;
   }
@@ -35,13 +38,15 @@ export function DataTableColumnHeader<TData, TValue>({
             variant="ghost"
             size="sm"
             className="-ml-3 h-8 data-[state=open]:bg-accent text-xs font-medium"
-            aria-label={`Sort by ${title}. Currently ${
-              isSorted === "desc"
-                ? "sorted descending"
-                : isSorted === "asc"
-                  ? "sorted ascending"
-                  : "unsorted"
-            }`}
+            aria-label={t("table.sortByAria", {
+              title,
+              state:
+                isSorted === "desc"
+                  ? t("table.sortedDescending")
+                  : isSorted === "asc"
+                    ? t("table.sortedAscending")
+                    : t("table.unsorted"),
+            })}
           >
             <span>{title}</span>
             {isSorted === "desc" ? (
@@ -56,16 +61,16 @@ export function DataTableColumnHeader<TData, TValue>({
         <DropdownMenuContent align="start">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
             <ArrowUp className="mr-2 size-3.5 text-muted-foreground" />
-            Asc
+            {t("table.sortAscending")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
             <ArrowDown className="mr-2 size-3.5 text-muted-foreground" />
-            Desc
+            {t("table.sortDescending")}
           </DropdownMenuItem>
           {isSorted && (
             <DropdownMenuItem onClick={() => column.clearSorting()}>
               <ChevronsUpDown className="mr-2 size-3.5 text-muted-foreground" />
-              Clear sort
+              {t("table.clearSort")}
             </DropdownMenuItem>
           )}
           {column.getCanHide() && (
@@ -73,7 +78,7 @@ export function DataTableColumnHeader<TData, TValue>({
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
                 <EyeOff className="mr-2 size-3.5 text-muted-foreground" />
-                Hide column
+                {t("table.hideColumn")}
               </DropdownMenuItem>
             </>
           )}

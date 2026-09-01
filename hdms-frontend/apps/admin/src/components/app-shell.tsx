@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import {
@@ -22,6 +23,7 @@ import { hasRoleAtLeast } from "@/lib/use-role";
 import { ReauthDialog } from "@/components/reauth-dialog";
 import { ForcedPasswordChangeDialog } from "@/components/forced-password-change-dialog";
 import { ForcedTotpDialog } from "@/components/forced-totp-dialog";
+import { useT } from "@/i18n";
 import { cn } from "@hdms/ui";
 
 interface NavItem {
@@ -36,42 +38,8 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
-  {
-    name: "Daily",
-    items: [
-      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/backfill", label: "Paper backfill", icon: FileSpreadsheet, minRole: "technician" },
-      { to: "/register", label: "Register borrower", icon: UserPlus, minRole: "technician" },
-    ],
-  },
-  {
-    name: "Records",
-    items: [
-      { to: "/devices", label: "Devices", icon: Boxes },
-      { to: "/users", label: "Users", icon: UsersIcon },
-      { to: "/loans", label: "Loans", icon: FileCheck2 },
-    ],
-  },
-  {
-    name: "Insight",
-    items: [
-      { to: "/reports", label: "Reports", icon: FileText },
-      { to: "/audit", label: "Audit log", icon: ShieldAlert, minRole: "admin" },
-    ],
-  },
-  {
-    name: "Settings",
-    items: [
-      { to: "/settings", label: "Settings", icon: Settings, minRole: "admin" },
-      { to: "/credentials", label: "Credentials", icon: IdCardLanyard, minRole: "technician" },
-      { to: "/labels", label: "Labels", icon: Tags, minRole: "technician" },
-      { to: "/card-reader-test", label: "Card reader test", icon: Radio, minRole: "technician" },
-    ],
-  },
-];
-
 export function AppShell() {
+  const t = useT();
   const { data: admin } = useQuery(currentAdminQueryOptions);
   const router = useRouter();
   const navigate = useNavigate();
@@ -84,19 +52,57 @@ export function AppShell() {
 
   const role = admin?.role;
 
+  const navGroups: NavGroup[] = React.useMemo(
+    () => [
+      {
+        name: t("nav.groups.daily"),
+        items: [
+          { to: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
+          { to: "/backfill", label: t("nav.backfill"), icon: FileSpreadsheet, minRole: "technician" },
+          { to: "/register", label: t("nav.register"), icon: UserPlus, minRole: "technician" },
+        ],
+      },
+      {
+        name: t("nav.groups.records"),
+        items: [
+          { to: "/devices", label: t("nav.devices"), icon: Boxes },
+          { to: "/users", label: t("nav.users"), icon: UsersIcon },
+          { to: "/loans", label: t("nav.loans"), icon: FileCheck2 },
+        ],
+      },
+      {
+        name: t("nav.groups.insight"),
+        items: [
+          { to: "/reports", label: t("nav.reports"), icon: FileText },
+          { to: "/audit", label: t("nav.audit"), icon: ShieldAlert, minRole: "admin" },
+        ],
+      },
+      {
+        name: t("nav.groups.settings"),
+        items: [
+          { to: "/settings", label: t("nav.settings"), icon: Settings, minRole: "admin" },
+          { to: "/credentials", label: t("nav.credentials"), icon: IdCardLanyard, minRole: "technician" },
+          { to: "/labels", label: t("nav.labels"), icon: Tags, minRole: "technician" },
+          { to: "/card-reader-test", label: t("nav.cardReaderTest"), icon: Radio, minRole: "technician" },
+        ],
+      },
+    ],
+    [t]
+  );
+
   return (
     <div className="grid min-h-dvh grid-cols-[220px_1fr]">
       <aside className="flex flex-col border-r border-border bg-secondary">
         <div className="border-b border-border px-5 py-5">
           <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
-            Hito Hospital
+            {t("nav.hospitalName")}
           </p>
           <p className="mt-0.5 text-sm font-semibold text-secondary-foreground">
-            Device management
+            {t("nav.systemTitle")}
           </p>
         </div>
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
-          {NAV_GROUPS.map((group) => {
+          {navGroups.map((group) => {
             const visibleItems = group.items.filter((item) => hasRoleAtLeast(role, item.minRole));
             if (visibleItems.length === 0) return null;
 
@@ -136,7 +142,7 @@ export function AppShell() {
             onClick={handleLogout}
           >
             <LogOut className="size-4" data-icon="inline-start" />
-            Sign out
+            {t("nav.signOut")}
           </Button>
         </div>
       </aside>

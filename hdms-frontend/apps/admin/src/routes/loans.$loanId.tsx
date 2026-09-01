@@ -48,6 +48,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { RoleGate } from "@/lib/use-role";
 import { cn } from "@hdms/ui";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 function formatDate(iso?: string | null): string {
@@ -75,6 +76,7 @@ function getDaysOverdue(dueAt?: string | null): number {
 }
 
 export function LoanDetailPage() {
+  const t = useT();
   const { loanId } = loanDetailRoute.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -164,13 +166,13 @@ export function LoanDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["devices"] }),
         queryClient.invalidateQueries({ queryKey: ["audit", "loan", loanId] }),
       ]);
-      toast.success("Loan closed administratively (force returned)");
+      toast.success(t("loans.forceReturnSuccess"));
       setForceReturnOpen(false);
       setForceReturnReason("");
       setForceReturnCondition("");
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Failed to force return loan");
+      toast.error(err?.detail || err?.title || t("loans.forceReturnFailed"));
     },
   });
 
@@ -191,12 +193,12 @@ export function LoanDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["devices"] }),
         queryClient.invalidateQueries({ queryKey: ["audit", "loan", loanId] }),
       ]);
-      toast.success("Loan written off (declared lost/destroyed)");
+      toast.success(t("loans.writeOffSuccess"));
       setWriteOffOpen(false);
       setWriteOffReason("");
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Failed to write off loan");
+      toast.error(err?.detail || err?.title || t("loans.writeOffFailed"));
     },
   });
 
@@ -219,7 +221,7 @@ export function LoanDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["loans", loanId] }),
         queryClient.invalidateQueries({ queryKey: ["audit", "loan", loanId] }),
       ]);
-      toast.success("Attribution corrected successfully");
+      toast.success(t("loanDetail.attributionCorrected"));
       setCorrectAttributionOpen(false);
       setCorrectUserId("");
       setCorrectReason("");
@@ -228,37 +230,42 @@ export function LoanDetailPage() {
       }
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Failed to correct loan attribution");
+      toast.error(err?.detail || err?.title || t("loanDetail.attributionFailed"));
     },
   });
 
   const handleCopyReminder = async () => {
     if (!loan) return;
-    const userName = borrower?.fullName || "Borrower";
-    const devName = device?.name || "Device";
+    const userName = borrower?.fullName || t("loans.reminderUserFallback");
+    const devName = device?.name || t("loans.reminderDeviceFallback");
     const assetTag = device?.assetTag || "";
     const formattedDue = formatDate(loan.dueAt);
 
-    const message = `Hi ${userName}, your loan for ${devName} (${assetTag}) was due on ${formattedDue}. Please return the device to any HDMS kiosk or admin station as soon as possible.`;
+    const message = t("loans.reminderMessage", {
+      user: userName,
+      device: devName,
+      assetTag,
+      dueAt: formattedDue,
+    });
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(message);
       }
-      toast.success("Reminder message copied to clipboard");
+      toast.success(t("loans.reminderCopied"));
     } catch {
-      toast.error("Could not copy reminder message to clipboard");
+      toast.error(t("loans.reminderCopyFailed"));
     }
   };
 
   if (loanLoading) {
-    return <LoadingState message="Loading loan details…" />;
+    return <LoadingState message={t("loanDetail.loadingLoan")} />;
   }
 
   if (loanError || !loan) {
     return (
       <ErrorState
-        title="Loan not found"
-        detail={`Could not find loan record "${loanId}".`}
+        title={t("loanDetail.notFoundTitle")}
+        detail={t("loanDetail.notFoundDetail", { loanId })}
         onRetry={() => refetchLoan()}
       />
     );
@@ -268,7 +275,11 @@ export function LoanDetailPage() {
   const isOverdue = isOpen && loan.dueAt && new Date(loan.dueAt).getTime() < Date.now();
   const daysOverdue = isOverdue ? getDaysOverdue(loan.dueAt) : 0;
   const tone = isOverdue ? "warning" : loanStatusTone[loan.status] || "muted";
-  const statusLabel = isOverdue ? "Overdue" : loan.status === "written_off" ? "Written off" : loan.status;
+  const statusLabel = isOverdue
+    ? t("loans.statusOverdue")
+    : loan.status === "written_off"
+      ? t("loans.statusWrittenOff")
+      : loan.status;
 
   return (
     <div className="flex flex-col gap-6" data-testid="loan-detail-page">
@@ -278,19 +289,19 @@ export function LoanDetailPage() {
           <Button variant="ghost" size="icon" asChild className="size-8">
             <Link to="/loans">
               <ArrowLeft className="size-4" />
-              <span className="sr-only">Back to loans</span>
+              <span className="sr-only">{t("loanDetail.backToLoans")}</span>
             </Link>
           </Button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-semibold tracking-tight text-foreground font-identifier">
-                Loan {loan.id.slice(0, 8)}
+                {t("loanDetail.loanHeading", { id: loan.id.slice(0, 8) })}
               </h1>
               <StatusBadge label={statusLabel} tone={tone} />
               <LoanOriginBadge origin={loan.origin} disputed={loan.disputed} />
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Full custody story, scan sources, and audit trail.
+              {t("loanDetail.subtitle")}
             </p>
           </div>
         </div>
@@ -302,11 +313,11 @@ export function LoanDetailPage() {
               variant="outline"
               size="sm"
               onClick={handleCopyReminder}
-              title="Copy prepared reminder message to clipboard"
+              title={t("loanDetail.remindTooltip")}
               data-testid="remind-button"
             >
               <Copy className="size-3.5 mr-1.5" />
-              Remind
+              {t("loanDetail.remind")}
             </Button>
           )}
 
@@ -320,7 +331,7 @@ export function LoanDetailPage() {
                 data-testid="force-return-button"
               >
                 <CornerDownLeft className="size-3.5 mr-1.5" />
-                Force return…
+                {t("loanDetail.forceReturnAction")}
               </Button>
             </RoleGate>
           )}
@@ -335,7 +346,7 @@ export function LoanDetailPage() {
                 data-testid="write-off-button"
               >
                 <Trash2 className="size-3.5 mr-1.5" />
-                Write off…
+                {t("loanDetail.writeOffAction")}
               </Button>
             </RoleGate>
           )}
@@ -348,7 +359,7 @@ export function LoanDetailPage() {
               data-testid="correct-attribution-button"
             >
               <UserCheck className="size-3.5 mr-1.5" />
-              Correct attribution…
+              {t("loanDetail.correctAttributionAction")}
             </Button>
           </RoleGate>
         </div>
@@ -359,9 +370,9 @@ export function LoanDetailPage() {
         <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300 flex items-start gap-3">
           <AlertCircle className="size-4 shrink-0 mt-0.5 text-rose-600" />
           <div>
-            <p className="font-semibold">Disputed Loan Record</p>
+            <p className="font-semibold">{t("loanDetail.disputedTitle")}</p>
             <p className="mt-0.5 text-rose-800 dark:text-rose-400">
-              This loan record was marked as disputed or reattributed during backfill/override. It is permanently excluded from active custody calculations.
+              {t("loanDetail.disputedExplanation")}
             </p>
           </div>
         </div>
@@ -375,7 +386,7 @@ export function LoanDetailPage() {
             <CardTitle className="text-sm font-semibold flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Users className="size-4 text-primary" />
-                Borrower Information
+                {t("loanDetail.borrowerHeading")}
               </span>
               {borrower && (
                 <Link
@@ -383,34 +394,34 @@ export function LoanDetailPage() {
                   params={{ userId: borrower.id }}
                   className="text-xs text-primary hover:underline font-normal"
                 >
-                  View profile →
+                  {t("loanDetail.viewProfile")}
                 </Link>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-2.5">
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Full Name</span>
+              <span className="text-muted-foreground">{t("loanDetail.fullNameLabel")}</span>
               <span className="font-medium text-foreground" data-testid="borrower-name">
                 {borrower?.fullName || "—"}
               </span>
             </div>
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Employee #</span>
+              <span className="text-muted-foreground">{t("loanDetail.employeeNoLabel")}</span>
               <span className="font-identifier text-foreground">
                 {borrower?.employeeNo || "—"}
               </span>
             </div>
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Department</span>
+              <span className="text-muted-foreground">{t("loanDetail.departmentLabel")}</span>
               <span className="text-foreground">{borrower?.departmentId || "—"}</span>
             </div>
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">User Status</span>
+              <span className="text-muted-foreground">{t("loanDetail.userStatusLabel")}</span>
               <span className="capitalize text-foreground">{borrower?.status || "—"}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Email / Phone</span>
+              <span className="text-muted-foreground">{t("loanDetail.emailPhoneLabel")}</span>
               <span className="text-foreground">
                 {borrower?.email || borrower?.phone || "—"}
               </span>
@@ -424,7 +435,7 @@ export function LoanDetailPage() {
             <CardTitle className="text-sm font-semibold flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Laptop className="size-4 text-primary" />
-                Device Information
+                {t("loanDetail.deviceHeading")}
               </span>
               {device && (
                 <Link
@@ -432,36 +443,36 @@ export function LoanDetailPage() {
                   params={{ deviceId: device.id }}
                   className="text-xs text-primary hover:underline font-normal"
                 >
-                  View device →
+                  {t("loanDetail.viewDevice")}
                 </Link>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-2.5">
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Device Name</span>
+              <span className="text-muted-foreground">{t("loanDetail.deviceNameLabel")}</span>
               <span className="font-medium text-foreground" data-testid="device-name">
                 {device?.name || "—"}
               </span>
             </div>
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Asset Tag</span>
+              <span className="text-muted-foreground">{t("loanDetail.assetTagLabel")}</span>
               <span className="font-identifier text-foreground">
                 {device?.assetTag || loan.deviceId}
               </span>
             </div>
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Manufacturer / Model</span>
+              <span className="text-muted-foreground">{t("loanDetail.manufacturerModelLabel")}</span>
               <span className="text-foreground">
                 {device ? `${device.manufacturer || "—"} / ${device.model || "—"}` : "—"}
               </span>
             </div>
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Condition at Borrow</span>
+              <span className="text-muted-foreground">{t("loanDetail.conditionOutLabel")}</span>
               <span className="capitalize text-foreground">{loan.conditionOut || "—"}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Condition at Return</span>
+              <span className="text-muted-foreground">{t("loanDetail.conditionInLabel")}</span>
               <span className="capitalize text-foreground">{loan.conditionIn || "—"}</span>
             </div>
           </CardContent>
@@ -472,56 +483,60 @@ export function LoanDetailPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Clock className="size-4 text-primary" />
-              Custody Timeline & Scan Sources
+              {t("loanDetail.timelineHeading")}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-3">
             <div className="rounded-md border p-2.5 bg-muted/20 space-y-1.5">
               <div className="flex items-center justify-between font-medium">
-                <span className="text-foreground">Borrowed</span>
+                <span className="text-foreground">{t("loanDetail.borrowedLabel")}</span>
                 <span className="text-muted-foreground">{formatDate(loan.borrowedAt)}</span>
               </div>
               <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>Scan Source:</span>
+                <span>{t("loanDetail.scanSourceLabel")}</span>
                 <span className="font-medium text-foreground capitalize" data-testid="borrow-source">
                   {loan.borrowSource || "—"}
                 </span>
               </div>
               <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>Kiosk / Actor:</span>
+                <span>{t("loanDetail.kioskActorLabel")}</span>
                 <span className="font-identifier text-foreground">
-                  {loan.borrowKioskId ? `Kiosk ${loan.borrowKioskId.slice(0, 8)}` : loan.borrowActor}
+                  {loan.borrowKioskId
+                    ? t("loanDetail.kioskPrefix", { id: loan.borrowKioskId.slice(0, 8) })
+                    : loan.borrowActor}
                 </span>
               </div>
             </div>
 
             <div className="rounded-md border p-2.5 bg-muted/20 space-y-1.5">
               <div className="flex items-center justify-between font-medium">
-                <span className="text-foreground">Due Date</span>
+                <span className="text-foreground">{t("loanDetail.dueDateLabel")}</span>
                 <span className={cn(isOverdue ? "text-rose-600 font-semibold" : "text-muted-foreground")}>
                   {formatDate(loan.dueAt)}
-                  {isOverdue && ` (${daysOverdue} days late)`}
+                  {isOverdue && t("loanDetail.daysLateSuffix", { days: daysOverdue })}
                 </span>
               </div>
             </div>
 
             <div className="rounded-md border p-2.5 bg-muted/20 space-y-1.5">
               <div className="flex items-center justify-between font-medium">
-                <span className="text-foreground">Returned</span>
+                <span className="text-foreground">{t("loanDetail.returnedLabel")}</span>
                 <span className="text-muted-foreground">{formatDate(loan.returnedAt)}</span>
               </div>
               {loan.returnedAt && (
                 <>
                   <div className="flex justify-between text-[11px] text-muted-foreground">
-                    <span>Scan Source:</span>
+                    <span>{t("loanDetail.scanSourceLabel")}</span>
                     <span className="font-medium text-foreground capitalize" data-testid="return-source">
                       {loan.returnSource || "—"}
                     </span>
                   </div>
                   <div className="flex justify-between text-[11px] text-muted-foreground">
-                    <span>Kiosk / Actor:</span>
+                    <span>{t("loanDetail.kioskActorLabel")}</span>
                     <span className="font-identifier text-foreground">
-                      {loan.returnKioskId ? `Kiosk ${loan.returnKioskId.slice(0, 8)}` : loan.returnActor || "—"}
+                      {loan.returnKioskId
+                        ? t("loanDetail.kioskPrefix", { id: loan.returnKioskId.slice(0, 8) })
+                        : loan.returnActor || "—"}
                     </span>
                   </div>
                 </>
@@ -535,31 +550,31 @@ export function LoanDetailPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <FileText className="size-4 text-primary" />
-              Provenance & Notes
+              {t("loanDetail.provenanceHeading")}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-2.5">
             <div className="flex justify-between border-b pb-1.5">
-              <span className="text-muted-foreground">Record Origin</span>
+              <span className="text-muted-foreground">{t("loanDetail.recordOriginLabel")}</span>
               <span className="capitalize font-medium text-foreground">{loan.origin}</span>
             </div>
 
             {loan.origin === "paper" && (
               <>
                 <div className="flex justify-between border-b pb-1.5">
-                  <span className="text-muted-foreground">Paper Slip Reference</span>
+                  <span className="text-muted-foreground">{t("loanDetail.paperRefLabel")}</span>
                   <span className="font-identifier text-foreground font-medium" data-testid="paper-ref">
                     {loan.paperRef || "—"}
                   </span>
                 </div>
                 <div className="flex justify-between border-b pb-1.5">
-                  <span className="text-muted-foreground">Typed In By</span>
+                  <span className="text-muted-foreground">{t("loanDetail.typedInByLabel")}</span>
                   <span className="text-foreground" data-testid="recorded-by">
                     {loan.recordedBy || "—"}
                   </span>
                 </div>
                 <div className="flex justify-between border-b pb-1.5">
-                  <span className="text-muted-foreground">Typed In Timestamp</span>
+                  <span className="text-muted-foreground">{t("loanDetail.typedInTimestampLabel")}</span>
                   <span className="text-foreground" data-testid="recorded-at">
                     {formatDate(loan.recordedAt)}
                   </span>
@@ -569,14 +584,14 @@ export function LoanDetailPage() {
 
             {loan.backfillNote && (
               <div className="border-b pb-1.5">
-                <span className="text-muted-foreground block mb-0.5">Backfill Note:</span>
+                <span className="text-muted-foreground block mb-0.5">{t("loanDetail.backfillNoteLabel")}</span>
                 <p className="text-foreground italic">{loan.backfillNote}</p>
               </div>
             )}
 
             {loan.notes && (
               <div className="pb-1">
-                <span className="text-muted-foreground block mb-0.5">Notes:</span>
+                <span className="text-muted-foreground block mb-0.5">{t("loanDetail.notesLabel")}</span>
                 <p className="text-foreground bg-muted/30 p-2 rounded">{loan.notes}</p>
               </div>
             )}
@@ -589,12 +604,12 @@ export function LoanDetailPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <History className="size-4 text-primary" />
-            Audit Trail
+            {t("loanDetail.auditHeading")}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-xs">
           {(!auditEvents || auditEvents.length === 0) ? (
-            <p className="text-muted-foreground py-2">No audit events recorded for this loan.</p>
+            <p className="text-muted-foreground py-2">{t("loanDetail.noAuditEvents")}</p>
           ) : (
             <div className="divide-y">
               {auditEvents.map((ev) => (
@@ -603,7 +618,7 @@ export function LoanDetailPage() {
                     <span className="font-mono text-[11px] font-semibold text-primary">
                       {ev.action}
                     </span>
-                    <span className="text-muted-foreground">by</span>
+                    <span className="text-muted-foreground">{t("loanDetail.auditBy")}</span>
                     <span className="font-medium text-foreground">{ev.actor}</span>
                   </div>
                   <div className="flex items-center gap-3 text-muted-foreground text-[11px]">
@@ -625,40 +640,41 @@ export function LoanDetailPage() {
       <Dialog open={forceReturnOpen} onOpenChange={setForceReturnOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Force Return Loan</DialogTitle>
+            <DialogTitle>{t("loanDetail.forceReturnTitle")}</DialogTitle>
             <DialogDescription>
-              Administratively close this loan for{" "}
-              <strong className="text-foreground">{device?.name || "device"}</strong>.
+              {t("loanDetail.forceReturnDescriptionPrefix")}{" "}
+              <strong className="text-foreground">{device?.name || t("loans.deviceFallback")}</strong>
+              {t("loanDetail.forceReturnDescriptionSuffix")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
             <div>
               <label htmlFor="condition-select" className="block font-medium text-foreground mb-1">
-                Condition at return (optional)
+                {t("loanDetail.conditionLabel")}
               </label>
               <Select
                 value={forceReturnCondition}
                 onValueChange={(val) => setForceReturnCondition(val as any)}
               >
                 <SelectTrigger id="condition-select" className="h-9 text-xs">
-                  <SelectValue placeholder="Select condition" />
+                  <SelectValue placeholder={t("loanDetail.conditionPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="good">Good</SelectItem>
-                  <SelectItem value="fair">Fair</SelectItem>
-                  <SelectItem value="damaged">Damaged</SelectItem>
+                  <SelectItem value="good">{t("loanDetail.conditionGood")}</SelectItem>
+                  <SelectItem value="fair">{t("loanDetail.conditionFair")}</SelectItem>
+                  <SelectItem value="damaged">{t("loanDetail.conditionDamaged")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
               <label htmlFor="force-reason" className="block font-medium text-foreground mb-1">
-                Reason for administrative return (required)
+                {t("loanDetail.forceReturnReasonLabel")}
               </label>
               <Textarea
                 id="force-reason"
-                placeholder="e.g. Device returned at desk without scanning."
+                placeholder={t("loanDetail.forceReturnReasonPlaceholder")}
                 value={forceReturnReason}
                 onChange={(e) => setForceReturnReason(e.target.value)}
                 rows={3}
@@ -673,13 +689,13 @@ export function LoanDetailPage() {
               onClick={() => setForceReturnOpen(false)}
               disabled={forceReturnMutation.isPending}
             >
-              Cancel
+              {t("loanDetail.cancel")}
             </Button>
             <Button
               disabled={!forceReturnReason.trim() || forceReturnMutation.isPending}
               onClick={() => forceReturnMutation.mutate()}
             >
-              {forceReturnMutation.isPending ? "Returning…" : "Confirm return"}
+              {forceReturnMutation.isPending ? t("loanDetail.returning") : t("loanDetail.confirmReturn")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -689,21 +705,21 @@ export function LoanDetailPage() {
       <Dialog open={writeOffOpen} onOpenChange={setWriteOffOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Write Off Loan</DialogTitle>
+            <DialogTitle>{t("loanDetail.writeOffTitle")}</DialogTitle>
             <DialogDescription>
-              Declare device{" "}
-              <strong className="text-foreground">{device?.name || "device"}</strong> lost or destroyed.
-              This permanently closes the custody window and releases the temporal custody constraint.
+              {t("loanDetail.writeOffDescriptionPrefix")}{" "}
+              <strong className="text-foreground">{device?.name || t("loans.deviceFallback")}</strong>
+              {t("loanDetail.writeOffDescriptionSuffix")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-2 text-xs">
             <label htmlFor="writeoff-reason" className="block font-medium text-foreground mb-1">
-              Reason for write-off (required)
+              {t("loanDetail.writeOffReasonLabel")}
             </label>
             <Textarea
               id="writeoff-reason"
-              placeholder="e.g. Device dropped in liquid and declared destroyed."
+              placeholder={t("loanDetail.writeOffReasonPlaceholder")}
               value={writeOffReason}
               onChange={(e) => setWriteOffReason(e.target.value)}
               rows={3}
@@ -717,14 +733,14 @@ export function LoanDetailPage() {
               onClick={() => setWriteOffOpen(false)}
               disabled={writeOffMutation.isPending}
             >
-              Cancel
+              {t("loanDetail.cancel")}
             </Button>
             <Button
               variant="destructive"
               disabled={!writeOffReason.trim() || writeOffMutation.isPending}
               onClick={() => writeOffMutation.mutate()}
             >
-              {writeOffMutation.isPending ? "Writing off…" : "Write off loan"}
+              {writeOffMutation.isPending ? t("loanDetail.writingOff") : t("loanDetail.confirmWriteOff")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -734,23 +750,23 @@ export function LoanDetailPage() {
       <Dialog open={correctAttributionOpen} onOpenChange={setCorrectAttributionOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Correct Loan Attribution</DialogTitle>
+            <DialogTitle>{t("loanDetail.correctTitle")}</DialogTitle>
             <DialogDescription>
-              Reassign this loan to the borrower who actually holds the device. The original record is preserved intact as a disputed claim for audit.
+              {t("loanDetail.correctDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
             <div>
               <label htmlFor="user-select" className="block font-medium text-foreground mb-1">
-                Actual Borrower (required)
+                {t("loanDetail.correctBorrowerLabel")}
               </label>
               <Select
                 value={correctUserId}
                 onValueChange={setCorrectUserId}
               >
                 <SelectTrigger id="user-select" className="h-9 text-xs">
-                  <SelectValue placeholder="Select correct borrower" />
+                  <SelectValue placeholder={t("loanDetail.correctBorrowerPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
                   {(allUsers ?? []).map((u) => (
@@ -764,11 +780,11 @@ export function LoanDetailPage() {
 
             <div>
               <label htmlFor="correct-reason" className="block font-medium text-foreground mb-1">
-                Reason for correction (required)
+                {t("loanDetail.correctReasonLabel")}
               </label>
               <Textarea
                 id="correct-reason"
-                placeholder="e.g. Attendant accidentally scanned wrong user badge during shift change."
+                placeholder={t("loanDetail.correctReasonPlaceholder")}
                 value={correctReason}
                 onChange={(e) => setCorrectReason(e.target.value)}
                 rows={3}
@@ -782,13 +798,13 @@ export function LoanDetailPage() {
               onClick={() => setCorrectAttributionOpen(false)}
               disabled={correctAttributionMutation.isPending}
             >
-              Cancel
+              {t("loanDetail.cancel")}
             </Button>
             <Button
               disabled={!correctUserId || !correctReason.trim() || correctAttributionMutation.isPending}
               onClick={() => correctAttributionMutation.mutate()}
             >
-              {correctAttributionMutation.isPending ? "Correcting…" : "Save correction"}
+              {correctAttributionMutation.isPending ? t("loanDetail.correcting") : t("loanDetail.saveCorrection")}
             </Button>
           </DialogFooter>
         </DialogContent>

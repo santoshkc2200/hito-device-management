@@ -13,6 +13,7 @@
   "dependencies": {
     "@hdms/api-client": "workspace:*",
     "@hdms/domain": "workspace:*",
+    "@hdms/i18n": "workspace:*",
     "@hdms/ui": "workspace:*",
     "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.101.4",

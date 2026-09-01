@@ -9,6 +9,7 @@ import { ReauthDialog } from "@/components/reauth-dialog";
 import { RecoveryCodesDialog } from "@/components/recovery-codes-dialog";
 import { ForcedPasswordChangeDialog } from "@/components/forced-password-change-dialog";
 import { ForcedTotpDialog } from "@/components/forced-totp-dialog";
+import { ja } from "@/i18n/ja";
 import { useState } from "react";
 
 // Mock TanStack Router
@@ -56,11 +57,11 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
       );
 
       const user = userEvent.setup();
-      await user.type(screen.getByLabelText(/email/i), "admin@hito.local");
-      await user.type(screen.getByLabelText(/^password/i), "CorrectPassword123!");
-      await user.type(screen.getByLabelText(/authenticator code/i), "123456");
+      await user.type(screen.getByLabelText(ja.login.emailLabel), "admin@hito.local");
+      await user.type(screen.getByLabelText(ja.login.passwordLabel), "CorrectPassword123!");
+      await user.type(screen.getByLabelText(ja.login.totpLabel), "123456");
 
-      await user.click(screen.getByRole("button", { name: /sign in/i }));
+      await user.click(screen.getByRole("button", { name: new RegExp(ja.login.signIn, "i") }));
 
       await waitFor(() => {
         expect(loginSpy).toHaveBeenCalledWith({
@@ -93,16 +94,16 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
 
       const user = userEvent.setup();
       // Toggle to recovery code
-      await user.click(screen.getByText(/lost authenticator\? use a recovery code/i));
+      await user.click(screen.getByText(ja.login.useRecoveryInstead));
 
-      expect(screen.getByLabelText(/recovery code/i)).toBeInTheDocument();
-      expect(screen.queryByLabelText(/authenticator code/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText(ja.login.recoveryCodeLabel)).toBeInTheDocument();
+      expect(screen.queryByLabelText(ja.login.totpLabel)).not.toBeInTheDocument();
 
-      await user.type(screen.getByLabelText(/email/i), "admin@hito.local");
-      await user.type(screen.getByLabelText(/^password/i), "CorrectPassword123!");
-      await user.type(screen.getByLabelText(/recovery code/i), "A1B2-C3D4");
+      await user.type(screen.getByLabelText(ja.login.emailLabel), "admin@hito.local");
+      await user.type(screen.getByLabelText(ja.login.passwordLabel), "CorrectPassword123!");
+      await user.type(screen.getByLabelText(ja.login.recoveryCodeLabel), "A1B2-C3D4");
 
-      await user.click(screen.getByRole("button", { name: /sign in/i }));
+      await user.click(screen.getByRole("button", { name: new RegExp(ja.login.signIn, "i") }));
 
       await waitFor(() => {
         expect(loginSpy).toHaveBeenCalledWith({
@@ -133,11 +134,11 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
       );
 
       const user = userEvent.setup();
-      await user.type(screen.getByLabelText(/email/i), "admin@hito.local");
-      await user.type(screen.getByLabelText(/^password/i), "WrongPassword");
-      await user.type(screen.getByLabelText(/authenticator code/i), "000000");
+      await user.type(screen.getByLabelText(ja.login.emailLabel), "admin@hito.local");
+      await user.type(screen.getByLabelText(ja.login.passwordLabel), "WrongPassword");
+      await user.type(screen.getByLabelText(ja.login.totpLabel), "000000");
 
-      await user.click(screen.getByRole("button", { name: /sign in/i }));
+      await user.click(screen.getByRole("button", { name: new RegExp(ja.login.signIn, "i") }));
 
       expect(
         await screen.findByText(/invalid email, password or authenticator code/i)
@@ -178,7 +179,7 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
       expect(screen.getByText("CODE-4444")).toBeInTheDocument();
       expect(screen.getByText("HAS_CODES")).toBeInTheDocument();
 
-      const doneButton = screen.getByRole("button", { name: /done & close/i });
+      const doneButton = screen.getByRole("button", { name: ja.recoveryCodesDialog.doneAndClose });
       expect(doneButton).toBeDisabled();
 
       // Check confirmation
@@ -264,16 +265,16 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
       triggerSessionExpired();
 
       // Reauth dialog appears
-      expect(await screen.findByText(/session expired/i)).toBeInTheDocument();
-      expect(screen.getByText(/keep working without losing any form state/i)).toBeInTheDocument();
+      expect(await screen.findByText(ja.reauthDialog.title)).toBeInTheDocument();
+      expect(screen.getByText(ja.reauthDialog.description)).toBeInTheDocument();
 
       // Email is prefilled from existing session
-      expect(screen.getByLabelText(/email/i)).toHaveValue("nurse.admin@hito.local");
+      expect(screen.getByLabelText(ja.login.emailLabel)).toHaveValue("nurse.admin@hito.local");
 
       // Enter password & TOTP to re-authenticate
-      await user.type(screen.getByLabelText(/^password/i), "ResumeSecret123!");
-      await user.type(screen.getByLabelText(/authenticator code/i), "654321");
-      await user.click(screen.getByRole("button", { name: /resume session/i }));
+      await user.type(screen.getByLabelText(ja.login.passwordLabel), "ResumeSecret123!");
+      await user.type(screen.getByLabelText(ja.login.totpLabel), "654321");
+      await user.click(screen.getByRole("button", { name: ja.reauthDialog.resumeSession }));
 
       await waitFor(() => {
         expect(loginSpy).toHaveBeenCalledWith({
@@ -287,7 +288,7 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
 
       // Dialog closes
       await waitFor(() => {
-        expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(ja.reauthDialog.title)).not.toBeInTheDocument();
       });
 
       // Form values remain 100% intact!
@@ -318,22 +319,24 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
         </QueryClientProvider>
       );
 
-      expect(screen.getByText(/password change required/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.forcedPasswordChangeDialog.title)).toBeInTheDocument();
 
       const user = userEvent.setup();
-      const currentPass = screen.getByLabelText(/current password/i);
-      const newPass = screen.getByLabelText(/^new password/i);
-      const confirmPass = screen.getByLabelText(/confirm new password/i);
+      const currentPass = screen.getByLabelText(ja.forcedPasswordChangeDialog.currentPasswordLabel);
+      const newPass = screen.getByLabelText(ja.forcedPasswordChangeDialog.newPasswordLabel, {
+        exact: true,
+      });
+      const confirmPass = screen.getByLabelText(ja.forcedPasswordChangeDialog.confirmPasswordLabel);
 
       // Try short password
       await user.type(currentPass, "OldPassword123!");
       await user.type(newPass, "short");
       await user.type(confirmPass, "short");
-      await user.click(screen.getByRole("button", { name: /set new password/i }));
+      await user.click(
+        screen.getByRole("button", { name: ja.forcedPasswordChangeDialog.setAndContinue })
+      );
 
-      expect(
-        await screen.findByText(/new password must be at least 12 characters/i)
-      ).toBeInTheDocument();
+      expect(await screen.findByText(ja.validation.newPasswordMin)).toBeInTheDocument();
 
       // Enter valid 12+ character password
       await user.clear(newPass);
@@ -341,7 +344,9 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
       await user.type(newPass, "SecureNewPassword2026!");
       await user.type(confirmPass, "SecureNewPassword2026!");
 
-      await user.click(screen.getByRole("button", { name: /set new password/i }));
+      await user.click(
+        screen.getByRole("button", { name: ja.forcedPasswordChangeDialog.setAndContinue })
+      );
 
       await waitFor(() => {
         expect(changePasswordSpy).toHaveBeenCalledWith({
@@ -382,12 +387,14 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
         </QueryClientProvider>
       );
 
-      expect(screen.getByText(/authenticator re-enrolment required/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.forcedTotpDialog.title)).toBeInTheDocument();
       expect(await screen.findByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
 
       const user = userEvent.setup();
-      await user.type(screen.getByLabelText(/verification code/i), "987654");
-      await user.click(screen.getByRole("button", { name: /confirm & activate/i }));
+      await user.type(screen.getByLabelText(ja.forcedTotpDialog.verificationCodeLabel), "987654");
+      await user.click(
+        screen.getByRole("button", { name: ja.forcedTotpDialog.confirmAndActivate })
+      );
 
       await waitFor(() => {
         expect(confirmSpy).toHaveBeenCalledWith({

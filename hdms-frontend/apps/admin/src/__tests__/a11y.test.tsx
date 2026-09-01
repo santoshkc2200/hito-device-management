@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
+import { LOCALES, LocaleProvider } from "@hdms/i18n";
 import { LoginPage } from "@/routes/login";
 import { ReauthDialog } from "@/components/reauth-dialog";
 import { RecoveryCodesDialog } from "@/components/recovery-codes-dialog";
@@ -30,15 +31,32 @@ function createTestQueryClient() {
   });
 }
 
-describe("4.1c Auth UI — Accessibility (axe) Audits", () => {
+describe.each(LOCALES)("4.1c Auth UI — Accessibility (axe) Audits in %s", (locale) => {
+  it("declares the page language so a screen reader pronounces it correctly", async () => {
+    const queryClient = createTestQueryClient();
+    const { container } = render(
+      <LocaleProvider locale={locale}>
+        <QueryClientProvider client={queryClient}>
+          <LoginPage />
+        </QueryClientProvider>
+      </LocaleProvider>
+    );
+    expect(document.documentElement.lang).toBe(locale);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
   it("LoginPage in TOTP mode passes axe audit", async () => {
     const queryClient = createTestQueryClient();
     const { container } = render(
-      <QueryClientProvider client={queryClient}>
-        <LoginPage />
-      </QueryClientProvider>
+      <LocaleProvider locale={locale}>
+        <QueryClientProvider client={queryClient}>
+          <LoginPage />
+        </QueryClientProvider>
+      </LocaleProvider>
     );
 
+    expect(document.documentElement.lang).toBe(locale);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
@@ -53,24 +71,30 @@ describe("4.1c Auth UI — Accessibility (axe) Audits", () => {
     });
 
     const { container } = render(
-      <QueryClientProvider client={queryClient}>
-        <ReauthDialog />
-      </QueryClientProvider>
+      <LocaleProvider locale={locale}>
+        <QueryClientProvider client={queryClient}>
+          <ReauthDialog />
+        </QueryClientProvider>
+      </LocaleProvider>
     );
 
+    expect(document.documentElement.lang).toBe(locale);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
   it("RecoveryCodesDialog passes axe audit", async () => {
     const { container } = render(
-      <RecoveryCodesDialog
-        open={true}
-        codes={["REC-1111", "REC-2222", "REC-3333", "REC-4444"]}
-        onDismiss={() => {}}
-      />
+      <LocaleProvider locale={locale}>
+        <RecoveryCodesDialog
+          open={true}
+          codes={["REC-1111", "REC-2222", "REC-3333", "REC-4444"]}
+          onDismiss={() => {}}
+        />
+      </LocaleProvider>
     );
 
+    expect(document.documentElement.lang).toBe(locale);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
@@ -86,11 +110,14 @@ describe("4.1c Auth UI — Accessibility (axe) Audits", () => {
     });
 
     const { container } = render(
-      <QueryClientProvider client={queryClient}>
-        <ForcedPasswordChangeDialog />
-      </QueryClientProvider>
+      <LocaleProvider locale={locale}>
+        <QueryClientProvider client={queryClient}>
+          <ForcedPasswordChangeDialog />
+        </QueryClientProvider>
+      </LocaleProvider>
     );
 
+    expect(document.documentElement.lang).toBe(locale);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
@@ -114,11 +141,14 @@ describe("4.1c Auth UI — Accessibility (axe) Audits", () => {
     });
 
     const { container } = render(
-      <QueryClientProvider client={queryClient}>
-        <ForcedTotpDialog />
-      </QueryClientProvider>
+      <LocaleProvider locale={locale}>
+        <QueryClientProvider client={queryClient}>
+          <ForcedTotpDialog />
+        </QueryClientProvider>
+      </LocaleProvider>
     );
 
+    expect(document.documentElement.lang).toBe(locale);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
@@ -150,11 +180,14 @@ describe("4.1c Auth UI — Accessibility (axe) Audits", () => {
     });
 
     const { container } = render(
-      <QueryClientProvider client={queryClient}>
-        <AdminAccountsPanel />
-      </QueryClientProvider>
+      <LocaleProvider locale={locale}>
+        <QueryClientProvider client={queryClient}>
+          <AdminAccountsPanel />
+        </QueryClientProvider>
+      </LocaleProvider>
     );
 
+    expect(document.documentElement.lang).toBe(locale);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
