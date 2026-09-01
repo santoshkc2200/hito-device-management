@@ -1,4 +1,3 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { createRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
@@ -14,11 +13,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { loginAdmin } from "@/lib/auth";
 import { useT } from "@/i18n";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { rootRoute } from "./root";
 
 const loginSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().min(1, "validation.emailRequired").email("validation.emailInvalid"),
+  password: z.string().min(1, "validation.passwordRequired"),
   totpCode: z.string().optional(),
   recoveryCode: z.string().optional(),
 });
@@ -32,7 +32,7 @@ export function LoginPage() {
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
 
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: useLocalizedResolver(loginSchema),
     defaultValues: { email: "", password: "", totpCode: "", recoveryCode: "" },
   });
 

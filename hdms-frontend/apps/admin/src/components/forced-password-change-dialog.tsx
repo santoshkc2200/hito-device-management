@@ -1,6 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "@tanstack/react-router";
 import {
@@ -18,6 +17,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   changeOwnPasswordAdmin,
   currentAdminQueryOptions,
@@ -27,14 +27,14 @@ import { KeyRound, ShieldAlert } from "lucide-react";
 
 const passwordChangeSchema = z
   .object({
-    currentPassword: z.string().min(1, "Current password is required"),
+    currentPassword: z.string().min(1, "validation.currentPasswordRequired"),
     newPassword: z
       .string()
-      .min(12, "New password must be at least 12 characters"),
-    confirmPassword: z.string().min(1, "Please confirm your new password"),
+      .min(12, "validation.newPasswordMin"),
+    confirmPassword: z.string().min(1, "validation.confirmPasswordRequired"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "New passwords do not match",
+    message: "validation.passwordsMismatch",
     path: ["confirmPassword"],
   });
 
@@ -47,7 +47,7 @@ export function ForcedPasswordChangeDialog() {
   const isOpen = Boolean(admin?.mustChangePassword);
 
   const form = useForm<PasswordChangeFormValues>({
-    resolver: zodResolver(passwordChangeSchema),
+    resolver: useLocalizedResolver(passwordChangeSchema),
     defaultValues: {
       currentPassword: "",
       newPassword: "",

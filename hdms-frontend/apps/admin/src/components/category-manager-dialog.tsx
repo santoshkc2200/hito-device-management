@@ -5,7 +5,6 @@ import {
   updateCategory,
   zCreateCategoryRequest,
 } from "@hdms/api-client";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilLine, Plus } from "lucide-react";
 import { useState } from "react";
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   Table,
   TableBody,
@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/table";
 
 const categorySchema = zCreateCategoryRequest.extend({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "validation.nameRequired"),
   defaultLoanPeriodSeconds: z.number().int().min(0).optional(),
 });
 type CategoryFormValues = z.infer<typeof categorySchema>;
@@ -47,7 +47,7 @@ function CategoryForm({
 }) {
   const queryClient = useQueryClient();
   const form = useForm<CategoryFormValues>({
-    resolver: zodResolver(categorySchema),
+    resolver: useLocalizedResolver(categorySchema),
     defaultValues: {
       name: category?.name ?? "",
       defaultLoanPeriodSeconds: category?.defaultLoanPeriodSeconds

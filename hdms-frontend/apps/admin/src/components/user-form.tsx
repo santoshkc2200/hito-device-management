@@ -5,7 +5,6 @@ import {
   updateUser,
   zCreateUserRequest,
 } from "@hdms/api-client";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -13,6 +12,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   Select,
   SelectContent,
@@ -22,9 +22,9 @@ import {
 } from "@/components/ui/select";
 
 const userSchema = zCreateUserRequest.extend({
-  employeeNo: z.string().min(1, "Employee number is required"),
-  fullName: z.string().min(1, "Full name is required"),
-  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
+  employeeNo: z.string().min(1, "validation.employeeNoRequired"),
+  fullName: z.string().min(1, "validation.fullNameRequired"),
+  email: z.string().email("validation.emailInvalid").optional().or(z.literal("")),
 });
 export type UserFormValues = z.infer<typeof userSchema>;
 
@@ -39,7 +39,7 @@ export function UserForm({
 }) {
   const queryClient = useQueryClient();
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userSchema),
+    resolver: useLocalizedResolver(userSchema),
     defaultValues: {
       employeeNo: user?.employeeNo ?? "",
       fullName: user?.fullName ?? "",

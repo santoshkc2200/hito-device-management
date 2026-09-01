@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   createAdmin,
@@ -60,6 +59,7 @@ import { RecoveryCodesDialog } from "@/components/recovery-codes-dialog";
 import { Barcode } from "@/components/barcode";
 import { useRole } from "@/lib/use-role";
 import { regenerateRecoveryCodesAdmin } from "@/lib/auth";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { queryClient } from "@/lib/query-client";
 import { toast } from "sonner";
 import {
@@ -84,16 +84,16 @@ export const adminsQueryKey = ["admins"] as const;
 // -----------------------------------------------------------------------------
 
 const createAdminSchema = z.object({
-  fullName: z.string().min(1, "Full name is required"),
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+  fullName: z.string().min(1, "validation.fullNameRequired"),
+  email: z.string().min(1, "validation.emailRequired").email("validation.emailInvalid"),
   role: z.enum(["admin", "technician", "viewer"] as const),
-  password: z.string().min(12, "Initial password must be at least 12 characters"),
+  password: z.string().min(12, "validation.initialPasswordMin"),
 });
 
 type CreateAdminFormValues = z.infer<typeof createAdminSchema>;
 
 const editAdminSchema = z.object({
-  fullName: z.string().min(1, "Full name is required"),
+  fullName: z.string().min(1, "validation.fullNameRequired"),
   role: z.enum(["admin", "technician", "viewer"] as const),
   status: z.enum(["active", "disabled"] as const),
 });
@@ -101,14 +101,14 @@ const editAdminSchema = z.object({
 type EditAdminFormValues = z.infer<typeof editAdminSchema>;
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(12, "New password must be at least 12 characters"),
-  reason: z.string().min(3, "Reason is required for audit recording"),
+  password: z.string().min(12, "validation.newPasswordMin"),
+  reason: z.string().min(3, "validation.reasonRequired"),
 });
 
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
 const actionWithReasonSchema = z.object({
-  reason: z.string().min(3, "Reason is required for audit recording"),
+  reason: z.string().min(3, "validation.reasonRequired"),
 });
 
 type ActionWithReasonFormValues = z.infer<typeof actionWithReasonSchema>;
@@ -448,7 +448,7 @@ function CreateAdminDialog({
   onSuccess: (enrolment: AdminEnrolment) => void;
 }) {
   const form = useForm<CreateAdminFormValues>({
-    resolver: zodResolver(createAdminSchema),
+    resolver: useLocalizedResolver(createAdminSchema),
     defaultValues: {
       fullName: "",
       email: "",
@@ -597,7 +597,7 @@ function EditAdminDialog({
   onSuccess: () => void;
 }) {
   const form = useForm<EditAdminFormValues>({
-    resolver: zodResolver(editAdminSchema),
+    resolver: useLocalizedResolver(editAdminSchema),
     defaultValues: {
       fullName: admin.fullName,
       role: (admin.role === "superadmin" ? "admin" : admin.role === "operator" ? "technician" : admin.role) as "admin" | "technician" | "viewer",
@@ -742,7 +742,7 @@ function ResetPasswordDialog({
   onSuccess: () => void;
 }) {
   const form = useForm<ResetPasswordFormValues>({
-    resolver: zodResolver(resetPasswordSchema),
+    resolver: useLocalizedResolver(resetPasswordSchema),
     defaultValues: { password: "", reason: "" },
   });
 
@@ -855,7 +855,7 @@ function ForceTotpDialog({
   onSuccess: (enrolment: TotpEnrolment) => void;
 }) {
   const form = useForm<ActionWithReasonFormValues>({
-    resolver: zodResolver(actionWithReasonSchema),
+    resolver: useLocalizedResolver(actionWithReasonSchema),
     defaultValues: { reason: "" },
   });
 
@@ -953,7 +953,7 @@ function UnlockAdminDialog({
   onSuccess: () => void;
 }) {
   const form = useForm<ActionWithReasonFormValues>({
-    resolver: zodResolver(actionWithReasonSchema),
+    resolver: useLocalizedResolver(actionWithReasonSchema),
     defaultValues: { reason: "" },
   });
 

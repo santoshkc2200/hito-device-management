@@ -7,7 +7,6 @@ import {
   resolveCredential,
   zCreateUserRequest,
 } from "@hdms/api-client";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, CreditCard, Printer, ScanLine, UserPlus, XCircle } from "lucide-react";
@@ -25,12 +24,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TokenRevealDialog } from "@/components/token-reveal-dialog";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { authenticatedRoute } from "./authenticated";
 
 const registerSchema = zCreateUserRequest.extend({
-  employeeNo: z.string().min(1, "Employee number is required"),
-  fullName: z.string().min(1, "Full name is required"),
-  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
+  employeeNo: z.string().min(1, "validation.employeeNoRequired"),
+  fullName: z.string().min(1, "validation.fullNameRequired"),
+  email: z.string().email("validation.emailInvalid").optional().or(z.literal("")),
 });
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
@@ -220,7 +220,7 @@ function RegisterBorrowerForm() {
   });
 
   const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+    resolver: useLocalizedResolver(registerSchema),
     defaultValues: { employeeNo: "", fullName: "", departmentId: "", email: "", phone: "", notes: "" },
   });
   const employeeNo = form.watch("employeeNo");

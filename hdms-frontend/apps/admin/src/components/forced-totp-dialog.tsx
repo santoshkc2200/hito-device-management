@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "@tanstack/react-router";
 import {
@@ -19,6 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   beginTotpReenrolmentAdmin,
   confirmTotpReenrolmentAdmin,
@@ -32,8 +32,8 @@ import type { TotpEnrolment } from "@hdms/api-client";
 const totpConfirmSchema = z.object({
   totpCode: z
     .string()
-    .min(6, "Enter the 6-digit verification code from your authenticator app")
-    .max(6, "Code must be 6 digits"),
+    .min(6, "validation.totpCodeMin")
+    .max(6, "validation.totpCodeLength"),
 });
 
 type TotpConfirmFormValues = z.infer<typeof totpConfirmSchema>;
@@ -57,7 +57,7 @@ export function ForcedTotpDialog() {
   });
 
   const form = useForm<TotpConfirmFormValues>({
-    resolver: zodResolver(totpConfirmSchema),
+    resolver: useLocalizedResolver(totpConfirmSchema),
     defaultValues: { totpCode: "" },
   });
 

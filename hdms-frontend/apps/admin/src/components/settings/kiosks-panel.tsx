@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import {
@@ -64,13 +64,13 @@ import {
 } from "lucide-react";
 
 const registerKioskSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "validation.nameRequired"),
   location: z.string().optional(),
 });
 type RegisterKioskValues = z.infer<typeof registerKioskSchema>;
 
 const editKioskSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "validation.nameRequired"),
   location: z.string().optional(),
   scanner: z.boolean(),
   camera: z.boolean(),
@@ -146,7 +146,7 @@ export function KiosksPanel() {
 
   // 2. Register Kiosk Form & Mutation
   const registerForm = useForm<RegisterKioskValues>({
-    resolver: zodResolver(registerKioskSchema),
+    resolver: useLocalizedResolver(registerKioskSchema),
     defaultValues: { name: "", location: "" },
   });
 
@@ -187,7 +187,7 @@ export function KiosksPanel() {
 
   // 3. Edit Kiosk Form & Mutation
   const editForm = useForm<EditKioskValues>({
-    resolver: zodResolver(editKioskSchema),
+    resolver: useLocalizedResolver(editKioskSchema),
     defaultValues: {
       name: "",
       location: "",

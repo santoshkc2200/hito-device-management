@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { toast } from "sonner";
 import {
   getSettings,
@@ -43,10 +43,10 @@ const labelTemplateSchema = z.object({
 type LabelTemplateFormValues = z.infer<typeof labelTemplateSchema>;
 
 const slipTemplateSchema = z.object({
-  hospitalName: z.string().min(1, "Hospital name is required"),
-  pageRefFormat: z.string().min(1, "Page reference format is required"),
-  rowsPerPage: z.number().int().min(5, "At least 5 rows per page").max(100, "Max 100 rows per page"),
-  columns: z.array(z.string().min(1, "Column name cannot be empty")).min(1, "At least one column required"),
+  hospitalName: z.string().min(1, "validation.hospitalNameRequired"),
+  pageRefFormat: z.string().min(1, "validation.pageRefFormatRequired"),
+  rowsPerPage: z.number().int().min(5, "validation.rowsPerPageMin").max(100, "validation.rowsPerPageMax"),
+  columns: z.array(z.string().min(1, "validation.columnNameRequired")).min(1, "validation.columnsMin"),
 });
 
 type SlipTemplateFormValues = z.infer<typeof slipTemplateSchema>;
@@ -122,7 +122,7 @@ export function TemplatesPanel() {
 
   // 2. Label Template Form
   const labelForm = useForm<LabelTemplateFormValues>({
-    resolver: zodResolver(labelTemplateSchema),
+    resolver: useLocalizedResolver(labelTemplateSchema),
     defaultValues: {
       sheetWidthMm: 210,
       sheetHeightMm: 297,
@@ -139,7 +139,7 @@ export function TemplatesPanel() {
 
   // 3. Slip Template Form
   const slipForm = useForm<SlipTemplateFormValues>({
-    resolver: zodResolver(slipTemplateSchema),
+    resolver: useLocalizedResolver(slipTemplateSchema),
     defaultValues: {
       hospitalName: "HITO HOSPITAL",
       pageRefFormat: "REF-YYYY-MM-pNN",

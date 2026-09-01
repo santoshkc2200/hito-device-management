@@ -5,7 +5,6 @@ import {
   updateDevice,
   zCreateDeviceRequest,
 } from "@hdms/api-client";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { RefreshCw } from "lucide-react";
@@ -15,6 +14,7 @@ import { generateAssetTag } from "./asset-tag";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   Select,
   SelectContent,
@@ -24,9 +24,9 @@ import {
 } from "@/components/ui/select";
 
 const deviceSchema = zCreateDeviceRequest.extend({
-  assetTag: z.string().min(1, "Asset tag is required"),
-  name: z.string().min(1, "Name is required"),
-  categoryId: z.string().min(1, "Category is required"),
+  assetTag: z.string().min(1, "validation.assetTagRequired"),
+  name: z.string().min(1, "validation.nameRequired"),
+  categoryId: z.string().min(1, "validation.categoryRequired"),
 });
 export type DeviceFormValues = z.infer<typeof deviceSchema>;
 
@@ -41,7 +41,7 @@ export function DeviceForm({
 }) {
   const queryClient = useQueryClient();
   const form = useForm<DeviceFormValues>({
-    resolver: zodResolver(deviceSchema),
+    resolver: useLocalizedResolver(deviceSchema),
     defaultValues: {
       assetTag: device?.assetTag ?? "",
       name: device?.name ?? "",

@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import {
@@ -19,6 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   currentAdminQueryOptions,
   loginAdmin,
@@ -28,8 +28,8 @@ import {
 import { toast } from "sonner";
 
 const reauthSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().min(1, "validation.emailRequired").email("validation.emailInvalid"),
+  password: z.string().min(1, "validation.passwordRequired"),
   totpCode: z.string().optional(),
   recoveryCode: z.string().optional(),
 });
@@ -44,7 +44,7 @@ export function ReauthDialog() {
   const navigate = useNavigate();
 
   const form = useForm<ReauthFormValues>({
-    resolver: zodResolver(reauthSchema),
+    resolver: useLocalizedResolver(reauthSchema),
     defaultValues: {
       email: admin?.email || "",
       password: "",

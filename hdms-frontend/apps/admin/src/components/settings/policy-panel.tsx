@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { toast } from "sonner";
 import {
   getSettings,
@@ -40,16 +40,16 @@ import { PencilLine, Plus, Save, Clock, AlertTriangle } from "lucide-react";
 
 const policyFormSchema = z.object({
   blockOnOverdue: z.boolean(),
-  sessionIdleTimeoutSeconds: z.number().int().min(5, "Timeout must be at least 5 seconds").max(600, "Timeout cannot exceed 10 minutes"),
+  sessionIdleTimeoutSeconds: z.number().int().min(5, "validation.sessionTimeoutMin").max(600, "validation.sessionTimeoutMax"),
   kioskSoundEnabled: z.boolean(),
-  lowStockThreshold: z.number().int().min(0, "Threshold must be 0 or greater").max(10000, "Threshold too high"),
-  paperBacklogHours: z.number().int().min(1, "Backlog threshold must be at least 1 hour").max(720, "Backlog threshold too high"),
+  lowStockThreshold: z.number().int().min(0, "validation.thresholdMin").max(10000, "validation.thresholdMax"),
+  paperBacklogHours: z.number().int().min(1, "validation.backlogThresholdMin").max(720, "validation.backlogThresholdMax"),
 });
 
 type PolicyFormValues = z.infer<typeof policyFormSchema>;
 
 const categoryFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "validation.nameRequired"),
   defaultLoanPeriodDays: z.number().int().min(0).optional(),
   requiresApproval: z.boolean(),
 });
@@ -99,7 +99,7 @@ export function PolicyPanel() {
     reset,
     formState: { errors, isDirty },
   } = useForm<PolicyFormValues>({
-    resolver: zodResolver(policyFormSchema),
+    resolver: useLocalizedResolver(policyFormSchema),
     defaultValues: {
       blockOnOverdue: false,
       sessionIdleTimeoutSeconds: 45,
@@ -143,7 +143,7 @@ export function PolicyPanel() {
 
   // 5. Category Form setup
   const categoryForm = useForm<CategoryFormValues>({
-    resolver: zodResolver(categoryFormSchema),
+    resolver: useLocalizedResolver(categoryFormSchema),
     defaultValues: {
       name: "",
       defaultLoanPeriodDays: 7,
