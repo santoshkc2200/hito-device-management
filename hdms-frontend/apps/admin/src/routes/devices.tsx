@@ -54,6 +54,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/i18n";
 import { RoleGate } from "@/lib/use-role";
 import { authenticatedRoute } from "./authenticated";
 
@@ -85,6 +86,7 @@ function StatusChangeDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [targetStatus, setTargetStatus] = useState<DeviceStatus | "">("");
   const [reason, setReason] = useState("");
@@ -103,11 +105,11 @@ function StatusChangeDialog({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success("Device status updated");
+      toast.success(t("devices.statusDialog.updated"));
       handleClose();
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Could not change status");
+      toast.error(err?.detail || err?.title || t("devices.statusDialog.updateFailed"));
     },
   });
 
@@ -123,30 +125,31 @@ function StatusChangeDialog({
     <Dialog open={open} onOpenChange={(o) => (!o ? handleClose() : onOpenChange(true))}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change status: {device.assetTag}</DialogTitle>
+          <DialogTitle>{t("devices.statusDialog.title", { assetTag: device.assetTag })}</DialogTitle>
           <DialogDescription>
-            Current status is <strong>{labelize(device.status)}</strong>. A mandatory reason is required
-            for custody audit logging.
+            {t("devices.statusDialog.descriptionPrefix")}{" "}
+            <strong>{labelize(device.status)}</strong>
+            {t("devices.statusDialog.descriptionSuffix")}
           </DialogDescription>
         </DialogHeader>
 
         {options.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            Retired devices have no further transitions.
+            {t("devices.statusDialog.noTransitions")}
           </p>
         ) : (
           <div className="flex flex-col gap-3 py-2">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">
-                Target status
+                {t("devices.statusDialog.targetLabel")}
               </label>
               <div className="mt-1">
                 <Select
                   value={targetStatus}
                   onValueChange={(v) => setTargetStatus(v as DeviceStatus)}
                 >
-                  <SelectTrigger className="w-full" aria-label="Select new status">
-                    <SelectValue placeholder="Select new status…" />
+                  <SelectTrigger className="w-full" aria-label={t("devices.statusDialog.selectNewStatusAria")}>
+                    <SelectValue placeholder={t("devices.statusDialog.selectNewStatusPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {options.map((s) => (
@@ -161,11 +164,11 @@ function StatusChangeDialog({
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">
-                Reason (required)
+                {t("devices.statusDialog.reasonLabel")}
               </label>
               <div className="mt-1">
                 <Textarea
-                  placeholder="State the operational reason for this status change…"
+                  placeholder={t("devices.statusDialog.reasonPlaceholder")}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={3}
@@ -177,13 +180,13 @@ function StatusChangeDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={mutation.isPending}>
-            Cancel
+            {t("devices.statusDialog.cancel")}
           </Button>
           <Button
             disabled={!targetStatus || !reason.trim() || mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "Applying…" : "Apply status change"}
+            {mutation.isPending ? t("devices.statusDialog.applying") : t("devices.statusDialog.apply")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -191,7 +194,148 @@ function StatusChangeDialog({
   );
 }
 
+/**
+ * Device table columns, memoized on the translator and the category lookup.
+ *
+ * The definitions live in a hook rather than inline so the memoization is
+ * testable: an unmemoized column array is a new reference on every render,
+ * which sends TanStack Table v8 into a silent 100% CPU loop with nothing in
+ * the console. Every dependency here is either memoized (`categoryName`), a
+ * `useCallback`-stable translator (`t`), or a `useState` setter, so the array
+ * is rebuilt on a language switch and at no other time.
+ */
+export function useDeviceColumns({
+  categoryName,
+  onEditDevice,
+  onChangeStatus,
+  setLabelDevices,
+  setLabelSheetOpen,
+}: {
+  categoryName: Map<string, string>;
+  onEditDevice: (device: Device) => void;
+  onChangeStatus: (device: Device) => void;
+  setLabelDevices: (devices: Device[]) => void;
+  setLabelSheetOpen: (open: boolean) => void;
+}) {
+  const t = useT();
+
+  return useDataTableColumns<Device>(
+    () => [
+      columnHelper.display({
+        id: "select",
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(val) => table.toggleAllPageRowsSelected(!!val)}
+            aria-label={t("columns.selectAll")}
+            className="translate-y-0.5"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(val) => row.toggleSelected(!!val)}
+            aria-label={t("devices.selectDeviceAria", { assetTag: row.original.assetTag })}
+            className="translate-y-0.5"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      }),
+      columnHelper.accessor("assetTag", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.assetTag")} />,
+        cell: (c) => (
+          <Link
+            to="/devices/$deviceId"
+            params={{ deviceId: c.row.original.id }}
+            className="font-identifier font-semibold text-primary hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {c.getValue()}
+          </Link>
+        ),
+      }),
+      columnHelper.accessor("name", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.name")} />,
+        cell: (c) => <span className="font-medium text-foreground">{c.getValue()}</span>,
+      }),
+      columnHelper.accessor("categoryId", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.category")} />,
+        cell: (c) => categoryName.get(c.getValue()) ?? "—",
+      }),
+      columnHelper.accessor("status", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.status")} />,
+        cell: (c) => (
+          <StatusBadge
+            label={labelize(c.getValue())}
+            tone={deviceStatusTone[c.getValue()] ?? "muted"}
+          />
+        ),
+      }),
+      columnHelper.accessor("condition", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.condition")} />,
+        cell: (c) => labelize(c.getValue()),
+      }),
+      columnHelper.accessor("model", {
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.model")} />,
+        cell: (c) => c.getValue() || "—",
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <span className="sr-only">{t("columns.actions")}</span>,
+        cell: ({ row }) => {
+          const device = row.original;
+          return (
+            <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8">
+                    <MoreHorizontal className="size-4" />
+                    <span className="sr-only">{t("columns.openMenu")}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/devices/$deviceId" params={{ deviceId: device.id }}>
+                      <ExternalLink className="mr-2 size-4" />
+                      {t("devices.viewDetails")}
+                    </Link>
+                  </DropdownMenuItem>
+                  <RoleGate minRole="technician">
+                    <DropdownMenuItem onClick={() => onEditDevice(device)}>
+                      <Edit3 className="mr-2 size-4" />
+                      {t("devices.editDevice")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onChangeStatus(device)}>
+                      <RotateCw className="mr-2 size-4" />
+                      {t("devices.changeStatus")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setLabelDevices([device]);
+                        setLabelSheetOpen(true);
+                      }}
+                    >
+                      <Printer className="mr-2 size-4" />
+                      {t("devices.printLabel")}
+                    </DropdownMenuItem>
+                  </RoleGate>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        },
+      }),
+    ],
+    [categoryName, t, onEditDevice, onChangeStatus, setLabelDevices, setLabelSheetOpen],
+  );
+}
+
 export function DevicesPage() {
+  const t = useT();
   const search = devicesRoute.useSearch();
   const navigate = useNavigate({ from: devicesRoute.fullPath });
 
@@ -249,7 +393,7 @@ export function DevicesPage() {
   const handleExportCSV = (devicesToExport: Device[]) => {
     const rows = devicesToExport.length > 0 ? devicesToExport : devices;
     if (rows.length === 0) {
-      toast.error("No devices to export");
+      toast.error(t("devices.nothingToExport"));
       return;
     }
     const headers = [
@@ -288,122 +432,16 @@ export function DevicesPage() {
     link.download = `devices-export-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length} devices to CSV`);
+    toast.success(t("devices.exported", { count: rows.length }));
   };
 
-  const columns = useDataTableColumns<Device>(
-    () => [
-      columnHelper.display({
-        id: "select",
-        header: ({ table }) => (
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(val) => table.toggleAllPageRowsSelected(!!val)}
-            aria-label="Select all"
-            className="translate-y-0.5"
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(val) => row.toggleSelected(!!val)}
-            aria-label={`Select device ${row.original.assetTag}`}
-            className="translate-y-0.5"
-          />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-      }),
-      columnHelper.accessor("assetTag", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Asset tag" />,
-        cell: (c) => (
-          <Link
-            to="/devices/$deviceId"
-            params={{ deviceId: c.row.original.id }}
-            className="font-identifier font-semibold text-primary hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {c.getValue()}
-          </Link>
-        ),
-      }),
-      columnHelper.accessor("name", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-        cell: (c) => <span className="font-medium text-foreground">{c.getValue()}</span>,
-      }),
-      columnHelper.accessor("categoryId", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
-        cell: (c) => categoryName.get(c.getValue()) ?? "—",
-      }),
-      columnHelper.accessor("status", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-        cell: (c) => (
-          <StatusBadge
-            label={labelize(c.getValue())}
-            tone={deviceStatusTone[c.getValue()] ?? "muted"}
-          />
-        ),
-      }),
-      columnHelper.accessor("condition", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Condition" />,
-        cell: (c) => labelize(c.getValue()),
-      }),
-      columnHelper.accessor("model", {
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
-        cell: (c) => c.getValue() || "—",
-      }),
-      columnHelper.display({
-        id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => {
-          const device = row.original;
-          return (
-            <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8">
-                    <MoreHorizontal className="size-4" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to="/devices/$deviceId" params={{ deviceId: device.id }}>
-                      <ExternalLink className="mr-2 size-4" />
-                      View details
-                    </Link>
-                  </DropdownMenuItem>
-                  <RoleGate minRole="technician">
-                    <DropdownMenuItem onClick={() => setEditingDevice(device)}>
-                      <Edit3 className="mr-2 size-4" />
-                      Edit device
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setStatusTargetDevice(device)}>
-                      <RotateCw className="mr-2 size-4" />
-                      Change status
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setLabelDevices([device]);
-                        setLabelSheetOpen(true);
-                      }}
-                    >
-                      <Printer className="mr-2 size-4" />
-                      Print label
-                    </DropdownMenuItem>
-                  </RoleGate>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          );
-        },
-      }),
-    ],
-    [categoryName],
-  );
+  const columns = useDeviceColumns({
+    categoryName,
+    onEditDevice: setEditingDevice,
+    onChangeStatus: setStatusTargetDevice,
+    setLabelDevices,
+    setLabelSheetOpen,
+  });
 
   const isFiltered = Boolean(search.q || search.status || search.category);
 
@@ -412,9 +450,9 @@ export function DevicesPage() {
       {/* Header Bar */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Devices</h1>
+          <h1 className="text-xl font-bold tracking-tight">{t("devices.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Equipment catalogue, live custody tracking, status transitions, and barcode labeling.
+            {t("devices.subtitle")}
           </p>
         </div>
 
@@ -429,7 +467,7 @@ export function DevicesPage() {
               onClick={() => setImportOpen(true)}
             >
               <Upload className="size-4" data-icon="inline-start" />
-              Import CSV
+              {t("devices.importCsv")}
             </Button>
             <Button
               size="sm"
@@ -441,11 +479,11 @@ export function DevicesPage() {
               }}
             >
               <Tag className="size-4" data-icon="inline-start" />
-              Print labels
+              {t("devices.printLabels")}
             </Button>
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" data-icon="inline-start" />
-              New device
+              {t("devices.newDevice")}
             </Button>
           </RoleGate>
         </div>
@@ -463,7 +501,7 @@ export function DevicesPage() {
         onRetry={() => query.refetch()}
         searchQuery={search.q ?? ""}
         onSearchChange={(q) => updateSearch({ q: q || undefined })}
-        searchPlaceholder="Search asset tag, name, model, serial…"
+        searchPlaceholder={t("devices.searchPlaceholder")}
         isFiltered={isFiltered}
         onResetFilters={() => updateSearch({ q: undefined, status: undefined, category: undefined })}
         onRowClick={(row) => void navigate({ to: "/devices/$deviceId", params: { deviceId: row.id } })}
@@ -473,9 +511,9 @@ export function DevicesPage() {
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
         enableRowSelection={true}
-        itemLabel="device"
-        emptyTitle="No devices registered"
-        emptyExplanation="No devices match the current filter or have been registered yet."
+        itemLabel={t("devices.itemLabel")}
+        emptyTitle={t("devices.emptyTitle")}
+        emptyExplanation={t("devices.emptyExplanation")}
         filterControls={
           <>
             <Select
@@ -484,11 +522,11 @@ export function DevicesPage() {
                 updateSearch({ status: v === "all" ? undefined : (v as DeviceStatus) })
               }
             >
-              <SelectTrigger className="h-8 w-36 text-xs" aria-label="Filter by status">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="h-8 w-36 text-xs" aria-label={t("devices.filterByStatusAria")}>
+                <SelectValue placeholder={t("devices.statusPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">{t("devices.allStatuses")}</SelectItem>
                 {DEVICE_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {labelize(s)}
@@ -501,11 +539,11 @@ export function DevicesPage() {
               value={search.category ?? "all"}
               onValueChange={(v) => updateSearch({ category: v === "all" ? undefined : v })}
             >
-              <SelectTrigger className="h-8 w-40 text-xs" aria-label="Filter by category">
-                <SelectValue placeholder="Category" />
+              <SelectTrigger className="h-8 w-40 text-xs" aria-label={t("devices.filterByCategoryAria")}>
+                <SelectValue placeholder={t("devices.categoryPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="all">{t("devices.allCategories")}</SelectItem>
                 {categories?.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
@@ -527,7 +565,7 @@ export function DevicesPage() {
               }}
             >
               <Printer className="mr-1.5 size-3.5" />
-              Print labels ({selectedDevices.length})
+              {t("devices.printLabelsWithCount", { count: selectedDevices.length })}
             </Button>
             <RoleGate minRole="technician">
               <Button
@@ -537,7 +575,7 @@ export function DevicesPage() {
                 onClick={() => setBulkCategoryOpen(true)}
               >
                 <Folders className="mr-1.5 size-3.5" />
-                Change category
+                {t("devices.changeCategory")}
               </Button>
             </RoleGate>
             <Button
@@ -547,7 +585,7 @@ export function DevicesPage() {
               onClick={() => handleExportCSV(selectedDevices)}
             >
               <Download className="mr-1.5 size-3.5" />
-              Export CSV
+              {t("devices.exportCsv")}
             </Button>
           </div>
         )}
@@ -557,9 +595,9 @@ export function DevicesPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Register a device</DialogTitle>
+            <DialogTitle>{t("devices.registerTitle")}</DialogTitle>
             <DialogDescription>
-              Add a new equipment asset to the inventory with asset tag and category.
+              {t("devices.registerDescription")}
             </DialogDescription>
           </DialogHeader>
           <DeviceForm categories={categories ?? []} onDone={() => setCreateOpen(false)} />
@@ -570,9 +608,9 @@ export function DevicesPage() {
       <Dialog open={Boolean(editingDevice)} onOpenChange={(o) => !o && setEditingDevice(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit device: {editingDevice?.assetTag}</DialogTitle>
+            <DialogTitle>{t("devices.editTitle", { assetTag: editingDevice?.assetTag ?? "" })}</DialogTitle>
             <DialogDescription>
-              Update equipment attributes, model, serial, and location.
+              {t("devices.editDescription")}
             </DialogDescription>
           </DialogHeader>
           {editingDevice && (
