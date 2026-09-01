@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,28 +25,68 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/i18n"
+	"golang.org/x/text/language"
 	"golang.org/x/term"
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	localeFlag, filteredArgs := extractLocaleFlag(os.Args)
+	cat := catalogueForFlag(localeFlag)
+
+	if len(filteredArgs) < 2 {
 		usage()
 		os.Exit(2)
 	}
 
-	if err := run(os.Args[1], os.Args[2:]); err != nil {
+	if err := run(filteredArgs[1], filteredArgs[2:], cat); err != nil {
 		fmt.Fprintln(os.Stderr, "hdms-cli:", err)
 		os.Exit(1)
 	}
 }
 
-func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli <seed|migrate|admin bootstrap|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+// extractLocaleFlag scans os.Args for a global --locale flag that overrides
+// LANG. It supports both --locale ja and --locale=ja forms and strips the
+// flag from the returned args so subcommand FlagSets do not see it.
+func extractLocaleFlag(args []string) (string, []string) {
+	var locale string
+	remaining := []string{args[0]}
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--locale" && i+1 < len(args) {
+			locale = args[i+1]
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--locale=") {
+			locale = strings.TrimPrefix(arg, "--locale=")
+			continue
+		}
+		remaining = append(remaining, arg)
+	}
+	return locale, remaining
 }
 
-func run(cmd string, args []string) error {
+// catalogueForFlag returns a catalogue for the --locale flag value when
+// present, otherwise falls back to LANG via i18n.FromEnv. The flag overrides
+// LANG, matching the spec's CLI locale resolution.
+func catalogueForFlag(flagVal string) *i18n.Catalogue {
+	if flagVal != "" {
+		clean := strings.SplitN(flagVal, ".", 2)[0]
+		matcher := language.NewMatcher([]language.Tag{language.Japanese, language.English})
+		tag, _ := language.MatchStrings(matcher, clean)
+		return i18n.New(tag)
+	}
+	return i18n.FromEnv()
+}
+
+func usage() {
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|admin bootstrap|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+}
+
+func run(cmd string, args []string, cat *i18n.Catalogue) error {
 	if cmd == "export" {
-		return runExport(args)
+		return runExport(args, cat)
 	}
 
 	ctx := context.Background()
@@ -61,17 +102,17 @@ func run(cmd string, args []string) error {
 	case "seed":
 		return db.Migrate(ctx, cfg.DatabaseURL) // Phase 1 adds fixture data beyond the schema.
 	case "admin":
-		return runAdmin(ctx, cfg, args)
+		return runAdmin(ctx, cfg, args, cat)
 	case "import":
-		return runImport(ctx, cfg, args)
+		return runImport(ctx, cfg, args, cat)
 	case "kiosk":
-		return runKiosk(ctx, cfg, args)
+		return runKiosk(ctx, cfg, args, cat)
 	default:
 		return fmt.Errorf("unknown subcommand %q", cmd)
 	}
 }
 
-func runImport(ctx context.Context, cfg config.Config, args []string) error {
+func runImport(ctx context.Context, cfg config.Config, args []string, cat *i18n.Catalogue) error {
 	if len(args) < 1 || (args[0] != "devices" && args[0] != "users") {
 		return fmt.Errorf("usage: hdms-cli import <devices|users> --file <path> [--dry-run] [--mint-credentials]")
 	}
@@ -123,13 +164,23 @@ func runImport(ctx context.Context, cfg config.Config, args []string) error {
 	}
 
 	_ = report.Print(os.Stdout)
+	// Operator-facing localized summary — CLI output today, the one place a
+	// raw key is not the right fallback, so we route through the catalogue.
+	// Error wrapping and stderr remain untranslated per spec.
+	if !*dryRun {
+		created, updated, _ := report.Counts()
+		total := created + updated
+		if total > 0 {
+			fmt.Println(cat.T("cli.import.done", total))
+		}
+	}
 	if _, _, rejected := report.Counts(); rejected > 0 {
 		return fmt.Errorf("%d row(s) rejected", rejected)
 	}
 	return nil
 }
 
-func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
+func runAdmin(ctx context.Context, cfg config.Config, args []string, cat *i18n.Catalogue) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: hdms-cli admin <bootstrap|unlock>")
 	}
@@ -181,11 +232,14 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 			return fmt.Errorf("create admin account: %w", err)
 		}
 
-		fmt.Printf("Admin account created: %s (%s, role=%s)\n\n", id, *email, *role)
-		fmt.Println("Scan this into your authenticator app now — it will not be shown again:")
+		// Operator-facing output routed through the catalogue — only stdout
+		// result lines are translated, log/error wrapping stays on stderr
+		// untranslated per spec.
+		fmt.Print(cat.T("Admin account created: %s (%s, role=%s)\n\n", id, *email, *role))
+		fmt.Println(cat.T("Scan this into your authenticator app now — it will not be shown again:"))
 		fmt.Println()
-		fmt.Println("  otpauth URL:", otpauthURL)
-		fmt.Println("  raw secret: ", secret)
+		fmt.Println(cat.T("  otpauth URL: %s", otpauthURL))
+		fmt.Println(cat.T("  raw secret: %s", secret))
 		fmt.Println()
 		return nil
 
@@ -215,7 +269,7 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 			return fmt.Errorf("unlock admin account: %w", err)
 		}
 
-		fmt.Printf("Admin account unlocked: %s\n", email)
+		fmt.Println(cat.T("Admin account unlocked: %s", email))
 		return nil
 
 	default:
@@ -223,7 +277,7 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string) error {
 	}
 }
 
-func runKiosk(ctx context.Context, cfg config.Config, args []string) error {
+func runKiosk(ctx context.Context, cfg config.Config, args []string, cat *i18n.Catalogue) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: hdms-cli kiosk <register --name --location|rotate <id>|pairing-code <id>>")
 	}
@@ -251,8 +305,8 @@ func runKiosk(ctx context.Context, cfg config.Config, args []string) error {
 		if err != nil {
 			return fmt.Errorf("register kiosk: %w", err)
 		}
-		fmt.Printf("Kiosk registered: %s (%s)\n\n", id, *name)
-		fmt.Println("Bearer token — shown once, store it now:")
+		fmt.Print(cat.T("Kiosk registered: %s (%s)\n\n", id, *name))
+		fmt.Println(cat.T("Bearer token — shown once, store it now:"))
 		fmt.Println()
 		fmt.Println(" ", token)
 		fmt.Println()
@@ -266,7 +320,7 @@ func runKiosk(ctx context.Context, cfg config.Config, args []string) error {
 		if err != nil {
 			return fmt.Errorf("rotate kiosk token: %w", err)
 		}
-		fmt.Println("New bearer token — shown once, store it now:")
+		fmt.Println(cat.T("New bearer token — shown once, store it now:"))
 		fmt.Println()
 		fmt.Println(" ", token)
 		fmt.Println()
@@ -280,7 +334,7 @@ func runKiosk(ctx context.Context, cfg config.Config, args []string) error {
 		if err != nil {
 			return fmt.Errorf("issue pairing code: %w", err)
 		}
-		fmt.Printf("Pairing code (expires %s):\n\n", expiresAt.Format(time.RFC3339))
+		fmt.Print(cat.T("Pairing code (expires %s):\n\n", expiresAt.Format(time.RFC3339)))
 		fmt.Println(" ", code)
 		fmt.Println()
 		return nil
@@ -312,7 +366,7 @@ func promptPassword() (string, error) {
 	return string(pw1), nil
 }
 
-func runExport(args []string) error {
+func runExport(args []string, cat *i18n.Catalogue) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: hdms-cli export <machine|scenarios|all> [--out <path>] [--domain-dir <path>]")
 	}
@@ -359,7 +413,7 @@ func runExport(args []string) error {
 		if err := os.WriteFile(outPath, data, 0644); err != nil {
 			return fmt.Errorf("write %s: %w", outPath, err)
 		}
-		fmt.Printf("Exported %s\n", outPath)
+		fmt.Println(cat.T("Exported %s", outPath))
 		return nil
 	}
 
