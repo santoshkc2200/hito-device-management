@@ -387,14 +387,14 @@ export function AttendantModal({
                   data-testid="token-display"
                   className="font-mono text-2xl md:text-3xl font-extrabold tracking-wider text-foreground"
                 >
-                  {tokenInput || <span className="text-muted-foreground/50">HD-U-</span>}
+                  {tokenInput || <span className="text-muted-foreground/50">{/* i18n-allow-literal: placeholder token prefix format */}HD-U-</span>}
                 </div>
                 {isValid && (
                   <span
                     data-testid="token-valid-badge"
                     className="flex items-center gap-1 text-sm font-bold text-green-600 dark:text-green-400"
                   >
-                    <CheckCircle2 className="size-5" /> Valid
+                    <CheckCircle2 className="size-5" /> {t("attendant.validBadge")}
                   </span>
                 )}
               </div>
@@ -455,7 +455,7 @@ export function AttendantModal({
                 data-testid="keypad-key-hyphen"
                 onClick={() => handleCharClick("-")}
                 className="flex min-h-[56px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-secondary/50 font-mono text-xl font-bold text-secondary-foreground shadow-xs transition-all active:scale-95 hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Hyphen key"
+                aria-label={t("attendant.hyphenAriaLabel")}
               >
                 -
               </button>

@@ -27,6 +27,7 @@ export const ja: KioskCatalogue = {
     diagnosticsAriaLabel: "担当者ハードウェア診断",
     diagnosticsTitle: "担当者診断",
     longPressAttendantAriaLabel: "{name}（長押しで担当者入力）",
+    controlsNavAriaLabel: "キオスク操作",
   },
   idle: {
     readyToScan: "スキャン待機中",
@@ -133,8 +134,10 @@ export const ja: KioskCatalogue = {
     submitScan: "トークンを送信",
     backspaceAriaLabel: "1文字削除",
     clearAriaLabel: "すべてクリア",
+    hyphenAriaLabel: "ハイフンキー",
     staffPrefixButton: "HD-U- (職員証)",
     devicePrefixButton: "HD-D- (機器)",
+    validBadge: "有効",
   },
   diagnostics: {
     title: "ハードウェア診断 — スキャナーテレメトリ",

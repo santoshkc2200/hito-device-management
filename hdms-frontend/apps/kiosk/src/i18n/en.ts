@@ -25,6 +25,7 @@ export const en = {
     diagnosticsAriaLabel: "Attendant hardware diagnostics",
     diagnosticsTitle: "Attendant diagnostics",
     longPressAttendantAriaLabel: "{name} (long-press for attendant entry)",
+    controlsNavAriaLabel: "Kiosk controls",
   },
   idle: {
     readyToScan: "Ready to Scan",
@@ -131,8 +132,10 @@ export const en = {
     submitScan: "Submit Token",
     backspaceAriaLabel: "Backspace",
     clearAriaLabel: "Clear all",
+    hyphenAriaLabel: "Hyphen key",
     staffPrefixButton: "HD-U- (Staff ID)",
     devicePrefixButton: "HD-D- (Device)",
+    validBadge: "Valid",
   },
   diagnostics: {
     title: "Hardware Diagnostics — Scanner Telemetry",

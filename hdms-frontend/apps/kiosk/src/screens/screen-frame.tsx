@@ -117,7 +117,7 @@ export function ScreenFrame({
         </div>
 
         {/* Right: Actions (LanguageToggle, Camera Toggle, Diagnostics) */}
-        <nav aria-label="Kiosk controls" className="flex items-center gap-3">
+        <nav aria-label={t("header.controlsNavAriaLabel")} className="flex items-center gap-3">
           <LanguageToggle />
           {onToggleCamera && (
             <Button
