@@ -23,6 +23,7 @@ import {
   useState,
 } from "react";
 import { EmptyState, ErrorState } from "@/components/states";
+import { useT } from "@/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -100,7 +101,7 @@ function DataTableInner<TData, TValue>({
   onRetry,
   searchQuery,
   onSearchChange,
-  searchPlaceholder = "Search…",
+  searchPlaceholder,
   isFiltered = false,
   onResetFilters,
   filterControls,
@@ -113,7 +114,7 @@ function DataTableInner<TData, TValue>({
   onRowSelectionChange: externalOnRowSelectionChange,
   enableRowSelection = false,
   bulkActions,
-  itemLabel = "item",
+  itemLabel,
   hasNextPage,
   isFetchingNextPage,
   onFetchNextPage,
@@ -122,12 +123,14 @@ function DataTableInner<TData, TValue>({
   pageSizeOptions,
   totalLoaded,
   onRowClick,
-  emptyTitle = "No records found",
-  emptyExplanation = "There are no records available in this view.",
+  emptyTitle,
+  emptyExplanation,
   emptyIcon = Inbox,
   emptyAction,
   className,
 }: DataTableProps<TData, TValue>) {
+  const t = useT();
+
   // Memoize data to protect against callers accidentally passing inline arrays
   const memoizedData = useMemo(() => data, [data]);
 
@@ -231,7 +234,7 @@ function DataTableInner<TData, TValue>({
           tableId={tableId}
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
-          searchPlaceholder={searchPlaceholder}
+          searchPlaceholder={searchPlaceholder ?? t("table.searchPlaceholder")}
           isFiltered={effectiveIsFiltered}
           onResetFilters={onResetFilters}
           enableColumnVisibility={enableColumnVisibility}
@@ -256,7 +259,7 @@ function DataTableInner<TData, TValue>({
         ref={tableContainerRef}
         tabIndex={0}
         role="region"
-        aria-label="Data table"
+        aria-label={t("table.regionAria")}
         onKeyDown={handleKeyDown}
         className="relative rounded-md border border-border bg-card shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
@@ -331,12 +334,12 @@ function DataTableInner<TData, TValue>({
                   {effectiveIsFiltered ? (
                     <EmptyState
                       icon={SearchX}
-                      title="No matching results"
-                      explanation="No records match your active search and filter criteria."
+                      title={t("table.noMatchingResults")}
+                      explanation={t("table.noMatchingResultsExplanation")}
                       action={
                         onResetFilters
                           ? {
-                              label: "Clear filters",
+                              label: t("table.clearFilters"),
                               onClick: onResetFilters,
                             }
                           : undefined
@@ -346,8 +349,8 @@ function DataTableInner<TData, TValue>({
                   ) : (
                     <EmptyState
                       icon={emptyIcon}
-                      title={emptyTitle}
-                      explanation={emptyExplanation}
+                      title={emptyTitle ?? t("table.emptyTitle")}
+                      explanation={emptyExplanation ?? t("table.emptyExplanation")}
                       action={emptyAction}
                       className="border-0 rounded-none bg-transparent"
                     />

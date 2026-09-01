@@ -2,6 +2,7 @@ import type { Table, VisibilityState } from "@tanstack/react-table";
 import { SlidersHorizontal } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -37,6 +38,7 @@ export function DataTableColumnVisibility<TData>({
   table,
   tableId,
 }: DataTableColumnVisibilityProps<TData>) {
+  const t = useT();
   const columns = table
     .getAllColumns()
     .filter((column) => typeof column.accessorFn !== "undefined" && column.getCanHide());
@@ -58,14 +60,14 @@ export function DataTableColumnVisibility<TData>({
           variant="outline"
           size="sm"
           className="ml-auto hidden h-8 lg:flex text-xs"
-          aria-label="Toggle column visibility"
+          aria-label={t("table.toggleColumnVisibilityAria")}
         >
           <SlidersHorizontal className="mr-2 size-3.5" />
-          View
+          {t("table.viewColumns")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[180px]">
-        <DropdownMenuLabel className="text-xs">Toggle columns</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">{t("table.toggleColumns")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {columns.map((column) => {
           return (
