@@ -163,7 +163,7 @@ DELETE FROM admin_sessions WHERE admin_id = $1;
 DELETE FROM admin_sessions WHERE admin_id = $1 AND session_token_hash != $2;
 
 -- name: GetKioskByTokenHash :one
-SELECT id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at
+SELECT id, name, location, token_hash, enabled_sources, status, default_locale, last_seen_at, created_at
 FROM kiosks WHERE token_hash = $1;
 
 -- name: UpdateKioskLastSeen :exec
@@ -172,14 +172,14 @@ UPDATE kiosks SET last_seen_at = now() WHERE id = $1;
 -- name: CreateKiosk :one
 INSERT INTO kiosks (id, name, location, token_hash)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at;
+RETURNING id, name, location, token_hash, enabled_sources, status, default_locale, last_seen_at, created_at;
 
 -- name: UpdateKioskTokenHash :one
 -- Used by both explicit rotation and pairing-code redemption, which mints
 -- and reveals a fresh token the same way registration does.
 UPDATE kiosks SET token_hash = $2
 WHERE id = $1
-RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at;
+RETURNING id, name, location, token_hash, enabled_sources, status, default_locale, last_seen_at, created_at;
 
 -- name: SetKioskPairingCode :one
 UPDATE kiosks SET pairing_code_hash = $2, pairing_code_expires_at = $3
@@ -204,15 +204,15 @@ WHERE pairing_code_hash = $1 AND status = 'active';
 UPDATE kiosks
 SET token_hash = $2, pairing_code_hash = NULL, pairing_code_expires_at = NULL
 WHERE id = $1 AND pairing_code_hash = $3
-RETURNING id, name;
+RETURNING id, name, default_locale;
 
 -- name: ListKiosks :many
-SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+SELECT id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at
 FROM kiosks
 ORDER BY created_at ASC;
 
 -- name: GetKioskByID :one
-SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+SELECT id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at
 FROM kiosks
 WHERE id = $1;
 
@@ -220,19 +220,20 @@ WHERE id = $1;
 UPDATE kiosks
 SET status = 'disabled'
 WHERE id = $1
-RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at;
+RETURNING id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at;
 
 -- name: EnableKiosk :one
 UPDATE kiosks
 SET status = 'active'
 WHERE id = $1
-RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at;
+RETURNING id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at;
 
 -- name: UpdateKiosk :one
 UPDATE kiosks
 SET
     name = CASE WHEN @set_name::boolean THEN @name::text ELSE name END,
     location = CASE WHEN @set_location::boolean THEN @location::text ELSE location END,
-    enabled_sources = CASE WHEN @set_enabled_sources::boolean THEN @enabled_sources::text[] ELSE enabled_sources END
+    enabled_sources = CASE WHEN @set_enabled_sources::boolean THEN @enabled_sources::text[] ELSE enabled_sources END,
+    default_locale = CASE WHEN @set_default_locale::boolean THEN @default_locale::text ELSE default_locale END
 WHERE id = @id
-RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at;
+RETURNING id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at;

@@ -31,6 +31,10 @@ export type Admin = {
     email: string;
     fullName: string;
     role: AdminRole;
+    /**
+     * The administrator's console language preference.
+     */
+    locale?: 'ja' | 'en';
     status?: AdminStatus;
     lastLoginAt?: string;
     /**
@@ -633,6 +637,11 @@ export type Kiosk = {
     id: string;
     name: string;
     location?: string;
+    /**
+     * The locale this kiosk starts every session in. A language toggle on the kiosk is per-session only; it resets to this value on idle.
+     *
+     */
+    defaultLocale: 'ja' | 'en';
     enabledSources: Array<string>;
     status: KioskStatus;
     lastSeenAt?: string;
@@ -671,6 +680,7 @@ export type PairKioskResponse = {
     kioskId: string;
     name: string;
     token: string;
+    defaultLocale: 'ja' | 'en';
 };
 
 export type AdminStatus = 'active' | 'disabled' | 'locked';
@@ -978,6 +988,7 @@ export type UpdateSettingsRequest = {
 export type UpdateKioskRequest = {
     name?: string;
     location?: string;
+    defaultLocale?: 'ja' | 'en';
     enabledSources?: Array<string>;
 };
 

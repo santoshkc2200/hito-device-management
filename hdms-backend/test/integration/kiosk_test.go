@@ -101,12 +101,12 @@ func TestKioskPairingCodeRedeemsExactlyOnce(t *testing.T) {
 		t.Fatalf("pairing code expiresAt = %v, want in the future", expiresAt)
 	}
 
-	redeemedID, name, token, err := svc.RedeemPairingCode(ctx, code)
+	redeemedID, name, token, defaultLocale, err := svc.RedeemPairingCode(ctx, code)
 	if err != nil {
 		t.Fatalf("RedeemPairingCode: %v", err)
 	}
-	if redeemedID != id || name != "Radiology Kiosk" || token == "" {
-		t.Fatalf("RedeemPairingCode = (%q, %q, token empty=%v), want (%q, %q, non-empty)", redeemedID, name, token == "", id, "Radiology Kiosk")
+	if redeemedID != id || name != "Radiology Kiosk" || token == "" || defaultLocale != "ja" {
+		t.Fatalf("RedeemPairingCode = (%q, %q, token empty=%v, defaultLocale=%q), want (%q, %q, non-empty, 'ja')", redeemedID, name, token == "", defaultLocale, id, "Radiology Kiosk")
 	}
 
 	// The redeemed token must actually work.
@@ -115,7 +115,7 @@ func TestKioskPairingCodeRedeemsExactlyOnce(t *testing.T) {
 	}
 
 	// A second redemption of the same (now consumed) code must fail.
-	if _, _, _, err := svc.RedeemPairingCode(ctx, code); !errors.Is(err, auth.ErrPairingCodeInvalid) {
+	if _, _, _, _, err := svc.RedeemPairingCode(ctx, code); !errors.Is(err, auth.ErrPairingCodeInvalid) {
 		t.Fatalf("second RedeemPairingCode error = %v, want ErrPairingCodeInvalid", err)
 	}
 }
@@ -133,7 +133,7 @@ func TestKioskPairingCodeConsumedAndExpiredAreIndistinguishable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IssuePairingCode: %v", err)
 	}
-	if _, _, _, err := svc.RedeemPairingCode(ctx, consumedCode); err != nil {
+	if _, _, _, _, err := svc.RedeemPairingCode(ctx, consumedCode); err != nil {
 		t.Fatalf("first redeem of consumed code: %v", err)
 	}
 
@@ -152,8 +152,8 @@ func TestKioskPairingCodeConsumedAndExpiredAreIndistinguishable(t *testing.T) {
 		t.Fatalf("back-date pairing code expiry: %v", err)
 	}
 
-	_, _, _, consumedErr := svc.RedeemPairingCode(ctx, consumedCode)
-	_, _, _, expiredErr := svc.RedeemPairingCode(ctx, expiredCode)
+	_, _, _, _, consumedErr := svc.RedeemPairingCode(ctx, consumedCode)
+	_, _, _, _, expiredErr := svc.RedeemPairingCode(ctx, expiredCode)
 
 	if !errors.Is(consumedErr, auth.ErrPairingCodeInvalid) {
 		t.Fatalf("consumed code redeem error = %v, want ErrPairingCodeInvalid", consumedErr)
@@ -162,7 +162,7 @@ func TestKioskPairingCodeConsumedAndExpiredAreIndistinguishable(t *testing.T) {
 		t.Fatalf("expired code redeem error = %v, want ErrPairingCodeInvalid", expiredErr)
 	}
 	for _, malformedCode := range []string{"12345", "1234567", "12A456"} {
-		if _, _, _, err := svc.RedeemPairingCode(ctx, malformedCode); !errors.Is(err, auth.ErrPairingCodeInvalid) {
+		if _, _, _, _, err := svc.RedeemPairingCode(ctx, malformedCode); !errors.Is(err, auth.ErrPairingCodeInvalid) {
 			t.Fatalf("malformed code %q redeem error = %v, want ErrPairingCodeInvalid", malformedCode, err)
 		}
 	}
@@ -231,7 +231,7 @@ func TestKioskPairingCodeConcurrentRedemptionYieldsOneWorkingToken(t *testing.T)
 		go func() {
 			defer wg.Done()
 			<-start
-			_, _, tok, err := svc.RedeemPairingCode(ctx, code)
+			_, _, tok, _, err := svc.RedeemPairingCode(ctx, code)
 			tokens[i], errs[i] = tok, err
 		}()
 	}
@@ -279,7 +279,7 @@ func TestKioskPairingCodeExpiryFollowsTheInjectedClock(t *testing.T) {
 	}
 
 	fake.Advance(11 * time.Minute)
-	if _, _, _, err := svc.RedeemPairingCode(ctx, code); !errors.Is(err, auth.ErrPairingCodeInvalid) {
+	if _, _, _, _, err := svc.RedeemPairingCode(ctx, code); !errors.Is(err, auth.ErrPairingCodeInvalid) {
 		t.Fatalf("redeem after the clock passed expiry = %v, want ErrPairingCodeInvalid", err)
 	}
 }

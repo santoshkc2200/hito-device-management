@@ -551,6 +551,7 @@ type AdminAccount struct {
 	MustReenrolTotp      bool               `json:"must_reenrol_totp"`
 	LastLoginAt          pgtype.Timestamptz `json:"last_login_at"`
 	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
+	Locale               string             `json:"locale"`
 }
 
 type AdminRecoveryCode struct {
@@ -677,6 +678,7 @@ type Kiosk struct {
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	PairingCodeHash      []byte             `json:"pairing_code_hash"`
 	PairingCodeExpiresAt pgtype.Timestamptz `json:"pairing_code_expires_at"`
+	DefaultLocale        string             `json:"default_locale"`
 }
 
 type Loan struct {

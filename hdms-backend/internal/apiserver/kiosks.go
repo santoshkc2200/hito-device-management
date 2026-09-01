@@ -52,6 +52,7 @@ func (s *Server) CreateKiosk(w http.ResponseWriter, r *http.Request, _ gen.Creat
 		Id:             kiosk.ID,
 		Name:           kiosk.Name,
 		Location:       strPtr(kiosk.Location),
+		DefaultLocale:  gen.KioskWithTokenDefaultLocale(kiosk.DefaultLocale),
 		EnabledSources: kiosk.EnabledSources,
 		Status:         gen.KioskStatus(kiosk.Status),
 		LastSeenAt:     kiosk.LastSeenAt,
@@ -79,6 +80,7 @@ func (s *Server) RotateKioskToken(w http.ResponseWriter, r *http.Request, id gen
 		Id:             kiosk.ID,
 		Name:           kiosk.Name,
 		Location:       strPtr(kiosk.Location),
+		DefaultLocale:  gen.KioskWithTokenDefaultLocale(kiosk.DefaultLocale),
 		EnabledSources: kiosk.EnabledSources,
 		Status:         gen.KioskStatus(kiosk.Status),
 		LastSeenAt:     kiosk.LastSeenAt,
@@ -119,7 +121,7 @@ func (s *Server) PairKiosk(w http.ResponseWriter, r *http.Request, _ gen.PairKio
 		return
 	}
 
-	kioskID, name, token, err := s.auth.RedeemPairingCode(r.Context(), body.Code)
+	kioskID, name, token, defaultLocale, err := s.auth.RedeemPairingCode(r.Context(), body.Code)
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
@@ -127,9 +129,10 @@ func (s *Server) PairKiosk(w http.ResponseWriter, r *http.Request, _ gen.PairKio
 
 	setNoStore(w)
 	writeJSON(w, http.StatusOK, gen.PairKioskResponse{
-		KioskId: kioskID,
-		Name:    name,
-		Token:   token,
+		KioskId:       kioskID,
+		Name:          name,
+		Token:         token,
+		DefaultLocale: gen.PairKioskResponseDefaultLocale(defaultLocale),
 	})
 }
 
@@ -150,12 +153,26 @@ func (s *Server) UpdateKiosk(w http.ResponseWriter, r *http.Request, id gen.IDPa
 		return
 	}
 
+	if body.DefaultLocale != nil {
+		loc := string(*body.DefaultLocale)
+		if loc != "ja" && loc != "en" {
+			writeValidationFailed(w, r, "unsupported defaultLocale", []string{"defaultLocale"})
+			return
+		}
+	}
+
 	var enabledSources []string
 	if body.EnabledSources != nil {
 		enabledSources = *body.EnabledSources
 	}
 
-	kiosk, err := s.auth.UpdateKiosk(r.Context(), id, body.Name, body.Location, enabledSources)
+	var defaultLocale *string
+	if body.DefaultLocale != nil {
+		str := string(*body.DefaultLocale)
+		defaultLocale = &str
+	}
+
+	kiosk, err := s.auth.UpdateKiosk(r.Context(), id, body.Name, body.Location, defaultLocale, enabledSources)
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
@@ -178,6 +195,7 @@ func mapKiosk(k auth.Kiosk) gen.Kiosk {
 		Id:             k.ID,
 		Name:           k.Name,
 		Location:       strPtr(k.Location),
+		DefaultLocale:  gen.KioskDefaultLocale(k.DefaultLocale),
 		EnabledSources: k.EnabledSources,
 		Status:         gen.KioskStatus(k.Status),
 		LastSeenAt:     k.LastSeenAt,

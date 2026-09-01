@@ -26,11 +26,12 @@ type Kiosk struct {
 	Location       string
 	EnabledSources []string
 	Status         string // "active" | "disabled"
+	DefaultLocale  string // "ja" | "en"
 	LastSeenAt     *time.Time
 	CreatedAt      time.Time
 }
 
-func mapKioskRow(id pgtype.UUID, name string, location pgtype.Text, sources []string, status authstore.KioskStatus, lastSeen pgtype.Timestamptz, createdAt pgtype.Timestamptz) Kiosk {
+func mapKioskRow(id pgtype.UUID, name string, location pgtype.Text, sources []string, status authstore.KioskStatus, defaultLocale string, lastSeen pgtype.Timestamptz, createdAt pgtype.Timestamptz) Kiosk {
 	var lastSeenAt *time.Time
 	if lastSeen.Valid {
 		t := pgtypeconv.Time(lastSeen)
@@ -42,6 +43,7 @@ func mapKioskRow(id pgtype.UUID, name string, location pgtype.Text, sources []st
 		Location:       pgtypeconv.TextString(location),
 		EnabledSources: sources,
 		Status:         string(status),
+		DefaultLocale:  defaultLocale,
 		LastSeenAt:     lastSeenAt,
 		CreatedAt:      pgtypeconv.Time(createdAt),
 	}
@@ -56,7 +58,7 @@ func (s *Service) ListKiosks(ctx context.Context) ([]Kiosk, error) {
 	}
 	items := make([]Kiosk, len(rows))
 	for i, r := range rows {
-		items[i] = mapKioskRow(r.ID, r.Name, r.Location, r.EnabledSources, r.Status, r.LastSeenAt, r.CreatedAt)
+		items[i] = mapKioskRow(r.ID, r.Name, r.Location, r.EnabledSources, r.Status, r.DefaultLocale, r.LastSeenAt, r.CreatedAt)
 	}
 	return items, nil
 }
@@ -75,7 +77,7 @@ func (s *Service) GetKiosk(ctx context.Context, kioskID string) (Kiosk, error) {
 		}
 		return Kiosk{}, fmt.Errorf("auth: get kiosk: %w", err)
 	}
-	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.DefaultLocale, row.LastSeenAt, row.CreatedAt), nil
 }
 
 // DisableKiosk marks a kiosk as disabled.
@@ -92,7 +94,7 @@ func (s *Service) DisableKiosk(ctx context.Context, kioskID string) (Kiosk, erro
 		}
 		return Kiosk{}, fmt.Errorf("auth: disable kiosk: %w", err)
 	}
-	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.DefaultLocale, row.LastSeenAt, row.CreatedAt), nil
 }
 
 // EnableKiosk marks a kiosk as active.
@@ -109,11 +111,11 @@ func (s *Service) EnableKiosk(ctx context.Context, kioskID string) (Kiosk, error
 		}
 		return Kiosk{}, fmt.Errorf("auth: enable kiosk: %w", err)
 	}
-	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.DefaultLocale, row.LastSeenAt, row.CreatedAt), nil
 }
 
-// UpdateKiosk updates a kiosk's mutable attributes (name, location, enabledSources).
-func (s *Service) UpdateKiosk(ctx context.Context, kioskID string, name, location *string, enabledSources []string) (Kiosk, error) {
+// UpdateKiosk updates a kiosk's mutable attributes (name, location, defaultLocale, enabledSources).
+func (s *Service) UpdateKiosk(ctx context.Context, kioskID string, name, location, defaultLocale *string, enabledSources []string) (Kiosk, error) {
 	pid, err := pgtypeconv.UUID(kioskID)
 	if err != nil {
 		return Kiosk{}, fmt.Errorf("auth: invalid kiosk id: %w", err)
@@ -133,6 +135,10 @@ func (s *Service) UpdateKiosk(ctx context.Context, kioskID string, name, locatio
 		params.SetLocation = true
 		params.Location = strings.TrimSpace(*location)
 	}
+	if defaultLocale != nil {
+		params.SetDefaultLocale = true
+		params.DefaultLocale = strings.TrimSpace(*defaultLocale)
+	}
 	if enabledSources != nil {
 		params.SetEnabledSources = true
 		params.EnabledSources = enabledSources
@@ -146,7 +152,7 @@ func (s *Service) UpdateKiosk(ctx context.Context, kioskID string, name, locatio
 		}
 		return Kiosk{}, fmt.Errorf("auth: update kiosk: %w", err)
 	}
-	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.LastSeenAt, row.CreatedAt), nil
+	return mapKioskRow(row.ID, row.Name, row.Location, row.EnabledSources, row.Status, row.DefaultLocale, row.LastSeenAt, row.CreatedAt), nil
 }
 
 // RegisterKiosk mints a new kiosk row and its bearer token, returning the
@@ -229,13 +235,13 @@ func (s *Service) IssuePairingCode(ctx context.Context, kioskID string) (code st
 // and an expired one fail identically (ErrPairingCodeInvalid), so the
 // endpoint built on this in 2.6 cannot be used to probe which kiosk ids or
 // codes exist.
-func (s *Service) RedeemPairingCode(ctx context.Context, code string) (kioskID, name, plainToken string, err error) {
+func (s *Service) RedeemPairingCode(ctx context.Context, code string) (kioskID, name, plainToken, defaultLocale string, err error) {
 	if len(code) != 6 {
-		return "", "", "", ErrPairingCodeInvalid
+		return "", "", "", "", ErrPairingCodeInvalid
 	}
 	for _, digit := range code {
 		if digit < '0' || digit > '9' {
-			return "", "", "", ErrPairingCodeInvalid
+			return "", "", "", "", ErrPairingCodeInvalid
 		}
 	}
 	q := authstore.New(db.Conn(ctx, s.pool))
@@ -243,17 +249,17 @@ func (s *Service) RedeemPairingCode(ctx context.Context, code string) (kioskID, 
 	row, err := q.GetKioskByPairingCodeHash(ctx, codeHash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", "", "", ErrPairingCodeInvalid
+			return "", "", "", "", ErrPairingCodeInvalid
 		}
-		return "", "", "", fmt.Errorf("auth: redeem pairing code: %w", err)
+		return "", "", "", "", fmt.Errorf("auth: redeem pairing code: %w", err)
 	}
 	if !row.PairingCodeExpiresAt.Valid || s.clock.Now().After(pgtypeconv.Time(row.PairingCodeExpiresAt)) {
-		return "", "", "", ErrPairingCodeInvalid
+		return "", "", "", "", ErrPairingCodeInvalid
 	}
 
 	plainToken, err = randomToken(32)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 	// The UPDATE re-checks the pairing hash it just read, so two
 	// simultaneous redemptions of one code cannot both succeed: the loser
@@ -266,11 +272,11 @@ func (s *Service) RedeemPairingCode(ctx context.Context, code string) (kioskID, 
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", "", "", ErrPairingCodeInvalid
+			return "", "", "", "", ErrPairingCodeInvalid
 		}
-		return "", "", "", fmt.Errorf("auth: redeem pairing code: %w", err)
+		return "", "", "", "", fmt.Errorf("auth: redeem pairing code: %w", err)
 	}
-	return pgtypeconv.UUIDString(redeemed.ID), redeemed.Name, plainToken, nil
+	return pgtypeconv.UUIDString(redeemed.ID), redeemed.Name, plainToken, redeemed.DefaultLocale, nil
 }
 
 // randomDigits returns a base-10 string of n random digits from a

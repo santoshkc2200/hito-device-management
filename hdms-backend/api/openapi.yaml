@@ -2064,6 +2064,10 @@ components:
         fullName: { type: string }
         role:
           $ref: "#/components/schemas/AdminRole"
+        locale:
+          type: string
+          enum: [ja, en]
+          description: The administrator's console language preference.
         status:
           $ref: "#/components/schemas/AdminStatus"
         lastLoginAt: { type: string, format: date-time }
@@ -2912,11 +2916,17 @@ components:
 
     Kiosk:
       type: object
-      required: [id, name, enabledSources, status, createdAt]
+      required: [id, name, enabledSources, status, defaultLocale, createdAt]
       properties:
         id: { type: string }
         name: { type: string }
         location: { type: string }
+        defaultLocale:
+          type: string
+          enum: [ja, en]
+          description: >
+            The locale this kiosk starts every session in. A language toggle on
+            the kiosk is per-session only; it resets to this value on idle.
         enabledSources:
           type: array
           items: { type: string }
@@ -2975,11 +2985,14 @@ components:
 
     PairKioskResponse:
       type: object
-      required: [kioskId, name, token]
+      required: [kioskId, name, token, defaultLocale]
       properties:
         kioskId: { type: string }
         name: { type: string }
         token: { type: string }
+        defaultLocale:
+          type: string
+          enum: [ja, en]
 
 
     # --- Admin accounts (4.1b) ------------------------------------------------
@@ -3417,6 +3430,9 @@ components:
       properties:
         name: { type: string }
         location: { type: string }
+        defaultLocale:
+          type: string
+          enum: [ja, en]
         enabledSources:
           type: array
           items: { type: string }

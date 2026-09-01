@@ -593,6 +593,7 @@ export const zKiosk = z.object({
     id: z.string(),
     name: z.string(),
     location: z.string().optional(),
+    defaultLocale: z.enum(['ja', 'en']),
     enabledSources: z.array(z.string()),
     status: zKioskStatus,
     lastSeenAt: z.iso.datetime().optional(),
@@ -624,7 +625,8 @@ export const zPairKioskRequest = z.object({
 export const zPairKioskResponse = z.object({
     kioskId: z.string(),
     name: z.string(),
-    token: z.string()
+    token: z.string(),
+    defaultLocale: z.enum(['ja', 'en'])
 });
 
 export const zAdminStatus = z.enum([
@@ -638,6 +640,7 @@ export const zAdmin = z.object({
     email: z.string(),
     fullName: z.string(),
     role: zAdminRole,
+    locale: z.enum(['ja', 'en']).optional(),
     status: zAdminStatus.optional(),
     lastLoginAt: z.iso.datetime().optional(),
     lockedUntil: z.iso.datetime().optional(),
@@ -895,6 +898,7 @@ export const zUpdateSettingsRequest = z.object({
 export const zUpdateKioskRequest = z.object({
     name: z.string().optional(),
     location: z.string().optional(),
+    defaultLocale: z.enum(['ja', 'en']).optional(),
     enabledSources: z.array(z.string()).optional()
 });
 

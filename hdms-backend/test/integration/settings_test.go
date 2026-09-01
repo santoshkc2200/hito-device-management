@@ -479,6 +479,113 @@ func TestKioskManagementLifecycle(t *testing.T) {
 
 }
 
+func TestKioskDefaultLocaleRoundTrips(t *testing.T) {
+	t.Parallel()
+	h := newTestHarness(t)
+
+	// Create kiosk
+	createReq := gen.CreateKioskRequest{
+		Name: "Ward 3 counter",
+	}
+	createResp := h.doJSON(t, http.MethodPost, "/v1/kiosks", h.csrfToken, createReq)
+	if createResp.StatusCode != http.StatusCreated {
+		t.Fatalf("POST /v1/kiosks status = %d, want 201", createResp.StatusCode)
+	}
+	var created gen.KioskWithToken
+	if err := json.NewDecoder(createResp.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created kiosk: %v", err)
+	}
+	createResp.Body.Close()
+	if created.DefaultLocale != gen.KioskWithTokenDefaultLocaleJa {
+		t.Fatalf("a new kiosk defaults to Japanese, got %v", created.DefaultLocale)
+	}
+
+	// Update kiosk defaultLocale to "en"
+	enLocale := gen.UpdateKioskRequestDefaultLocaleEn
+	updateReq := gen.UpdateKioskRequest{
+		DefaultLocale: &enLocale,
+	}
+	patchResp := h.doJSON(t, http.MethodPatch, "/v1/kiosks/"+created.Id, h.csrfToken, updateReq)
+	if patchResp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH /v1/kiosks status = %d, want 200", patchResp.StatusCode)
+	}
+	var patched gen.Kiosk
+	if err := json.NewDecoder(patchResp.Body).Decode(&patched); err != nil {
+		t.Fatalf("decode patched kiosk: %v", err)
+	}
+	patchResp.Body.Close()
+	if patched.DefaultLocale != gen.KioskDefaultLocaleEn {
+		t.Fatalf("patched defaultLocale = %v, want 'en'", patched.DefaultLocale)
+	}
+
+	// Fetch kiosk and verify defaultLocale is "en"
+	getResp := h.doJSON(t, http.MethodGet, "/v1/kiosks/"+created.Id, "", nil)
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /v1/kiosks status = %d, want 200", getResp.StatusCode)
+	}
+	var fetched gen.Kiosk
+	if err := json.NewDecoder(getResp.Body).Decode(&fetched); err != nil {
+		t.Fatalf("decode fetched kiosk: %v", err)
+	}
+	getResp.Body.Close()
+	if fetched.DefaultLocale != gen.KioskDefaultLocaleEn {
+		t.Fatalf("fetched defaultLocale = %v, want 'en'", fetched.DefaultLocale)
+	}
+}
+
+func TestPairingResponseCarriesTheKioskDefaultLocale(t *testing.T) {
+	t.Parallel()
+	h := newTestHarness(t)
+
+	// Create kiosk and update to "en"
+	createReq := gen.CreateKioskRequest{Name: "Ward 4 counter"}
+	createResp := h.doJSON(t, http.MethodPost, "/v1/kiosks", h.csrfToken, createReq)
+	var created gen.KioskWithToken
+	json.NewDecoder(createResp.Body).Decode(&created)
+	createResp.Body.Close()
+
+	enLocale := gen.UpdateKioskRequestDefaultLocaleEn
+	patchResp := h.doJSON(t, http.MethodPatch, "/v1/kiosks/"+created.Id, h.csrfToken, gen.UpdateKioskRequest{DefaultLocale: &enLocale})
+	patchResp.Body.Close()
+
+	// Issue pairing code
+	codeResp := h.doJSON(t, http.MethodPost, "/v1/kiosks/"+created.Id+"/pairing-code", h.csrfToken, nil)
+	var code gen.KioskPairingCode
+	json.NewDecoder(codeResp.Body).Decode(&code)
+	codeResp.Body.Close()
+
+	// Redeem pairing code
+	pairResp := h.doJSON(t, http.MethodPost, "/v1/kiosks/pair", "", gen.PairKioskRequest{Code: code.Code})
+	if pairResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST /v1/kiosks/pair status = %d, want 200", pairResp.StatusCode)
+	}
+	var paired gen.PairKioskResponse
+	json.NewDecoder(pairResp.Body).Decode(&paired)
+	pairResp.Body.Close()
+
+	if paired.DefaultLocale != gen.PairKioskResponseDefaultLocaleEn {
+		t.Fatalf("paired defaultLocale = %v, want 'en'", paired.DefaultLocale)
+	}
+}
+
+func TestRejectsAnUnsupportedLocale(t *testing.T) {
+	t.Parallel()
+	h := newTestHarness(t)
+
+	createReq := gen.CreateKioskRequest{Name: "Ward 5 counter"}
+	createResp := h.doJSON(t, http.MethodPost, "/v1/kiosks", h.csrfToken, createReq)
+	var created gen.KioskWithToken
+	json.NewDecoder(createResp.Body).Decode(&created)
+	createResp.Body.Close()
+
+	deLocale := gen.UpdateKioskRequestDefaultLocale("de")
+	patchResp := h.doJSON(t, http.MethodPatch, "/v1/kiosks/"+created.Id, h.csrfToken, gen.UpdateKioskRequest{DefaultLocale: &deLocale})
+	defer patchResp.Body.Close()
+	if patchResp.StatusCode != http.StatusBadRequest && patchResp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("PATCH with unsupported locale status = %d, want 400 or 422", patchResp.StatusCode)
+	}
+}
+
 func strPtr(s string) *string {
 	return &s
 }

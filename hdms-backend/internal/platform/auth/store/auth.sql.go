@@ -124,7 +124,7 @@ func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccount
 const createKiosk = `-- name: CreateKiosk :one
 INSERT INTO kiosks (id, name, location, token_hash)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at
+RETURNING id, name, location, token_hash, enabled_sources, status, default_locale, last_seen_at, created_at
 `
 
 type CreateKioskParams struct {
@@ -141,6 +141,7 @@ type CreateKioskRow struct {
 	TokenHash      []byte             `json:"token_hash"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -160,6 +161,7 @@ func (q *Queries) CreateKiosk(ctx context.Context, arg CreateKioskParams) (Creat
 		&i.TokenHash,
 		&i.EnabledSources,
 		&i.Status,
+		&i.DefaultLocale,
 		&i.LastSeenAt,
 		&i.CreatedAt,
 	)
@@ -247,7 +249,7 @@ const disableKiosk = `-- name: DisableKiosk :one
 UPDATE kiosks
 SET status = 'disabled'
 WHERE id = $1
-RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at
+RETURNING id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at
 `
 
 type DisableKioskRow struct {
@@ -256,6 +258,7 @@ type DisableKioskRow struct {
 	Location       pgtype.Text        `json:"location"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -269,6 +272,7 @@ func (q *Queries) DisableKiosk(ctx context.Context, id pgtype.UUID) (DisableKios
 		&i.Location,
 		&i.EnabledSources,
 		&i.Status,
+		&i.DefaultLocale,
 		&i.LastSeenAt,
 		&i.CreatedAt,
 	)
@@ -279,7 +283,7 @@ const enableKiosk = `-- name: EnableKiosk :one
 UPDATE kiosks
 SET status = 'active'
 WHERE id = $1
-RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at
+RETURNING id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at
 `
 
 type EnableKioskRow struct {
@@ -288,6 +292,7 @@ type EnableKioskRow struct {
 	Location       pgtype.Text        `json:"location"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -301,6 +306,7 @@ func (q *Queries) EnableKiosk(ctx context.Context, id pgtype.UUID) (EnableKioskR
 		&i.Location,
 		&i.EnabledSources,
 		&i.Status,
+		&i.DefaultLocale,
 		&i.LastSeenAt,
 		&i.CreatedAt,
 	)
@@ -411,7 +417,7 @@ func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (GetA
 }
 
 const getKioskByID = `-- name: GetKioskByID :one
-SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+SELECT id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at
 FROM kiosks
 WHERE id = $1
 `
@@ -422,6 +428,7 @@ type GetKioskByIDRow struct {
 	Location       pgtype.Text        `json:"location"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -435,6 +442,7 @@ func (q *Queries) GetKioskByID(ctx context.Context, id pgtype.UUID) (GetKioskByI
 		&i.Location,
 		&i.EnabledSources,
 		&i.Status,
+		&i.DefaultLocale,
 		&i.LastSeenAt,
 		&i.CreatedAt,
 	)
@@ -463,7 +471,7 @@ func (q *Queries) GetKioskByPairingCodeHash(ctx context.Context, pairingCodeHash
 }
 
 const getKioskByTokenHash = `-- name: GetKioskByTokenHash :one
-SELECT id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at
+SELECT id, name, location, token_hash, enabled_sources, status, default_locale, last_seen_at, created_at
 FROM kiosks WHERE token_hash = $1
 `
 
@@ -474,6 +482,7 @@ type GetKioskByTokenHashRow struct {
 	TokenHash      []byte             `json:"token_hash"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -488,6 +497,7 @@ func (q *Queries) GetKioskByTokenHash(ctx context.Context, tokenHash []byte) (Ge
 		&i.TokenHash,
 		&i.EnabledSources,
 		&i.Status,
+		&i.DefaultLocale,
 		&i.LastSeenAt,
 		&i.CreatedAt,
 	)
@@ -621,7 +631,7 @@ func (q *Queries) ListAdmins(ctx context.Context) ([]ListAdminsRow, error) {
 }
 
 const listKiosks = `-- name: ListKiosks :many
-SELECT id, name, location, enabled_sources, status, last_seen_at, created_at
+SELECT id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at
 FROM kiosks
 ORDER BY created_at ASC
 `
@@ -632,6 +642,7 @@ type ListKiosksRow struct {
 	Location       pgtype.Text        `json:"location"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -651,6 +662,7 @@ func (q *Queries) ListKiosks(ctx context.Context) ([]ListKiosksRow, error) {
 			&i.Location,
 			&i.EnabledSources,
 			&i.Status,
+			&i.DefaultLocale,
 			&i.LastSeenAt,
 			&i.CreatedAt,
 		); err != nil {
@@ -774,7 +786,7 @@ const redeemKioskPairingCode = `-- name: RedeemKioskPairingCode :one
 UPDATE kiosks
 SET token_hash = $2, pairing_code_hash = NULL, pairing_code_expires_at = NULL
 WHERE id = $1 AND pairing_code_hash = $3
-RETURNING id, name
+RETURNING id, name, default_locale
 `
 
 type RedeemKioskPairingCodeParams struct {
@@ -784,8 +796,9 @@ type RedeemKioskPairingCodeParams struct {
 }
 
 type RedeemKioskPairingCodeRow struct {
-	ID   pgtype.UUID `json:"id"`
-	Name string      `json:"name"`
+	ID            pgtype.UUID `json:"id"`
+	Name          string      `json:"name"`
+	DefaultLocale string      `json:"default_locale"`
 }
 
 // Consumes the code and installs the freshly minted token in one statement,
@@ -798,7 +811,7 @@ type RedeemKioskPairingCodeRow struct {
 func (q *Queries) RedeemKioskPairingCode(ctx context.Context, arg RedeemKioskPairingCodeParams) (RedeemKioskPairingCodeRow, error) {
 	row := q.db.QueryRow(ctx, redeemKioskPairingCode, arg.ID, arg.TokenHash, arg.PairingCodeHash)
 	var i RedeemKioskPairingCodeRow
-	err := row.Scan(&i.ID, &i.Name)
+	err := row.Scan(&i.ID, &i.Name, &i.DefaultLocale)
 	return i, err
 }
 
@@ -1106,9 +1119,10 @@ UPDATE kiosks
 SET
     name = CASE WHEN $1::boolean THEN $2::text ELSE name END,
     location = CASE WHEN $3::boolean THEN $4::text ELSE location END,
-    enabled_sources = CASE WHEN $5::boolean THEN $6::text[] ELSE enabled_sources END
-WHERE id = $7
-RETURNING id, name, location, enabled_sources, status, last_seen_at, created_at
+    enabled_sources = CASE WHEN $5::boolean THEN $6::text[] ELSE enabled_sources END,
+    default_locale = CASE WHEN $7::boolean THEN $8::text ELSE default_locale END
+WHERE id = $9
+RETURNING id, name, location, enabled_sources, status, default_locale, last_seen_at, created_at
 `
 
 type UpdateKioskParams struct {
@@ -1118,6 +1132,8 @@ type UpdateKioskParams struct {
 	Location          string      `json:"location"`
 	SetEnabledSources bool        `json:"set_enabled_sources"`
 	EnabledSources    []string    `json:"enabled_sources"`
+	SetDefaultLocale  bool        `json:"set_default_locale"`
+	DefaultLocale     string      `json:"default_locale"`
 	ID                pgtype.UUID `json:"id"`
 }
 
@@ -1127,6 +1143,7 @@ type UpdateKioskRow struct {
 	Location       pgtype.Text        `json:"location"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -1139,6 +1156,8 @@ func (q *Queries) UpdateKiosk(ctx context.Context, arg UpdateKioskParams) (Updat
 		arg.Location,
 		arg.SetEnabledSources,
 		arg.EnabledSources,
+		arg.SetDefaultLocale,
+		arg.DefaultLocale,
 		arg.ID,
 	)
 	var i UpdateKioskRow
@@ -1148,6 +1167,7 @@ func (q *Queries) UpdateKiosk(ctx context.Context, arg UpdateKioskParams) (Updat
 		&i.Location,
 		&i.EnabledSources,
 		&i.Status,
+		&i.DefaultLocale,
 		&i.LastSeenAt,
 		&i.CreatedAt,
 	)
@@ -1166,7 +1186,7 @@ func (q *Queries) UpdateKioskLastSeen(ctx context.Context, id pgtype.UUID) error
 const updateKioskTokenHash = `-- name: UpdateKioskTokenHash :one
 UPDATE kiosks SET token_hash = $2
 WHERE id = $1
-RETURNING id, name, location, token_hash, enabled_sources, status, last_seen_at, created_at
+RETURNING id, name, location, token_hash, enabled_sources, status, default_locale, last_seen_at, created_at
 `
 
 type UpdateKioskTokenHashParams struct {
@@ -1181,6 +1201,7 @@ type UpdateKioskTokenHashRow struct {
 	TokenHash      []byte             `json:"token_hash"`
 	EnabledSources []string           `json:"enabled_sources"`
 	Status         KioskStatus        `json:"status"`
+	DefaultLocale  string             `json:"default_locale"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
@@ -1197,6 +1218,7 @@ func (q *Queries) UpdateKioskTokenHash(ctx context.Context, arg UpdateKioskToken
 		&i.TokenHash,
 		&i.EnabledSources,
 		&i.Status,
+		&i.DefaultLocale,
 		&i.LastSeenAt,
 		&i.CreatedAt,
 	)
