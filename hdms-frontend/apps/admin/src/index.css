@@ -28,3 +28,13 @@ body {
     inset: 0;
   }
 }
+
+/* Print rendering does not inherit the app's font stack reliably across
+   browsers, so the Japanese-capable face is named explicitly here rather
+   than relied on from the screen stylesheet. */
+@media print {
+  .label-template,
+  .register-slip {
+    font-family: "IBM Plex Sans", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+}

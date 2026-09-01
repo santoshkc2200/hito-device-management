@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Barcode, type Symbology } from "@/components/barcode";
+import { useT } from "@/i18n";
 import type { LabelSheetSettings } from "@/lib/label-settings";
 
 // Device sticker — docs/05-credentials-and-labeling.md: QR (or Data Matrix
@@ -22,16 +23,17 @@ export function DeviceStickerLabel({
   widthMm?: number;
   heightMm?: number;
 }) {
+  const t = useT();
   return (
     <div
-      className="flex items-center gap-2 overflow-hidden border border-dashed border-border bg-white p-1.5 text-black"
+      className="label-template flex items-center gap-2 overflow-hidden border border-dashed border-border bg-white p-1.5 text-black"
       style={{ width: widthMm ? `${widthMm}mm` : "50mm", height: heightMm ? `${heightMm}mm` : "25mm" }}
     >
       <Barcode value={token} symbology={symbology} scale={2} className="h-full shrink-0" />
       <div className="flex min-w-0 flex-col justify-center gap-0.5 leading-tight">
         <div className="truncate font-identifier text-[11px] font-bold">{assetTag}</div>
         <div className="truncate text-[8px]">{[name, model].filter(Boolean).join(" · ")}</div>
-        <div className="text-[7px] text-neutral-500">Hito Hospital</div>
+        <div className="text-[7px] text-neutral-500">{t("labelTemplates.organizationName")}</div>
         <div className="truncate font-identifier text-[6px] text-neutral-500">{token}</div>
       </div>
     </div>
@@ -51,13 +53,14 @@ export function StaffCardLabel({
   department?: string;
   token: string;
 }) {
+  const t = useT();
   return (
     <div
-      className="flex flex-col items-center justify-center gap-2 border border-dashed border-border bg-white p-3 text-center text-black"
+      className="label-template flex flex-col items-center justify-center gap-2 border border-dashed border-border bg-white p-3 text-center text-black"
       style={{ width: "85.6mm", height: "54mm" }}
     >
       <div className="text-[10px] font-medium tracking-widest text-neutral-500 uppercase">
-        Hito Hospital
+        {t("labelTemplates.organizationName")}
       </div>
       <Barcode value={token} symbology="qrcode" scale={3} />
       <div className="text-sm font-semibold">{fullName}</div>
@@ -71,16 +74,17 @@ export function StaffCardLabel({
 // yet (INV-12); the physical card that fills the drawer at the equipment
 // desk (docs/05).
 export function BlankCardLabel({ token }: { token: string }) {
+  const t = useT();
   return (
     <div
-      className="flex flex-col items-center justify-center gap-2 border border-dashed border-border bg-white p-3 text-center text-black"
+      className="label-template flex flex-col items-center justify-center gap-2 border border-dashed border-border bg-white p-3 text-center text-black"
       style={{ width: "85.6mm", height: "54mm" }}
     >
       <div className="text-[10px] font-medium tracking-widest text-neutral-500 uppercase">
-        Hito Hospital
+        {t("labelTemplates.organizationName")}
       </div>
       <Barcode value={token} symbology="qrcode" scale={3} />
-      <div className="text-[9px] text-neutral-500">Present at the equipment desk to register</div>
+      <div className="text-[9px] text-neutral-500">{t("labelTemplates.blankCardInstruction")}</div>
       <div className="font-identifier text-[9px]">{token}</div>
     </div>
   );
