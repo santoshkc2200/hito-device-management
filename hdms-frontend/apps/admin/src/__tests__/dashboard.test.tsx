@@ -83,6 +83,7 @@ const mockKiosks: apiClient.Kiosk[] = [
     status: "active",
     lastSeenAt: new Date().toISOString(),
     createdAt: "2026-01-01T00:00:00Z",
+    defaultLocale: "en",
   },
   {
     id: "kiosk-2",
@@ -92,6 +93,7 @@ const mockKiosks: apiClient.Kiosk[] = [
     status: "active",
     lastSeenAt: "2026-08-10T12:00:00Z", // Quiet kiosk (> 24h ago)
     createdAt: "2026-01-01T00:00:00Z",
+    defaultLocale: "en",
   },
 ];
 

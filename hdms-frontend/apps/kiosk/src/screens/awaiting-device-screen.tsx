@@ -70,8 +70,7 @@ export function AwaitingDeviceScreen({
   const formatDate = (isoString?: string) => {
     if (!isoString) return t("common.notAvailable");
     try {
-      const date = new Date(isoString);
-      return formatI18nDate(date, locale);
+      return formatI18nDate(locale, isoString);
     } catch {
       return isoString;
     }

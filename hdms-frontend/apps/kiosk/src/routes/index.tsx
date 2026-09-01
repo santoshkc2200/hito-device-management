@@ -13,7 +13,6 @@ import { CameraOverlay } from "@/components/camera-overlay";
 import { DiagnosticsModal } from "@/components/diagnostics-modal";
 import { AttendantModal } from "@/components/attendant-modal";
 import { LocaleProvider, DEFAULT_LOCALE } from "@hdms/i18n";
-import { catalogue } from "@/i18n";
 import { getKioskConfig, isKioskPaired, subscribeKioskConfig } from "@/lib/kiosk-config";
 import { useScreenWakeLock } from "@/lib/wake-lock";
 import { useDeferredServiceWorkerUpdate } from "@/lib/sw-update";
@@ -87,7 +86,7 @@ export function KioskApp() {
   // If kiosk is not paired or authorization was revoked (401/403), render PairingScreen
   if (!paired) {
     return (
-      <LocaleProvider key={localeEpoch} locale={defaultLocale} catalogue={catalogue}>
+      <LocaleProvider key={localeEpoch} locale={defaultLocale}>
         <PairingScreen
           initialSupportCode={context.supportCode}
           onPaired={() => {
@@ -99,7 +98,7 @@ export function KioskApp() {
   }
 
   return (
-    <LocaleProvider key={localeEpoch} locale={defaultLocale} catalogue={catalogue}>
+    <LocaleProvider key={localeEpoch} locale={defaultLocale}>
       {/* 1. Offline Mode Display */}
       {isOffline ? (
         <OfflineScreen

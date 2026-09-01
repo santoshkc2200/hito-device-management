@@ -338,6 +338,6 @@ export const en = {
       detail: "Live background events are temporarily unavailable.",
     },
   },
-} as const;
+};
 
 export type KioskCatalogue = typeof en;

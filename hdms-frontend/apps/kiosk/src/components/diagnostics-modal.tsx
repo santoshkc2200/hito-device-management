@@ -216,7 +216,7 @@ export function DiagnosticsModal({
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {t("diagnostics.recordedAt", { time: formatTime(locale, seq.timestamp) })}
+                        {t("diagnostics.recordedAt", { time: formatTime(locale, new Date(seq.timestamp)) })}
                       </div>
                     </div>
                   ))}

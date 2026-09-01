@@ -4,7 +4,6 @@ import { LocaleProvider } from "@hdms/i18n";
 import { initKioskApi, queryClient } from "@/lib/api";
 import { getKioskConfig } from "@/lib/kiosk-config";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { catalogue } from "@/i18n";
 import { router } from "./router";
 
 initKioskApi();
@@ -15,7 +14,7 @@ export function App() {
 
   return (
     <ErrorBoundary kioskName={kioskName}>
-      <LocaleProvider locale={config?.defaultLocale} catalogue={catalogue}>
+      <LocaleProvider locale={config?.defaultLocale}>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>

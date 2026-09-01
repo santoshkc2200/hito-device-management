@@ -1,6 +1,6 @@
-import { render, screen, act } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import { KioskApp } from "./index";
 import { setKioskConfig } from "@/lib/kiosk-config";
 

@@ -175,6 +175,7 @@ export function KiosksPanel() {
           status: data.status,
           lastSeenAt: data.lastSeenAt,
           createdAt: data.createdAt,
+          defaultLocale: data.defaultLocale,
           fallbackToken: data.token,
         });
       }
@@ -756,7 +757,7 @@ export function KiosksPanel() {
           </div>
           <DialogFooter className="sm:justify-center">
             {!pairingCodeMutation.isPending && (
-              <Button variant="outline" onClick={() => pairingModal && issuePairingCode({ id: pairingModal.kioskId, name: pairingModal.kioskName, location: pairingModal.location, enabledSources: [], status: "active", createdAt: "" })}>
+              <Button variant="outline" onClick={() => pairingModal && issuePairingCode({ id: pairingModal.kioskId, name: pairingModal.kioskName, location: pairingModal.location, enabledSources: [], status: "active", createdAt: "", defaultLocale: "en" })}>
                 {pairingModal?.code ? "Issue new code" : "Issue new code"}
               </Button>
             )}

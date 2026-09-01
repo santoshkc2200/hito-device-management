@@ -99,6 +99,7 @@ describe("PairingScreen", () => {
         kioskId: "kiosk-north-01",
         name: "North Wing Kiosk",
         token: "secret-bearer-token-123",
+        defaultLocale: "en",
       },
       error: undefined,
       request: new Request("http://localhost/v1/kiosks/pair"),
