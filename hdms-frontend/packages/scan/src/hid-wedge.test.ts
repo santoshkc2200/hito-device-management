@@ -439,3 +439,62 @@ describe("HidWedgeSource (DOM Integration & ScanRouter)", () => {
     document.body.removeChild(input);
   });
 });
+
+describe("IME composition", () => {
+  it("ignores keystrokes the IME is composing, so a composition never becomes a scan", async () => {
+    const emitted: string[] = [];
+    const source = new HidWedgeSource({ targetWindow: window });
+    await source.start((raw) => {
+      emitted.push(typeof raw === "string" ? raw : raw.token);
+    });
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+    input.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+
+    // While an IME composes, the browser still reports each physical keystroke
+    // as a keydown carrying the real character, with isComposing set. Those
+    // characters belong to the composition buffer, not to a scan — feeding
+    // them to the interpreter fabricates a scan out of someone's typing.
+    for (const ch of "ABCD1234") {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: ch,
+          isComposing: true,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    }
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })
+    );
+
+    expect(emitted).toEqual([]);
+
+    await source.stop();
+    input.remove();
+  });
+
+  it("ignores the IME's keyCode 229 shadow events", async () => {
+    const emitted: string[] = [];
+    const source = new HidWedgeSource({ targetWindow: window });
+    await source.start((raw) => {
+      emitted.push(typeof raw === "string" ? raw : raw.token);
+    });
+
+    for (const ch of "XY9999") {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: ch, bubbles: true, cancelable: true })
+      );
+    }
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Process", keyCode: 229, bubbles: true })
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(emitted).toEqual(["XY9999"]);
+    await source.stop();
+  });
+});

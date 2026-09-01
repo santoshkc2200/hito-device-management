@@ -335,6 +335,15 @@ export class HidWedgeSource implements ScanSource {
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
+    // An active IME (Japanese input on the attendant's manual-entry field, or
+    // anywhere a text input has focus) reports every physical keystroke a
+    // second time as keyCode 229 / key "Process" while it composes. Feeding
+    // those to the interpreter corrupts the scan buffer and loses the scan.
+    // Discard them; the real character arrives on its own keydown.
+    if (event.isComposing || event.keyCode === 229 || event.key === "Process") {
+      return;
+    }
+
     const target = event.target as HTMLElement | null;
     const isTextInputFocused =
       target !== null &&
