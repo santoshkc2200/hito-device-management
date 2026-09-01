@@ -487,6 +487,25 @@ export class TestApiClient {
     const items = data.items || data;
     return items.length;
   }
+
+  async updateMyLocale(locale: "ja" | "en"): Promise<any> {
+    const res = await this.request("/v1/auth/me/locale", {
+      method: "PATCH",
+      body: JSON.stringify({ locale }),
+    });
+    if (!res.ok) {
+      throw new Error(`Update locale failed: ${await res.text()}`);
+    }
+    return res.json();
+  }
+
+  async getCurrentAdmin(): Promise<any> {
+    const res = await this.request("/v1/auth/me");
+    if (!res.ok) {
+      throw new Error(`Get current admin failed: ${await res.text()}`);
+    }
+    return res.json();
+  }
 }
 
 /**

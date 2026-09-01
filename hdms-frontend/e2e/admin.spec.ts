@@ -1,11 +1,18 @@
 import { expect, test } from "@playwright/test";
 import { generateTotp, TestApiClient } from "./helpers/test-api";
+import { ja } from "../apps/admin/src/i18n/ja";
+import { en } from "../apps/admin/src/i18n/en";
+
+const catalogues = { ja, en } as const;
 
 test("admin loads over HTTPS and redirects an unauthenticated visitor to login", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "Device management" })).toBeVisible();
-  await expect(page.getByLabel("Email")).toBeVisible();
+  // Login page before authentication renders in the default locale (ja), but
+  // the test should pass regardless of which catalogue value is active. Match
+  // either language and use a stable id selector for the input.
+  await expect(page.getByRole("heading", { name: /Device management|機器管理/ })).toBeVisible();
+  await expect(page.locator("#email")).toBeVisible();
 });
 
 test("E20_AdminRegistersAndPairsKioskWithoutCLI", async ({ page, browser }) => {
@@ -14,11 +21,16 @@ test("E20_AdminRegistersAndPairsKioskWithoutCLI", async ({ page, browser }) => {
   const kioskName = `E20 Kiosk ${Date.now().toString().slice(-6)}`;
 
   try {
+    // Keep legacy English assertions stable by ensuring admin is in en before UI login.
+    // Login form itself is in the default locale (ja) before auth, so use stable id selectors.
+    const apiForE20 = new TestApiClient();
+    await apiForE20.login();
+    await apiForE20.updateMyLocale("en");
     await page.goto("/login");
-    await page.getByLabel("Email").fill("admin@example.org");
-    await page.getByLabel("Password").fill("correct horse battery staple");
-    await page.getByLabel("Authenticator code").fill(generateTotp(process.env.HDMS_TEST_ADMIN_TOTP_SECRET || "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7"));
-    await page.getByRole("button", { name: /sign in/i }).click();
+    await page.locator("#email").fill("admin@example.org");
+    await page.locator("#password").fill("correct horse battery staple");
+    await page.locator("#totpCode").fill(generateTotp(process.env.HDMS_TEST_ADMIN_TOTP_SECRET || "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7"));
+    await page.locator('button[type="submit"]').click();
     await expect(page).not.toHaveURL(/\/login$/, { timeout: 10_000 });
 
     await page.goto("/settings?tab=kiosks");
@@ -51,19 +63,21 @@ test("E20_AdminRegistersAndPairsKioskWithoutCLI", async ({ page, browser }) => {
 test("E8b_RegisterBorrowerWithBlankCard_ThenBorrowAtKiosk", async ({ page }) => {
   const api = new TestApiClient();
   await api.login();
+  // Existing English-only assertions expect en; keep admin in en for this legacy journey.
+  await api.updateMyLocale("en");
 
   // 1. Seed blank card, device, and kiosk
   const blankCard = await api.seedUnboundCard();
   const device = await api.seedDevice();
   const kiosk = await api.registerKiosk("E8b Kiosk", "Surgery Floor");
 
-  // 2. Perform admin login
+  // 2. Perform admin login (form before auth is in default ja, so use id selectors)
   await page.goto("/login");
-  await page.getByLabel("Email").fill("admin@example.org");
-  await page.getByLabel("Password").fill("correct horse battery staple");
+  await page.locator("#email").fill("admin@example.org");
+  await page.locator("#password").fill("correct horse battery staple");
   const totp = generateTotp(process.env.HDMS_TEST_ADMIN_TOTP_SECRET || "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7");
-  await page.getByLabel("Authenticator code").fill(totp);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await page.locator("#totpCode").fill(totp);
+  await page.locator('button[type="submit"]').click();
   await expect(page).not.toHaveURL(/\/login$/, { timeout: 10_000 });
 
   // 3. Navigate to Register borrower screen
@@ -104,19 +118,20 @@ test("E8b_RegisterBorrowerWithBlankCard_ThenBorrowAtKiosk", async ({ page }) => 
 test("E14_ReissueLostCard_KillsOldToken_NewWorksAtKiosk", async ({ page }) => {
   const api = new TestApiClient();
   await api.login();
+  await api.updateMyLocale("en");
 
   // 1. Seed user, device, and kiosk
   const user = await api.seedUser({ fullName: "Dr. Evelyn Reed", employeeNo: `E14-${Date.now().toString().slice(-6)}` });
   const device = await api.seedDevice();
   const kiosk = await api.registerKiosk("E14 Kiosk", "Radiology");
 
-  // 2. Perform admin login
+  // 2. Perform admin login (form before auth is in ja, use id selectors)
   await page.goto("/login");
-  await page.getByLabel("Email").fill("admin@example.org");
-  await page.getByLabel("Password").fill("correct horse battery staple");
+  await page.locator("#email").fill("admin@example.org");
+  await page.locator("#password").fill("correct horse battery staple");
   const totp = generateTotp(process.env.HDMS_TEST_ADMIN_TOTP_SECRET || "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7");
-  await page.getByLabel("Authenticator code").fill(totp);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await page.locator("#totpCode").fill(totp);
+  await page.locator('button[type="submit"]').click();
   await expect(page).not.toHaveURL(/\/login$/, { timeout: 10_000 });
 
   // 3. Navigate to user detail page
@@ -155,6 +170,7 @@ test("E14_ReissueLostCard_KillsOldToken_NewWorksAtKiosk", async ({ page }) => {
 test("E15_ForceReturn_AuditsOverrideAndReason", async ({ page }) => {
   const api = new TestApiClient();
   await api.login();
+  await api.updateMyLocale("en");
 
   // 1. Seed user, device, kiosk and create an active loan
   const user = await api.seedUser({ fullName: "Nurse Kenji Sato", employeeNo: `E15-${Date.now().toString().slice(-6)}` });
@@ -165,13 +181,13 @@ test("E15_ForceReturn_AuditsOverrideAndReason", async ({ page }) => {
   expect(openRes.event).toBe("loan_opened");
   const loanId = openRes.loan.id;
 
-  // 2. Admin login
+  // 2. Admin login (form before auth is in ja, use id selectors)
   await page.goto("/login");
-  await page.getByLabel("Email").fill("admin@example.org");
-  await page.getByLabel("Password").fill("correct horse battery staple");
+  await page.locator("#email").fill("admin@example.org");
+  await page.locator("#password").fill("correct horse battery staple");
   const totp = generateTotp(process.env.HDMS_TEST_ADMIN_TOTP_SECRET || "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7");
-  await page.getByLabel("Authenticator code").fill(totp);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await page.locator("#totpCode").fill(totp);
+  await page.locator('button[type="submit"]').click();
   await expect(page).not.toHaveURL(/\/login$/, { timeout: 10_000 });
 
   // 3. Navigate to Loan detail page
@@ -190,3 +206,77 @@ test("E15_ForceReturn_AuditsOverrideAndReason", async ({ page }) => {
   await expect(page.getByText(/loan\.force_returned/i)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/Device returned to charge bay by orderly without scanning/i)).toBeVisible();
 });
+
+// One signed-in admin journey per locale — sign in, list devices, open one,
+// edit it, export CSV — asserting through catalogue. Not a screen-by-screen sweep.
+for (const locale of ["ja", "en"] as const) {
+  test.describe(`Admin console i18n journey — ${locale}`, () => {
+    let api: TestApiClient;
+    let device: { id: string; assetTag: string; name: string };
+
+    test.beforeEach(async () => {
+      api = new TestApiClient();
+      await api.login();
+      await api.updateMyLocale(locale);
+      device = await api.seedDevice({
+        name: `E2E Device ${locale}-${Date.now().toString().slice(-6)}`,
+      });
+    });
+
+    test(`sign in → list → open → edit → export CSV in ${locale}`, async ({ page }) => {
+      const msgs = catalogues[locale];
+
+      // 1. Sign in — login form before auth is in the default locale (ja),
+      // so use stable id selectors to avoid pre-auth language mismatch.
+      await page.goto("/login");
+      await page.locator("#email").fill("admin@example.org");
+      await page.locator("#password").fill("correct horse battery staple");
+      await page.locator("#totpCode").fill(generateTotp(process.env.HDMS_TEST_ADMIN_TOTP_SECRET || "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7"));
+      await page.locator('button[type="submit"]').click();
+      await expect(page).not.toHaveURL(/\/login$/, { timeout: 15_000 });
+
+      // 2. Language is sticky per account
+      await expect.poll(async () => page.evaluate(() => document.documentElement.lang), { timeout: 5_000 }).toBe(locale);
+
+      // 3. List devices — heading through catalogue
+      await page.goto("/devices");
+      await expect(page.getByRole("heading", { name: msgs.devices.title })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(device.assetTag).first()).toBeVisible({ timeout: 10_000 });
+
+      // 4. Open device detail
+      await page.goto(`/devices/${device.id}`);
+      await expect(page.getByRole("heading", { name: msgs.deviceDetail.attributesHeading })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("heading", { name: device.name })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(device.assetTag).first()).toBeVisible();
+
+      // 5. Edit device
+      await page.getByRole("button", { name: msgs.deviceDetail.edit }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByRole("heading", { name: msgs.deviceDetail.editTitle })).toBeVisible();
+      const newName = `Edited ${locale} ${Date.now().toString().slice(-5)}`;
+      await page.locator("#name").fill(newName);
+      await page.getByRole("button", { name: msgs.common.save }).click();
+      await expect(page.getByText(msgs.deviceForm.deviceUpdated)).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 5_000 });
+      await expect(page.getByRole("heading", { name: newName })).toBeVisible({ timeout: 10_000 });
+      const updated = await api.getDevice(device.id);
+      expect(updated.name).toBe(newName);
+
+      // 6. Export CSV — select device and export. The CSV Blob carries a BOM
+      // (verified in unit test hdms-frontend/apps/admin/src/lib/csv.test.ts);
+      // here we verify the file is downloadable and the UI reports success through catalogue.
+      await page.goto("/devices");
+      await expect(page.getByText(device.assetTag).first()).toBeVisible({ timeout: 10_000 });
+      const selectLabel = msgs.devices.selectDeviceAria.replace("{assetTag}", device.assetTag);
+      await page.getByLabel(selectLabel).check();
+      const exportBtn = page.getByRole("button", { name: msgs.devices.exportCsv });
+      await expect(exportBtn).toBeVisible();
+      const downloadPromise = page.waitForEvent("download");
+      await exportBtn.click();
+      const download = await downloadPromise;
+      expect(download.suggestedFilename()).toMatch(/devices-export.*\.csv/);
+      const expectedExport = msgs.devices.exported.replace("{count}", "1");
+      await expect(page.getByText(expectedExport)).toBeVisible({ timeout: 5_000 });
+    });
+  });
+}
