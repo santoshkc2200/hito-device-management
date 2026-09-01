@@ -2,6 +2,7 @@ import type { CategoryAvailability } from "@hdms/api-client";
 import { Link } from "@tanstack/react-router";
 import { Folder } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useT } from "@/i18n";
 import { cn } from "@hdms/ui";
 
 interface CategoryAvailabilityBarsProps {
@@ -11,18 +12,20 @@ interface CategoryAvailabilityBarsProps {
 export function CategoryAvailabilityBars({
   categories,
 }: CategoryAvailabilityBarsProps) {
+  const t = useT();
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
-            Availability by Category
+            {t("dashboard.categories.title")}
           </CardTitle>
           <Link
             to="/devices"
             className="text-xs font-medium text-primary hover:underline"
           >
-            View all devices →
+            {t("dashboard.categories.viewAllDevices")}
           </Link>
         </div>
       </CardHeader>
@@ -30,7 +33,7 @@ export function CategoryAvailabilityBars({
         {categories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
             <Folder className="size-8 text-muted-foreground/50 mb-2" />
-            <p className="text-sm">No device categories found</p>
+            <p className="text-sm">{t("dashboard.categories.noCategories")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -59,7 +62,7 @@ export function CategoryAvailabilityBars({
                     </Link>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-muted-foreground">
-                        {available} / {total} available
+                        {t("dashboard.categories.availableCount", { available, total })}
                       </span>
                       <span className="text-xs font-mono font-medium text-foreground/80 w-10 text-right">
                         {pct}%
@@ -73,7 +76,12 @@ export function CategoryAvailabilityBars({
                     aria-valuenow={available}
                     aria-valuemin={0}
                     aria-valuemax={total}
-                    aria-label={`${cat.categoryName}: ${available} of ${total} available (${pct}%)`}
+                    aria-label={t("dashboard.categories.ariaProgress", {
+                      category: cat.categoryName,
+                      available,
+                      total,
+                      percent: pct,
+                    })}
                   >
                     <div
                       className={cn("h-full transition-all duration-300 rounded-full", toneClass)}

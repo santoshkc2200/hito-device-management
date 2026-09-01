@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currentAdminQueryKey } from "@/lib/auth";
+import { ja } from "@/i18n/ja";
 import { AppShell } from "../app-shell";
 
 // Mock @tanstack/react-router
@@ -50,19 +51,19 @@ describe("AppShell Navigation & Role Visibility", () => {
     });
 
     // Group headers
-    expect(screen.getByText("Daily")).toBeInTheDocument();
-    expect(screen.getByText("Records")).toBeInTheDocument();
-    expect(screen.getByText("Insight")).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.groups.daily)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.groups.records)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.groups.insight)).toBeInTheDocument();
 
     // Group header & link both exist with text Settings
-    const settingsElements = screen.getAllByText("Settings");
+    const settingsElements = screen.getAllByText(ja.nav.settings);
     expect(settingsElements.length).toBeGreaterThanOrEqual(2);
 
     // Admin-specific items
-    expect(screen.getByText("Audit log")).toBeInTheDocument();
-    expect(screen.getByText("Register borrower")).toBeInTheDocument();
-    expect(screen.getByText("Paper backfill")).toBeInTheDocument();
-    expect(screen.getByText("Card reader test")).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.audit)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.register)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.backfill)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.cardReaderTest)).toBeInTheDocument();
   });
 
   it("filters out settings and audit log for viewer role", () => {
@@ -74,18 +75,18 @@ describe("AppShell Navigation & Role Visibility", () => {
     });
 
     // Dashboard & Records should be present
-    expect(screen.getByText("Dashboard")).toBeInTheDocument();
-    expect(screen.getByText("Devices")).toBeInTheDocument();
-    expect(screen.getByText("Users")).toBeInTheDocument();
-    expect(screen.getByText("Loans")).toBeInTheDocument();
-    expect(screen.getByText("Reports")).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.dashboard)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.devices)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.users)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.loans)).toBeInTheDocument();
+    expect(screen.getByText(ja.nav.reports)).toBeInTheDocument();
 
     // Viewer should NOT see technician/admin items
-    expect(screen.queryByText("Paper backfill")).not.toBeInTheDocument();
-    expect(screen.queryByText("Register borrower")).not.toBeInTheDocument();
-    expect(screen.queryByText("Audit log")).not.toBeInTheDocument();
-    expect(screen.queryByText("Card reader test")).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.backfill)).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.register)).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.audit)).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.cardReaderTest)).not.toBeInTheDocument();
     // Settings group should not render at all for viewer
-    expect(screen.queryByText("Settings")).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.settings)).not.toBeInTheDocument();
   });
 });

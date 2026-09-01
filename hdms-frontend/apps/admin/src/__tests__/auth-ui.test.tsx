@@ -9,6 +9,7 @@ import { ReauthDialog } from "@/components/reauth-dialog";
 import { RecoveryCodesDialog } from "@/components/recovery-codes-dialog";
 import { ForcedPasswordChangeDialog } from "@/components/forced-password-change-dialog";
 import { ForcedTotpDialog } from "@/components/forced-totp-dialog";
+import { ja } from "@/i18n/ja";
 import { useState } from "react";
 
 // Mock TanStack Router
@@ -56,11 +57,11 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
       );
 
       const user = userEvent.setup();
-      await user.type(screen.getByLabelText(/email/i), "admin@hito.local");
-      await user.type(screen.getByLabelText(/^password/i), "CorrectPassword123!");
-      await user.type(screen.getByLabelText(/authenticator code/i), "123456");
+      await user.type(screen.getByLabelText(ja.login.emailLabel), "admin@hito.local");
+      await user.type(screen.getByLabelText(ja.login.passwordLabel), "CorrectPassword123!");
+      await user.type(screen.getByLabelText(ja.login.totpLabel), "123456");
 
-      await user.click(screen.getByRole("button", { name: /sign in/i }));
+      await user.click(screen.getByRole("button", { name: new RegExp(ja.login.signIn, "i") }));
 
       await waitFor(() => {
         expect(loginSpy).toHaveBeenCalledWith({
@@ -93,16 +94,16 @@ describe("4.1c Auth UI — Login, Recovery, Compliance, and Reauth", () => {
 
       const user = userEvent.setup();
       // Toggle to recovery code
-      await user.click(screen.getByText(/lost authenticator\? use a recovery code/i));
+      await user.click(screen.getByText(ja.login.useRecoveryInstead));
 
-      expect(screen.getByLabelText(/recovery code/i)).toBeInTheDocument();
-      expect(screen.queryByLabelText(/authenticator code/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText(ja.login.recoveryCodeLabel)).toBeInTheDocument();
+      expect(screen.queryByLabelText(ja.login.totpLabel)).not.toBeInTheDocument();
 
-      await user.type(screen.getByLabelText(/email/i), "admin@hito.local");
-      await user.type(screen.getByLabelText(/^password/i), "CorrectPassword123!");
-      await user.type(screen.getByLabelText(/recovery code/i), "A1B2-C3D4");
+      await user.type(screen.getByLabelText(ja.login.emailLabel), "admin@hito.local");
+      await user.type(screen.getByLabelText(ja.login.passwordLabel), "CorrectPassword123!");
+      await user.type(screen.getByLabelText(ja.login.recoveryCodeLabel), "A1B2-C3D4");
 
-      await user.click(screen.getByRole("button", { name: /sign in/i }));
+      await user.click(screen.getByRole("button", { name: new RegExp(ja.login.signIn, "i") }));
 
       await waitFor(() => {
         expect(loginSpy).toHaveBeenCalledWith({

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
+import { useT } from "@/i18n";
 import { cn } from "@hdms/ui";
 
 interface AttentionStripProps {
@@ -22,14 +23,14 @@ interface AttentionStripProps {
   paperBacklogHours?: number;
 }
 
-function timeSince(date: Date): { hours: number; days: number; text: string } {
+function timeSince(date: Date, t: ReturnType<typeof useT>): { hours: number; days: number; text: string } {
   const ms = Date.now() - date.getTime();
   const hours = Math.max(0, Math.floor(ms / (1000 * 60 * 60)));
   const days = Math.floor(hours / 24);
 
-  if (hours < 1) return { hours: 0, days: 0, text: "just now" };
-  if (hours < 24) return { hours, days: 0, text: `${hours} hour${hours === 1 ? "" : "s"} ago` };
-  return { hours, days, text: `${days} day${days === 1 ? "" : "s"} ago` };
+  if (hours < 1) return { hours: 0, days: 0, text: t("dashboard.attention.justNow") };
+  if (hours < 24) return { hours, days: 0, text: t("dashboard.attention.hoursAgo", { hours, plural: hours === 1 ? "" : "s" }) };
+  return { hours, days, text: t("dashboard.attention.daysAgo", { days, plural: days === 1 ? "" : "s" }) };
 }
 
 export function AttentionStrip({
@@ -40,6 +41,7 @@ export function AttentionStrip({
   lastPaperEntry,
   paperBacklogHours = 48,
 }: AttentionStripProps) {
+  const t = useT();
   const revokedScans = turnedAwayCounts.find((t) => t.resolvedType === "revoked");
   const unboundScans = turnedAwayCounts.find((t) => t.resolvedType === "unbound");
   const unknownScans = turnedAwayCounts.find((t) => t.resolvedType === "unknown");
@@ -51,10 +53,10 @@ export function AttentionStrip({
 
   // Paper backlog check
   let isPaperBacklog = false;
-  let paperTimeText = "no paper records found";
+  let paperTimeText = t("dashboard.attention.noPaperRecordsFound");
   if (lastPaperEntry?.recordedAt) {
     const lastDate = new Date(lastPaperEntry.recordedAt);
-    const { hours, text } = timeSince(lastDate);
+    const { hours, text } = timeSince(lastDate, t);
     paperTimeText = text;
     if (hours >= paperBacklogHours) {
       isPaperBacklog = true;
@@ -99,18 +101,22 @@ export function AttentionStrip({
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-rose-900 dark:text-rose-200 flex items-center gap-2">
-                  Revoked Card Scan Attempts ({revokedScans.totalScans} scans)
+                  {t("dashboard.attention.revokedScansTitle", { count: revokedScans.totalScans })}
                 </h2>
                 <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
-                  {revokedScans.totalScans} scan attempt{revokedScans.totalScans === 1 ? "" : "s"}{" "}
-                  across {revokedScans.distinctTokens} distinct revoked card token{revokedScans.distinctTokens === 1 ? "" : "s"} in the last 24 hours.
+                  {t("dashboard.attention.revokedScansDetail", {
+                    scans: revokedScans.totalScans,
+                    scanPlural: revokedScans.totalScans === 1 ? "" : "s",
+                    tokens: revokedScans.distinctTokens,
+                    tokenPlural: revokedScans.distinctTokens === 1 ? "" : "s",
+                  })}
                 </p>
               </div>
             </div>
             <Link to="/credentials" className="self-end sm:self-center shrink-0">
               <Button size="sm" variant="outline" className="h-8 border-rose-300 bg-white dark:bg-rose-950 dark:border-rose-800 text-rose-900 dark:text-rose-200">
                 <CreditCard className="size-3.5 mr-1" />
-                Manage cards
+                {t("dashboard.attention.manageCards")}
               </Button>
             </Link>
           </CardContent>
@@ -130,17 +136,17 @@ export function AttentionStrip({
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                  Unregistered Card Scans — {totalUnregisteredScans} Turned Away
+                  {t("dashboard.attention.unregisteredScansTitle", { count: totalUnregisteredScans })}
                 </h2>
                 <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                  Borrowers presented unregistered cards at kiosks in the last 24h. Register them so they can check out equipment.
+                  {t("dashboard.attention.unregisteredScansDetail")}
                 </p>
               </div>
             </div>
             <Link to="/register" className="self-end sm:self-center shrink-0">
               <Button size="sm" className="h-8 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-700 dark:hover:bg-amber-600">
                 <UserPlus className="size-3.5 mr-1" />
-                Register borrower
+                {t("dashboard.attention.registerBorrower")}
               </Button>
             </Link>
           </CardContent>
@@ -160,16 +166,16 @@ export function AttentionStrip({
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-foreground">
-                  Blank Card Stock Low ({unboundCredentialCount} remaining)
+                  {t("dashboard.attention.lowStockTitle", { count: unboundCredentialCount })}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Available blank card stock has fallen below the policy threshold ({lowStockThreshold}). Issue and print fresh batch cards.
+                  {t("dashboard.attention.lowStockDetail", { threshold: lowStockThreshold })}
                 </p>
               </div>
             </div>
             <Link to="/credentials" className="self-end sm:self-center shrink-0">
               <Button size="sm" variant="outline" className="h-8">
-                Generate stock
+                {t("dashboard.attention.generateStock")}
               </Button>
             </Link>
           </CardContent>
@@ -189,19 +195,23 @@ export function AttentionStrip({
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-foreground">
-                  Paper Backlog Warning ({paperTimeText})
+                  {t("dashboard.attention.paperBacklogTitle", { time: paperTimeText })}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {lastPaperEntry
-                    ? `Last paper log entry (${lastPaperEntry.paperRef ?? "sheet"}) was recorded ${paperTimeText} by ${lastPaperEntry.recordedBy ?? "admin"}.`
-                    : "No physical lending sheets have been recorded yet in HDMS."}
+                    ? t("dashboard.attention.paperBacklogDetail", {
+                        paperRef: lastPaperEntry.paperRef ?? t("dashboard.attention.paperRefDefault"),
+                        time: paperTimeText,
+                        recordedBy: lastPaperEntry.recordedBy ?? t("dashboard.attention.recordedByDefault"),
+                      })
+                    : t("dashboard.attention.paperBacklogEmpty")}
                 </p>
               </div>
             </div>
             <Link to="/backfill" className="self-end sm:self-center shrink-0">
               <Button size="sm" variant="outline" className="h-8">
                 <FileSpreadsheet className="size-3.5 mr-1" />
-                Record paper sheet
+                {t("dashboard.attention.recordPaperSheet")}
               </Button>
             </Link>
           </CardContent>
@@ -216,7 +226,7 @@ export function AttentionStrip({
               <div className="flex items-center gap-2">
                 <MonitorSmartphone className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold text-foreground">
-                  Registered Kiosks ({kiosks.length})
+                  {t("dashboard.attention.registeredKiosksTitle", { count: kiosks.length })}
                 </h2>
               </div>
               {quietKiosks.length > 0 && (
@@ -225,7 +235,10 @@ export function AttentionStrip({
                   className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300"
                 >
                   <AlertTriangle className="size-3" />
-                  {quietKiosks.length} quiet kiosk{quietKiosks.length === 1 ? "" : "s"} (&gt;24h)
+                  {t("dashboard.attention.quietKiosksBadge", {
+                    count: quietKiosks.length,
+                    plural: quietKiosks.length === 1 ? "" : "s",
+                  })}
                 </span>
               )}
             </div>
@@ -234,8 +247,8 @@ export function AttentionStrip({
               {kiosks.map((kiosk) => {
                 const isQuiet = quietKiosks.some((q) => q.id === kiosk.id);
                 const lastSeenText = kiosk.lastSeenAt
-                  ? timeSince(new Date(kiosk.lastSeenAt)).text
-                  : "never";
+                  ? timeSince(new Date(kiosk.lastSeenAt), t).text
+                  : t("dashboard.attention.neverSeen");
 
                 return (
                   <div
@@ -257,12 +270,15 @@ export function AttentionStrip({
                         />
                       </div>
                       <div className="text-muted-foreground text-[11px] mt-0.5 truncate">
-                        {kiosk.location || "Location not set"} · Seen: {lastSeenText}
+                        {t("dashboard.attention.kioskSeen", {
+                          location: kiosk.location || t("dashboard.attention.locationNotSet"),
+                          lastSeen: lastSeenText,
+                        })}
                       </div>
                     </div>
                     {isQuiet && (
                       <div
-                        title="No activity seen from kiosk in over 24 hours"
+                        title={t("dashboard.attention.quietKioskTooltip")}
                         className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
                       >
                         <AlertTriangle className="size-3.5" />

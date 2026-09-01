@@ -10,6 +10,7 @@ import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
 import { OverdueLoansTable } from "@/components/dashboard/overdue-loans-table";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { currentAdminQueryKey } from "@/lib/auth";
+import { ja } from "@/i18n/ja";
 import { dashboardRoute } from "../routes/dashboard";
 
 // Mock TanStack Router
@@ -208,11 +209,11 @@ describe("Phase 4.7 — Dashboard", () => {
 
       // Row 2 should be the 1 day overdue item
       expect(rows[1]).toHaveTextContent("iPad Mini Emergency 1");
-      expect(rows[1]).toHaveTextContent("1 day late");
+      expect(rows[1]).toHaveTextContent(ja.dashboard.overdue.oneDayLate);
       expect(rows[1]).toHaveTextContent("Nurse Alice");
 
       // Click Remind on row 1
-      const remindButtons = screen.getAllByRole("button", { name: /remind/i });
+      const remindButtons = screen.getAllByRole("button", { name: new RegExp(ja.dashboard.overdue.remindButton, "i") });
       await user.click(remindButtons[0]);
 
       expect(clipboardWriteSpy).toHaveBeenCalledWith(
@@ -223,15 +224,15 @@ describe("Phase 4.7 — Dashboard", () => {
       );
 
       // Click Force Return on row 1
-      const forceReturnButtons = screen.getAllByRole("button", { name: /force return/i });
+      const forceReturnButtons = screen.getAllByRole("button", { name: new RegExp(ja.dashboard.overdue.forceReturnButton, "i") });
       await user.click(forceReturnButtons[0]);
 
       // Confirm dialog opens
-      expect(screen.getByText("Force Return Loan")).toBeInTheDocument();
-      const reasonInput = screen.getByLabelText(/reason for administrative return/i);
+      expect(screen.getByText(ja.dashboard.overdue.dialogTitle)).toBeInTheDocument();
+      const reasonInput = screen.getByLabelText(ja.dashboard.overdue.reasonLabel);
       await user.type(reasonInput, "Found in storage room without checkout");
 
-      const confirmBtn = screen.getByRole("button", { name: /confirm return/i });
+      const confirmBtn = screen.getByRole("button", { name: new RegExp(ja.dashboard.overdue.confirmReturn, "i") });
       await user.click(confirmBtn);
 
       await waitFor(() => {
@@ -250,9 +251,9 @@ describe("Phase 4.7 — Dashboard", () => {
         </QueryClientProvider>
       );
 
-      expect(screen.getByText("Nothing overdue")).toBeInTheDocument();
+      expect(screen.getByText(ja.dashboard.overdue.emptyTitle)).toBeInTheDocument();
       expect(
-        screen.getByText(/all active loans are currently within their scheduled return period/i)
+        screen.getByText(ja.dashboard.overdue.emptyDesc)
       ).toBeInTheDocument();
     });
   });
@@ -296,7 +297,7 @@ describe("Phase 4.7 — Dashboard", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText("Device Checked Out")).toBeInTheDocument();
+        expect(screen.getByText(ja.dashboard.feed.deviceCheckedOutTitle)).toBeInTheDocument();
         expect(screen.getByText(/Nurse Alice borrowed iPad Mini 1 at kiosk kiosk-1/)).toBeInTheDocument();
       });
 
@@ -310,7 +311,7 @@ describe("Phase 4.7 — Dashboard", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText("User Registered")).toBeInTheDocument();
+        expect(screen.getByText(ja.dashboard.feed.userRegisteredTitle)).toBeInTheDocument();
         expect(screen.getByText(/Dr. Sato \(EMP-999\) was added to system/)).toBeInTheDocument();
       });
 
@@ -323,7 +324,7 @@ describe("Phase 4.7 — Dashboard", () => {
         );
       });
 
-      const checkoutEvents = screen.getAllByText("Device Checked Out");
+      const checkoutEvents = screen.getAllByText(ja.dashboard.feed.deviceCheckedOutTitle);
       expect(checkoutEvents).toHaveLength(1);
     });
 
@@ -357,7 +358,7 @@ describe("Phase 4.7 — Dashboard", () => {
       // 2. Unregistered scans
       expect(screen.getByTestId("attention-unregistered-scans")).toBeInTheDocument();
       expect(screen.getByText(/5 Turned Away/)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /register borrower/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: new RegExp(ja.dashboard.attention.registerBorrower, "i") })).toBeInTheDocument();
 
       // 3. Low stock
       expect(screen.getByTestId("attention-low-stock")).toBeInTheDocument();
@@ -394,10 +395,10 @@ describe("Phase 4.7 — Dashboard", () => {
         expect(screen.getByTestId("dashboard-page")).toBeInTheDocument();
       });
 
-      expect(screen.getByText("Equipment Operations")).toBeInTheDocument();
-      expect(screen.getByText("Availability by Category")).toBeInTheDocument();
-      expect(screen.getByText("Overdue Loans")).toBeInTheDocument();
-      expect(screen.getByText("Live Activity Feed")).toBeInTheDocument();
+      expect(screen.getByText(ja.dashboard.headerTitle)).toBeInTheDocument();
+      expect(screen.getByText(ja.dashboard.categories.title)).toBeInTheDocument();
+      expect(screen.getByText(ja.dashboard.overdue.title)).toBeInTheDocument();
+      expect(screen.getByText(ja.dashboard.feed.title)).toBeInTheDocument();
 
       // Accessibility test
       const results = await axe(container);

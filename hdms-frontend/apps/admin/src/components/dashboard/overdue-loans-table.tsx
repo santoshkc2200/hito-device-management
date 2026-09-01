@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RoleGate } from "@/lib/use-role";
+import { useT } from "@/i18n";
 import { cn } from "@hdms/ui";
 
 interface OverdueLoansTableProps {
@@ -37,6 +38,7 @@ function formatDate(iso: string): string {
 }
 
 export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [returnLoanTarget, setReturnLoanTarget] = useState<OverdueLoanSummary | null>(null);
   const [returnReason, setReturnReason] = useState("");
@@ -64,25 +66,30 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
         queryClient.invalidateQueries({ queryKey: ["loans"] }),
         queryClient.invalidateQueries({ queryKey: ["devices"] }),
       ]);
-      toast.success("Loan closed administratively");
+      toast.success(t("dashboard.overdue.toastSuccess"));
       setReturnLoanTarget(null);
       setReturnReason("");
     },
     onError: (err: any) => {
-      toast.error(err?.detail || err?.title || "Failed to force return loan");
+      toast.error(err?.detail || err?.title || t("dashboard.overdue.toastError"));
     },
   });
 
   const handleCopyReminder = async (loan: OverdueLoanSummary) => {
     const formattedDue = formatDate(loan.dueAt);
-    const message = `Hi ${loan.userFullName}, your loan for ${loan.deviceName} (${loan.assetTag}) was due on ${formattedDue}. Please return the device to any HDMS kiosk or admin station as soon as possible.`;
+    const message = t("dashboard.overdue.reminderMessage", {
+      user: loan.userFullName,
+      device: loan.deviceName,
+      assetTag: loan.assetTag,
+      dueAt: formattedDue,
+    });
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(message);
       }
-      toast.success("Reminder message copied to clipboard");
+      toast.success(t("dashboard.overdue.reminderCopied"));
     } catch {
-      toast.error("Could not copy reminder message to clipboard");
+      toast.error(t("dashboard.overdue.reminderCopyFailed"));
     }
   };
 
@@ -92,7 +99,7 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
         <div>
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Clock className="size-4 text-amber-500" />
-            Overdue Loans
+            {t("dashboard.overdue.title")}
             {sortedLoans.length > 0 && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                 {sortedLoans.length}
@@ -100,7 +107,7 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
             )}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Priority work queue — sorted worst first
+            {t("dashboard.overdue.subtitle")}
           </p>
         </div>
         <Link
@@ -108,7 +115,7 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
           search={{ status: "overdue" }}
           className="text-xs font-medium text-primary hover:underline"
         >
-          View all loans →
+          {t("dashboard.overdue.viewAllLoans")}
         </Link>
       </CardHeader>
 
@@ -119,10 +126,10 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
               <CheckCircle2 className="size-6" />
             </div>
             <h3 className="text-sm font-semibold text-foreground">
-              Nothing overdue
+              {t("dashboard.overdue.emptyTitle")}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground max-w-sm">
-              All active loans are currently within their scheduled return period.
+              {t("dashboard.overdue.emptyDesc")}
             </p>
           </div>
         ) : (
@@ -130,11 +137,11 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-t bg-muted/40 text-muted-foreground">
-                  <th className="py-2.5 px-4 font-medium">Device</th>
-                  <th className="py-2.5 px-4 font-medium">Borrower</th>
-                  <th className="py-2.5 px-4 font-medium">Due Date</th>
-                  <th className="py-2.5 px-4 font-medium">Overdue</th>
-                  <th className="py-2.5 px-4 font-medium text-right">Actions</th>
+                  <th className="py-2.5 px-4 font-medium">{t("dashboard.overdue.columnDevice")}</th>
+                  <th className="py-2.5 px-4 font-medium">{t("dashboard.overdue.columnBorrower")}</th>
+                  <th className="py-2.5 px-4 font-medium">{t("dashboard.overdue.columnDueDate")}</th>
+                  <th className="py-2.5 px-4 font-medium">{t("dashboard.overdue.columnOverdue")}</th>
+                  <th className="py-2.5 px-4 font-medium text-right">{t("dashboard.overdue.columnActions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -179,10 +186,10 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
                         )}
                       >
                         {loan.daysOverdue === 0
-                          ? "Due today"
+                          ? t("dashboard.overdue.dueToday")
                           : loan.daysOverdue === 1
-                          ? "1 day late"
-                          : `${loan.daysOverdue} days late`}
+                          ? t("dashboard.overdue.oneDayLate")
+                          : t("dashboard.overdue.daysLate", { count: loan.daysOverdue })}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
@@ -192,10 +199,10 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
                           size="sm"
                           className="h-7 px-2 text-xs"
                           onClick={() => handleCopyReminder(loan)}
-                          title="Copy prepared reminder message to clipboard"
+                          title={t("dashboard.overdue.remindTooltip")}
                         >
                           <Copy className="size-3.5 mr-1" />
-                          Remind
+                          {t("dashboard.overdue.remindButton")}
                         </Button>
                         <RoleGate minRole="technician">
                           <Button
@@ -208,14 +215,14 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
                             }}
                           >
                             <CornerDownLeft className="size-3.5 mr-1" />
-                            Force return
+                            {t("dashboard.overdue.forceReturnButton")}
                           </Button>
                         </RoleGate>
                         <Link
                           to="/loans"
                           search={{ q: loan.assetTag }}
                           className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                          title="View loan details"
+                          title={t("dashboard.overdue.viewDetailsTooltip")}
                         >
                           <ExternalLink className="size-3.5" />
                         </Link>
@@ -241,13 +248,13 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Force Return Loan</DialogTitle>
+            <DialogTitle>{t("dashboard.overdue.dialogTitle")}</DialogTitle>
             <DialogDescription>
-              Administratively close the overdue loan for{" "}
+              {t("dashboard.overdue.dialogDescPrefix")}{" "}
               <strong className="text-foreground">
                 {returnLoanTarget?.deviceName} ({returnLoanTarget?.assetTag})
               </strong>{" "}
-              borrowed by{" "}
+              {t("dashboard.overdue.dialogDescBorrower")}{" "}
               <strong className="text-foreground">
                 {returnLoanTarget?.userFullName}
               </strong>
@@ -260,11 +267,11 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
               htmlFor="force-return-reason"
               className="text-xs font-medium text-foreground"
             >
-              Reason for administrative return (required for audit)
+              {t("dashboard.overdue.reasonLabel")}
             </label>
             <Textarea
               id="force-return-reason"
-              placeholder="e.g. Device returned to nurse station without scanning, or confirmed found in department."
+              placeholder={t("dashboard.overdue.reasonPlaceholder")}
               value={returnReason}
               onChange={(e) => setReturnReason(e.target.value)}
               className="min-h-[80px]"
@@ -280,7 +287,7 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
               }}
               disabled={forceReturnMutation.isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -294,7 +301,7 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
               }}
               disabled={!returnReason.trim() || forceReturnMutation.isPending}
             >
-              {forceReturnMutation.isPending ? "Returning…" : "Confirm return"}
+              {forceReturnMutation.isPending ? t("dashboard.overdue.returning") : t("dashboard.overdue.confirmReturn")}
             </Button>
           </DialogFooter>
         </DialogContent>

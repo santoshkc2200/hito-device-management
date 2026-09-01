@@ -1,5 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { EmptyState, ErrorState, LoadingState } from "../index";
 
 describe("State Primitives", () => {
@@ -8,6 +11,12 @@ describe("State Primitives", () => {
       render(<LoadingState message="Fetching records..." />);
       expect(screen.getByRole("status")).toBeInTheDocument();
       expect(screen.getByText("Fetching records...")).toBeInTheDocument();
+    });
+
+    it("renders default accessible loading text from catalogue", () => {
+      render(<LoadingState />);
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(screen.getByText(ja.states.loading)).toBeInTheDocument();
     });
   });
 
@@ -72,7 +81,8 @@ describe("State Primitives", () => {
       };
 
       render(<ErrorState error={stubProblem} />);
-      expect(screen.getByText("Not built yet — task 4.9a")).toBeInTheDocument();
+      const expectedTitle = translate(catalogues, "ja", "states.notBuiltYet", { task: "4.9a" });
+      expect(screen.getByText(expectedTitle)).toBeInTheDocument();
       expect(
         screen.getByText("Operation is not implemented yet — see task 4.9a.")
       ).toBeInTheDocument();
@@ -81,7 +91,7 @@ describe("State Primitives", () => {
     it("handles retry action", () => {
       const handleRetry = vi.fn();
       render(<ErrorState title="Failed" onRetry={handleRetry} />);
-      const retryBtn = screen.getByRole("button", { name: /try again/i });
+      const retryBtn = screen.getByRole("button", { name: new RegExp(ja.states.tryAgain, "i") });
       fireEvent.click(retryBtn);
       expect(handleRetry).toHaveBeenCalledTimes(1);
     });

@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@hdms/ui";
 
+import { useT } from "@/i18n";
+
 export interface FeedEvent {
   id: string | number;
   topic: string;
@@ -38,7 +40,10 @@ function formatTime(d: Date): string {
   });
 }
 
-function renderEventDescription(event: FeedEvent): {
+function renderEventDescription(
+  event: FeedEvent,
+  t: ReturnType<typeof useT>
+): {
   title: string;
   description: string;
   icon: typeof Activity;
@@ -48,71 +53,72 @@ function renderEventDescription(event: FeedEvent): {
 
   switch (topic) {
     case "loan.opened": {
-      const user = payload.userName || payload.userId || "User";
-      const device = payload.deviceName || payload.assetTag || payload.deviceId || "Device";
-      const kiosk = payload.kioskId ? ` at kiosk ${payload.kioskId}` : "";
+      const user = payload.userName || payload.userId || t("dashboard.feed.defaultUser");
+      const device = payload.deviceName || payload.assetTag || payload.deviceId || t("dashboard.feed.defaultDevice");
+      const kiosk = payload.kioskId ? t("dashboard.feed.atKiosk", { kioskId: payload.kioskId }) : "";
       return {
-        title: "Device Checked Out",
-        description: `${user} borrowed ${device}${kiosk}`,
+        title: t("dashboard.feed.deviceCheckedOutTitle"),
+        description: t("dashboard.feed.deviceCheckedOutDesc", { user, device, kiosk }),
         icon: ArrowUpRight,
         tone: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40",
       };
     }
     case "loan.closed": {
-      const device = payload.deviceName || payload.assetTag || payload.deviceId || "Device";
+      const device = payload.deviceName || payload.assetTag || payload.deviceId || t("dashboard.feed.defaultDevice");
       const user = payload.userName || payload.userId;
-      const returnedBy = user ? ` by ${user}` : "";
+      const returnedBy = user ? t("dashboard.feed.byUser", { user }) : "";
       return {
-        title: "Device Returned",
-        description: `${device} returned${returnedBy}`,
+        title: t("dashboard.feed.deviceReturnedTitle"),
+        description: t("dashboard.feed.deviceReturnedDesc", { device, returnedBy }),
         icon: ArrowDownLeft,
         tone: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40",
       };
     }
     case "loan.overdue": {
-      const device = payload.deviceName || payload.assetTag || payload.deviceId || "Device";
+      const device = payload.deviceName || payload.assetTag || payload.deviceId || t("dashboard.feed.defaultDevice");
       const user = payload.userName || payload.userId;
+      const borrower = user || t("dashboard.feed.defaultBorrower");
       return {
-        title: "Loan Overdue",
-        description: `${device} (held by ${user || "borrower"}) is now past due`,
+        title: t("dashboard.feed.loanOverdueTitle"),
+        description: t("dashboard.feed.loanOverdueDesc", { device, borrower }),
         icon: Clock,
         tone: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40",
       };
     }
     case "device.status_changed": {
-      const tag = payload.assetTag || payload.deviceId || "Device";
-      const status = payload.status || payload.toStatus || "updated";
-      const reason = payload.reason ? ` (${payload.reason})` : "";
+      const tag = payload.assetTag || payload.deviceId || t("dashboard.feed.defaultDevice");
+      const status = payload.status || payload.toStatus || t("dashboard.feed.defaultUpdated");
+      const reason = payload.reason ? t("dashboard.feed.reasonSuffix", { reason: payload.reason }) : "";
       return {
-        title: "Device Status Changed",
-        description: `${tag} set to ${status}${reason}`,
+        title: t("dashboard.feed.deviceStatusChangedTitle"),
+        description: t("dashboard.feed.deviceStatusChangedDesc", { tag, status, reason }),
         icon: Activity,
         tone: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40",
       };
     }
     case "credential.revoked": {
-      const subject = payload.subjectName || payload.subjectId || "Credential";
-      const reason = payload.reason ? ` — ${payload.reason}` : "";
+      const subject = payload.subjectName || payload.subjectId || t("dashboard.feed.defaultCredential");
+      const reason = payload.reason ? t("dashboard.feed.reasonRevokedSuffix", { reason: payload.reason }) : "";
       return {
-        title: "Card Revoked",
-        description: `${subject} card was revoked${reason}`,
+        title: t("dashboard.feed.cardRevokedTitle"),
+        description: t("dashboard.feed.cardRevokedDesc", { subject, reason }),
         icon: CreditCard,
         tone: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40",
       };
     }
     case "user.registered": {
-      const name = payload.fullName || payload.name || "New borrower";
-      const emp = payload.employeeNo ? ` (${payload.employeeNo})` : "";
+      const name = payload.fullName || payload.name || t("dashboard.feed.defaultNewBorrower");
+      const emp = payload.employeeNo ? t("dashboard.feed.employeeNoSuffix", { employeeNo: payload.employeeNo }) : "";
       return {
-        title: "User Registered",
-        description: `${name}${emp} was added to system`,
+        title: t("dashboard.feed.userRegisteredTitle"),
+        description: t("dashboard.feed.userRegisteredDesc", { name, employeeNo: emp }),
         icon: UserPlus,
         tone: "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40",
       };
     }
     default:
       return {
-        title: topic || "System Event",
+        title: topic || t("dashboard.feed.defaultSystemEvent"),
         description: JSON.stringify(payload),
         icon: Activity,
         tone: "text-muted-foreground bg-muted",
@@ -125,6 +131,7 @@ export function LiveActivityFeed({
   streamUrl = "/v1/events/stream",
   initialEvents = [],
 }: LiveActivityFeedProps) {
+  const t = useT();
   const [events, setEvents] = useState<FeedEvent[]>(initialEvents);
   const [connectionState, setConnectionState] = useState<ConnectionState>("reconnecting");
   const [retryCount, setRetryCount] = useState(0);
@@ -288,10 +295,10 @@ export function LiveActivityFeed({
         <div>
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Activity className="size-4 text-primary" />
-            Live Activity Feed
+            {t("dashboard.feed.title")}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time equipment transactions and audit events
+            {t("dashboard.feed.subtitle")}
           </p>
         </div>
 
@@ -307,7 +314,7 @@ export function LiveActivityFeed({
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
               <Wifi className="size-3" />
-              Live
+              {t("dashboard.feed.statusLive")}
             </div>
           )}
 
@@ -317,7 +324,7 @@ export function LiveActivityFeed({
               className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900"
             >
               <RefreshCw className="size-3 animate-spin" />
-              Reconnecting {retryCount > 0 ? `(${retryCount})` : ""}
+              {t("dashboard.feed.statusReconnecting", { retry: retryCount > 0 ? ` (${retryCount})` : "" })}
             </div>
           )}
 
@@ -328,7 +335,7 @@ export function LiveActivityFeed({
             >
               <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
                 <WifiOff className="size-3" />
-                Offline
+                {t("dashboard.feed.statusOffline")}
               </span>
               <Button
                 variant="outline"
@@ -338,7 +345,7 @@ export function LiveActivityFeed({
                 data-testid="reconnect-button"
               >
                 <RefreshCw className="size-3 mr-1" />
-                Reconnect
+                {t("dashboard.feed.reconnect")}
               </Button>
             </div>
           )}
@@ -352,16 +359,16 @@ export function LiveActivityFeed({
               <Activity className="size-5" />
             </div>
             <h3 className="text-sm font-medium text-foreground">
-              Awaiting transactions
+              {t("dashboard.feed.emptyTitle")}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground max-w-xs">
-              Live scans, checkouts, returns, and registrations from kiosks and admin stations will appear here in real time.
+              {t("dashboard.feed.emptyDesc")}
             </p>
           </div>
         ) : (
           <div className="divide-y divide-border/60 max-h-[420px] overflow-y-auto">
             {events.map((ev) => {
-              const info = renderEventDescription(ev);
+              const info = renderEventDescription(ev, t);
               const Icon = info.icon;
               return (
                 <div
