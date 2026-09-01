@@ -37,6 +37,7 @@ describe("kiosk-config", () => {
       muteEnabled: true,
       enabledSources: ["hid", "camera"],
       attendantPinHash: undefined,
+      defaultLocale: "ja",
     });
 
     const loaded = getKioskConfig();
@@ -88,3 +89,45 @@ describe("kiosk-config", () => {
     expect(getSessionId()).toBeNull();
   });
 });
+
+describe("locale in the kiosk config", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("stores the locale the kiosk was paired with", () => {
+    setKioskConfig({
+      kioskId: "k1",
+      kioskName: "Ward 3",
+      token: "tok",
+      defaultLocale: "en",
+    });
+    expect(getKioskConfig()?.defaultLocale).toBe("en");
+  });
+
+  it("defaults to Japanese when the stored config predates the field", () => {
+    setKioskConfig({ kioskId: "k1", kioskName: "Ward 3", token: "tok" });
+    expect(getKioskConfig()?.defaultLocale).toBe("ja");
+  });
+
+  it("discards a config written by the previous schema version", () => {
+    localStorage.setItem(
+      KIOSK_CONFIG_STORAGE_KEY,
+      JSON.stringify({ schemaVersion: 1, kioskId: "k1", kioskName: "W", token: "t" })
+    );
+    expect(getKioskConfig()).toBeNull();
+  });
+
+  it("ignores a stored locale that is not a supported one", () => {
+    localStorage.setItem(
+      KIOSK_CONFIG_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        kioskId: "k1",
+        kioskName: "W",
+        token: "t",
+        defaultLocale: "de",
+      })
+    );
+    expect(getKioskConfig()?.defaultLocale).toBe("ja");
+  });
+});
+

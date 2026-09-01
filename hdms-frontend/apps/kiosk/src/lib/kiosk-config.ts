@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@hdms/i18n";
+
 export type ScanSourceType = "hid" | "camera" | "manual";
 
 export interface KioskConfig {
@@ -8,9 +10,18 @@ export interface KioskConfig {
   muteEnabled: boolean;
   enabledSources: ScanSourceType[];
   attendantPinHash?: string;
+  /**
+   * The language every session starts in. A per-session toggle overrides it
+   * until idle; this value is what idle resets back to.
+   */
+  defaultLocale: Locale;
 }
 
-export const CURRENT_SCHEMA_VERSION = 1;
+// Bumped from 1: an existing paired kiosk re-reads its config on the next load
+// and is dropped, which forces a re-pair. That is acceptable and deliberate —
+// the alternative is migrating a schema whose only new field has a safe
+// default, and a re-pair is a thirty-second operation at the counter.
+export const CURRENT_SCHEMA_VERSION = 2;
 export const KIOSK_CONFIG_STORAGE_KEY = "hdms_kiosk_config";
 export const KIOSK_SESSION_STORAGE_KEY = "hdms_kiosk_session_id";
 
@@ -37,6 +48,7 @@ export function getKioskConfig(): KioskConfig | null {
       muteEnabled: parsed.muteEnabled ?? false,
       enabledSources: parsed.enabledSources ?? ["hid", "camera", "manual"],
       attendantPinHash: parsed.attendantPinHash,
+      defaultLocale: isLocale(parsed.defaultLocale) ? parsed.defaultLocale : DEFAULT_LOCALE,
     };
   } catch {
     localStorage.removeItem(KIOSK_CONFIG_STORAGE_KEY);
@@ -74,6 +86,7 @@ export function setKioskConfig(
     kioskId: string;
     kioskName: string;
     token: string;
+    defaultLocale?: Locale;
   }
 ): KioskConfig {
   const existing = getKioskConfig();
@@ -86,6 +99,9 @@ export function setKioskConfig(
     enabledSources:
       updates.enabledSources ?? existing?.enabledSources ?? ["hid", "camera", "manual"],
     attendantPinHash: updates.attendantPinHash ?? existing?.attendantPinHash,
+    defaultLocale: isLocale(updates.defaultLocale)
+      ? updates.defaultLocale
+      : (existing?.defaultLocale ?? DEFAULT_LOCALE),
   };
   localStorage.setItem(KIOSK_CONFIG_STORAGE_KEY, JSON.stringify(next));
   notifyConfigListeners();

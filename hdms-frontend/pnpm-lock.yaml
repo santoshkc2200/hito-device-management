@@ -129,6 +129,9 @@ importers:
       '@hdms/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@hdms/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@hdms/scan':
         specifier: workspace:*
         version: link:../../packages/scan
@@ -252,6 +255,9 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8
     devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^7.0.1
+        version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.11(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3)(jiti@2.7.0)(terser@5.50.0)))
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

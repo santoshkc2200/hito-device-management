@@ -1,5 +1,6 @@
 import * as React from "react";
 import { pairKiosk } from "@hdms/api-client";
+import { DEFAULT_LOCALE, isLocale } from "@hdms/i18n";
 import { setKioskConfig } from "@/lib/kiosk-config";
 import { parseProblem } from "@/lib/problem";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ export function PairingScreen({
           kioskId: res.data.kioskId,
           kioskName: res.data.name,
           token: res.data.token,
+          defaultLocale: isLocale(res.data.defaultLocale) ? res.data.defaultLocale : DEFAULT_LOCALE,
         });
 
         if (onPaired) {

@@ -13,6 +13,7 @@
   "dependencies": {
     "@hdms/api-client": "workspace:*",
     "@hdms/domain": "workspace:*",
+    "@hdms/i18n": "workspace:*",
     "@hdms/scan": "workspace:*",
     "@hdms/ui": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
