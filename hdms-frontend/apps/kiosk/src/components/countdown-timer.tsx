@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslator } from "@/i18n";
 
 export interface CountdownRingProps {
   expiresAt: string | null;
@@ -27,6 +28,7 @@ export function CountdownRing({
   showAlways = false,
   isSuspended = false,
 }: CountdownRingProps) {
+  const t = useTranslator();
   const [, setTick] = React.useState(0);
   const [prevSuspended, setPrevSuspended] = React.useState(isSuspended);
   const [frozenSeconds, setFrozenSeconds] = React.useState<number | null>(null);
@@ -78,7 +80,7 @@ export function CountdownRing({
       role="timer"
       aria-live="polite"
       aria-atomic="true"
-      aria-label={`Session expires in ${currentSeconds} seconds`}
+      aria-label={t("countdown.sessionExpiresAriaLabel", { seconds: currentSeconds })}
       data-testid="countdown-ring"
       data-seconds-remaining={currentSeconds}
       className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-sm font-bold bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-500/40 shadow-xs ${className}`}

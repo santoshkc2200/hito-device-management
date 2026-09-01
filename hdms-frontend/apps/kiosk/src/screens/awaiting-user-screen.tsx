@@ -1,6 +1,7 @@
 import { IdCard, Laptop, XCircle } from "lucide-react";
 import type { SessionDevice } from "@hdms/api-client";
 import { Button } from "@/components/ui/button";
+import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
 
 export interface AwaitingUserScreenProps {
@@ -28,6 +29,7 @@ export function AwaitingUserScreen({
   onOpenDiagnostics,
   onOpenManualEntry,
 }: AwaitingUserScreenProps) {
+  const t = useTranslator();
   const deviceStatus = (pendingDevice as any)?.status;
   const isOnLoan = deviceStatus === "on_loan";
 
@@ -49,18 +51,18 @@ export function AwaitingUserScreen({
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary">
             <IdCard className="size-4" />
-            <span>Step 2 of 2: Identification</span>
+            <span>{t("awaitingUser.stepBadge")}</span>
           </div>
 
           <h2
             data-testid="awaiting-user-prompt"
             className="text-kiosk-prompt text-foreground leading-tight"
           >
-            Now scan your ID card
+            {t("awaitingUser.prompt")}
           </h2>
 
           <p className="text-kiosk-body text-muted-foreground">
-            Scan your staff badge to assign or return the scanned device.
+            {t("awaitingUser.hint")}
           </p>
         </div>
 
@@ -77,10 +79,10 @@ export function AwaitingUserScreen({
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-kiosk-badge uppercase tracking-wider text-muted-foreground">
-                    Scanned Device
+                    {t("awaitingUser.scannedDeviceBadge")}
                   </span>
                   <h3 className="text-kiosk-heading text-foreground break-words">
-                    {pendingDevice.name || "Equipment Item"}
+                    {pendingDevice.name || t("awaitingUser.defaultDeviceName")}
                   </h3>
                 </div>
               </div>
@@ -94,13 +96,13 @@ export function AwaitingUserScreen({
                     : "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200"
                 }`}
               >
-                {isOnLoan ? "Currently on loan" : "Available"}
+                {isOnLoan ? t("awaitingUser.statusOnLoan") : t("awaitingUser.statusAvailable")}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm pt-1">
               <div>
-                <span className="text-muted-foreground block text-xs">Asset Tag</span>
+                <span className="text-muted-foreground block text-xs">{t("awaitingUser.assetTagLabel")}</span>
                 <span
                   data-testid="pending-device-asset-tag"
                   className="font-mono text-kiosk-mono-lg font-bold text-foreground tracking-wider"
@@ -110,7 +112,7 @@ export function AwaitingUserScreen({
               </div>
               {(pendingDevice as any)?.category && (
                 <div>
-                  <span className="text-muted-foreground block text-xs">Category</span>
+                  <span className="text-muted-foreground block text-xs">{t("awaitingUser.categoryLabel")}</span>
                   <span className="font-semibold text-foreground text-base">
                     {(pendingDevice as any).category}
                   </span>
@@ -131,7 +133,7 @@ export function AwaitingUserScreen({
             onClick={onCancel}
           >
             <XCircle className="size-6" />
-            <span>Cancel</span>
+            <span>{t("common.cancel")}</span>
           </Button>
         </div>
       </div>

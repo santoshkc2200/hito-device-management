@@ -8,7 +8,9 @@ import {
   UserCheck,
 } from "lucide-react";
 import type { SessionOpenLoan, SessionUser } from "@hdms/api-client";
+import { formatDate as formatI18nDate, useLocale } from "@hdms/i18n";
 import { Button } from "@/components/ui/button";
+import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
 
 export interface AwaitingDeviceScreenProps {
@@ -40,6 +42,8 @@ export function AwaitingDeviceScreen({
   onOpenDiagnostics,
   onOpenManualEntry,
 }: AwaitingDeviceScreenProps) {
+  const t = useTranslator();
+  const { locale } = useLocale();
 
   // Track which loan is currently in confirmation state for two-tap return
   const [confirmingLoanId, setConfirmingLoanId] = React.useState<string | null>(null);
@@ -64,13 +68,10 @@ export function AwaitingDeviceScreen({
   };
 
   const formatDate = (isoString?: string) => {
-    if (!isoString) return "N/A";
+    if (!isoString) return t("common.notAvailable");
     try {
       const date = new Date(isoString);
-      return date.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      });
+      return formatI18nDate(date, locale);
     } catch {
       return isoString;
     }
@@ -124,7 +125,7 @@ export function AwaitingDeviceScreen({
             >
               <UserCheck className="size-4 text-primary" />
               <span>
-                Hello, <strong>{user.fullName}</strong>
+                {t("awaitingDevice.greetingPrefix")}<strong>{user.fullName}</strong>{t("awaitingDevice.greetingSuffix")}
               </span>
               {user.department && (
                 <span className="text-muted-foreground">· {user.department}</span>
@@ -138,10 +139,10 @@ export function AwaitingDeviceScreen({
               data-testid="awaiting-device-prompt"
               className="text-kiosk-prompt text-foreground leading-tight"
             >
-              Scan a device to borrow or return
+              {t("awaitingDevice.prompt")}
             </h2>
             <p className="text-kiosk-body text-muted-foreground">
-              Scan barcode on any device, or tap RETURN on one of your borrowed items below.
+              {t("awaitingDevice.hint")}
             </p>
           </div>
         </div>
@@ -156,10 +157,10 @@ export function AwaitingDeviceScreen({
               id="borrowed-items-heading"
               className="text-lg font-bold tracking-tight text-foreground"
             >
-              Your Active Loans ({openLoans.length})
+              {t("awaitingDevice.loansHeading", { count: openLoans.length })}
             </h3>
             <span className="text-xs text-muted-foreground">
-              Tap RETURN twice to record return
+              {t("awaitingDevice.returnHint")}
             </span>
           </div>
 
@@ -173,10 +174,10 @@ export function AwaitingDeviceScreen({
               </div>
               <div className="space-y-1">
                 <p className="text-lg font-bold text-foreground">
-                  No devices currently borrowed
+                  {t("awaitingDevice.emptyTitle")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Scan any available equipment barcode to borrow it now.
+                  {t("awaitingDevice.emptyHint")}
                 </p>
               </div>
             </div>
@@ -218,11 +219,11 @@ export function AwaitingDeviceScreen({
                         <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                           <span className="inline-flex items-center gap-1">
                             <Calendar className="size-3.5" />
-                            Out: {formatDate(loan.borrowedAt)}
+                            {t("awaitingDevice.borrowedAt", { date: formatDate(loan.borrowedAt) })}
                           </span>
                           {loan.dueAt && (
                             <span className="inline-flex items-center gap-1">
-                              Due: {formatDate(loan.dueAt)}
+                              {t("awaitingDevice.dueAt", { date: formatDate(loan.dueAt) })}
                             </span>
                           )}
                           {/* Overdue Flag: Icon AND Text, not colour alone */}
@@ -234,8 +235,8 @@ export function AwaitingDeviceScreen({
                               <AlertTriangle className="size-3.5 text-warning" />
                               <span>
                                 {overdueDays > 1
-                                  ? `${overdueDays} days overdue`
-                                  : "Overdue"}
+                                  ? t("awaitingDevice.overdueDays", { count: overdueDays })
+                                  : t("awaitingDevice.overdue")}
                               </span>
                             </span>
                           )}
@@ -258,12 +259,12 @@ export function AwaitingDeviceScreen({
                         onClick={() => handleReturnTap(loan.id)}
                         aria-label={
                           isConfirming
-                            ? `Confirm returning ${loan.deviceName}`
-                            : `Return ${loan.deviceName}`
+                            ? t("awaitingDevice.confirmReturnAriaLabel", { name: loan.deviceName })
+                            : t("awaitingDevice.returnAriaLabel", { name: loan.deviceName })
                         }
                       >
                         <CornerDownLeft className="size-4" />
-                        <span>{isConfirming ? "Confirm Return" : "RETURN"}</span>
+                        <span>{isConfirming ? t("common.confirmReturn") : t("common.return")}</span>
                       </Button>
                     </div>
                   </div>
@@ -283,7 +284,7 @@ export function AwaitingDeviceScreen({
             className="min-h-16 w-full text-xl font-bold bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
             onClick={onClose}
           >
-            Done
+            {t("common.done")}
           </Button>
         </div>
       </div>

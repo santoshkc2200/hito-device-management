@@ -1,8 +1,10 @@
 import * as React from "react";
 import { CheckCircle2, CornerDownLeft, Laptop, PackageCheck } from "lucide-react";
 import type { SessionDevice, SessionMessage, OutcomeKind } from "@hdms/api-client";
+import { useLocale } from "@hdms/i18n";
 import { Button } from "@/components/ui/button";
 import { formatHumanDueDate } from "@/lib/date-format";
+import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
 
 export interface SuccessScreenProps {
@@ -38,8 +40,10 @@ export function SuccessScreen({
   onOpenDiagnostics,
   onOpenManualEntry,
 }: SuccessScreenProps) {
+  const t = useTranslator();
+  const { locale } = useLocale();
   const isReturn = kind === "returned";
-  const dueLine = formatHumanDueDate(dueAt);
+  const dueLine = formatHumanDueDate(dueAt, undefined, locale);
 
   // Auto-dismiss after 4 seconds (4000 ms)
   React.useEffect(() => {
@@ -51,8 +55,10 @@ export function SuccessScreen({
 
   const title =
     message?.title ||
-    (isReturn ? "Device Returned Successfully" : "Device Borrowed Successfully");
-  const detail = message?.detail || (isReturn ? "Return confirmed." : "Borrow recorded.");
+    (isReturn ? t("success.returnTitle") : t("success.borrowTitle"));
+  const detail =
+    message?.detail ||
+    (isReturn ? t("success.returnDetail") : t("success.borrowDetail"));
 
   return (
     <ScreenFrame
@@ -96,7 +102,7 @@ export function SuccessScreen({
                   : "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
               }`}
             >
-              {isReturn ? "Return Confirmed" : "Borrow Confirmed"}
+              {isReturn ? t("success.returnBadge") : t("success.borrowBadge")}
             </span>
 
             {itemCount > 1 && (
@@ -105,7 +111,7 @@ export function SuccessScreen({
                 className="inline-flex items-center gap-1.5 font-sans text-xs font-bold px-3 py-1 rounded-full bg-secondary text-secondary-foreground shadow-xs"
               >
                 <PackageCheck className="size-3.5 text-primary" />
-                <span>{itemCount} items</span>
+                <span>{t("success.itemCount", { count: itemCount })}</span>
               </span>
             )}
           </div>
@@ -136,7 +142,7 @@ export function SuccessScreen({
               <div className="text-left">
                 <p className="text-xl font-bold text-foreground">{device.name}</p>
                 <p className="font-mono text-xs font-semibold text-muted-foreground">
-                  Asset Tag: <span className="text-foreground">{device.assetTag}</span>
+                  {t("success.assetTagLabel")}<span className="text-foreground">{device.assetTag}</span>
                 </p>
               </div>
             </div>
@@ -158,7 +164,7 @@ export function SuccessScreen({
         {/* Bottom Actions and Auto-Return Notice */}
         <div className="w-full max-w-lg space-y-4 pt-2">
           <p className="text-sm text-muted-foreground">
-            Scan another device, or tap Done (auto-closing in 4s)
+            {t("success.autoDismissHint")}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -171,7 +177,7 @@ export function SuccessScreen({
                 className="min-h-16 flex-1 text-lg font-bold"
                 onClick={onScanAnother}
               >
-                Scan Another
+                {t("success.scanAnother")}
               </Button>
             )}
 
@@ -183,7 +189,7 @@ export function SuccessScreen({
               className="min-h-16 flex-1 text-xl font-bold bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
               onClick={onDone}
             >
-              Done
+              {t("common.done")}
             </Button>
           </div>
         </div>

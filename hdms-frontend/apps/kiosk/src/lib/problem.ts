@@ -297,15 +297,20 @@ export function isKnownProblemType(type: string): type is KnownProblemType {
   return KNOWN_TYPES.has(type as KnownProblemType);
 }
 
-export function errorMessage(problem: KioskProblem): MappedErrorMessage {
+export function errorMessage(
+  problem: KioskProblem,
+  t?: (key: any, params?: any) => string
+): MappedErrorMessage {
   if (problem.kind !== "unknown-problem" && PROBLEM_CATALOGUE[problem.kind]) {
     const entry = PROBLEM_CATALOGUE[problem.kind];
+    const defaultDetail = t ? t(`problem.${problem.kind}.detail`) : entry.detail;
+    const title = t ? t(`problem.${problem.kind}.title`) : entry.title;
     const detail =
       problem.detail && problem.detail.trim().length > 0 && !problem.detail.includes("http")
         ? problem.detail
-        : entry.detail;
+        : defaultDetail;
     return {
-      title: entry.title,
+      title,
       detail,
       tone: entry.tone,
     };
@@ -318,8 +323,10 @@ export function errorMessage(problem: KioskProblem): MappedErrorMessage {
   );
 
   return {
-    title: "Unable to Complete Request",
-    detail: `Please contact technical support and provide reference code ${problem.supportCode}.`,
+    title: t ? t("problem.fallbackTitle") : "Unable to Complete Request",
+    detail: t
+      ? t("problem.fallbackDetail", { supportCode: problem.supportCode })
+      : `Please contact technical support and provide reference code ${problem.supportCode}.`,
     tone: "error",
   };
 }

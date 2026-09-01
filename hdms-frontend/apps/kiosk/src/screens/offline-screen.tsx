@@ -1,4 +1,5 @@
 import { BookOpen, RefreshCw, WifiOff } from "lucide-react";
+import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
 
 export interface OfflineScreenProps {
@@ -16,6 +17,8 @@ export function OfflineScreen({
   onOpenDiagnostics,
   onOpenManualEntry,
 }: OfflineScreenProps) {
+  const t = useTranslator();
+
   return (
     <ScreenFrame
       kioskName={kioskName}
@@ -47,7 +50,7 @@ export function OfflineScreen({
             data-testid="offline-status-badge"
             className="font-mono text-xs font-bold uppercase tracking-wider px-3.5 py-1 rounded-full bg-muted text-muted-foreground"
           >
-            Reconnecting
+            {t("offline.reconnectingBadge")}
           </span>
 
           {/* Primary Prompt: ≥ 36px font size */}
@@ -55,11 +58,11 @@ export function OfflineScreen({
             data-testid="offline-title"
             className="text-kiosk-prompt text-foreground leading-tight"
           >
-            Reconnecting to hospital network
+            {t("offline.title")}
           </h2>
 
           <p data-testid="offline-subtitle" className="text-kiosk-body text-muted-foreground max-w-lg">
-            This kiosk is temporarily offline and will resume automatically as soon as the connection is restored.
+            {t("offline.subtitle")}
           </p>
         </div>
 
@@ -74,13 +77,13 @@ export function OfflineScreen({
             </div>
             <div className="space-y-2 flex-1">
               <h3 className="text-lg font-bold text-foreground">
-                Paper Register Fallback
+                {t("offline.paperFallbackTitle")}
               </h3>
               <p
                 data-testid="offline-fallback-instruction"
                 className="text-base text-foreground/80 leading-relaxed font-medium"
               >
-                The attendant can record your device loan or return on the paper register in the meantime. You do not need to wait.
+                {t("offline.paperFallbackInstruction")}
               </p>
             </div>
           </div>
@@ -88,7 +91,7 @@ export function OfflineScreen({
 
         {/* Quiet footer notice */}
         <div className="w-full max-w-lg pt-2 text-xs text-muted-foreground">
-          <p>Automatic background reconnect is in progress.</p>
+          <p>{t("offline.reconnectingNotice")}</p>
         </div>
       </div>
     </ScreenFrame>

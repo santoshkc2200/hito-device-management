@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { Outcome, SessionMessage } from "@hdms/api-client";
 import { getOutcomeFeedback } from "@/lib/feedback-config";
+import { useTranslator } from "@/i18n";
 
 export interface FeedbackProps {
   outcome?: Outcome | null;
@@ -15,6 +16,7 @@ export function Feedback({
   className = "",
   onDismiss: _onDismiss,
 }: FeedbackProps) {
+  const t = useTranslator();
   const lastOutcomeIdRef = React.useRef<string | null>(null);
   const [announcedCount, setAnnouncedCount] = React.useState(0);
 
@@ -39,7 +41,7 @@ export function Feedback({
   const IconComponent = feedbackConfig.icon;
 
   const title = message?.title || feedbackConfig.word;
-  const detail = message?.detail || (outcome.kind === "returned" ? "Return confirmed." : "Scan processed.");
+  const detail = message?.detail || (outcome.kind === "returned" ? t("feedback.returnConfirmed") : t("feedback.scanProcessed"));
 
   return (
     <div

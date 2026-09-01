@@ -1,14 +1,16 @@
 import { TIMEZONE, type Locale } from "./locale";
 
-function parse(iso: string | null | undefined): Date | null {
-  if (!iso || typeof iso !== "string" || iso.trim() === "") return null;
-  const date = new Date(iso);
+function parse(input: Date | string | null | undefined): Date | null {
+  if (!input) return null;
+  if (input instanceof Date) return Number.isNaN(input.getTime()) ? null : input;
+  if (typeof input !== "string" || input.trim() === "") return null;
+  const date = new Date(input);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /** Month and day, per locale convention. Gregorian — no Japanese era. */
-export function formatDate(locale: Locale, iso: string | null | undefined): string {
-  const date = parse(iso);
+export function formatDate(locale: Locale, input: Date | string | null | undefined): string {
+  const date = parse(input);
   if (!date) return "";
   return new Intl.DateTimeFormat(locale, {
     month: "short",
@@ -18,8 +20,8 @@ export function formatDate(locale: Locale, iso: string | null | undefined): stri
 }
 
 /** 24-hour clock in both locales — a counter is not the place for am/pm. */
-export function formatTime(locale: Locale, iso: string | null | undefined): string {
-  const date = parse(iso);
+export function formatTime(locale: Locale, input: Date | string | null | undefined): string {
+  const date = parse(input);
   if (!date) return "";
   return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",

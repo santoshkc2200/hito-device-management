@@ -1,6 +1,7 @@
 import * as React from "react";
 import { type CameraSource } from "@hdms/scan";
 import { Button } from "@/components/ui/button";
+import { useTranslator } from "@/i18n";
 
 export interface CameraOverlayProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ function CameraOverlayContent({
   onManualEntry,
   cameraSource,
 }: Omit<CameraOverlayProps, "isOpen">) {
+  const t = useTranslator();
   const [hasPermissionError, setHasPermissionError] = React.useState(false);
   const [torchEnabled, setTorchEnabled] = React.useState(false);
   const [hasTorchCapability, setHasTorchCapability] = React.useState(false);
@@ -87,7 +89,7 @@ function CameraOverlayContent({
           id="camera-viewfinder-title"
           className="text-2xl font-bold tracking-tight text-white"
         >
-          Camera Barcode Scanner
+          {t("camera.title")}
         </h2>
         {hasTorchCapability && !hasPermissionError && (
           <Button
@@ -98,7 +100,7 @@ function CameraOverlayContent({
             onClick={handleToggleTorch}
             aria-pressed={torchEnabled}
           >
-            {torchEnabled ? "Turn Torch Off" : "Turn Torch On"}
+            {torchEnabled ? t("camera.torchOff") : t("camera.torchOn")}
           </Button>
         )}
       </div>
@@ -108,11 +110,10 @@ function CameraOverlayContent({
         {hasPermissionError ? (
           <div className="w-full rounded-2xl border border-destructive/40 bg-destructive/10 p-8 text-center space-y-6">
             <h3 className="text-2xl font-semibold text-white">
-              Camera Access Blocked
+              {t("camera.permissionBlockedTitle")}
             </h3>
             <p className="text-lg text-white/80 leading-relaxed">
-              Camera permission was denied or is unavailable on this device.
-              Please check Settings &gt; Safari &gt; Camera permissions.
+              {t("camera.permissionBlockedDetail")}
             </p>
             {onManualEntry && (
               <div className="pt-2">
@@ -126,7 +127,7 @@ function CameraOverlayContent({
                     onManualEntry();
                   }}
                 >
-                  Attendant Manual Entry (PIN)
+                  {t("camera.manualEntryButton")}
                 </Button>
               </div>
             )}
@@ -151,7 +152,7 @@ function CameraOverlayContent({
             {/* Instructions Prompt */}
             <div className="absolute bottom-4 z-20 rounded-full bg-black/75 px-6 py-2 text-center">
               <p className="text-base font-medium text-white">
-                Align barcode or QR code inside the target frame
+                {t("camera.instruction")}
               </p>
             </div>
           </div>
@@ -166,7 +167,7 @@ function CameraOverlayContent({
           className="min-h-16 w-full text-xl font-bold bg-white text-black hover:bg-white/90 border-transparent shadow-lg"
           onClick={onClose}
         >
-          Cancel
+          {t("common.cancel")}
         </Button>
       </div>
     </div>

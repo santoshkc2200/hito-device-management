@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE, isLocale } from "@hdms/i18n";
 import { setKioskConfig } from "@/lib/kiosk-config";
 import { parseProblem } from "@/lib/problem";
 import { Button } from "@/components/ui/button";
+import { useTranslator } from "@/i18n";
 import { CheckCircle2, Delete, KeyRound, Loader2, RotateCcw } from "lucide-react";
 
 export interface PairingScreenProps {
@@ -17,6 +18,7 @@ export function PairingScreen({
   initialSupportCode,
   initialError,
 }: PairingScreenProps) {
+  const t = useTranslator();
   const [code, setCode] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(
@@ -71,7 +73,7 @@ export function PairingScreen({
         if (res.error || !res.data) {
           const problem = await parseProblem(res.error);
           setErrorMessage(
-            problem.detail || problem.title || "Invalid or expired pairing code."
+            problem.detail || problem.title || t("pairing.defaultError")
           );
           setSupportCode(problem.supportCode);
           setIsSubmitting(false);
@@ -95,14 +97,14 @@ export function PairingScreen({
       } catch (err) {
         const problem = await parseProblem(err);
         setErrorMessage(
-          problem.detail || problem.title || "Failed to pair kiosk. Please try again."
+          problem.detail || problem.title || t("pairing.networkError")
         );
         setSupportCode(problem.supportCode);
       } finally {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, onPaired]
+    [isSubmitting, onPaired, t]
   );
 
   // Support physical hardware typing
@@ -145,10 +147,10 @@ export function PairingScreen({
           data-testid="pairing-title"
           className="text-kiosk-heading text-foreground"
         >
-          This iPad is not yet paired
+          {t("pairing.title")}
         </h1>
         <p className="text-kiosk-body text-muted-foreground max-w-md mx-auto">
-          Ask an administrator for a 6-digit pairing code from the Admin Console.
+          {t("pairing.subtitle")}
         </p>
       </header>
 
@@ -157,7 +159,7 @@ export function PairingScreen({
         {/* Code Input Display */}
         <div className="space-y-3">
           <label htmlFor="pairing-code-input" className="sr-only">
-            6-Digit Pairing Code
+            {t("pairing.codeLabel")}
           </label>
           <div
             data-testid="pairing-code-display"
@@ -199,7 +201,7 @@ export function PairingScreen({
             }}
             onPaste={handlePaste}
             className="sr-only"
-            aria-label="6-Digit Pairing Code"
+            aria-label={t("pairing.codeLabel")}
           />
 
           {/* Error message */}
@@ -212,7 +214,7 @@ export function PairingScreen({
               <p>{errorMessage}</p>
               {supportCode && (
                 <p className="mt-1 font-mono text-xs text-destructive/80">
-                  Support Code: <strong>{supportCode}</strong>
+                  {t("pairing.supportCodeLabel")}<strong>{supportCode}</strong>
                 </p>
               )}
             </div>
@@ -232,7 +234,7 @@ export function PairingScreen({
               disabled={isSubmitting}
               onClick={() => handleDigitClick(digit)}
               className="flex min-h-[58px] min-w-[58px] items-center justify-center rounded-xl border border-border/80 bg-background font-mono text-2xl font-bold text-foreground shadow-2xs transition-all active:scale-95 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-              aria-label={`Digit ${digit}`}
+              aria-label={t("pairing.digitAriaLabel", { digit })}
             >
               {digit}
             </button>
@@ -245,7 +247,7 @@ export function PairingScreen({
             disabled={isSubmitting || code.length === 0}
             onClick={handleClear}
             className="flex min-h-[58px] min-w-[58px] items-center justify-center rounded-xl border border-border/80 bg-muted/60 font-bold text-muted-foreground shadow-2xs transition-all active:scale-95 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30"
-            aria-label="Clear code"
+            aria-label={t("pairing.clearAriaLabel")}
           >
             <RotateCcw className="size-6" />
           </button>
@@ -257,7 +259,7 @@ export function PairingScreen({
             disabled={isSubmitting}
             onClick={() => handleDigitClick("0")}
             className="flex min-h-[58px] min-w-[58px] items-center justify-center rounded-xl border border-border/80 bg-background font-mono text-2xl font-bold text-foreground shadow-2xs transition-all active:scale-95 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-            aria-label="Digit 0"
+            aria-label={t("pairing.digitAriaLabel", { digit: "0" })}
           >
             0
           </button>
@@ -269,7 +271,7 @@ export function PairingScreen({
             disabled={isSubmitting || code.length === 0}
             onClick={handleBackspace}
             className="flex min-h-[58px] min-w-[58px] items-center justify-center rounded-xl border border-border/80 bg-muted/60 font-bold text-muted-foreground shadow-2xs transition-all active:scale-95 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30"
-            aria-label="Backspace"
+            aria-label={t("pairing.backspaceAriaLabel")}
           >
             <Delete className="size-6" />
           </button>
@@ -287,12 +289,12 @@ export function PairingScreen({
           {isSubmitting ? (
             <>
               <Loader2 className="size-5 animate-spin" />
-              <span>Pairing Kiosk...</span>
+              <span>{t("pairing.pairingInProgress")}</span>
             </>
           ) : (
             <>
               <CheckCircle2 className="size-5" />
-              <span>Pair Kiosk</span>
+              <span>{t("pairing.pairingButton")}</span>
             </>
           )}
         </Button>
@@ -300,7 +302,7 @@ export function PairingScreen({
 
       {/* Footer */}
       <footer className="w-full max-w-xl text-center pt-4 text-xs text-muted-foreground">
-        <span>Hospital Device Management System · Kiosk Appliance Setup</span>
+        <span>{t("common.kioskApplianceSetup")}</span>
       </footer>
     </div>
   );

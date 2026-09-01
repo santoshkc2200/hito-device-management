@@ -1,6 +1,7 @@
 import * as React from "react";
 import { IdCard, QrCode, ScanLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
 
 export interface IdleScreenProps {
@@ -26,6 +27,8 @@ export function IdleScreen({
   onOpenDiagnostics,
   onOpenManualEntry,
 }: IdleScreenProps) {
+  const t = useTranslator();
+
   React.useEffect(() => {
     if (
       typeof performance !== "undefined" &&
@@ -57,9 +60,9 @@ export function IdleScreen({
             <span>
               {isScanning
                 ? scannerReady
-                  ? "Ready to Scan"
-                  : "Scanner Not Detected"
-                : "Ready for Scanner Input"}
+                  ? t("idle.readyToScan")
+                  : t("idle.scannerNotDetected")
+                : t("idle.readyForScannerInput")}
             </span>
           </div>
           {isScanning && (
@@ -70,8 +73,8 @@ export function IdleScreen({
               className="mx-auto max-w-lg text-kiosk-body text-muted-foreground"
             >
               {scannerReady
-                ? "Scan with the device scanner, or use the camera instead."
-                : "Device scanner not detected."}
+                ? t("idle.scanGuidanceReady")
+                : t("idle.scanGuidanceNotDetected")}
             </p>
           )}
         </div>
@@ -92,7 +95,7 @@ export function IdleScreen({
               <span className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <ScanLine className="size-10" aria-hidden="true" />
               </span>
-              <span>Start</span>
+              <span>{t("common.start")}</span>
             </Button>
           )}
 
@@ -106,8 +109,7 @@ export function IdleScreen({
                 data-testid="idle-prompt"
                 className="text-kiosk-body leading-snug font-semibold text-sm text-muted-foreground text-card-foreground"
               >
-                Tap Start, then scan your staff ID card or a device barcode in
-                any order.
+                {t("idle.prompt")}
               </h2>
             </div>
 
@@ -119,7 +121,7 @@ export function IdleScreen({
                 <IdCard className="size-7" aria-hidden="true" />
               </div>
               <div className="min-w-0 space-y-0.5">
-                <p className="text-primary font-semibold">Staff ID Card</p>
+                <p className="text-primary font-semibold">{t("idle.staffIdCard")}</p>
               </div>
             </div>
 
@@ -131,7 +133,7 @@ export function IdleScreen({
                 <QrCode className="size-7" aria-hidden="true" />
               </div>
               <div className="min-w-0 space-y-0.5">
-                <p className="text-primary font-semibold">Device Barcode</p>
+                <p className="text-primary font-semibold">{t("idle.deviceBarcode")}</p>
               </div>
             </div>
           </div>
@@ -143,8 +145,7 @@ export function IdleScreen({
             data-testid="scanner-wake-hint"
             className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-6 py-3 text-sm font-medium text-amber-900 dark:text-amber-200"
           >
-            Scanner in power-saving mode — press the scanner trigger once to
-            wake it.
+            {t("idle.scannerWakeHint")}
           </div>
         )}
       </div>

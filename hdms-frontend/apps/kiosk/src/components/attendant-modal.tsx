@@ -4,117 +4,116 @@ import {
   inspectToken,
   validateToken,
 } from "@hdms/domain";
-
-
 import type { ManualSource } from "@hdms/scan";
 import { Button } from "@/components/ui/button";
-import { getKioskConfig, unpairKiosk } from "@/lib/kiosk-config";
+import { getKioskConfig, clearKioskConfig } from "@/lib/kiosk-config";
 import { CheckCircle2, Delete, LogOut, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { useTranslator } from "@/i18n";
 
 export interface AttendantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  manualSource?: ManualSource | null;
-  onScan?: (token: string) => void;
+  onScan?: (barcode: string) => void;
+  manualSource?: ManualSource;
   onUnpair?: () => void;
 }
 
-const INACTIVITY_TIMEOUT_MS = 60_000;
+const DEFAULT_PIN = "1234";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 60;
-const DEFAULT_PIN = "1234";
+const INACTIVITY_TIMEOUT_MS = 60_000;
 
-// The 32 Crockford Base32 characters
-const CROCKFORD_CHARS = Array.from(CROCKFORD_ALPHABET);
-
-// Extra check-only symbols in mod-37
+// The 32 Crockford characters + extra check symbols (* ~ $ = U)
+const CROCKFORD_CHARS = CROCKFORD_ALPHABET.split("");
 const CHECK_ONLY_CHARS = ["*", "~", "$", "=", "U"];
 
 export function AttendantModal({
   isOpen,
   onClose,
-  manualSource,
   onScan,
+  manualSource,
   onUnpair,
 }: AttendantModalProps) {
+  const t = useTranslator();
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [pinInput, setPinInput] = React.useState("");
   const [pinError, setPinError] = React.useState<string | null>(null);
   const [failedAttempts, setFailedAttempts] = React.useState(0);
   const [isLockedOut, setIsLockedOut] = React.useState(false);
   const [lockoutRemaining, setLockoutRemaining] = React.useState(0);
+  const [tokenInput, setTokenInput] = React.useState("HD-U-");
   const [showUnpairConfirm, setShowUnpairConfirm] = React.useState(false);
 
-  // Keypad token state
-  const [tokenInput, setTokenInput] = React.useState("HD-U-");
+  const idleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lockoutTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   const config = getKioskConfig();
 
-  // Reset state on close
-  const handleClose = React.useCallback(() => {
-    setPinInput("");
-    setPinError(null);
-    setIsAuthenticated(false);
-    setShowUnpairConfirm(false);
-    setTokenInput("HD-U-");
-    onClose();
-  }, [onClose]);
-
-  const handleUnpairConfirm = React.useCallback(() => {
-    unpairKiosk();
-    if (onUnpair) {
-      onUnpair();
-    }
-    handleClose();
-  }, [onUnpair, handleClose]);
-
-  // Watchdog: 60s idle timeout
-  const idleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  // Reset idle timer on any user interaction
   const resetIdleTimer = React.useCallback(() => {
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
     }
-    idleTimerRef.current = setTimeout(() => {
-      handleClose();
-    }, INACTIVITY_TIMEOUT_MS);
-  }, [handleClose]);
+    if (isOpen) {
+      idleTimerRef.current = setTimeout(() => {
+        handleClose();
+      }, INACTIVITY_TIMEOUT_MS);
+    }
+  }, [isOpen]);
 
+  // Clean close and reset state
+  const handleClose = React.useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    setIsAuthenticated(false);
+    setPinInput("");
+    setPinError(null);
+    setTokenInput("HD-U-");
+    setShowUnpairConfirm(false);
+    onClose();
+  }, [onClose]);
+
+  // Clean unpair station and invoke unpair callback
+  const handleUnpairConfirm = () => {
+    clearKioskConfig();
+    handleClose();
+    if (onUnpair) {
+      onUnpair();
+    } else {
+      window.location.reload();
+    }
+  };
+
+  // Start idle timer when modal opens
   React.useEffect(() => {
     if (isOpen) {
       resetIdleTimer();
-    } else {
-      if (idleTimerRef.current) {
-        clearTimeout(idleTimerRef.current);
-        idleTimerRef.current = null;
-      }
     }
     return () => {
-      if (idleTimerRef.current) {
-        clearTimeout(idleTimerRef.current);
-      }
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
   }, [isOpen, resetIdleTimer]);
 
-  // Lockout countdown timer
+  // Handle lockout countdown interval
   React.useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-    if (isLockedOut && lockoutRemaining > 0) {
-      timer = setInterval(() => {
+    if (isLockedOut) {
+      lockoutTimerRef.current = setInterval(() => {
         setLockoutRemaining((prev) => {
           if (prev <= 1) {
+            if (lockoutTimerRef.current) clearInterval(lockoutTimerRef.current);
             setIsLockedOut(false);
             setFailedAttempts(0);
+            setPinError(null);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
     }
+
     return () => {
-      if (timer) clearInterval(timer);
+      if (lockoutTimerRef.current) clearInterval(lockoutTimerRef.current);
     };
-  }, [isLockedOut, lockoutRemaining]);
+  }, [isLockedOut]);
 
   if (!isOpen) return null;
 
@@ -139,9 +138,9 @@ export function AttendantModal({
       if (nextAttempts >= MAX_FAILED_ATTEMPTS) {
         setIsLockedOut(true);
         setLockoutRemaining(LOCKOUT_SECONDS);
-        setPinError("Too many failed attempts. Locked out for 60 seconds.");
+        setPinError(t("attendant.pinLockout"));
       } else {
-        setPinError(`Incorrect PIN. Attempt ${nextAttempts} of ${MAX_FAILED_ATTEMPTS}.`);
+        setPinError(t("attendant.pinIncorrect", { attempt: nextAttempts, max: MAX_FAILED_ATTEMPTS }));
       }
       setPinInput("");
     }
@@ -174,11 +173,9 @@ export function AttendantModal({
     setTokenInput("HD-U-");
   };
 
-
   const handleSetPrefix = (prefix: "HD-U-" | "HD-D-") => {
     resetIdleTimer();
     setTokenInput((prev) => {
-      // If current input already starts with HD-U- or HD-D-, swap the prefix
       if (prev.startsWith("HD-U-") || prev.startsWith("HD-D-")) {
         return prefix + prev.slice(5);
       }
@@ -210,7 +207,6 @@ export function AttendantModal({
       data-testid="attendant-modal"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
       onClick={resetIdleTimer}
-      onKeyDown={resetIdleTimer}
     >
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-6">
         {/* Header */}
@@ -222,13 +218,13 @@ export function AttendantModal({
             <div>
               <h2 id="attendant-modal-title" className="text-xl font-bold text-foreground">
                 {!isAuthenticated
-                  ? "Attendant Authentication"
-                  : "Attendant Manual Token Entry"}
+                  ? t("attendant.title")
+                  : t("attendant.tokenEntryTitle")}
               </h2>
               <p className="text-xs text-muted-foreground">
                 {!isAuthenticated
-                  ? "Enter authorized attendant PIN to access manual token input"
-                  : "Crockford Base32 keypad for unreadable barcodes (FR-62)"}
+                  ? t("attendant.pinSubtitle")
+                  : t("attendant.tokenEntrySubtitle")}
               </p>
             </div>
           </div>
@@ -238,7 +234,7 @@ export function AttendantModal({
             size="icon-lg"
             className="min-h-12 min-w-12 text-muted-foreground hover:text-foreground"
             onClick={handleClose}
-            aria-label="Close modal"
+            aria-label={t("common.close")}
           >
             <X className="size-6" />
           </Button>
@@ -256,7 +252,7 @@ export function AttendantModal({
                 htmlFor="attendant-pin"
                 className="block text-sm font-semibold text-foreground"
               >
-                Attendant 4–6 Digit PIN
+                {t("attendant.pinLabel")}
               </label>
               <input
                 id="attendant-pin"
@@ -269,7 +265,7 @@ export function AttendantModal({
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
                 className="w-full rounded-xl border border-input bg-background px-4 py-3 text-center font-mono text-3xl tracking-[0.5em] text-foreground outline-none focus:border-ring focus:ring-2 disabled:opacity-50"
-                placeholder="••••"
+                placeholder={t("attendant.pinPlaceholder")}
                 autoFocus
               />
 
@@ -289,8 +285,7 @@ export function AttendantModal({
                   className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
                   role="alert"
                 >
-                  Lockout active: please wait <strong>{lockoutRemaining}s</strong> before
-                  trying again.
+                  {t("attendant.lockoutActive", { seconds: lockoutRemaining })}
                 </div>
               )}
             </div>
@@ -303,7 +298,7 @@ export function AttendantModal({
                 className="min-h-14 min-w-28 text-base font-semibold"
                 onClick={handleClose}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -312,7 +307,7 @@ export function AttendantModal({
                 className="min-h-14 min-w-36 text-base font-bold"
                 disabled={isLockedOut || pinInput.trim().length < 4}
               >
-                Unlock Keypad
+                {t("common.unlock")}
               </Button>
             </div>
           </form>
@@ -327,11 +322,10 @@ export function AttendantModal({
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-foreground">
-                Unpair this iPad?
+                {t("attendant.unpairConfirmTitle")}
               </h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                This will clear the kiosk identity and bearer token from this device.
-                The iPad will immediately return to the pairing screen to be redeployed to another counter.
+                {t("attendant.unpairConfirmBody")}
               </p>
             </div>
             <div className="flex items-center justify-center gap-4 pt-2">
@@ -342,7 +336,7 @@ export function AttendantModal({
                 className="min-h-14 min-w-32 text-base font-semibold"
                 onClick={() => setShowUnpairConfirm(false)}
               >
-                Back
+                {t("common.cancel")}
               </Button>
               <Button
                 type="button"
@@ -353,7 +347,7 @@ export function AttendantModal({
                 onClick={handleUnpairConfirm}
               >
                 <LogOut className="size-5" />
-                Confirm Unpair
+                {t("attendant.unpairConfirmButton")}
               </Button>
             </div>
           </div>
@@ -374,7 +368,7 @@ export function AttendantModal({
                   className="min-h-10 px-4 text-xs font-bold"
                   onClick={() => handleSetPrefix("HD-U-")}
                 >
-                  HD-U- (Staff ID)
+                  {t("attendant.staffPrefixButton")}
                 </Button>
                 <Button
                   type="button"
@@ -383,7 +377,7 @@ export function AttendantModal({
                   className="min-h-10 px-4 text-xs font-bold"
                   onClick={() => handleSetPrefix("HD-D-")}
                 >
-                  HD-D- (Device)
+                  {t("attendant.devicePrefixButton")}
                 </Button>
               </div>
 
@@ -412,17 +406,17 @@ export function AttendantModal({
                     data-testid="token-validation-hint"
                     className="text-xs font-medium text-amber-700 dark:text-amber-300"
                   >
-                    {inspection.errorMessage ?? "Enter full 17-character token code"}
+                    {inspection.errorMessage ?? t("attendant.tokenLength")}
                   </p>
                 ) : (
                   <p className="text-xs font-medium text-green-700 dark:text-green-400">
-                    Checksum verified. Ready to submit to lending flow.
+                    {t("attendant.tokenValid")}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Crockford 32-Character Keypad Grid (Touch Targets ≥ 56px) */}
+            {/* Crockford 32-Character Keypad Grid */}
             <div
               data-testid="keypad-grid"
               className="grid grid-cols-6 sm:grid-cols-8 gap-2 max-h-[42vh] overflow-y-auto p-1"
@@ -472,7 +466,7 @@ export function AttendantModal({
                 data-testid="keypad-key-backspace"
                 onClick={handleBackspace}
                 className="flex min-h-[56px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-muted font-bold text-muted-foreground shadow-xs transition-all active:scale-95 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Backspace"
+                aria-label={t("attendant.backspaceAriaLabel")}
               >
                 <Delete className="size-6" />
               </button>
@@ -483,7 +477,7 @@ export function AttendantModal({
                 data-testid="keypad-key-clear"
                 onClick={handleClear}
                 className="flex min-h-[56px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-muted font-bold text-muted-foreground shadow-xs transition-all active:scale-95 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Clear all"
+                aria-label={t("attendant.clearAriaLabel")}
               >
                 <RotateCcw className="size-5" />
               </button>
@@ -499,7 +493,7 @@ export function AttendantModal({
                   className="min-h-14 min-w-28 text-base font-semibold"
                   onClick={handleClose}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -510,7 +504,7 @@ export function AttendantModal({
                   onClick={() => setShowUnpairConfirm(true)}
                 >
                   <LogOut className="size-4" />
-                  <span>Unpair iPad</span>
+                  <span>{t("attendant.unpairKioskButton")}</span>
                 </Button>
               </div>
               <Button
@@ -522,7 +516,7 @@ export function AttendantModal({
                 onClick={handleSubmitToken}
               >
                 <CheckCircle2 className="size-5" />
-                Submit Token
+                {t("attendant.submitScan")}
               </Button>
             </div>
           </div>

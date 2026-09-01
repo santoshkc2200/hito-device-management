@@ -3,6 +3,7 @@ import { AlertCircle, FileText, Info } from "lucide-react";
 import type { SessionMessage, MessageTone } from "@hdms/api-client";
 import { errorMessage, type KioskProblem } from "@/lib/problem";
 import { Button } from "@/components/ui/button";
+import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
 
 export interface BlockedScreenProps {
@@ -30,6 +31,8 @@ export function BlockedScreen({
   onOpenDiagnostics,
   onOpenManualEntry,
 }: BlockedScreenProps) {
+  const t = useTranslator();
+
   // Auto-dismiss after 8 seconds (8000 ms)
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -38,19 +41,19 @@ export function BlockedScreen({
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
-  const mappedProblem = problem ? errorMessage(problem) : null;
+  const mappedProblem = problem ? errorMessage(problem, t) : null;
 
   const title =
     message?.title ||
     mappedProblem?.title ||
     problem?.title ||
-    "Action Not Completed";
+    t("blocked.defaultTitle");
 
   const detail =
     message?.detail ||
     mappedProblem?.detail ||
     problem?.detail ||
-    "This item cannot be issued right now. Please record your checkout on the paper register or contact the equipment administrator.";
+    t("blocked.defaultDetail");
 
   const tone: MessageTone | string = message?.tone || mappedProblem?.tone || "warning";
 
@@ -100,7 +103,7 @@ export function BlockedScreen({
             data-testid="blocked-tone-badge"
             className={`font-mono text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${toneBadge}`}
           >
-            Notice
+            {t("blocked.noticeBadge")}
           </span>
 
           {/* Primary Reason Title: ≥ 36px font size */}
@@ -123,7 +126,7 @@ export function BlockedScreen({
             </div>
             <div className="space-y-2 flex-1">
               <h3 className="text-base font-bold text-foreground">
-                Hospital Guidance
+                {t("blocked.guidanceHeading")}
               </h3>
               <p
                 data-testid="blocked-detail"
@@ -138,7 +141,7 @@ export function BlockedScreen({
         {/* OK Action Button (≥ 64px target) and Auto-Dismiss Notice */}
         <div className="w-full max-w-lg space-y-3 pt-2">
           <p className="text-sm text-muted-foreground">
-            Auto-dismissing in 8 seconds
+            {t("blocked.autoDismissHint")}
           </p>
 
           <Button
@@ -149,7 +152,7 @@ export function BlockedScreen({
             className="min-h-16 w-full text-xl font-bold bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
             onClick={onDismiss}
           >
-            OK
+            {t("common.ok")}
           </Button>
         </div>
       </div>

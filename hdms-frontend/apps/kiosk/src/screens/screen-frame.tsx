@@ -2,6 +2,7 @@ import * as React from "react";
 import { Camera, QrCode, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
+import { useTranslator } from "@/i18n";
 
 export interface ScreenFrameProps {
   kioskName?: string;
@@ -30,6 +31,7 @@ export function ScreenFrame({
   children,
   className = "",
 }: ScreenFrameProps) {
+  const t = useTranslator();
   const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handlePointerDown = () => {
@@ -65,7 +67,7 @@ export function ScreenFrame({
             onDoubleClick={() => onOpenManualEntry?.()}
             role="button"
             tabIndex={0}
-            aria-label={`${kioskName} (long-press for attendant entry)`}
+            aria-label={t("header.longPressAttendantAriaLabel", { name: kioskName })}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 onOpenManualEntry?.();
@@ -94,9 +96,9 @@ export function ScreenFrame({
               >
                 {scannerReady
                   ? scannerFresh
-                    ? "Scanner Ready"
-                    : "Scanner Idle — press trigger once to wake"
-                  : "Scanner Disconnected"}
+                    ? t("header.scannerReady")
+                    : t("header.scannerIdle")
+                  : t("header.scannerDisconnected")}
               </span>
             </div>
           </div>
@@ -122,10 +124,10 @@ export function ScreenFrame({
               size="lg"
               className="min-h-12 min-w-12 gap-2 text-base font-semibold"
               onClick={onToggleCamera}
-              aria-label="Toggle camera barcode scanner"
+              aria-label={t("header.cameraAriaLabel")}
             >
               <Camera className="size-5 text-primary" />
-              <span>Camera</span>
+              <span>{t("header.cameraButton")}</span>
             </Button>
           )}
 
@@ -136,8 +138,8 @@ export function ScreenFrame({
               size="icon-lg"
               className="min-h-12 min-w-12 text-muted-foreground hover:text-foreground"
               onClick={onOpenDiagnostics}
-              aria-label="Attendant hardware diagnostics"
-              title="Attendant diagnostics"
+              aria-label={t("header.diagnosticsAriaLabel")}
+              title={t("header.diagnosticsTitle")}
             >
               <ShieldAlert className="size-5" />
             </Button>
@@ -156,7 +158,7 @@ export function ScreenFrame({
       <footer className="flex w-full items-center justify-between border-t border-border bg-card/60 px-6 py-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <QrColorIcon />
-          <span>Hospital Device Management System</span>
+          <span>{t("common.hospitalSystem")}</span>
         </div>
         <div>
           {supportCode && (

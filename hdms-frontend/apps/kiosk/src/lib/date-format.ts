@@ -1,7 +1,15 @@
-export function formatHumanDueDate(
+import { formatDate, formatTime, translate, type Locale } from "@hdms/i18n";
+import { catalogue } from "@/i18n";
+
+export interface DueDateParts {
+  kind: "today" | "tomorrow" | "other";
+  date: Date;
+}
+
+export function dueDateParts(
   dueAt?: string | null,
   baseDate = new Date()
-): string | null {
+): DueDateParts | null {
   if (!dueAt || typeof dueAt !== "string" || dueAt.trim() === "") {
     return null;
   }
@@ -12,16 +20,14 @@ export function formatHumanDueDate(
       return null;
     }
 
-    const timeStr = target.toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-
     const isSameDay =
       target.getFullYear() === baseDate.getFullYear() &&
       target.getMonth() === baseDate.getMonth() &&
       target.getDate() === baseDate.getDate();
+
+    if (isSameDay) {
+      return { kind: "today", date: target };
+    }
 
     const tomorrow = new Date(baseDate);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -31,21 +37,36 @@ export function formatHumanDueDate(
       target.getMonth() === tomorrow.getMonth() &&
       target.getDate() === tomorrow.getDate();
 
-    if (isSameDay) {
-      return `Please return by today, ${timeStr}`;
-    }
-
     if (isTomorrow) {
-      return `Please return by tomorrow, ${timeStr}`;
+      return { kind: "tomorrow", date: target };
     }
 
-    const dateStr = target.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-
-    return `Please return by ${dateStr}, ${timeStr}`;
+    return { kind: "other", date: target };
   } catch {
     return null;
   }
+}
+
+export function formatHumanDueDate(
+  dueAt?: string | null,
+  baseDate = new Date(),
+  locale: Locale = "en"
+): string | null {
+  const parts = dueDateParts(dueAt, baseDate);
+  if (!parts) {
+    return null;
+  }
+
+  const time = formatTime(locale, parts.date);
+
+  if (parts.kind === "today") {
+    return translate(catalogue, locale, "outcome.dueToday", { time });
+  }
+
+  if (parts.kind === "tomorrow") {
+    return translate(catalogue, locale, "outcome.dueTomorrow", { time });
+  }
+
+  const date = formatDate(locale, parts.date);
+  return translate(catalogue, locale, "outcome.dueOther", { date, time });
 }
