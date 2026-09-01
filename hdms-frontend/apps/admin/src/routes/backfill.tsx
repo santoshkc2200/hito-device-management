@@ -1117,7 +1117,7 @@ function BackfillPage() {
                         </td>
                         <td className="px-3 py-2">
                           {serverAction ?? row.action ?? (
-                            <span className="text-muted-foreground">auto</span>
+                            <span className="text-muted-foreground">{t("backfill.autoFallback")}</span>
                           )}
                           {row.actionOverridden && (
                             <Badge variant="outline" className="ml-1 text-[10px]">{t("backfill.overrideBadge")}</Badge>

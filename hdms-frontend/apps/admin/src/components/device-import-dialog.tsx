@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useT } from "@/i18n";
 
 interface DeviceImportDialogProps {
   open: boolean;
@@ -38,6 +39,7 @@ export function DeviceImportDialog({
   onOpenChange,
   onPrintLabels,
 }: DeviceImportDialogProps) {
+  const t = useT();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,7 +75,7 @@ export function DeviceImportDialog({
         throw new Error(
           (resp.error as { detail?: string; title?: string }).detail ||
             (resp.error as { title?: string }).title ||
-            "Failed to parse CSV file",
+            t("deviceImportDialog.failedToParseCsv"),
         );
       }
       return resp.data as ImportPreview;
@@ -83,7 +85,7 @@ export function DeviceImportDialog({
       setStep("preview");
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to validate CSV");
+      toast.error(err.message || t("deviceImportDialog.failedToValidateCsv"));
     },
   });
 
@@ -96,7 +98,7 @@ export function DeviceImportDialog({
         throw new Error(
           (resp.error as { detail?: string; title?: string }).detail ||
             (resp.error as { title?: string }).title ||
-            "Failed to commit import",
+            t("deviceImportDialog.failedToCommit"),
         );
       }
       return resp.data as ImportResult;
@@ -106,7 +108,10 @@ export function DeviceImportDialog({
       setStep("done");
       await queryClient.invalidateQueries({ queryKey: ["devices"] });
       toast.success(
-        `Import completed: ${data.createdCount} created, ${data.updatedCount} updated`,
+        t("deviceImportDialog.importCompletedToast", {
+          created: data.createdCount,
+          updated: data.updatedCount,
+        }),
       );
 
       // Fetch newly created devices for optional label printing
@@ -126,7 +131,7 @@ export function DeviceImportDialog({
       }
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to commit import");
+      toast.error(err.message || t("deviceImportDialog.failedToCommit"));
     },
   });
 
@@ -161,17 +166,15 @@ export function DeviceImportDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            {step === "upload" && "Import devices from CSV"}
-            {step === "preview" && "Preview device import"}
-            {step === "done" && "Import summary & label generation"}
+            {step === "upload" && t("deviceImportDialog.titleUpload")}
+            {step === "preview" && t("deviceImportDialog.titlePreview")}
+            {step === "done" && t("deviceImportDialog.titleDone")}
           </DialogTitle>
           <DialogDescription>
-            {step === "upload" &&
-              "Upload a CSV file of equipment. Columns: asset_tag, name, and category are required. Optional: manufacturer, model, serial_no, home_location, notes, acquired_on (YYYY-MM-DD)."}
+            {step === "upload" && t("deviceImportDialog.descUpload")}
             {step === "preview" &&
-              `Review validated rows from ${fileName} before writing to the catalog.`}
-            {step === "done" &&
-              "Import batch committed. Review created devices and generate labels for newly added equipment."}
+              t("deviceImportDialog.descPreview", { fileName })}
+            {step === "done" && t("deviceImportDialog.descDone")}
           </DialogDescription>
         </DialogHeader>
 
@@ -183,9 +186,9 @@ export function DeviceImportDialog({
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="mb-2 size-8 text-muted-foreground" />
-              <p className="text-sm font-medium">Click to select CSV file</p>
+              <p className="text-sm font-medium">{t("deviceImportDialog.clickToSelectCsv")}</p>
               <p className="text-xs text-muted-foreground">
-                devices.csv with columns: asset_tag, name, category, manufacturer, model, serial_no, home_location, notes, acquired_on
+                {t("deviceImportDialog.csvColumnsHint")}
               </p>
               <input
                 ref={fileInputRef}
@@ -197,7 +200,7 @@ export function DeviceImportDialog({
             </div>
             {previewMutation.isPending && (
               <p className="text-sm text-muted-foreground animate-pulse">
-                Validating CSV rows…
+                {t("deviceImportDialog.validatingRows")}
               </p>
             )}
           </div>
@@ -209,19 +212,19 @@ export function DeviceImportDialog({
             {/* Summary metrics */}
             <div className="grid grid-cols-4 gap-2 text-center text-xs sm:text-sm">
               <div className="rounded-md border p-2 bg-background">
-                <span className="text-muted-foreground">Total Rows</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.totalRows")}</span>
                 <p className="text-lg font-semibold">{preview.summary.totalRows}</p>
               </div>
               <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-2 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <span className="text-muted-foreground">To Create</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.toCreate")}</span>
                 <p className="text-lg font-semibold">{preview.summary.createCount}</p>
               </div>
               <div className="rounded-md border border-blue-200 bg-blue-50/50 p-2 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-                <span className="text-muted-foreground">To Update</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.toUpdate")}</span>
                 <p className="text-lg font-semibold">{preview.summary.updateCount}</p>
               </div>
               <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-destructive">
-                <span className="text-muted-foreground">Invalid</span>
+                <span className="text-muted-foreground">{t("deviceImportDialog.invalid")}</span>
                 <p className="text-lg font-semibold">{preview.summary.invalidCount}</p>
               </div>
             </div>
@@ -230,7 +233,9 @@ export function DeviceImportDialog({
               <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
                 <AlertTriangle className="size-4 shrink-0" />
                 <span>
-                  This file contains {preview.summary.invalidCount} invalid row(s). Please fix the errors and re-upload before committing.
+                  {t("deviceImportDialog.invalidRowsWarning", {
+                    count: preview.summary.invalidCount,
+                  })}
                 </span>
               </div>
             )}
@@ -240,12 +245,12 @@ export function DeviceImportDialog({
               <table className="w-full text-left">
                 <thead className="sticky top-0 bg-muted font-medium text-muted-foreground">
                   <tr>
-                    <th className="p-2">Line</th>
-                    <th className="p-2">Asset Tag</th>
-                    <th className="p-2">Name</th>
-                    <th className="p-2">Category</th>
-                    <th className="p-2">Action</th>
-                    <th className="p-2">Validation Notes</th>
+                    <th className="p-2">{t("deviceImportDialog.colLine")}</th>
+                    <th className="p-2">{t("deviceImportDialog.colAssetTag")}</th>
+                    <th className="p-2">{t("deviceImportDialog.colName")}</th>
+                    <th className="p-2">{t("deviceImportDialog.colCategory")}</th>
+                    <th className="p-2">{t("deviceImportDialog.colAction")}</th>
+                    <th className="p-2">{t("deviceImportDialog.colValidationNotes")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -269,16 +274,16 @@ export function DeviceImportDialog({
                       <td className="p-2">
                         {row.action === "create" && (
                           <Badge variant="outline" className="border-emerald-500 text-emerald-600">
-                            Create
+                            {t("deviceImportDialog.actionCreate")}
                           </Badge>
                         )}
                         {row.action === "update" && (
                           <Badge variant="outline" className="border-blue-500 text-blue-600">
-                            Update
+                            {t("deviceImportDialog.actionUpdate")}
                           </Badge>
                         )}
                         {row.action === "invalid" && (
-                          <Badge variant="destructive">Invalid</Badge>
+                          <Badge variant="destructive">{t("deviceImportDialog.invalid")}</Badge>
                         )}
                       </td>
                       <td className="p-2">
@@ -289,9 +294,13 @@ export function DeviceImportDialog({
                             ))}
                           </div>
                         ) : row.action === "update" ? (
-                          <span className="text-muted-foreground">Existing device (will update fields)</span>
+                          <span className="text-muted-foreground">
+                            {t("deviceImportDialog.existingDeviceNote")}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground">New device</span>
+                          <span className="text-muted-foreground">
+                            {t("deviceImportDialog.newDeviceNote")}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -308,10 +317,14 @@ export function DeviceImportDialog({
             <div className="flex items-center gap-3 rounded-md border border-emerald-500/40 bg-emerald-50/30 p-4 text-sm text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-200">
               <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
               <div>
-                <p className="font-semibold">Import batch committed</p>
+                <p className="font-semibold">{t("deviceImportDialog.importBatchCommitted")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Batch ID: <span className="font-mono">{importResult.importId}</span> ·{" "}
-                  {importResult.createdCount} created, {importResult.updatedCount} updated.
+                  {t("deviceImportDialog.batchIdLabel")}{" "}
+                  <span className="font-mono">{importResult.importId}</span> ·{" "}
+                  {t("deviceImportDialog.batchCounts", {
+                    created: importResult.createdCount,
+                    updated: importResult.updatedCount,
+                  })}
                 </p>
               </div>
             </div>
@@ -319,14 +332,14 @@ export function DeviceImportDialog({
             {createdDevices.length > 0 && (
               <div className="flex items-center justify-between rounded-lg border border-border p-4">
                 <div>
-                  <h4 className="text-sm font-semibold">Print barcode / QR labels</h4>
+                  <h4 className="text-sm font-semibold">{t("deviceImportDialog.printLabelsHeading")}</h4>
                   <p className="text-xs text-muted-foreground">
-                    Print adhesive labels for the {createdDevices.length} newly registered devices.
+                    {t("deviceImportDialog.printLabelsDesc", { count: createdDevices.length })}
                   </p>
                 </div>
                 <Button size="sm" onClick={handlePrintCreatedLabels}>
                   <Printer className="size-4" data-icon="inline-start" />
-                  Print labels ({createdDevices.length})
+                  {t("devices.printLabelsWithCount", { count: createdDevices.length })}
                 </Button>
               </div>
             )}
@@ -336,28 +349,28 @@ export function DeviceImportDialog({
         <DialogFooter>
           {step === "upload" && (
             <Button variant="outline" onClick={() => handleClose(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           )}
 
           {step === "preview" && (
             <div className="flex w-full justify-between gap-2">
               <Button variant="outline" onClick={() => setStep("upload")}>
-                Choose another file
+                {t("deviceImportDialog.chooseAnotherFile")}
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => handleClose(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   disabled={hasInvalidRows || commitMutation.isPending}
                   onClick={() => preview?.previewId && commitMutation.mutate(preview.previewId)}
                 >
                   {commitMutation.isPending ? (
-                    "Committing import…"
+                    t("deviceImportDialog.committingImport")
                   ) : (
                     <>
-                      Commit import
+                      {t("deviceImportDialog.commitImport")}
                       <ArrowRight className="size-4" data-icon="inline-end" />
                     </>
                   )}
@@ -367,7 +380,7 @@ export function DeviceImportDialog({
           )}
 
           {step === "done" && (
-            <Button onClick={() => handleClose(false)}>Done</Button>
+            <Button onClick={() => handleClose(false)}>{t("deviceImportDialog.done")}</Button>
           )}
         </DialogFooter>
       </DialogContent>

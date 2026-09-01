@@ -26,6 +26,7 @@ import {
 import { TokenRevealDialog } from "@/components/token-reveal-dialog";
 import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { authenticatedRoute } from "./authenticated";
+import { useT } from "@/i18n";
 
 const registerSchema = zCreateUserRequest.extend({
   employeeNo: z.string().min(1, "validation.employeeNoRequired"),
@@ -52,6 +53,7 @@ function DuplicateCheck({
   employeeNo: string;
   onAvailabilityChange?: (available: boolean) => void;
 }) {
+  const t = useT();
   const debounced = useDebounced(employeeNo);
   const trimmed = debounced.trim();
 
@@ -79,14 +81,14 @@ function DuplicateCheck({
     return (
       <FieldDescription className="text-xs text-destructive flex items-center flex-wrap gap-1">
         <XCircle className="size-3.5 inline shrink-0" />
-        <span>{data.employeeNo} is already registered.</span>
+        <span>{t("register.alreadyRegistered", { employeeNo: data.employeeNo })}</span>
         {data.existingUserId && (
           <Link
             to="/users"
             search={{ q: data.employeeNo }}
             className="underline font-medium hover:text-foreground inline-flex items-center ml-1"
           >
-            View existing record
+            {t("register.viewExistingRecord")}
           </Link>
         )}
       </FieldDescription>
@@ -95,7 +97,7 @@ function DuplicateCheck({
 
   return (
     <FieldDescription className="flex items-center gap-1 text-xs text-success font-medium">
-      <CheckCircle2 className="size-3.5" /> Available
+      <CheckCircle2 className="size-3.5" /> {t("register.available")}
     </FieldDescription>
   );
 }
@@ -105,6 +107,7 @@ function ScanCardField({
 }: {
   onResolved: (result: { credentialId: string; ready: boolean; message: string } | null) => void;
 }) {
+  const t = useT();
   const [tokenInput, setTokenInput] = useState("");
   const [status, setStatus] = useState<{ ready: boolean; message: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +116,7 @@ function ScanCardField({
     mutationFn: async (token: string) => resolveCredential({ query: { token } }),
     onSuccess: ({ data, error }) => {
       if (error || !data) {
-        setStatus({ ready: false, message: "This card does not match any known credential." });
+        setStatus({ ready: false, message: t("register.cardNoMatch") });
         onResolved(null);
         return;
       }
@@ -122,36 +125,42 @@ function ScanCardField({
           ready: false,
           message:
             data.type === "user" || data.type === "device"
-              ? "This card is already registered to someone else."
-              : "This card cannot be bound.",
+              ? t("register.cardAlreadyRegistered")
+              : t("register.cardCannotBeBound"),
         });
         onResolved(null);
         return;
       }
       if (data.credentialStatus !== "active") {
-        setStatus({ ready: false, message: `This card is ${data.credentialStatus}, not active.` });
+        setStatus({
+          ready: false,
+          message: t("register.cardNotActive", { status: data.credentialStatus }),
+        });
         onResolved(null);
         return;
       }
-      setStatus({ ready: true, message: `Ready to bind — ${data.kind.toUpperCase()} card.` });
+      setStatus({
+        ready: true,
+        message: t("register.readyToBind", { kind: data.kind.toUpperCase() }),
+      });
       onResolved({ credentialId: data.credentialId, ready: true, message: "" });
     },
     onError: () => {
-      setStatus({ ready: false, message: "Could not look up that card." });
+      setStatus({ ready: false, message: t("register.cardLookupFailed") });
       onResolved(null);
     },
   });
 
   return (
     <Field>
-      <FieldLabel htmlFor="scan-token">Scan a blank card</FieldLabel>
+      <FieldLabel htmlFor="scan-token">{t("register.scanBlankCard")}</FieldLabel>
       <div className="relative">
         <ScanLine className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           id="scan-token"
           ref={inputRef}
           className="pl-8 font-identifier"
-          placeholder="Waiting for scan…"
+          placeholder={t("register.waitingForScan")}
           value={tokenInput}
           autoFocus
           onChange={(e) => {
@@ -184,6 +193,7 @@ function ScanCardField({
 }
 
 function RegisterBorrowerForm() {
+  const t = useT();
   const queryClient = useQueryClient();
   const [cardMode, setCardMode] = useState<CardMode>("scan");
   const [resolvedCredentialId, setResolvedCredentialId] = useState<string | null>(null);
@@ -260,7 +270,7 @@ function RegisterBorrowerForm() {
       if (err?.status === 409 || err?.type === "unique-constraint-violation") {
         form.setError("employeeNo", {
           type: "manual",
-          message: "Employee number is already registered.",
+          message: t("register.employeeNoAlreadyRegistered"),
         });
       }
     },
@@ -307,7 +317,7 @@ function RegisterBorrowerForm() {
       <div className="mx-auto flex max-w-md flex-col items-center gap-5 rounded-lg border border-border bg-card p-8 text-center">
         <CheckCircle2 className="size-12 text-success" />
         <div>
-          <h2 className="text-xl font-semibold">{success.fullName} is registered</h2>
+          <h2 className="text-xl font-semibold">{t("register.registeredHeading", { fullName: success.fullName })}</h2>
           <p className="font-identifier text-sm text-muted-foreground mt-1">
             {success.employeeNo}
             {success.department && ` · ${success.department}`}
@@ -315,19 +325,17 @@ function RegisterBorrowerForm() {
           {success.mode === "scan" && (
             <p className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-1.5">
               <CreditCard className="size-4 text-success" />
-              Card bound and ready to use.
+              {t("register.cardBoundReady")}
             </p>
           )}
           {success.mode === "print" && (
             <p className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-1.5">
               <Printer className="size-4 text-primary" />
-              New card generated.
+              {t("register.newCardGenerated")}
             </p>
           )}
           {success.mode === "none" && (
-            <p className="mt-2 text-sm text-warning font-medium">
-              No card issued yet — this borrower cannot borrow until a card is assigned.
-            </p>
+            <p className="mt-2 text-sm text-warning font-medium">{t("register.noCardIssuedYet")}</p>
           )}
         </div>
 
@@ -339,12 +347,12 @@ function RegisterBorrowerForm() {
               onClick={() => setTokenDialogOpen(true)}
             >
               <Printer className="size-4" />
-              Print card
+              {t("register.printCard")}
             </Button>
           )}
           <Button autoFocus className="w-full gap-2" onClick={handleRegisterAnother}>
             <UserPlus className="size-4" />
-            Register another
+            {t("register.registerAnother")}
           </Button>
         </div>
 
@@ -365,10 +373,8 @@ function RegisterBorrowerForm() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold">Register borrower</h1>
-        <p className="text-sm text-muted-foreground">
-          One screen, no navigation away — registering and issuing a card is one transaction.
-        </p>
+        <h1 className="text-xl font-semibold">{t("nav.register")}</h1>
+        <p className="text-sm text-muted-foreground">{t("register.subtitle")}</p>
       </div>
       <form
         onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
@@ -377,7 +383,7 @@ function RegisterBorrowerForm() {
         <FieldGroup>
           <div className="grid grid-cols-2 gap-3">
             <Field data-invalid={!!form.formState.errors.fullName}>
-              <FieldLabel htmlFor="fullName">Full name</FieldLabel>
+              <FieldLabel htmlFor="fullName">{t("userDetail.fullNameLabel")}</FieldLabel>
               <Input
                 id="fullName"
                 autoFocus
@@ -392,7 +398,7 @@ function RegisterBorrowerForm() {
               )}
             </Field>
             <Field data-invalid={!!form.formState.errors.employeeNo}>
-              <FieldLabel htmlFor="employeeNo">Employee no.</FieldLabel>
+              <FieldLabel htmlFor="employeeNo">{t("users.columnEmployeeNo")}</FieldLabel>
               <Input id="employeeNo" className="font-identifier" {...form.register("employeeNo")} />
               {form.formState.errors.employeeNo ? (
                 <FieldError>{form.formState.errors.employeeNo.message}</FieldError>
@@ -406,7 +412,7 @@ function RegisterBorrowerForm() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field>
-              <FieldLabel htmlFor="departmentId">Department</FieldLabel>
+              <FieldLabel htmlFor="departmentId">{t("users.columnDepartment")}</FieldLabel>
               <Select
                 value={selectedDepartmentId ? selectedDepartmentId : undefined}
                 onValueChange={(v) => {
@@ -414,8 +420,8 @@ function RegisterBorrowerForm() {
                   form.setValue("departmentId", v, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
                 }}
               >
-                <SelectTrigger id="departmentId" aria-label="Department" className="w-full">
-                  <SelectValue placeholder="Select a department">
+                <SelectTrigger id="departmentId" aria-label={t("users.columnDepartment")} className="w-full">
+                  <SelectValue placeholder={t("userForm.selectDepartmentPlaceholder")}>
                     {departments?.find((d) => d.id === selectedDepartmentId)?.name}
                   </SelectValue>
                 </SelectTrigger>
@@ -429,19 +435,19 @@ function RegisterBorrowerForm() {
               </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="phone">Phone</FieldLabel>
+              <FieldLabel htmlFor="phone">{t("userDetail.phoneLabel")}</FieldLabel>
               <Input id="phone" {...form.register("phone")} />
             </Field>
           </div>
           <Field data-invalid={!!form.formState.errors.email}>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <FieldLabel htmlFor="email">{t("userDetail.emailLabel")}</FieldLabel>
             <Input id="email" type="email" {...form.register("email")} />
             {form.formState.errors.email && <FieldError>{form.formState.errors.email.message}</FieldError>}
           </Field>
         </FieldGroup>
 
         <div className="border-t border-border pt-4">
-          <p className="mb-2 text-sm font-semibold">Assign card</p>
+          <p className="mb-2 text-sm font-semibold">{t("register.assignCard")}</p>
           <div className="flex flex-col gap-3">
             <label className="flex items-start gap-2 text-sm cursor-pointer">
               <input
@@ -452,9 +458,11 @@ function RegisterBorrowerForm() {
                 onChange={() => setCardMode("scan")}
               />
               <span className="flex-1">
-                <span className="font-medium">Scan a blank card</span>
+                <span className="font-medium">{t("register.scanBlankCard")}</span>
                 {typeof unboundCount === "number" && (
-                  <span className="ml-1 text-muted-foreground">({unboundCount} remain unbound)</span>
+                  <span className="ml-1 text-muted-foreground">
+                    {t("register.remainUnbound", { count: unboundCount })}
+                  </span>
                 )}
                 {cardMode === "scan" && (
                   <div className="mt-2">
@@ -473,7 +481,7 @@ function RegisterBorrowerForm() {
                 checked={cardMode === "print"}
                 onChange={() => setCardMode("print")}
               />
-              <span className="font-medium">Print a new card now</span>
+              <span className="font-medium">{t("register.printNewCardNow")}</span>
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input
@@ -484,8 +492,8 @@ function RegisterBorrowerForm() {
                 onChange={() => setCardMode("none")}
               />
               <span>
-                <span className="font-medium">Register without a card</span>{" "}
-                <span className="text-muted-foreground">(they cannot borrow yet)</span>
+                <span className="font-medium">{t("register.registerWithoutCard")}</span>{" "}
+                <span className="text-muted-foreground">{t("register.cannotBorrowYet")}</span>
               </span>
             </label>
           </div>
@@ -493,10 +501,10 @@ function RegisterBorrowerForm() {
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={resetForm}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={!canSubmit || mutation.isPending}>
-            {mutation.isPending ? "Registering…" : "Register & issue"}
+            {mutation.isPending ? t("register.registering") : t("register.registerAndIssue")}
           </Button>
         </div>
       </form>

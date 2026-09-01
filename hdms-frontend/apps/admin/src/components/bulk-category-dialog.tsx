@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useT } from "@/i18n";
 
 interface BulkCategoryDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function BulkCategoryDialog({
   categories,
   onDone,
 }: BulkCategoryDialogProps) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
 
@@ -54,19 +56,22 @@ export function BulkCategoryDialog({
       const results = await Promise.all(promises);
       const errors = results.filter((r) => r.error);
       if (errors.length > 0) {
-        throw new Error(`Failed to update ${errors.length} devices`);
+        throw new Error(t("bulkCategoryDialog.updateFailedCount", { count: errors.length }));
       }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["devices"] });
       toast.success(
-        `Updated category to ${targetCategory?.name ?? "selected"} for ${selectedDevices.length} devices`,
+        t("bulkCategoryDialog.updatedToast", {
+          category: targetCategory?.name ?? t("bulkCategoryDialog.selectedFallback"),
+          count: selectedDevices.length,
+        }),
       );
       setSelectedCategoryId("");
       onDone();
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Could not update categories");
+      toast.error(err?.message || t("bulkCategoryDialog.updateFailed"));
     },
   });
 
@@ -79,21 +84,20 @@ export function BulkCategoryDialog({
     <Dialog open={open} onOpenChange={(o) => (!o ? handleClose() : onOpenChange(true))}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change category for {selectedDevices.length} devices</DialogTitle>
+          <DialogTitle>{t("bulkCategoryDialog.title", { count: selectedDevices.length })}</DialogTitle>
           <DialogDescription>
-            This action will change the category for all {selectedDevices.length} selected
-            devices to the category chosen below.
+            {t("bulkCategoryDialog.description", { count: selectedDevices.length })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-3">
           <label className="text-xs font-semibold text-muted-foreground uppercase">
-            New Category
+            {t("bulkCategoryDialog.newCategoryLabel")}
           </label>
           <div className="mt-1.5">
             <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select target category…" />
+                <SelectValue placeholder={t("bulkCategoryDialog.selectTargetPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((cat) => (
@@ -108,15 +112,17 @@ export function BulkCategoryDialog({
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={handleClose} disabled={mutation.isPending}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             disabled={!selectedCategoryId || mutation.isPending}
             onClick={() => mutation.mutate()}
           >
             {mutation.isPending
-              ? "Updating…"
-              : `Update ${selectedDevices.length} ${selectedDevices.length === 1 ? "device" : "devices"}`}
+              ? t("bulkCategoryDialog.updating")
+              : selectedDevices.length === 1
+                ? t("bulkCategoryDialog.updateButtonOne", { count: selectedDevices.length })
+                : t("bulkCategoryDialog.updateButtonOther", { count: selectedDevices.length })}
           </Button>
         </DialogFooter>
       </DialogContent>

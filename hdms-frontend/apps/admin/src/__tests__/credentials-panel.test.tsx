@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { CredentialsPanel } from "../components/credentials-panel";
 
 vi.mock("@hdms/api-client", async (importOriginal) => {
@@ -20,6 +23,10 @@ vi.mock("@hdms/api-client", async (importOriginal) => {
     resolveCredential: vi.fn(),
   };
 });
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -108,15 +115,21 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Issue #2")).toBeInTheDocument();
-    expect(screen.getByText("Borrower Cards")).toBeInTheDocument();
-    expect(screen.getByText("Issue #1")).toBeInTheDocument();
+    expect(
+      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
+    ).toBeInTheDocument();
+    expect(screen.getByText(ja.credentialsPanel.borrowerCardsHeading)).toBeInTheDocument();
+    expect(
+      screen.getByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 1 }))
+    ).toBeInTheDocument();
     expect(screen.getByText("…7K3M")).toBeInTheDocument();
     expect(screen.getByText("…4A2F")).toBeInTheDocument();
 
     // Revocation details
     expect(screen.getByText(/Badge lost during commute/)).toBeInTheDocument();
-    expect(screen.getByText("Replaced by issue #2")).toBeInTheDocument();
+    expect(
+      screen.getByText(translate(catalogues, "ja", "credentialsPanel.replacedBySeq", { seq: 2 }))
+    ).toBeInTheDocument();
   });
 
   it("distinguishes 'No card issued' empty state for user with bind and issue buttons", async () => {
@@ -140,12 +153,15 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("No card issued")).toBeInTheDocument();
+    expect(await screen.findByText(ja.credentialsPanel.noCardIssued)).toBeInTheDocument();
+    expect(screen.getByText(ja.credentialsPanel.noCardIssuedHint)).toBeInTheDocument();
     expect(
-      screen.getByText("This borrower cannot borrow devices until a credential is assigned.")
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Bind blank card/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: /Issue (new )?card/i }).length).toBeGreaterThan(0);
+      screen.getAllByRole("button", { name: ja.credentialsPanel.bindBlankCard }).length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: new RegExp(escapeRegExp(ja.credentialsPanel.issueCard)) })
+        .length
+    ).toBeGreaterThan(0);
   });
 
   it("distinguishes 'All credentials have been revoked' warning state", async () => {
@@ -171,10 +187,8 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("All credentials have been revoked")).toBeInTheDocument();
-    expect(
-      screen.getByText(/This borrower has no working credentials. Issue a replacement card/)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(ja.credentialsPanel.allRevoked)).toBeInTheDocument();
+    expect(screen.getByText(ja.credentialsPanel.allRevokedHintUser)).toBeInTheDocument();
   });
 
   it("renders 'Print' button on device panel and never 'Reissue & print'", async () => {
@@ -198,9 +212,13 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Issue #1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Print$/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Reissue & print/i })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 1 }))
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: ja.tokenRevealDialog.print })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: ja.credentialsPanel.reissueAndPrint })
+    ).not.toBeInTheDocument();
   });
 
   it("renders 'Reissue & print' on user panel and never plain 'Print'", async () => {
@@ -224,9 +242,15 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Issue #2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Reissue & print/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Print$/i })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: ja.credentialsPanel.reissueAndPrint })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: ja.tokenRevealDialog.print })
+    ).not.toBeInTheDocument();
   });
 
   it("destructive flow requires mandatory reason and cancel leaves state untouched", async () => {
@@ -251,20 +275,24 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Issue #2")).toBeInTheDocument();
-    const reissueBtn = screen.getByRole("button", { name: /Reissue & print/i });
+    expect(
+      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
+    ).toBeInTheDocument();
+    const reissueBtn = screen.getByRole("button", { name: ja.credentialsPanel.reissueAndPrint });
     await user.click(reissueBtn);
 
     // Dialog opens with consequences description
     expect(
-      screen.getByText(/The current card in the borrower's pocket stops working immediately/)
+      screen.getByText(ja.credentialsPanel.reissueConfirmDescriptionUser)
     ).toBeInTheDocument();
 
-    const submitBtn = screen.getByRole("button", { name: /Reissue & Print Card/i });
+    const submitBtn = screen.getByRole("button", {
+      name: ja.credentialsPanel.reissueConfirmButtonUser,
+    });
     expect(submitBtn).toBeDisabled();
 
     // Cancel branch
-    const cancelBtn = screen.getByRole("button", { name: /Cancel/i });
+    const cancelBtn = screen.getByRole("button", { name: ja.common.cancel });
     await user.click(cancelBtn);
 
     expect(apiClient.reissueCredential).not.toHaveBeenCalled();
@@ -301,13 +329,17 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Issue #2")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Reissue & print/i }));
+    expect(
+      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: ja.credentialsPanel.reissueAndPrint }));
 
-    const textarea = screen.getByPlaceholderText(/Lost in cafeteria/i);
+    const textarea = screen.getByPlaceholderText(ja.credentialsPanel.reasonPlaceholder);
     await user.type(textarea, "Card broken into two pieces");
 
-    const submitBtn = screen.getByRole("button", { name: /Reissue & Print Card/i });
+    const submitBtn = screen.getByRole("button", {
+      name: ja.credentialsPanel.reissueConfirmButtonUser,
+    });
     expect(submitBtn).toBeEnabled();
     await user.click(submitBtn);
 
@@ -341,17 +373,21 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText("Issue #2")).toBeInTheDocument();
-    const revokeBtn = screen.getByRole("button", { name: /^Revoke$/i });
+    expect(
+      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
+    ).toBeInTheDocument();
+    const revokeBtn = screen.getByRole("button", { name: ja.credentialsPanel.revokeAction });
     await user.click(revokeBtn);
 
     // Revoke dialog opens
-    expect(screen.getByText("Revoke this credential?")).toBeInTheDocument();
-    const submitBtn = screen.getByRole("button", { name: /Revoke Credential/i });
+    expect(screen.getByText(ja.credentialsPanel.revokeConfirmTitle)).toBeInTheDocument();
+    const submitBtn = screen.getByRole("button", {
+      name: ja.credentialsPanel.revokeConfirmButton,
+    });
     expect(submitBtn).toBeDisabled();
 
     // Cancel branch
-    const cancelBtn = screen.getByRole("button", { name: /Cancel/i });
+    const cancelBtn = screen.getByRole("button", { name: ja.common.cancel });
     await user.click(cancelBtn);
     expect(apiClient.revokeCredential).not.toHaveBeenCalled();
   });
@@ -377,7 +413,7 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       </QueryClientProvider>
     );
 
-    await screen.findByText("Borrower Cards");
+    await screen.findByText(ja.credentialsPanel.borrowerCardsHeading);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

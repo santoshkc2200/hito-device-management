@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { registerRoute } from "../routes/register";
 
 // Mock TanStack Router
@@ -64,7 +67,7 @@ describe("4.4b Register borrower form", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Register borrower" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: ja.nav.register })).toBeInTheDocument();
     });
 
     const results = await axe(container);
@@ -101,23 +104,29 @@ describe("4.4b Register borrower form", () => {
       </QueryClientProvider>
     );
 
-    const empNoInput = screen.getByLabelText("Employee no.");
+    const empNoInput = screen.getByLabelText(ja.users.columnEmployeeNo);
     await user.type(empNoInput, "HH-DUPLICATE");
 
     await waitFor(() => {
-      expect(screen.getByText(/is already registered/i)).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /view existing record/i })).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "register.alreadyRegistered", { employeeNo: "HH-DUPLICATE" })
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: ja.register.viewExistingRecord })
+      ).toBeInTheDocument();
     });
 
     // Fill the rest
-    await user.type(screen.getByLabelText("Full name"), "Dr. Test User");
+    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Dr. Test User");
 
     // Select option C (no card)
-    const noCardRadio = screen.getByLabelText(/register without a card/i);
+    const noCardRadio = screen.getByLabelText(new RegExp(ja.register.registerWithoutCard));
     await user.click(noCardRadio);
 
     // Submit button should be disabled because employee number is not available
-    const submitBtn = screen.getByRole("button", { name: /register & issue/i });
+    const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
     expect(submitBtn).toBeDisabled();
   });
 
@@ -150,17 +159,17 @@ describe("4.4b Register borrower form", () => {
       </QueryClientProvider>
     );
 
-    await user.type(screen.getByLabelText("Full name"), "Anita Thapa");
-    await user.type(screen.getByLabelText("Employee no."), "HH-2401");
+    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Anita Thapa");
+    await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-2401");
 
     await waitFor(() => {
-      expect(screen.getByText(/available/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.register.available)).toBeInTheDocument();
     });
 
     // Option C
-    await user.click(screen.getByLabelText(/register without a card/i));
+    await user.click(screen.getByLabelText(new RegExp(ja.register.registerWithoutCard)));
 
-    const submitBtn = screen.getByRole("button", { name: /register & issue/i });
+    const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
     expect(submitBtn).toBeEnabled();
     await user.click(submitBtn);
 
@@ -173,8 +182,14 @@ describe("4.4b Register borrower form", () => {
           }),
         })
       );
-      expect(screen.getByRole("heading", { name: /Anita Thapa is registered/i })).toBeInTheDocument();
-      expect(screen.getByText(/no card issued yet/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", {
+          name: translate(catalogues, "ja", "register.registeredHeading", {
+            fullName: "Anita Thapa",
+          }),
+        })
+      ).toBeInTheDocument();
+      expect(screen.getByText(ja.register.noCardIssuedYet)).toBeInTheDocument();
     });
   });
 
@@ -230,22 +245,26 @@ describe("4.4b Register borrower form", () => {
 
     // Verify unbound count is displayed
     await waitFor(() => {
-      expect(screen.getByText(/27 remain unbound/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(translate(catalogues, "ja", "register.remainUnbound", { count: 27 }))
+      ).toBeInTheDocument();
     });
 
-    await user.type(screen.getByLabelText("Full name"), "Dr. Blank Scan");
-    await user.type(screen.getByLabelText("Employee no."), "HH-2402");
+    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Dr. Blank Scan");
+    await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-2402");
 
     // Scan blank card
-    const scanInput = screen.getByPlaceholderText("Waiting for scan…");
+    const scanInput = screen.getByPlaceholderText(ja.register.waitingForScan);
     await user.type(scanInput, "BLANK_CARD_TOKEN{enter}");
 
     await waitFor(() => {
       expect(resolveSpy).toHaveBeenCalled();
-      expect(screen.getByText(/ready to bind/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(translate(catalogues, "ja", "register.readyToBind", { kind: "QR" }))
+      ).toBeInTheDocument();
     });
 
-    const submitBtn = screen.getByRole("button", { name: /register & issue/i });
+    const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
     expect(submitBtn).toBeEnabled();
     await user.click(submitBtn);
 
@@ -259,8 +278,14 @@ describe("4.4b Register borrower form", () => {
           }),
         })
       );
-      expect(screen.getByRole("heading", { name: /Dr. Blank Scan is registered/i })).toBeInTheDocument();
-      expect(screen.getByText(/card bound and ready to use/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", {
+          name: translate(catalogues, "ja", "register.registeredHeading", {
+            fullName: "Dr. Blank Scan",
+          }),
+        })
+      ).toBeInTheDocument();
+      expect(screen.getByText(ja.register.cardBoundReady)).toBeInTheDocument();
     });
   });
 
@@ -285,15 +310,15 @@ describe("4.4b Register borrower form", () => {
       </QueryClientProvider>
     );
 
-    await user.type(screen.getByLabelText("Full name"), "Race Tester");
-    await user.type(screen.getByLabelText("Employee no."), "HH-RACE");
-    await user.click(screen.getByLabelText(/register without a card/i));
+    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Race Tester");
+    await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-RACE");
+    await user.click(screen.getByLabelText(new RegExp(ja.register.registerWithoutCard)));
 
-    const submitBtn = screen.getByRole("button", { name: /register & issue/i });
+    const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
     await user.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/employee number is already registered/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.register.employeeNoAlreadyRegistered)).toBeInTheDocument();
     });
   });
 
@@ -326,8 +351,8 @@ describe("4.4b Register borrower form", () => {
     );
 
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText("Full name"), "Batch User 1");
-    await user.type(screen.getByLabelText("Employee no."), "HH-BATCH-1");
+    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Batch User 1");
+    await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-BATCH-1");
 
     // Wait for departments query to resolve
     await waitFor(() => {
@@ -335,15 +360,15 @@ describe("4.4b Register borrower form", () => {
     });
 
     // Select cardiology department
-    const deptTrigger = screen.getByRole("combobox", { name: /department/i });
+    const deptTrigger = screen.getByRole("combobox", { name: ja.users.columnDepartment });
     await user.pointer({ keys: "[MouseLeft]", target: deptTrigger });
     const cardioOption = await screen.findByRole("option", { name: "Cardiology" });
     await user.click(cardioOption);
 
 
     // Submit with Option C
-    await user.click(screen.getByLabelText(/register without a card/i));
-    await user.click(screen.getByRole("button", { name: /register & issue/i }));
+    await user.click(screen.getByLabelText(new RegExp(ja.register.registerWithoutCard)));
+    await user.click(screen.getByRole("button", { name: ja.register.registerAndIssue }));
 
     await waitFor(() => {
       expect(createUserSpy).toHaveBeenCalledWith(
@@ -353,17 +378,23 @@ describe("4.4b Register borrower form", () => {
           }),
         })
       );
-      expect(screen.getByRole("heading", { name: /Batch User 1 is registered/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", {
+          name: translate(catalogues, "ja", "register.registeredHeading", {
+            fullName: "Batch User 1",
+          }),
+        })
+      ).toBeInTheDocument();
     });
 
     // Click Register another
-    const registerAnotherBtn = screen.getByRole("button", { name: /register another/i });
+    const registerAnotherBtn = screen.getByRole("button", { name: ja.register.registerAnother });
     await user.click(registerAnotherBtn);
 
     // Verify form is reset except department
     await waitFor(() => {
-      expect(screen.getByLabelText("Full name")).toHaveValue("");
-      expect(screen.getByLabelText("Employee no.")).toHaveValue("");
+      expect(screen.getByLabelText(ja.userDetail.fullNameLabel)).toHaveValue("");
+      expect(screen.getByLabelText(ja.users.columnEmployeeNo)).toHaveValue("");
       expect(screen.getAllByText("Cardiology").length).toBeGreaterThan(0);
     });
   });

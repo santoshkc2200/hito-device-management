@@ -4,7 +4,14 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { DeviceImportDialog } from "@/components/device-import-dialog";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 describe("DeviceImportDialog — Phase 4.3c", () => {
   let queryClient: QueryClient;
@@ -38,8 +45,8 @@ describe("DeviceImportDialog — Phase 4.3c", () => {
   it("renders upload step initially and passes a11y audit", async () => {
     const { container } = renderDialog();
 
-    expect(screen.getByText(/import devices from csv/i)).toBeInTheDocument();
-    expect(screen.getByText(/click to select csv file/i)).toBeInTheDocument();
+    expect(screen.getByText(ja.deviceImportDialog.titleUpload)).toBeInTheDocument();
+    expect(screen.getByText(ja.deviceImportDialog.clickToSelectCsv)).toBeInTheDocument();
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
@@ -104,17 +111,20 @@ describe("DeviceImportDialog — Phase 4.3c", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByText(/preview device import/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.deviceImportDialog.titlePreview)).toBeInTheDocument();
     });
 
     expect(screen.getByText("DEV-101")).toBeInTheDocument();
     expect(screen.getByText("Vital Signs Monitor")).toBeInTheDocument();
-    expect(screen.getByText("Create")).toBeInTheDocument();
+    // "新規作成"/"更新" label both the summary stat tile and the row's action
+    // badge — Japanese uses the same short word for both, unlike English's
+    // "To Create" vs "Create".
+    expect(screen.getAllByText(ja.deviceImportDialog.actionCreate).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("DEV-102")).toBeInTheDocument();
-    expect(screen.getByText("Update")).toBeInTheDocument();
+    expect(screen.getAllByText(ja.deviceImportDialog.actionUpdate).length).toBeGreaterThanOrEqual(1);
 
     // Commit button should be enabled
-    const commitBtn = screen.getByRole("button", { name: /commit import/i });
+    const commitBtn = screen.getByRole("button", { name: ja.deviceImportDialog.commitImport });
     expect(commitBtn).not.toBeDisabled();
   });
 
@@ -162,13 +172,19 @@ describe("DeviceImportDialog — Phase 4.3c", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByText(/This file contains 1 invalid row/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "deviceImportDialog.invalidRowsWarning", { count: 1 })
+        )
+      ).toBeInTheDocument();
     });
 
     expect(screen.getByText(/asset_tag is required/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/invalid/i).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(new RegExp(escapeRegExp(ja.deviceImportDialog.invalid))).length
+    ).toBeGreaterThanOrEqual(1);
 
-    const commitBtn = screen.getByRole("button", { name: /commit import/i });
+    const commitBtn = screen.getByRole("button", { name: ja.deviceImportDialog.commitImport });
     expect(commitBtn).toBeDisabled();
   });
 
@@ -239,19 +255,23 @@ describe("DeviceImportDialog — Phase 4.3c", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /commit import/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: ja.deviceImportDialog.commitImport })
+      ).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /commit import/i }));
+    await user.click(screen.getByRole("button", { name: ja.deviceImportDialog.commitImport }));
 
     await waitFor(() => {
-      expect(screen.getByText(/import summary & label generation/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.deviceImportDialog.titleDone)).toBeInTheDocument();
     });
 
     expect(screen.getByText("imp-dev-batch-101")).toBeInTheDocument();
-    expect(screen.getByText(/Print barcode \/ QR labels/i)).toBeInTheDocument();
+    expect(screen.getByText(ja.deviceImportDialog.printLabelsHeading)).toBeInTheDocument();
 
-    const printLabelsBtn = screen.getByRole("button", { name: /print labels \(1\)/i });
+    const printLabelsBtn = screen.getByRole("button", {
+      name: translate(catalogues, "ja", "devices.printLabelsWithCount", { count: 1 }),
+    });
     expect(printLabelsBtn).toBeInTheDocument();
     await user.click(printLabelsBtn);
 

@@ -4,8 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { DevicesPage, devicesRoute } from "../routes/devices";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 // Mock TanStack Router
 const mockNavigate = vi.fn();
@@ -135,7 +142,7 @@ describe("DevicesPage — Phase 4.3a/b", () => {
       expect(screen.getAllByText("LAPTOP-01").length).toBeGreaterThanOrEqual(1);
     });
 
-    const searchInput = screen.getByPlaceholderText(/search asset tag, name, model/i);
+    const searchInput = screen.getByPlaceholderText(ja.devices.searchPlaceholder);
     fireEvent.change(searchInput, { target: { value: "iPad" } });
     fireEvent.keyDown(searchInput, { key: "Enter" });
 
@@ -158,23 +165,32 @@ describe("DevicesPage — Phase 4.3a/b", () => {
     });
 
     // Open row menu for LAPTOP-01
-    const menuButtons = screen.getAllByRole("button", { name: /open menu/i });
+    const menuButtons = screen.getAllByRole("button", { name: ja.columns.openMenu });
     fireEvent.pointerDown(menuButtons[0]);
 
-    const changeStatusItem = await screen.findByRole("menuitem", { name: /change status/i });
+    const changeStatusItem = await screen.findByRole("menuitem", { name: ja.devices.changeStatus });
     await user.click(changeStatusItem);
 
     await waitFor(() => {
-      expect(screen.getByText(/change status: LAPTOP-01/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "devices.statusDialog.title", { assetTag: "LAPTOP-01" })
+        )
+      ).toBeInTheDocument();
     });
 
     // Apply button must be disabled without status and reason
-    const applyBtn = screen.getByRole("button", { name: /apply status change/i });
+    const applyBtn = screen.getByRole("button", { name: ja.devices.statusDialog.apply });
     expect(applyBtn).toBeDisabled();
 
     // Select status
-    const trigger = screen.getByRole("combobox", { name: /select new status/i });
+    const trigger = screen.getByRole("combobox", {
+      name: ja.devices.statusDialog.selectNewStatusAria,
+    });
     await user.pointer({ keys: "[MouseLeft]", target: trigger });
+    // The status option text comes from labelize() (raw enum, underscores to
+    // spaces) — not part of the i18n catalogue, so it stays English regardless
+    // of locale.
     const maintenanceOption = await screen.findByRole("option", { name: /maintenance/i });
     await user.click(maintenanceOption);
 
@@ -182,7 +198,7 @@ describe("DevicesPage — Phase 4.3a/b", () => {
     expect(applyBtn).toBeDisabled();
 
     // Enter reason
-    const reasonInput = screen.getByPlaceholderText(/state the operational reason/i);
+    const reasonInput = screen.getByPlaceholderText(ja.devices.statusDialog.reasonPlaceholder);
     await user.type(reasonInput, "Battery replacement");
 
     expect(applyBtn).not.toBeDisabled();
@@ -206,20 +222,31 @@ describe("DevicesPage — Phase 4.3a/b", () => {
     });
 
     // Select first device checkbox
-    const checkboxes = screen.getAllByRole("checkbox", { name: /select device/i });
+    const selectDeviceAriaStem = ja.devices.selectDeviceAria.split("{assetTag}")[0];
+    const checkboxes = screen.getAllByRole("checkbox", {
+      name: new RegExp(escapeRegExp(selectDeviceAriaStem)),
+    });
     await user.click(checkboxes[0]);
 
     // Bulk actions bar appears
     await waitFor(() => {
-      expect(screen.getByText(/device.*selected/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          new RegExp(
+            `${escapeRegExp(ja.devices.itemLabel)}.*${escapeRegExp(ja.table.itemsSelectedSuffix)}`
+          )
+        )
+      ).toBeInTheDocument();
     });
 
-    const changeCategoryBtn = screen.getByRole("button", { name: /change category/i });
+    const changeCategoryBtn = screen.getByRole("button", { name: ja.devices.changeCategory });
     await user.click(changeCategoryBtn);
 
     await waitFor(() => {
       expect(
-        screen.getByText(/change category for 1 devices/i),
+        screen.getByText(
+          translate(catalogues, "ja", "bulkCategoryDialog.title", { count: 1 })
+        ),
       ).toBeInTheDocument();
     });
   });

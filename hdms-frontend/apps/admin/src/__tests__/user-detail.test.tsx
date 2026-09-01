@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { UserDetailPage, userDetailRoute } from "../routes/users.$userId";
 
@@ -204,8 +207,12 @@ describe("4.4c User Detail Page", () => {
   it("renders provenance for an admin-registered user", async () => {
     renderUserDetailPage("admin");
 
-    expect(await screen.findByText("Provenance")).toBeInTheDocument();
-    expect(screen.getByText("Administrator (admin-99)")).toBeInTheDocument();
+    expect(await screen.findByText(ja.userDetail.provenanceHeading)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        translate(catalogues, "ja", "userDetail.provenanceAdmin", { adminId: "admin-99" })
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders provenance for an import-created user with batch ID", async () => {
@@ -218,7 +225,11 @@ describe("4.4c User Detail Page", () => {
     renderUserDetailPage("admin");
 
     expect(await screen.findByRole("heading", { name: "Nurse Hanako Sato" })).toBeInTheDocument();
-    expect(screen.getByText("Import batch batch-42")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        translate(catalogues, "ja", "userDetail.provenanceImportBatch", { batchId: "batch-42" })
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders provenance for a legacy/plain import user", async () => {
@@ -231,7 +242,7 @@ describe("4.4c User Detail Page", () => {
     renderUserDetailPage("admin");
 
     expect(await screen.findByRole("heading", { name: "Staff Kenji Tanaka" })).toBeInTheDocument();
-    expect(screen.getByText("CSV Import")).toBeInTheDocument();
+    expect(screen.getByText(ja.userDetail.provenanceCsvImport)).toBeInTheDocument();
   });
 
   it("shows 'no card issued' badge and 'Issue card' CTA when user has no credentials", async () => {
@@ -242,10 +253,11 @@ describe("4.4c User Detail Page", () => {
 
     renderUserDetailPage("admin");
 
-    expect(await screen.findByText("no card issued")).toBeInTheDocument();
-    expect(screen.getByText("No card issued")).toBeInTheDocument();
-    expect(screen.getByText(/This borrower cannot borrow devices until a credential is assigned/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /issue card/i })).toBeInTheDocument();
+    // The header badge and the CredentialsPanel empty-state heading both read
+    // "カード未発行" in Japanese (distinct wording in English, identical here).
+    expect((await screen.findAllByText(ja.userDetail.noCardIssued)).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(ja.credentialsPanel.noCardIssuedHint)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: ja.credentialsPanel.issueCard })).toBeInTheDocument();
   });
 
   it("shows revoked state warning when all credentials are revoked", async () => {
@@ -256,27 +268,32 @@ describe("4.4c User Detail Page", () => {
 
     renderUserDetailPage("admin");
 
-    expect(await screen.findByText("All credentials have been revoked")).toBeInTheDocument();
+    expect(await screen.findByText(ja.credentialsPanel.allRevoked)).toBeInTheDocument();
   });
 
   it("renders currently held devices with links and overdue badge if overdue", async () => {
     renderUserDetailPage("admin");
 
-    expect(await screen.findByText("Currently Held Devices")).toBeInTheDocument();
-    expect(screen.getByText("Device LAPTOP-07")).toBeInTheDocument();
-    expect(screen.getByText("View loan")).toBeInTheDocument();
-    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(await screen.findByText(ja.userDetail.heldDevicesHeading)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        translate(catalogues, "ja", "userDetail.devicePrefix", { deviceId: "LAPTOP-07" })
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText(ja.userDetail.viewLoan)).toBeInTheDocument();
+    expect(screen.getByText(ja.userDetail.overdue)).toBeInTheDocument();
   });
 
   it("renders loan history with status, origin badges, and links", async () => {
     renderUserDetailPage("admin");
 
-    expect(await screen.findByText("Loan History")).toBeInTheDocument();
+    expect(await screen.findByText(ja.userDetail.historyHeading)).toBeInTheDocument();
     expect(screen.getByText("LAPTOP-07")).toBeInTheDocument();
     expect(screen.getByText("PROJECTOR-02")).toBeInTheDocument();
+    // loan.origin is rendered raw (kiosk/paper), not translated through the catalogue.
     expect(screen.getByText("kiosk")).toBeInTheDocument();
     expect(screen.getByText("paper")).toBeInTheDocument();
-    expect(screen.getAllByText("View").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(ja.userDetail.view).length).toBeGreaterThanOrEqual(1);
   });
 
   it("performs borrower suspend with mandatory reason", async () => {
@@ -290,12 +307,12 @@ describe("4.4c User Detail Page", () => {
     expect(await screen.findByRole("heading", { name: "Dr. Taro Yamada" })).toBeInTheDocument();
 
     const user = userEvent.setup();
-    const suspendButton = screen.getByRole("button", { name: /^suspend$/i });
+    const suspendButton = screen.getByRole("button", { name: ja.userDetail.suspend });
     await user.click(suspendButton);
 
-    expect(screen.getByRole("heading", { name: /suspend borrower/i })).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText(/reason \(required\)/i), "Misplaced hospital ID");
-    await user.click(screen.getByRole("button", { name: /^suspend$/i }));
+    expect(screen.getByRole("heading", { name: ja.userDetail.suspendTitle })).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(ja.userDetail.reasonPlaceholder), "Misplaced hospital ID");
+    await user.click(screen.getByRole("button", { name: ja.userDetail.suspend }));
 
     await waitFor(() => {
       expect(suspendSpy).toHaveBeenCalledWith({
@@ -316,12 +333,15 @@ describe("4.4c User Detail Page", () => {
     expect(await screen.findByRole("heading", { name: "Dr. Taro Yamada" })).toBeInTheDocument();
 
     const user = userEvent.setup();
-    const archiveButton = screen.getByRole("button", { name: /^archive$/i });
+    const archiveButton = screen.getByRole("button", { name: ja.userDetail.archive });
     await user.click(archiveButton);
 
-    expect(screen.getByRole("heading", { name: /archive borrower/i })).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText(/reason \(required\)/i), "Doctor relocated to new hospital");
-    await user.click(screen.getByRole("button", { name: /^archive$/i }));
+    expect(screen.getByRole("heading", { name: ja.userDetail.archiveTitle })).toBeInTheDocument();
+    await user.type(
+      screen.getByPlaceholderText(ja.userDetail.reasonPlaceholder),
+      "Doctor relocated to new hospital"
+    );
+    await user.click(screen.getByRole("button", { name: ja.userDetail.archive }));
 
     await waitFor(() => {
       expect(archiveSpy).toHaveBeenCalledWith({

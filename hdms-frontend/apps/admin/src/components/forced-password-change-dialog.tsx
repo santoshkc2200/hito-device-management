@@ -24,6 +24,7 @@ import {
 } from "@/lib/auth";
 import { toast } from "sonner";
 import { KeyRound, ShieldAlert } from "lucide-react";
+import { useT } from "@/i18n";
 
 const passwordChangeSchema = z
   .object({
@@ -41,6 +42,7 @@ const passwordChangeSchema = z
 type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;
 
 export function ForcedPasswordChangeDialog() {
+  const t = useT();
   const { data: admin } = useQuery(currentAdminQueryOptions);
   const router = useRouter();
 
@@ -59,11 +61,11 @@ export function ForcedPasswordChangeDialog() {
     mutationFn: changeOwnPasswordAdmin,
     onSuccess: async () => {
       form.reset();
-      toast.success("Password changed successfully.");
+      toast.success(t("forcedPasswordChangeDialog.changedSuccessfully"));
       await router.invalidate();
     },
     onError: (error: unknown) => {
-      let message = "Failed to update password.";
+      let message = t("forcedPasswordChangeDialog.updateFailed");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -94,22 +96,22 @@ export function ForcedPasswordChangeDialog() {
             <div className="flex size-8 items-center justify-center rounded-full bg-amber-500/10 text-amber-600">
               <KeyRound className="size-4" />
             </div>
-            <DialogTitle>Password change required</DialogTitle>
+            <DialogTitle>{t("forcedPasswordChangeDialog.title")}</DialogTitle>
           </div>
-          <DialogDescription>
-            An administrator or system security policy requires you to set a new password before continuing.
-          </DialogDescription>
+          <DialogDescription>{t("forcedPasswordChangeDialog.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="my-1 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
           <ShieldAlert className="size-4 shrink-0 text-muted-foreground mt-0.5" />
-          <span>Passwords must be at least 12 characters in length.</span>
+          <span>{t("forcedPasswordChangeDialog.minLengthHint")}</span>
         </div>
 
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <FieldGroup className="mt-3">
             <Field data-invalid={!!form.formState.errors.currentPassword}>
-              <FieldLabel htmlFor="forced-current-password">Current password</FieldLabel>
+              <FieldLabel htmlFor="forced-current-password">
+                {t("forcedPasswordChangeDialog.currentPasswordLabel")}
+              </FieldLabel>
               <Input
                 id="forced-current-password"
                 type="password"
@@ -124,7 +126,9 @@ export function ForcedPasswordChangeDialog() {
             </Field>
 
             <Field data-invalid={!!form.formState.errors.newPassword}>
-              <FieldLabel htmlFor="forced-new-password">New password</FieldLabel>
+              <FieldLabel htmlFor="forced-new-password">
+                {t("forcedPasswordChangeDialog.newPasswordLabel")}
+              </FieldLabel>
               <Input
                 id="forced-new-password"
                 type="password"
@@ -138,7 +142,9 @@ export function ForcedPasswordChangeDialog() {
             </Field>
 
             <Field data-invalid={!!form.formState.errors.confirmPassword}>
-              <FieldLabel htmlFor="forced-confirm-password">Confirm new password</FieldLabel>
+              <FieldLabel htmlFor="forced-confirm-password">
+                {t("forcedPasswordChangeDialog.confirmPasswordLabel")}
+              </FieldLabel>
               <Input
                 id="forced-confirm-password"
                 type="password"
@@ -162,7 +168,9 @@ export function ForcedPasswordChangeDialog() {
               disabled={mutation.isPending}
               className="mt-2 w-full"
             >
-              {mutation.isPending ? "Updating password…" : "Set new password & continue"}
+              {mutation.isPending
+                ? t("forcedPasswordChangeDialog.updating")
+                : t("forcedPasswordChangeDialog.setAndContinue")}
             </Button>
           </FieldGroup>
         </form>

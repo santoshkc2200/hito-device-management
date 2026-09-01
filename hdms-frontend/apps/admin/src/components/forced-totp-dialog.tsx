@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { Barcode } from "@/components/barcode";
 import { Check, Copy, QrCode, ShieldCheck } from "lucide-react";
 import type { TotpEnrolment } from "@hdms/api-client";
+import { useT } from "@/i18n";
 
 const totpConfirmSchema = z.object({
   totpCode: z
@@ -39,6 +40,7 @@ const totpConfirmSchema = z.object({
 type TotpConfirmFormValues = z.infer<typeof totpConfirmSchema>;
 
 export function ForcedTotpDialog() {
+  const t = useT();
   const { data: admin } = useQuery(currentAdminQueryOptions);
   const router = useRouter();
   const [enrolment, setEnrolment] = useState<TotpEnrolment | null>(null);
@@ -52,7 +54,7 @@ export function ForcedTotpDialog() {
       setEnrolment(data);
     },
     onError: () => {
-      toast.error("Failed to initiate TOTP re-enrolment. Please try again.");
+      toast.error(t("forcedTotpDialog.beginFailed"));
     },
   });
 
@@ -72,11 +74,11 @@ export function ForcedTotpDialog() {
     onSuccess: async () => {
       form.reset();
       setEnrolment(null);
-      toast.success("Authenticator re-enrolled successfully.");
+      toast.success(t("forcedTotpDialog.reenrolledSuccessfully"));
       await router.invalidate();
     },
     onError: (error: unknown) => {
-      let message = "Invalid authenticator code. Please try again.";
+      let message = t("forcedTotpDialog.invalidCode");
       if (error && typeof error === "object") {
         if ("detail" in error && typeof (error as { detail: string }).detail === "string") {
           message = (error as { detail: string }).detail;
@@ -93,10 +95,10 @@ export function ForcedTotpDialog() {
     try {
       await navigator.clipboard.writeText(enrolment.totpSecret);
       setCopiedSecret(true);
-      toast.success("Secret copied to clipboard");
+      toast.success(t("forcedTotpDialog.secretCopied"));
       setTimeout(() => setCopiedSecret(false), 3000);
     } catch {
-      toast.error("Failed to copy secret");
+      toast.error(t("forcedTotpDialog.copyFailed"));
     }
   };
 
@@ -116,16 +118,14 @@ export function ForcedTotpDialog() {
             <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
               <QrCode className="size-4" />
             </div>
-            <DialogTitle>Authenticator re-enrolment required</DialogTitle>
+            <DialogTitle>{t("forcedTotpDialog.title")}</DialogTitle>
           </div>
-          <DialogDescription>
-            You must configure a new 2-factor authenticator app before accessing the admin console.
-          </DialogDescription>
+          <DialogDescription>{t("forcedTotpDialog.description")}</DialogDescription>
         </DialogHeader>
 
         {beginMutation.isPending && (
           <div className="py-8 text-center text-sm text-muted-foreground">
-            Generating authenticator credentials…
+            {t("forcedTotpDialog.generating")}
           </div>
         )}
 
@@ -141,13 +141,13 @@ export function ForcedTotpDialog() {
                 />
               </div>
               <p className="mt-2 text-[11px] text-zinc-500">
-                Scan with Google Authenticator, 1Password, or compatible app
+                {t("forcedTotpDialog.scanHint")}
               </p>
             </div>
 
             <div className="rounded-md border border-border bg-muted/40 p-3">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                <span>Manual entry secret</span>
+                <span>{t("forcedTotpDialog.manualEntrySecret")}</span>
                 <button
                   type="button"
                   onClick={handleCopySecret}
@@ -156,12 +156,12 @@ export function ForcedTotpDialog() {
                   {copiedSecret ? (
                     <>
                       <Check className="size-3 text-green-600" />
-                      Copied
+                      {t("forcedTotpDialog.copied")}
                     </>
                   ) : (
                     <>
                       <Copy className="size-3" />
-                      Copy secret
+                      {t("forcedTotpDialog.copySecret")}
                     </>
                   )}
                 </button>
@@ -174,13 +174,15 @@ export function ForcedTotpDialog() {
             <form onSubmit={form.handleSubmit(handleConfirm)}>
               <FieldGroup>
                 <Field data-invalid={!!form.formState.errors.totpCode}>
-                  <FieldLabel htmlFor="forced-totp-code">Verification code</FieldLabel>
+                  <FieldLabel htmlFor="forced-totp-code">
+                    {t("forcedTotpDialog.verificationCodeLabel")}
+                  </FieldLabel>
                   <Input
                     id="forced-totp-code"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     maxLength={6}
-                    placeholder="Enter 6-digit code"
+                    placeholder={t("forcedTotpDialog.codePlaceholder")}
                     className="font-mono tracking-widest"
                     autoFocus
                     aria-invalid={!!form.formState.errors.totpCode}
@@ -203,7 +205,9 @@ export function ForcedTotpDialog() {
                   className="w-full gap-2 mt-2"
                 >
                   <ShieldCheck className="size-4" />
-                  {confirmMutation.isPending ? "Verifying…" : "Confirm & activate"}
+                  {confirmMutation.isPending
+                    ? t("forcedTotpDialog.verifying")
+                    : t("forcedTotpDialog.confirmAndActivate")}
                 </Button>
               </FieldGroup>
             </form>

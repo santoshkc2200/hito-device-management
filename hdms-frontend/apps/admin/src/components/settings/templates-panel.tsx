@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { saveLabelSheetSettings } from "@/lib/label-settings";
+import { useT } from "@/i18n";
 
 const labelTemplateSchema = z.object({
   sheetWidthMm: z.number().min(50).max(1000),
@@ -51,9 +52,8 @@ const slipTemplateSchema = z.object({
 
 type SlipTemplateFormValues = z.infer<typeof slipTemplateSchema>;
 
-const PRESETS: Record<string, { label: string; values: LabelTemplateFormValues }> = {
+const PRESETS: Record<string, { values: LabelTemplateFormValues }> = {
   "a4-3x8": {
-    label: "A4 Standard (3 × 8 — 24 Labels)",
     values: {
       sheetWidthMm: 210,
       sheetHeightMm: 297,
@@ -68,7 +68,6 @@ const PRESETS: Record<string, { label: string; values: LabelTemplateFormValues }
     },
   },
   "a4-4x10": {
-    label: "A4 Compact (4 × 10 — 40 Labels)",
     values: {
       sheetWidthMm: 210,
       sheetHeightMm: 297,
@@ -83,7 +82,6 @@ const PRESETS: Record<string, { label: string; values: LabelTemplateFormValues }
     },
   },
   "a4-2x5": {
-    label: "A4 Large Tag (2 × 5 — 10 Labels)",
     values: {
       sheetWidthMm: 210,
       sheetHeightMm: 297,
@@ -99,7 +97,21 @@ const PRESETS: Record<string, { label: string; values: LabelTemplateFormValues }
   },
 };
 
+function presetLabel(t: ReturnType<typeof useT>, key: string): string {
+  switch (key) {
+    case "a4-3x8":
+      return t("templatesPanel.presetA4Standard");
+    case "a4-4x10":
+      return t("templatesPanel.presetA4Compact");
+    case "a4-2x5":
+      return t("templatesPanel.presetA4LargeTag");
+    default:
+      return key;
+  }
+}
+
 export function TemplatesPanel() {
+  const t = useT();
   const queryClient = useQueryClient();
   const { role } = useRole();
   const isAdmin = role === "admin";
@@ -217,10 +229,10 @@ export function TemplatesPanel() {
           labelHeightMm: Number(data.labelTemplate.labelHeightMm),
         });
       }
-      toast.success("Label sheet template saved successfully");
+      toast.success(t("templatesPanel.labelTemplateSaved"));
     },
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to save label template");
+      toast.error(err?.detail || t("templatesPanel.labelTemplateSaveFailed"));
     },
   });
 
@@ -236,10 +248,10 @@ export function TemplatesPanel() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["settings"], data);
-      toast.success("Paper register slip template saved successfully");
+      toast.success(t("templatesPanel.slipTemplateSaved"));
     },
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to save slip template");
+      toast.error(err?.detail || t("templatesPanel.slipTemplateSaveFailed"));
     },
   });
 
@@ -250,7 +262,7 @@ export function TemplatesPanel() {
     const preset = PRESETS[presetKey];
     if (preset) {
       labelForm.reset(preset.values);
-      toast.info(`Applied preset: ${preset.label}`);
+      toast.info(t("templatesPanel.appliedPresetToast", { preset: presetLabel(t, presetKey) }));
     }
   };
 
@@ -258,7 +270,7 @@ export function TemplatesPanel() {
     const trimmed = newColumnInput.trim();
     if (!trimmed) return;
     if (currentColumns.includes(trimmed)) {
-      toast.error("Column already exists");
+      toast.error(t("templatesPanel.columnAlreadyExists"));
       return;
     }
     slipForm.setValue("columns", [...currentColumns, trimmed], { shouldDirty: true });
@@ -267,7 +279,7 @@ export function TemplatesPanel() {
 
   const handleRemoveColumn = (index: number) => {
     if (currentColumns.length <= 1) {
-      toast.error("Must have at least one column");
+      toast.error(t("templatesPanel.mustHaveOneColumn"));
       return;
     }
     const updated = currentColumns.filter((_, i) => i !== index);
@@ -278,11 +290,13 @@ export function TemplatesPanel() {
     const { sheetWidthMm, sheetHeightMm, columns, rows, marginTopMm, marginLeftMm, gutterXMm, gutterYMm, labelWidthMm, labelHeightMm } = watchedLabelValues;
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      toast.error("Pop-up blocked. Please allow pop-ups to print.");
+      toast.error(t("templatesPanel.popupBlocked"));
       return;
     }
 
     const totalLabels = columns * rows;
+    const sampleEquipmentLabel = t("templatesPanel.sampleEquipmentName");
+    const testLabelSub = t("templatesPanel.testLabelSub");
     let labelBoxes = "";
     for (let i = 1; i <= totalLabels; i++) {
       labelBoxes += `
@@ -290,8 +304,8 @@ export function TemplatesPanel() {
           <div class="qr-mock"></div>
           <div class="label-text">
             <div class="tag">DEV-TEST-${String(i).padStart(3, "0")}</div>
-            <div class="name">Sample Equipment ${i}</div>
-            <div class="sub">Hito Hospital · Test Label</div>
+            <div class="name">${sampleEquipmentLabel} ${i}</div>
+            <div class="sub">${testLabelSub}</div>
           </div>
         </div>
       `;
@@ -301,7 +315,7 @@ export function TemplatesPanel() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>HDMS - Test Label Sheet</title>
+        <title>${t("templatesPanel.testLabelSheetTitle")}</title>
         <style>
           @page {
             size: ${sheetWidthMm}mm ${sheetHeightMm}mm;
@@ -370,7 +384,7 @@ export function TemplatesPanel() {
     const slipValues = slipForm.getValues();
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      toast.error("Pop-up blocked. Please allow pop-ups to print.");
+      toast.error(t("templatesPanel.popupBlocked"));
       return;
     }
 
@@ -397,7 +411,7 @@ export function TemplatesPanel() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>HDMS - Physical Register Log Sheet</title>
+        <title>${t("templatesPanel.registerLogSheetTitle")}</title>
         <style>
           @page {
             size: A4 portrait;
@@ -449,7 +463,7 @@ export function TemplatesPanel() {
         <div class="header">
           <div>
             <div class="title">${slipValues.hospitalName}</div>
-            <div class="subtitle">Clinical Equipment Custody & Borrowing Ledger (Emergency / Physical Backup)</div>
+            <div class="subtitle">${t("templatesPanel.registerLogSubtitle")}</div>
           </div>
           <div style="text-align: right; font-family: monospace; font-size: 10pt; font-weight: bold;">
             ${slipValues.pageRefFormat}
@@ -457,9 +471,9 @@ export function TemplatesPanel() {
         </div>
 
         <div class="meta-box">
-          <div><strong>Ward / Department:</strong> ________________________</div>
-          <div><strong>Date:</strong> 20____ / ____ / ____</div>
-          <div><strong>Supervisor:</strong> ________________________</div>
+          <div><strong>${t("templatesPanel.wardDepartmentLabel")}</strong> ________________________</div>
+          <div><strong>${t("templatesPanel.dateLabel")}</strong> 20____ / ____ / ____</div>
+          <div><strong>${t("templatesPanel.supervisorLabel")}</strong> ________________________</div>
         </div>
 
         <table>
@@ -472,8 +486,8 @@ export function TemplatesPanel() {
         </table>
 
         <div class="footer">
-          <div>* When system connectivity is restored, transcribe this physical log via HDMS Admin > Paper Backfill screen.</div>
-          <div>HDMS v2.0 · Template System</div>
+          <div>${t("templatesPanel.transcribeHint")}</div>
+          <div>${t("templatesPanel.footerVersionTag")}</div>
         </div>
 
         <script>
@@ -486,15 +500,15 @@ export function TemplatesPanel() {
   };
 
   if (isLoading) {
-    return <LoadingState message="Loading printing templates..." />;
+    return <LoadingState message={t("templatesPanel.loadingTemplates")} />;
   }
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center text-destructive">
         <AlertTriangle className="size-8 mb-2" />
-        <p className="font-semibold">Failed to load templates</p>
-        <p className="text-xs text-muted-foreground mt-1">Please try refreshing the page.</p>
+        <p className="font-semibold">{t("templatesPanel.loadFailedTitle")}</p>
+        <p className="text-xs text-muted-foreground mt-1">{t("kiosksPanel.tryRefreshing")}</p>
       </div>
     );
   }
@@ -505,10 +519,8 @@ export function TemplatesPanel() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div>
-            <CardTitle>Adhesive Label Sheet Layout</CardTitle>
-            <CardDescription>
-              Configure sticker dimensions, page grid, and margins for A4/Letter barcode printer label sheets.
-            </CardDescription>
+            <CardTitle>{t("templatesPanel.labelSheetLayoutTitle")}</CardTitle>
+            <CardDescription>{t("templatesPanel.labelSheetLayoutDescription")}</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -518,7 +530,7 @@ export function TemplatesPanel() {
               className="gap-1.5"
             >
               <Printer className="size-4" />
-              Print Calibration Test Sheet
+              {t("templatesPanel.printCalibrationTestSheet")}
             </Button>
           </div>
         </CardHeader>
@@ -527,9 +539,9 @@ export function TemplatesPanel() {
           <div className="mb-6 flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 p-3">
             <span className="text-xs font-semibold text-foreground flex items-center gap-1.5 mr-2">
               <Sparkles className="size-3.5 text-primary" />
-              Standard Presets:
+              {t("templatesPanel.standardPresetsLabel")}
             </span>
-            {Object.entries(PRESETS).map(([key, preset]) => (
+            {Object.entries(PRESETS).map(([key]) => (
               <Button
                 key={key}
                 type="button"
@@ -538,7 +550,7 @@ export function TemplatesPanel() {
                 onClick={() => handleApplyPreset(key)}
                 className="text-xs h-7"
               >
-                {preset.label}
+                {presetLabel(t, key)}
               </Button>
             ))}
           </div>
@@ -551,7 +563,7 @@ export function TemplatesPanel() {
               {/* Form Input Columns */}
               <div className="lg:col-span-2 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                 <div className="space-y-1.5">
-                  <label htmlFor="sheetWidthMm" className="text-xs font-medium">Sheet Width (mm)</label>
+                  <label htmlFor="sheetWidthMm" className="text-xs font-medium">{t("templatesPanel.sheetWidthLabel")}</label>
                   <Input
                     id="sheetWidthMm"
                     type="number"
@@ -562,7 +574,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="sheetHeightMm" className="text-xs font-medium">Sheet Height (mm)</label>
+                  <label htmlFor="sheetHeightMm" className="text-xs font-medium">{t("templatesPanel.sheetHeightLabel")}</label>
                   <Input
                     id="sheetHeightMm"
                     type="number"
@@ -573,7 +585,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="columns" className="text-xs font-medium">Grid Columns</label>
+                  <label htmlFor="columns" className="text-xs font-medium">{t("templatesPanel.gridColumnsLabel")}</label>
                   <Input
                     id="columns"
                     type="number"
@@ -585,7 +597,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="rows" className="text-xs font-medium">Grid Rows</label>
+                  <label htmlFor="rows" className="text-xs font-medium">{t("templatesPanel.gridRowsLabel")}</label>
                   <Input
                     id="rows"
                     type="number"
@@ -597,7 +609,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="marginTopMm" className="text-xs font-medium">Margin Top (mm)</label>
+                  <label htmlFor="marginTopMm" className="text-xs font-medium">{t("templatesPanel.marginTopLabel")}</label>
                   <Input
                     id="marginTopMm"
                     type="number"
@@ -608,7 +620,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="marginLeftMm" className="text-xs font-medium">Margin Left (mm)</label>
+                  <label htmlFor="marginLeftMm" className="text-xs font-medium">{t("templatesPanel.marginLeftLabel")}</label>
                   <Input
                     id="marginLeftMm"
                     type="number"
@@ -619,7 +631,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="gutterXMm" className="text-xs font-medium">Horizontal Gap (mm)</label>
+                  <label htmlFor="gutterXMm" className="text-xs font-medium">{t("templatesPanel.horizontalGapLabel")}</label>
                   <Input
                     id="gutterXMm"
                     type="number"
@@ -630,7 +642,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="gutterYMm" className="text-xs font-medium">Vertical Gap (mm)</label>
+                  <label htmlFor="gutterYMm" className="text-xs font-medium">{t("templatesPanel.verticalGapLabel")}</label>
                   <Input
                     id="gutterYMm"
                     type="number"
@@ -641,7 +653,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="labelWidthMm" className="text-xs font-medium">Label Width (mm)</label>
+                  <label htmlFor="labelWidthMm" className="text-xs font-medium">{t("templatesPanel.labelWidthLabel")}</label>
                   <Input
                     id="labelWidthMm"
                     type="number"
@@ -652,7 +664,7 @@ export function TemplatesPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="labelHeightMm" className="text-xs font-medium">Label Height (mm)</label>
+                  <label htmlFor="labelHeightMm" className="text-xs font-medium">{t("templatesPanel.labelHeightLabel")}</label>
                   <Input
                     id="labelHeightMm"
                     type="number"
@@ -667,7 +679,11 @@ export function TemplatesPanel() {
               <div className="flex flex-col items-center justify-center rounded-xl border bg-muted/30 p-4">
                 <span className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
                   <Grid className="size-3.5" />
-                  Live Layout Preview ({watchedLabelValues.columns || 3} × {watchedLabelValues.rows || 8} = {(watchedLabelValues.columns || 3) * (watchedLabelValues.rows || 8)} labels)
+                  {t("templatesPanel.liveLayoutPreview", {
+                    columns: watchedLabelValues.columns || 3,
+                    rows: watchedLabelValues.rows || 8,
+                    total: (watchedLabelValues.columns || 3) * (watchedLabelValues.rows || 8),
+                  })}
                 </span>
                 <div
                   className="relative border-2 border-primary/40 bg-white dark:bg-zinc-900 rounded shadow-xs overflow-hidden"
@@ -703,7 +719,7 @@ export function TemplatesPanel() {
                   className="gap-2"
                 >
                   <Save className="size-4" />
-                  {updateLabelTemplateMutation.isPending ? "Saving..." : "Save Label Template"}
+                  {updateLabelTemplateMutation.isPending ? t("templatesPanel.savingLabelTemplate") : t("templatesPanel.saveLabelTemplate")}
                 </Button>
               </div>
             )}
@@ -715,10 +731,8 @@ export function TemplatesPanel() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div>
-            <CardTitle>Physical Register Slip Pad Template</CardTitle>
-            <CardDescription>
-              Settings for paper backup log sheets used in offline wards and digitized via Paper Backfill (FR-72).
-            </CardDescription>
+            <CardTitle>{t("templatesPanel.slipPadTitle")}</CardTitle>
+            <CardDescription>{t("templatesPanel.slipPadDescription")}</CardDescription>
           </div>
           <Button
             variant="outline"
@@ -727,7 +741,7 @@ export function TemplatesPanel() {
             className="gap-1.5"
           >
             <FileText className="size-4" />
-            Print Blank Register Pad
+            {t("templatesPanel.printBlankRegisterPad")}
           </Button>
         </CardHeader>
         <CardContent>
@@ -737,7 +751,7 @@ export function TemplatesPanel() {
           >
             <div className="grid gap-6 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <label htmlFor="hospitalName" className="text-xs font-medium">Hospital Header Name</label>
+                <label htmlFor="hospitalName" className="text-xs font-medium">{t("templatesPanel.hospitalHeaderNameLabel")}</label>
                 <Input
                   id="hospitalName"
                   disabled={!isAdmin}
@@ -749,7 +763,7 @@ export function TemplatesPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="pageRefFormat" className="text-xs font-medium">Page Reference Code Format</label>
+                <label htmlFor="pageRefFormat" className="text-xs font-medium">{t("templatesPanel.pageRefFormatLabel")}</label>
                 <Input
                   id="pageRefFormat"
                   disabled={!isAdmin}
@@ -761,7 +775,7 @@ export function TemplatesPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="rowsPerPage" className="text-xs font-medium">Rows Per Page</label>
+                <label htmlFor="rowsPerPage" className="text-xs font-medium">{t("templatesPanel.rowsPerPageLabel")}</label>
                 <Input
                   id="rowsPerPage"
                   type="number"
@@ -778,7 +792,7 @@ export function TemplatesPanel() {
 
             {/* Column List Editor */}
             <div className="space-y-3 pt-2">
-              <label className="text-xs font-medium">Printed Table Columns</label>
+              <label className="text-xs font-medium">{t("templatesPanel.printedTableColumnsLabel")}</label>
               <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/20">
                 {currentColumns.map((col, index) => (
                   <Badge key={index} variant="secondary" className="gap-1.5 py-1 px-2.5 text-xs font-normal">
@@ -788,7 +802,7 @@ export function TemplatesPanel() {
                         type="button"
                         onClick={() => handleRemoveColumn(index)}
                         className="hover:text-destructive text-muted-foreground ml-1"
-                        title="Remove column"
+                        title={t("templatesPanel.removeColumn")}
                       >
                         <Trash2 className="size-3" />
                       </button>
@@ -800,7 +814,7 @@ export function TemplatesPanel() {
               {isAdmin && (
                 <div className="flex items-center gap-2 pt-1 max-w-sm">
                   <Input
-                    placeholder="New column name..."
+                    placeholder={t("templatesPanel.newColumnNamePlaceholder")}
                     value={newColumnInput}
                     onChange={(e) => setNewColumnInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -819,7 +833,7 @@ export function TemplatesPanel() {
                     className="h-8 text-xs gap-1"
                   >
                     <Plus className="size-3.5" />
-                    Add
+                    {t("templatesPanel.addColumn")}
                   </Button>
                 </div>
               )}
@@ -833,7 +847,7 @@ export function TemplatesPanel() {
                   className="gap-2"
                 >
                   <Save className="size-4" />
-                  {updateSlipTemplateMutation.isPending ? "Saving..." : "Save Slip Template"}
+                  {updateSlipTemplateMutation.isPending ? t("templatesPanel.savingSlipTemplate") : t("templatesPanel.saveSlipTemplate")}
                 </Button>
               </div>
             )}

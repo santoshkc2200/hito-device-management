@@ -4,7 +4,14 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
+import { ja } from "@/i18n/ja";
 import { UserImportDialog } from "@/components/user-import-dialog";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 describe("UserImportDialog", () => {
   let queryClient: QueryClient;
@@ -30,8 +37,8 @@ describe("UserImportDialog", () => {
   it("renders upload step initially and passes a11y audit", async () => {
     const { container } = renderDialog();
 
-    expect(screen.getByText(/import users from csv/i)).toBeInTheDocument();
-    expect(screen.getByText(/click to select csv file/i)).toBeInTheDocument();
+    expect(screen.getByText(ja.userImportDialog.titleUpload)).toBeInTheDocument();
+    expect(screen.getByText(ja.deviceImportDialog.clickToSelectCsv)).toBeInTheDocument();
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
@@ -91,17 +98,23 @@ describe("UserImportDialog", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByText(/preview user import/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.userImportDialog.titlePreview)).toBeInTheDocument();
     });
 
     expect(screen.getByText("HH-2001")).toBeInTheDocument();
     expect(screen.getByText("Alice Smith")).toBeInTheDocument();
-    expect(screen.getByText("Create")).toBeInTheDocument();
+    // "新規作成"/"更新" label both the summary stat tile and the row's action
+    // badge — Japanese uses the same short word for both.
+    expect(
+      screen.getAllByText(ja.deviceImportDialog.actionCreate).length
+    ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("HH-2002")).toBeInTheDocument();
-    expect(screen.getByText("Update")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(ja.deviceImportDialog.actionUpdate).length
+    ).toBeGreaterThanOrEqual(1);
 
     // Commit button should be enabled
-    const commitBtn = screen.getByRole("button", { name: /commit import/i });
+    const commitBtn = screen.getByRole("button", { name: ja.deviceImportDialog.commitImport });
     expect(commitBtn).not.toBeDisabled();
   });
 
@@ -149,13 +162,19 @@ describe("UserImportDialog", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByText(/This file contains 1 invalid row/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "deviceImportDialog.invalidRowsWarning", { count: 1 })
+        )
+      ).toBeInTheDocument();
     });
 
     expect(screen.getByText(/employee_no is required/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/invalid/i).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(new RegExp(escapeRegExp(ja.deviceImportDialog.invalid))).length
+    ).toBeGreaterThanOrEqual(1);
 
-    const commitBtn = screen.getByRole("button", { name: /commit import/i });
+    const commitBtn = screen.getByRole("button", { name: ja.deviceImportDialog.commitImport });
     expect(commitBtn).toBeDisabled();
   });
 
@@ -225,23 +244,29 @@ describe("UserImportDialog", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /commit import/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: ja.deviceImportDialog.commitImport })
+      ).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /commit import/i }));
+    await user.click(screen.getByRole("button", { name: ja.deviceImportDialog.commitImport }));
 
     await waitFor(() => {
-      expect(screen.getByText(/import summary & card distribution/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.userImportDialog.titleDone)).toBeInTheDocument();
     });
 
     expect(screen.getByText("imp-batch-999")).toBeInTheDocument();
-    expect(screen.getByText(/name-to-card distribution sheet/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /print sheet/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /issue cards/i })).toBeInTheDocument();
+    expect(screen.getByText(ja.userImportDialog.distributionSheetHeading)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: ja.userImportDialog.printSheet })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: ja.userImportDialog.issueCardsToNewStaff })
+    ).toBeInTheDocument();
 
     // Verify print button triggers window.print
     const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
-    await user.click(screen.getByRole("button", { name: /print sheet/i }));
+    await user.click(screen.getByRole("button", { name: ja.userImportDialog.printSheet }));
     expect(printSpy).toHaveBeenCalled();
   });
 });

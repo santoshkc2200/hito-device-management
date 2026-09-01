@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DeviceStickerLabel, StaffCardLabel } from "@/components/label-templates";
+import { useT } from "@/i18n";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -53,16 +54,15 @@ export function TokenRevealDialog({
   token: string | undefined;
   subject: TokenRevealSubject;
 }) {
+  const t = useT();
   if (!token) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Card ready</DialogTitle>
-          <DialogDescription>
-            This token is shown once and cannot be recovered later — print it now.
-          </DialogDescription>
+          <DialogTitle>{t("tokenRevealDialog.title")}</DialogTitle>
+          <DialogDescription>{t("tokenRevealDialog.description")}</DialogDescription>
         </DialogHeader>
         <style>{`@page { size: ${subject.type === "device" ? "60mm 30mm" : "85.6mm 54mm"}; margin: 0; }`}</style>
         <div className="print-area flex justify-center py-2">
@@ -90,23 +90,25 @@ export function TokenRevealDialog({
             variant="outline"
             onClick={() => {
               void navigator.clipboard.writeText(token);
-              toast.success("Token copied");
+              toast.success(t("tokenRevealDialog.tokenCopied"));
             }}
           >
             <Copy className="size-4" data-icon="inline-start" />
-            Copy token
+            {t("tokenRevealDialog.copyToken")}
           </Button>
           <Button variant="outline" onClick={() => exportPng(token)}>
             <Download className="size-4" data-icon="inline-start" />
+            {/* i18n-allow-literal: PNG is a file-format acronym, not translatable prose */}
             PNG
           </Button>
           <Button variant="outline" onClick={() => exportSvg(token)}>
             <Download className="size-4" data-icon="inline-start" />
+            {/* i18n-allow-literal: SVG is a file-format acronym, not translatable prose */}
             SVG
           </Button>
           <Button onClick={() => window.print()}>
             <Printer className="size-4" data-icon="inline-start" />
-            Print
+            {t("tokenRevealDialog.print")}
           </Button>
         </DialogFooter>
       </DialogContent>

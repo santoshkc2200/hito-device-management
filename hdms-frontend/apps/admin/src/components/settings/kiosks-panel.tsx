@@ -62,6 +62,7 @@ import {
   Clock,
   Tablet,
 } from "lucide-react";
+import { useT } from "@/i18n";
 
 const registerKioskSchema = z.object({
   name: z.string().min(1, "validation.nameRequired"),
@@ -91,6 +92,7 @@ type PairingModal = {
 type PairingKiosk = Kiosk & { fallbackToken?: string };
 
 function PairingCountdown({ expiresAt, onExpired }: { expiresAt: string | null; onExpired: () => void }) {
+  const t = useT();
   const [remainingSeconds, setRemainingSeconds] = useState(() => remaining(expiresAt));
 
   useEffect(() => {
@@ -105,12 +107,18 @@ function PairingCountdown({ expiresAt, onExpired }: { expiresAt: string | null; 
   }, [expiresAt, onExpired]);
 
   if (!expiresAt || remainingSeconds === 0) {
-    return <p role="status" className="text-sm font-medium text-destructive">Code expired. Issue a new code to continue.</p>;
+    return <p role="status" className="text-sm font-medium text-destructive">{t("kiosksPanel.codeExpired")}</p>;
   }
 
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
-  return <p className="text-xs text-muted-foreground">{minutes}:{seconds.toString().padStart(2, "0")} remaining</p>;
+  return (
+    <p className="text-xs text-muted-foreground">
+      {t("kiosksPanel.remainingCountdown", {
+        time: `${minutes}:${seconds.toString().padStart(2, "0")}`,
+      })}
+    </p>
+  );
 }
 
 function remaining(expiresAt: string | null): number {
@@ -119,6 +127,7 @@ function remaining(expiresAt: string | null): number {
 }
 
 export function KiosksPanel() {
+  const t = useT();
   const queryClient = useQueryClient();
   const { role } = useRole();
   const isAdmin = role === "admin";
@@ -165,7 +174,7 @@ export function KiosksPanel() {
       queryClient.invalidateQueries({ queryKey: ["kiosks"] });
       setRegisterOpen(false);
       registerForm.reset();
-      toast.success("Kiosk registered successfully");
+      toast.success(t("kiosksPanel.kioskRegistered"));
       if (data) {
         pairingCodeMutation.mutate({
           id: data.id,
@@ -181,7 +190,7 @@ export function KiosksPanel() {
       }
     },
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to register kiosk");
+      toast.error(err?.detail || t("kiosksPanel.registerFailed"));
     },
   });
 
@@ -234,10 +243,10 @@ export function KiosksPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kiosks"] });
       setEditingKiosk(null);
-      toast.success("Kiosk configuration updated");
+      toast.success(t("kiosksPanel.kioskUpdated"));
     },
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to update kiosk");
+      toast.error(err?.detail || t("kiosksPanel.updateFailed"));
     },
   });
 
@@ -252,17 +261,17 @@ export function KiosksPanel() {
     },
     onSuccess: ({ kiosk, data }) => {
       queryClient.invalidateQueries({ queryKey: ["kiosks"] });
-      toast.success(`Token rotated for ${kiosk.name}`);
+      toast.success(t("kiosksPanel.tokenRotatedToast", { name: kiosk.name }));
       if (data?.token) {
         setRevealedToken({
-          title: "New Kiosk Bearer Token",
+          title: t("kiosksPanel.newBearerTokenTitle"),
           kioskName: kiosk.name,
           token: data.token,
         });
       }
     },
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to rotate token");
+      toast.error(err?.detail || t("kiosksPanel.rotateTokenFailed"));
     },
   });
 
@@ -288,7 +297,7 @@ export function KiosksPanel() {
       }
     },
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to generate pairing code");
+      toast.error(err?.detail || t("kiosksPanel.pairingCodeFailed"));
     },
   });
 
@@ -303,11 +312,13 @@ export function KiosksPanel() {
     },
     onSuccess: (_, { enable }) => {
       queryClient.invalidateQueries({ queryKey: ["kiosks"] });
-      toast.success(`Kiosk ${enable ? "enabled" : "disabled"} successfully`);
+      toast.success(
+        enable ? t("kiosksPanel.kioskEnabledToast") : t("kiosksPanel.kioskDisabledToast"),
+      );
     },
 
     onError: (err: any) => {
-      toast.error(err?.detail || "Failed to change kiosk status");
+      toast.error(err?.detail || t("kiosksPanel.statusChangeFailed"));
     },
   });
 
@@ -330,15 +341,15 @@ export function KiosksPanel() {
   };
 
   if (isLoading) {
-    return <LoadingState message="Loading kiosk terminals..." />;
+    return <LoadingState message={t("kiosksPanel.loadingKiosks")} />;
   }
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center text-destructive">
         <AlertTriangle className="size-8 mb-2" />
-        <p className="font-semibold">Failed to load kiosks</p>
-        <p className="text-xs text-muted-foreground mt-1">Please try refreshing the page.</p>
+        <p className="font-semibold">{t("kiosksPanel.loadFailedTitle")}</p>
+        <p className="text-xs text-muted-foreground mt-1">{t("kiosksPanel.tryRefreshing")}</p>
       </div>
     );
   }
@@ -349,19 +360,17 @@ export function KiosksPanel() {
       <div className="flex items-center justify-between rounded-xl border border-border bg-card p-5 shadow-2xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground text-sm">Scanner & Card Reader Diagnostic</span>
+            <span className="font-semibold text-foreground text-sm">{t("kiosksPanel.scannerDiagnosticHeading")}</span>
             <Badge variant="secondary" className="font-mono text-[10px] uppercase">
-              Hardware Tool
+              {t("kiosksPanel.hardwareToolBadge")}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground max-w-xl">
-            Test hardware USB barcode scanners, RFID/NFC wedge readers, and raw credential token grammar directly on this workstation.
-          </p>
+          <p className="text-xs text-muted-foreground max-w-xl">{t("kiosksPanel.scannerDiagnosticDescription")}</p>
         </div>
         <Link to="/card-reader-test">
           <Button size="sm" variant="outline" className="gap-2">
             <Radio className="size-4 text-primary" />
-            Launch Diagnostic Tool
+            {t("kiosksPanel.launchDiagnosticTool")}
           </Button>
         </Link>
       </div>
@@ -370,15 +379,13 @@ export function KiosksPanel() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div>
-            <CardTitle>Registered Kiosk Terminals</CardTitle>
-            <CardDescription>
-              Hardware tablets, desktop stations, and mobile scan points deployed across hospital wards.
-            </CardDescription>
+            <CardTitle>{t("kiosksPanel.registeredKioskTerminals")}</CardTitle>
+            <CardDescription>{t("kiosksPanel.registeredKioskTerminalsDescription")}</CardDescription>
           </div>
           {isAdmin && (
             <Button size="sm" onClick={() => setRegisterOpen(true)} className="gap-1.5">
               <Plus className="size-4" />
-              Register Kiosk
+              {t("kiosksPanel.registerKiosk")}
             </Button>
           )}
         </CardHeader>
@@ -387,12 +394,12 @@ export function KiosksPanel() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Kiosk Name</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Scan Sources</TableHead>
-                  <TableHead>Last Activity</TableHead>
-                  {isAdmin && <TableHead className="w-16 text-right">Actions</TableHead>}
+                  <TableHead>{t("columns.status")}</TableHead>
+                  <TableHead>{t("kiosksPanel.colKioskName")}</TableHead>
+                  <TableHead>{t("kiosksPanel.colLocation")}</TableHead>
+                  <TableHead>{t("kiosksPanel.colScanSources")}</TableHead>
+                  <TableHead>{t("kiosksPanel.colLastActivity")}</TableHead>
+                  {isAdmin && <TableHead className="w-16 text-right">{t("columns.actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -407,20 +414,20 @@ export function KiosksPanel() {
                           <div className="flex items-center gap-2">
                             {isActive ? (
                               <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
-                                Active
+                                {t("adminAccountsPanel.statusActive")}
                               </Badge>
                             ) : (
                               <Badge variant="secondary" className="text-muted-foreground bg-muted">
-                                Disabled
+                                {t("adminAccountsPanel.statusDisabled")}
                               </Badge>
                             )}
                             {isActive && quiet && (
                               <span
                                 className="flex items-center text-amber-600 dark:text-amber-400 text-xs gap-1"
-                                title="No activity recorded in over 24 hours"
+                                title={t("kiosksPanel.quietTooltip")}
                               >
                                 <AlertTriangle className="size-3.5" />
-                                <span className="text-[11px] font-medium">Quiet</span>
+                                <span className="text-[11px] font-medium">{t("kiosksPanel.quiet")}</span>
                               </span>
                             )}
                           </div>
@@ -432,7 +439,7 @@ export function KiosksPanel() {
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {kiosk.location || <span className="text-xs italic">Unspecified</span>}
+                          {kiosk.location || <span className="text-xs italic">{t("kiosksPanel.unspecified")}</span>}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
@@ -443,7 +450,7 @@ export function KiosksPanel() {
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-xs text-muted-foreground italic">None</span>
+                              <span className="text-xs text-muted-foreground italic">{t("kiosksPanel.none")}</span>
                             )}
                           </div>
                         </TableCell>
@@ -453,29 +460,29 @@ export function KiosksPanel() {
                               {new Date(kiosk.lastSeenAt).toLocaleString()}
                             </span>
                           ) : (
-                            <span className="italic text-muted-foreground">Never</span>
+                            <span className="italic text-muted-foreground">{t("kiosksPanel.never")}</span>
                           )}
                         </TableCell>
                         {isAdmin && (
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${kiosk.name}`}>
+                                <Button variant="ghost" size="icon-sm" aria-label={t("kiosksPanel.actionsForAria", { name: kiosk.name })}>
                                   <MoreHorizontal className="size-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-52">
                                 <DropdownMenuItem disabled={!isActive || pairingCodeMutation.isPending} onClick={() => issuePairingCode(kiosk)}>
                                   <QrCode className="size-4 mr-2" />
-                                  Issue Pairing Code
+                                  {t("kiosksPanel.issuePairingCode")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openEditDialog(kiosk)}>
                                   <PencilLine className="size-4 mr-2" />
-                                  Edit Configuration
+                                  {t("kiosksPanel.editConfiguration")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => rotateTokenMutation.mutate(kiosk)}>
                                   <RefreshCw className="size-4 mr-2" />
-                                  Rotate Bearer Token
+                                  {t("kiosksPanel.rotateBearerToken")}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 {isActive ? (
@@ -484,14 +491,14 @@ export function KiosksPanel() {
                                     className="text-destructive focus:text-destructive"
                                   >
                                     <PowerOff className="size-4 mr-2" />
-                                    Disable Kiosk
+                                    {t("kiosksPanel.disableKiosk")}
                                   </DropdownMenuItem>
                                 ) : (
                                   <DropdownMenuItem
                                     onClick={() => toggleStatusMutation.mutate({ kiosk, enable: true })}
                                   >
                                     <Power className="size-4 mr-2" />
-                                    Enable Kiosk
+                                    {t("kiosksPanel.enableKiosk")}
                                   </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
@@ -504,7 +511,7 @@ export function KiosksPanel() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-6 text-muted-foreground">
-                      No kiosk terminals registered yet.
+                      {t("kiosksPanel.noKiosksYet")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -518,10 +525,8 @@ export function KiosksPanel() {
       <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Register New Kiosk</DialogTitle>
-            <DialogDescription>
-              Add a new tablet or computer terminal to the device checkout network.
-            </DialogDescription>
+            <DialogTitle>{t("kiosksPanel.registerNewKiosk")}</DialogTitle>
+            <DialogDescription>{t("kiosksPanel.registerDialogDescription")}</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={registerForm.handleSubmit((v) => registerMutation.mutate(v))}
@@ -529,11 +534,11 @@ export function KiosksPanel() {
           >
             <div className="space-y-2">
               <label htmlFor="reg-kiosk-name" className="text-sm font-medium">
-                Kiosk Name
+                {t("kiosksPanel.kioskNameLabel")}
               </label>
               <Input
                 id="reg-kiosk-name"
-                placeholder="e.g. ICU Station 1, Central Supply Desk"
+                placeholder={t("kiosksPanel.kioskNamePlaceholder")}
                 autoFocus
                 {...registerForm.register("name")}
               />
@@ -544,21 +549,21 @@ export function KiosksPanel() {
 
             <div className="space-y-2">
               <label htmlFor="reg-kiosk-loc" className="text-sm font-medium">
-                Location / Department
+                {t("kiosksPanel.locationDepartmentLabel")}
               </label>
               <Input
                 id="reg-kiosk-loc"
-                placeholder="e.g. Main Hospital 3F - Ward 3B"
+                placeholder={t("kiosksPanel.locationPlaceholder")}
                 {...registerForm.register("location")}
               />
             </div>
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setRegisterOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={registerMutation.isPending}>
-                {registerMutation.isPending ? "Registering..." : "Register Kiosk"}
+                {registerMutation.isPending ? t("kiosksPanel.registering") : t("kiosksPanel.registerKiosk")}
               </Button>
             </DialogFooter>
           </form>
@@ -569,10 +574,8 @@ export function KiosksPanel() {
       <Dialog open={!!editingKiosk} onOpenChange={(open) => !open && setEditingKiosk(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Kiosk: {editingKiosk?.name}</DialogTitle>
-            <DialogDescription>
-              Configure name, physical location, and enabled barcode/RFID scan inputs.
-            </DialogDescription>
+            <DialogTitle>{t("kiosksPanel.editKioskTitle", { name: editingKiosk?.name ?? "" })}</DialogTitle>
+            <DialogDescription>{t("kiosksPanel.editDialogDescription")}</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={editForm.handleSubmit((v) => editMutation.mutate(v))}
@@ -580,7 +583,7 @@ export function KiosksPanel() {
           >
             <div className="space-y-2">
               <label htmlFor="edit-kiosk-name" className="text-sm font-medium">
-                Kiosk Name
+                {t("kiosksPanel.kioskNameLabel")}
               </label>
               <Input id="edit-kiosk-name" {...editForm.register("name")} />
               {editForm.formState.errors.name && (
@@ -590,13 +593,13 @@ export function KiosksPanel() {
 
             <div className="space-y-2">
               <label htmlFor="edit-kiosk-loc" className="text-sm font-medium">
-                Location
+                {t("kiosksPanel.colLocation")}
               </label>
               <Input id="edit-kiosk-loc" {...editForm.register("location")} />
             </div>
 
             <div className="space-y-3 pt-2">
-              <label className="text-sm font-medium">Enabled Scan Input Sources</label>
+              <label className="text-sm font-medium">{t("kiosksPanel.enabledScanSources")}</label>
               <div className="grid grid-cols-2 gap-3 border rounded-lg p-3">
                 <div className="flex items-center space-x-2">
                   <Controller
@@ -611,7 +614,7 @@ export function KiosksPanel() {
                     )}
                   />
                   <label htmlFor="src-scanner" className="text-xs font-medium cursor-pointer">
-                    Hardware Scanner
+                    {t("kiosksPanel.sourceHardwareScanner")}
                   </label>
                 </div>
 
@@ -628,7 +631,7 @@ export function KiosksPanel() {
                     )}
                   />
                   <label htmlFor="src-camera" className="text-xs font-medium cursor-pointer">
-                    Camera Video
+                    {t("kiosksPanel.sourceCameraVideo")}
                   </label>
                 </div>
 
@@ -645,7 +648,7 @@ export function KiosksPanel() {
                     )}
                   />
                   <label htmlFor="src-manual" className="text-xs font-medium cursor-pointer">
-                    Manual Entry
+                    {t("kiosksPanel.sourceManualEntry")}
                   </label>
                 </div>
 
@@ -662,7 +665,7 @@ export function KiosksPanel() {
                     )}
                   />
                   <label htmlFor="src-nfc" className="text-xs font-medium cursor-pointer">
-                    NFC / RFID Reader
+                    {t("kiosksPanel.sourceNfcReader")}
                   </label>
                 </div>
               </div>
@@ -670,10 +673,10 @@ export function KiosksPanel() {
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setEditingKiosk(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={editMutation.isPending}>
-                {editMutation.isPending ? "Saving..." : "Save Changes"}
+                {editMutation.isPending ? t("kiosksPanel.savingChanges") : t("kiosksPanel.saveChanges")}
               </Button>
             </DialogFooter>
           </form>
@@ -689,7 +692,7 @@ export function KiosksPanel() {
               {revealedToken?.title}
             </DialogTitle>
             <DialogDescription>
-              Copy this token now. It authorizes {revealedToken?.kioskName} to communicate with the HDMS API and will never be displayed again.
+              {t("kiosksPanel.tokenRevealDescription", { name: revealedToken?.kioskName ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -704,18 +707,16 @@ export function KiosksPanel() {
                 onClick={() => revealedToken && void copyToClipboard(revealedToken.token)}
               >
                 {hasCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                {hasCopied ? "Copied" : "Copy"}
+                {hasCopied ? t("forcedTotpDialog.copied") : t("adminAccountsPanel.copy")}
               </Button>
             </div>
             <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
               <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-              <span>
-                Store this token securely in the kiosk application's environment or setup screen. If lost, you will need to rotate the token.
-              </span>
+              <span>{t("kiosksPanel.tokenStoreHint")}</span>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => setRevealedToken(null)}>Done</Button>
+            <Button onClick={() => setRevealedToken(null)}>{t("adminAccountsPanel.done")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -726,11 +727,9 @@ export function KiosksPanel() {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-center gap-2 text-center">
               <QrCode className="size-5 text-primary" />
-              Pair Kiosk: {pairingModal?.kioskName}
+              {t("kiosksPanel.pairKioskTitle", { name: pairingModal?.kioskName ?? "" })}
             </DialogTitle>
-            <DialogDescription className="text-center">
-              Enter this single-use code on the tablet setup screen. It works once; issuing another code cancels this one.
-            </DialogDescription>
+            <DialogDescription className="text-center">{t("kiosksPanel.pairingDialogDescription")}</DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             {pairingModal?.code ? (
@@ -740,29 +739,36 @@ export function KiosksPanel() {
                 </div>
                 <div>
                   <Button variant="outline" size="sm" onClick={() => void copyToClipboard(pairingModal.code!)}>
-                    {hasCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {hasCopied ? "Copied" : "Copy code"}
+                    {hasCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}{" "}
+                    {hasCopied ? t("forcedTotpDialog.copied") : t("kiosksPanel.copyCode")}
                   </Button>
-                  <span className="sr-only" aria-live="polite">{hasCopied ? "Pairing code copied" : ""}</span>
+                  <span className="sr-only" aria-live="polite">{hasCopied ? t("kiosksPanel.pairingCodeCopied") : ""}</span>
                 </div>
               </div>
             ) : pairingCodeMutation.isPending ? (
-              <p className="text-sm text-muted-foreground">Issuing pairing code...</p>
+              <p className="text-sm text-muted-foreground">{t("kiosksPanel.issuingPairingCode")}</p>
             ) : null}
             <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
               <Clock className="size-3.5" />
-              {pairingModal?.expiresAt ? `Expires ${new Date(pairingModal.expiresAt).toLocaleString()}` : "No active code"}
+              {pairingModal?.expiresAt
+                ? t("kiosksPanel.expiresAt", { date: new Date(pairingModal.expiresAt).toLocaleString() })
+                : t("kiosksPanel.noActiveCode")}
             </p>
             {pairingModal && <PairingCountdown expiresAt={pairingModal.expiresAt} onExpired={() => setPairingModal((current) => current ? { ...current, code: null, expiresAt: null } : null)} />}
-            {pairingModal?.location && <p className="text-xs text-muted-foreground">Location: {pairingModal.location}</p>}
+            {pairingModal?.location && (
+              <p className="text-xs text-muted-foreground">
+                {t("kiosksPanel.locationLine", { location: pairingModal.location })}
+              </p>
+            )}
           </div>
           <DialogFooter className="sm:justify-center">
             {!pairingCodeMutation.isPending && (
               <Button variant="outline" onClick={() => pairingModal && issuePairingCode({ id: pairingModal.kioskId, name: pairingModal.kioskName, location: pairingModal.location, enabledSources: [], status: "active", createdAt: "", defaultLocale: "en" })}>
-                {pairingModal?.code ? "Issue new code" : "Issue new code"}
+                {t("kiosksPanel.issueNewCode")}
               </Button>
             )}
             <Button onClick={() => setPairingModal(null)} className="w-full sm:w-auto">
-              Close
+              {t("common.close")}
             </Button>
           </DialogFooter>
         </DialogContent>

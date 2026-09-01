@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLabelSheetSettings } from "@/lib/label-settings";
+import { useT } from "@/i18n";
 
 // The real bulk-labelling workflow (docs/05-credentials-and-labeling.md):
 // CSV import mints one device credential each; this reprints each device's
@@ -34,6 +35,7 @@ export function DeviceLabelSheetDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useT();
   const [settings] = useLabelSheetSettings();
 
   // A manual one-shot mutation, not a query: reprinting increments
@@ -56,12 +58,22 @@ export function DeviceLabelSheetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Print device labels</DialogTitle>
+          <DialogTitle>{t("deviceLabelSheetDialog.title")}</DialogTitle>
           <DialogDescription>
             {mutation.isPending
-              ? "Reprinting each device's existing token…"
-              : `${withToken.length} label${withToken.length === 1 ? "" : "s"} ready.` +
-                (withoutToken.length > 0 ? ` ${withoutToken.length} skipped — no active credential.` : "")}
+              ? t("deviceLabelSheetDialog.reprinting")
+              : [
+                  withToken.length === 1
+                    ? t("deviceLabelSheetDialog.readyOne", { count: withToken.length })
+                    : t("deviceLabelSheetDialog.readyOther", { count: withToken.length }),
+                  withoutToken.length > 0
+                    ? withoutToken.length === 1
+                      ? t("deviceLabelSheetDialog.skippedOne", { count: withoutToken.length })
+                      : t("deviceLabelSheetDialog.skippedOther", { count: withoutToken.length })
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
           </DialogDescription>
         </DialogHeader>
         {mutation.isPending ? (
@@ -86,7 +98,7 @@ export function DeviceLabelSheetDialog({
         <div className="flex justify-end">
           <Button disabled={mutation.isPending || withToken.length === 0} onClick={() => window.print()}>
             <Printer className="size-4" data-icon="inline-start" />
-            Print sheet
+            {t("deviceLabelSheetDialog.printSheet")}
           </Button>
         </div>
       </DialogContent>

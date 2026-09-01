@@ -310,7 +310,7 @@ export function LoansPage() {
     // Filter by overdue if status === "overdue"
     if (search.status === "overdue") {
       items = items.filter(
-        (l) => l.status === "open" && l.dueAt && new Date(l.dueAt).getTime() < Date.now(),
+        (l) => l.status === "open" && l.dueAt && Date.now() > new Date(l.dueAt).getTime(),
       );
       // Sort worst first (highest days overdue / earliest due date)
       items.sort((a, b) => {

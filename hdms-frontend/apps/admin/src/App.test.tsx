@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { ja } from "@/i18n/ja";
 import { App } from "./App";
 
 vi.mock("@hdms/api-client", async () => {
@@ -18,7 +19,9 @@ describe("App", () => {
   it("redirects an unauthenticated visitor to the login screen", async () => {
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /device management/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: ja.login.systemTitle })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(ja.login.emailLabel)).toBeInTheDocument();
   });
 });

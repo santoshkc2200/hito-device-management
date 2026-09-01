@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as apiClient from "@hdms/api-client";
+import { ja } from "@/i18n/ja";
 import { currentAdminQueryKey } from "@/lib/auth";
 import { router } from "@/router";
 
@@ -63,7 +64,7 @@ describe("admin locale", () => {
   it("defaults to Japanese when the account has no preference", async () => {
     mockSignedInAdmin({});
     renderAdminApp();
-    expect(await screen.findByText("Dashboard")).toBeInTheDocument();
+    expect(await screen.findByText(ja.nav.dashboard)).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("ja");
   });
 });

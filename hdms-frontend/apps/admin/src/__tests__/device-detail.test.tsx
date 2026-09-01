@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
 import { currentAdminQueryKey } from "@/lib/auth";
+import { ja } from "@/i18n/ja";
 import { DeviceDetailPage, deviceDetailRoute } from "../routes/devices.$deviceId";
 
 // Mock TanStack Router
@@ -171,7 +172,7 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
     expect(screen.getByText(/\(DOC-501\)/)).toBeInTheDocument();
 
     // Verify Loan History table
-    expect(screen.getByText("Loan History")).toBeInTheDocument();
+    expect(screen.getByText(ja.deviceDetail.historyHeading)).toBeInTheDocument();
     expect(screen.getByText("user-nurse-jones")).toBeInTheDocument();
 
     const results = await axe(container);
@@ -192,9 +193,9 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
     renderDeviceDetailPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/device is currently available \/ not on loan/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.deviceDetail.notOnLoan)).toBeInTheDocument();
     });
-    expect(screen.getByText(/no loan history for this device/i)).toBeInTheDocument();
+    expect(screen.getByText(ja.deviceDetail.noHistory)).toBeInTheDocument();
   });
 
   it("triggers force return mutation with mandatory reason", async () => {
@@ -207,19 +208,19 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
     renderDeviceDetailPage();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /force return/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: ja.deviceDetail.forceReturn })).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /force return/i }));
+    await user.click(screen.getByRole("button", { name: ja.deviceDetail.forceReturn }));
 
     await waitFor(() => {
-      expect(screen.getByText(/force return device/i)).toBeInTheDocument();
+      expect(screen.getByText(ja.deviceDetail.forceReturnTitle)).toBeInTheDocument();
     });
 
-    const reasonInput = screen.getByPlaceholderText(/reason \(required\)/i);
+    const reasonInput = screen.getByPlaceholderText(ja.deviceDetail.reasonPlaceholder);
     await user.type(reasonInput, "Found left on desk");
 
-    const submitBtn = screen.getByRole("button", { name: /^force return$/i });
+    const submitBtn = screen.getByRole("button", { name: ja.deviceDetail.forceReturn });
     await user.click(submitBtn);
 
     await waitFor(() => {

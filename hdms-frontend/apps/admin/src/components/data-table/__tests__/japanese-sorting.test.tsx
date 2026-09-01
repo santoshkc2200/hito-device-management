@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { LocaleProvider } from "@hdms/i18n";
+import { ja } from "@/i18n/ja";
 import { DataTable, DataTableColumnHeader, useDataTableColumns, useTextSortingFn } from "../index";
 
 interface Borrower {
@@ -66,7 +67,7 @@ describe("Japanese text sorting", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /名前/ }));
-    await user.click(await screen.findByText("Asc"));
+    await user.click(await screen.findByText(ja.table.sortAscending));
 
     // The assertion is on the table, not the collator: the point is that the
     // column definition actually uses it.
@@ -99,7 +100,7 @@ describe("Japanese text sorting", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /名前/ }));
-    await user.click(await screen.findByText("Asc"));
+    await user.click(await screen.findByText(ja.table.sortAscending));
 
     expect(renderedNameOrder()).toEqual(["アオキ", "いとう", "さとう"]);
   });

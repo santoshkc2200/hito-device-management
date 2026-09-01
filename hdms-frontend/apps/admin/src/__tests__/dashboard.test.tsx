@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
+import { translate } from "@hdms/i18n";
+import { catalogues } from "@/i18n";
 import { AttentionStrip } from "@/components/dashboard/attention-strip";
 import { CategoryAvailabilityBars } from "@/components/dashboard/category-availability-bars";
 import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
@@ -172,11 +174,25 @@ describe("Phase 4.7 — Dashboard", () => {
       render(<CategoryAvailabilityBars categories={mockCategories} />);
 
       expect(screen.getByText("Tablets")).toBeInTheDocument();
-      expect(screen.getByText("3 / 10 available")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "dashboard.categories.availableCount", {
+            available: 3,
+            total: 10,
+          })
+        )
+      ).toBeInTheDocument();
       expect(screen.getByText("30%")).toBeInTheDocument();
 
       expect(screen.getByText("Infusion Pumps")).toBeInTheDocument();
-      expect(screen.getByText("0 / 5 available")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "dashboard.categories.availableCount", {
+            available: 0,
+            total: 5,
+          })
+        )
+      ).toBeInTheDocument();
       expect(screen.getByText("0%")).toBeInTheDocument();
 
       const progressBars = screen.getAllByRole("progressbar");
@@ -204,7 +220,9 @@ describe("Phase 4.7 — Dashboard", () => {
       expect(rows).toHaveLength(2);
       // Row 1 should be the 5 days overdue item (worst first)
       expect(rows[0]).toHaveTextContent("Infusion Pump B");
-      expect(rows[0]).toHaveTextContent("5 days late");
+      expect(rows[0]).toHaveTextContent(
+        translate(catalogues, "ja", "dashboard.overdue.daysLate", { count: 5 })
+      );
       expect(rows[0]).toHaveTextContent("Dr. Robert Smith");
 
       // Row 2 should be the 1 day overdue item
@@ -296,9 +314,15 @@ describe("Phase 4.7 — Dashboard", () => {
         );
       });
 
+      const checkoutDesc = translate(catalogues, "ja", "dashboard.feed.deviceCheckedOutDesc", {
+        user: "Nurse Alice",
+        device: "iPad Mini 1",
+        kiosk: translate(catalogues, "ja", "dashboard.feed.atKiosk", { kioskId: "kiosk-1" }),
+      });
+
       await waitFor(() => {
         expect(screen.getByText(ja.dashboard.feed.deviceCheckedOutTitle)).toBeInTheDocument();
-        expect(screen.getByText(/Nurse Alice borrowed iPad Mini 1 at kiosk kiosk-1/)).toBeInTheDocument();
+        expect(screen.getByText(checkoutDesc)).toBeInTheDocument();
       });
 
       // Stream event 2
@@ -310,9 +334,16 @@ describe("Phase 4.7 — Dashboard", () => {
         );
       });
 
+      const registeredDesc = translate(catalogues, "ja", "dashboard.feed.userRegisteredDesc", {
+        name: "Dr. Sato",
+        employeeNo: translate(catalogues, "ja", "dashboard.feed.employeeNoSuffix", {
+          employeeNo: "EMP-999",
+        }),
+      });
+
       await waitFor(() => {
         expect(screen.getByText(ja.dashboard.feed.userRegisteredTitle)).toBeInTheDocument();
-        expect(screen.getByText(/Dr. Sato \(EMP-999\) was added to system/)).toBeInTheDocument();
+        expect(screen.getByText(registeredDesc)).toBeInTheDocument();
       });
 
       // Stream duplicate event 101 (should NOT create a duplicate in the UI)
@@ -353,26 +384,43 @@ describe("Phase 4.7 — Dashboard", () => {
 
       // 1. Revoked scans
       expect(screen.getByTestId("attention-revoked-scans")).toBeInTheDocument();
-      expect(screen.getByText(/Revoked Card Scan Attempts \(4 scans\)/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "dashboard.attention.revokedScansTitle", { count: 4 })
+        )
+      ).toBeInTheDocument();
 
       // 2. Unregistered scans
       expect(screen.getByTestId("attention-unregistered-scans")).toBeInTheDocument();
-      expect(screen.getByText(/5 Turned Away/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "dashboard.attention.unregisteredScansTitle", { count: 5 })
+        )
+      ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: new RegExp(ja.dashboard.attention.registerBorrower, "i") })).toBeInTheDocument();
 
       // 3. Low stock
       expect(screen.getByTestId("attention-low-stock")).toBeInTheDocument();
-      expect(screen.getByText(/Blank Card Stock Low \(4 remaining\)/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          translate(catalogues, "ja", "dashboard.attention.lowStockTitle", { count: 4 })
+        )
+      ).toBeInTheDocument();
 
       // 4. Paper backlog
       expect(screen.getByTestId("attention-paper-backlog")).toBeInTheDocument();
-      expect(screen.getByText(/Paper Backlog Warning/)).toBeInTheDocument();
+      const paperBacklogStem = ja.dashboard.attention.paperBacklogTitle.split("{time}")[0];
+      expect(
+        screen.getByText(new RegExp(paperBacklogStem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+      ).toBeInTheDocument();
 
       // 5. Kiosks & Quiet kiosk badge
       expect(screen.getByTestId("kiosks-status-strip")).toBeInTheDocument();
       expect(screen.getByText("Emergency Ward Kiosk")).toBeInTheDocument();
       expect(screen.getByText("ICU Station Kiosk")).toBeInTheDocument();
-      expect(screen.getByTestId("quiet-kiosks-badge")).toHaveTextContent("1 quiet kiosk");
+      expect(screen.getByTestId("quiet-kiosks-badge")).toHaveTextContent(
+        translate(catalogues, "ja", "dashboard.attention.quietKiosksBadge", { count: 1 })
+      );
     });
   });
 
