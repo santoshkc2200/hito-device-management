@@ -41,4 +41,21 @@ describe("useLocalizedResolver", () => {
     });
     expect(outcome.errors.name?.message).toBe("Name is required");
   });
+
+  it("resolves a message key nested inside a per-item array error", async () => {
+    // Mirrors templates-panel.tsx's slipTemplateSchema.columns shape: a
+    // violation on one array item lands at errors.columns[i].message, not
+    // errors.columns.message — a depth-1-only walk would miss this.
+    const withArray = z.object({
+      columns: z.array(z.string().min(1, "validation.columnNameRequired")),
+    });
+    const { result } = renderHook(() => useLocalizedResolver(withArray), {
+      wrapper: makeWrapper(),
+    });
+    const outcome = await result.current({ columns: ["", "ok"] }, undefined, {
+      fields: {},
+      shouldUseNativeValidation: false,
+    });
+    expect(outcome.errors.columns?.[0]?.message).toBe("Column name cannot be empty");
+  });
 });
