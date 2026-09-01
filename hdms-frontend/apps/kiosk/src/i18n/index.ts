@@ -6,6 +6,7 @@ export const catalogue: Catalogues<KioskCatalogue> = {
   ja,
   en,
 };
+export const catalogues = catalogue;
 
 export function useTranslator() {
   return useI18nTranslator(catalogue);

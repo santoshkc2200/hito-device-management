@@ -29,6 +29,7 @@ export interface TestKiosk {
   id: string;
   name: string;
   token: string;
+  defaultLocale?: string;
 }
 
 /**
@@ -361,7 +362,7 @@ export class TestApiClient {
     }
   }
 
-  async registerKiosk(name?: string, location = "E2E Station"): Promise<TestKiosk> {
+  async registerKiosk(name?: string, location = "E2E Station", defaultLocale = "ja"): Promise<TestKiosk> {
     const seq = nextSeq();
     const kioskName = name || `E2E Kiosk ${seq}`;
 
@@ -370,16 +371,18 @@ export class TestApiClient {
       body: JSON.stringify({
         name: kioskName,
         location,
+        defaultLocale,
       }),
     });
     if (!res.ok) {
       throw new Error(`Register kiosk failed: ${await res.text()}`);
     }
-    const data = (await res.json()) as { id: string; name: string; token: string };
+    const data = (await res.json()) as { id: string; name: string; token: string; defaultLocale?: string };
     return {
       id: data.id,
       name: data.name,
       token: data.token,
+      defaultLocale: data.defaultLocale ?? defaultLocale,
     };
   }
 
@@ -491,8 +494,9 @@ export class TestApiClient {
  */
 export async function prePairKiosk(
   page: Page,
-  kiosk: { id: string; name: string; token: string },
-  enabledSources: string[] = ["hid", "camera", "manual"]
+  kiosk: { id: string; name: string; token: string; defaultLocale?: string },
+  enabledSources: string[] = ["hid", "camera", "manual"],
+  defaultLocale: "ja" | "en" = "ja"
 ): Promise<void> {
   await page.addInitScript(
     (cfg) => {
@@ -503,11 +507,12 @@ export async function prePairKiosk(
           kioskId: cfg.id,
           kioskName: cfg.name,
           token: cfg.token,
+          defaultLocale: cfg.defaultLocale,
           muteEnabled: true, // Mute audio in automated tests to prevent noisy audio contexts
           enabledSources,
         })
       );
     },
-    { id: kiosk.id, name: kiosk.name, token: kiosk.token }
+    { id: kiosk.id, name: kiosk.name, token: kiosk.token, defaultLocale: kiosk.defaultLocale ?? defaultLocale }
   );
 }

@@ -11,9 +11,32 @@
  * set in --font-mono — deliberately typeset like the printed label they
  * have to match character-for-character.
  */
+/*
+ * Japanese faces are bundled, not fetched: the kiosk is an offline-first PWA
+ * and cannot reach a font CDN. The subset is exactly the glyphs the kiosk
+ * catalogue (apps/kiosk/src/i18n/{ja,en}.ts) uses today, generated from
+ * --text-file over a dump of both catalogues' string values — not a JIS
+ * range. A new key with a kanji not already in the catalogue needs a
+ * re-subset from the source OTF (see docs/superpowers/plans/
+ * 2026-08-31-i18n-kiosk.md Task 9) before it ships, or it renders as tofu.
+ */
+@font-face {
+  font-family: "Noto Sans JP";
+  src: url("./fonts/noto-sans-jp-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans JP";
+  src: url("./fonts/noto-sans-jp-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
 @theme {
   --font-sans:
-    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    "IBM Plex Sans", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", ui-sans-serif,
+    system-ui, -apple-system, sans-serif;
   --font-mono:
     "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 

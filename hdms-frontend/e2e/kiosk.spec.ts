@@ -7,7 +7,85 @@ import {
   type TestKiosk,
   type TestUser,
 } from "./helpers/test-api";
+import { ja } from "../apps/kiosk/src/i18n/ja";
+import { en } from "../apps/kiosk/src/i18n/en";
 import { simulateScan, typeKeypad } from "./helpers/scan";
+
+const catalogues = { ja, en } as const;
+
+for (const locale of ["en", "ja"] as const) {
+  test.describe(`HDMS Kiosk Borrow & Return Smoke Test (${locale})`, () => {
+    let api: TestApiClient;
+    let kiosk: TestKiosk;
+
+    test.beforeEach(async ({ page }) => {
+      api = new TestApiClient();
+      kiosk = await api.registerKiosk(`Smoke Kiosk ${locale}`, "Emergency Ward", locale);
+      await prePairKiosk(page, kiosk, ["hid", "camera", "manual"], locale);
+    });
+
+    test(`Full borrow-and-return cycle in ${locale}`, async ({ page }) => {
+      const msgs = catalogues[locale];
+      const user: TestUser = await api.seedUser();
+      const device: TestDevice = await api.seedDevice();
+
+      await page.goto("/");
+      await expect(page.getByTestId("idle-prompt")).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByTestId("idle-prompt")).toHaveText(msgs.idle.prompt);
+
+      // Step 1: Scan Device -> Awaiting User
+      await simulateScan(page, device.token);
+      await expect(page.getByTestId("awaiting-user-prompt")).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId("awaiting-user-prompt")).toHaveText(msgs.awaitingUser.prompt);
+      await expect(page.getByTestId("pending-device-card")).toContainText(device.name);
+      await expect(page.getByTestId("pending-device-asset-tag")).toHaveText(device.assetTag);
+
+      // Step 2: Scan User -> Borrow Success
+      await simulateScan(page, user.token);
+      await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId("success-title")).toContainText(msgs.success.borrowTitle);
+      await expect(page.getByTestId("success-kind-badge")).toContainText(msgs.success.borrowKind);
+      await expect(page.getByTestId("success-device-card")).toContainText(device.name);
+
+      // Assert DB state: 1 active loan exists
+      const loans = await api.getDeviceLoans(device.id);
+      const activeLoan = loans.find(
+        (l: any) => l.returnedAt === null || l.status === "active" || l.status === "open"
+      );
+      expect(activeLoan).toBeDefined();
+
+      // Axe a11y audit
+      const a11yBorrow = await new AxeBuilder({ page }).analyze();
+      expect(a11yBorrow.violations).toEqual([]);
+
+      // Step 3: Return the device
+      await page.goto("/");
+      await expect(page.getByTestId("idle-prompt")).toBeVisible({ timeout: 10_000 });
+
+      // Scan Device -> Awaiting User
+      await simulateScan(page, device.token);
+      await expect(page.getByTestId("awaiting-user-prompt")).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId("awaiting-user-prompt")).toHaveText(msgs.awaitingUser.prompt);
+
+      // Scan User -> Return Success
+      await simulateScan(page, user.token);
+      await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId("success-title")).toContainText(msgs.success.returnTitle);
+      await expect(page.getByTestId("success-kind-badge")).toContainText(msgs.success.returnKind);
+
+      // Assert DB state: loan is closed
+      const loansAfter = await api.getDeviceLoans(device.id);
+      const activeAfter = loansAfter.find(
+        (l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open")
+      );
+      expect(activeAfter).toBeUndefined();
+
+      // Axe a11y audit
+      const a11yReturn = await new AxeBuilder({ page }).analyze();
+      expect(a11yReturn.violations).toEqual([]);
+    });
+  });
+}
 
 test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
   let api: TestApiClient;

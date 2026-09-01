@@ -12,6 +12,22 @@ body {
   touch-action: manipulation;
 }
 
+/*
+ * Japanese has no spaces, so a browser breaks a line anywhere unless told not
+ * to. `strict` keeps small kana and the prolonged sound mark off the start of
+ * a line; `anywhere` is still needed for long Latin identifiers like asset
+ * tags, which have no break opportunity at all.
+ */
+:root:lang(ja) {
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+:root:lang(en) {
+  overflow-wrap: break-word;
+}
+
 @keyframes feedback-enter-success {
   0% {
     opacity: 0;
