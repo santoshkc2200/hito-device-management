@@ -2,6 +2,7 @@ import * as React from "react";
 import { Camera, QrCode, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
+import { LanguageToggle } from "@/components/language-toggle";
 import { useTranslator } from "@/i18n";
 
 export interface ScreenFrameProps {
@@ -115,8 +116,9 @@ export function ScreenFrame({
           )}
         </div>
 
-        {/* Right: Actions (Camera Toggle, Diagnostics) */}
+        {/* Right: Actions (LanguageToggle, Camera Toggle, Diagnostics) */}
         <nav aria-label="Kiosk controls" className="flex items-center gap-3">
+          <LanguageToggle />
           {onToggleCamera && (
             <Button
               type="button"

@@ -1,8 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 import * as matchers from "vitest-axe/matchers";
 import { afterEach, expect } from "vitest";
+import { setDefaultLocaleFallback } from "@hdms/i18n";
 
 expect.extend(matchers);
+setDefaultLocaleFallback("en");
 
 const storeMap = new WeakMap<Storage, Map<string, string>>();
 

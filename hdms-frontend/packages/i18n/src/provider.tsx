@@ -7,10 +7,13 @@ interface LocaleContextValue {
   setLocale: (locale: Locale) => void;
 }
 
-const LocaleContext = React.createContext<LocaleContextValue>({
-  locale: DEFAULT_LOCALE,
-  setLocale: () => {},
-});
+let defaultLocaleFallback: Locale = DEFAULT_LOCALE;
+
+export function setDefaultLocaleFallback(locale: Locale): void {
+  defaultLocaleFallback = locale;
+}
+
+const LocaleContext = React.createContext<LocaleContextValue | null>(null);
 
 export interface LocaleProviderProps {
   /**
@@ -56,7 +59,12 @@ export function LocaleProvider({
 }
 
 export function useLocale(): LocaleContextValue {
-  return React.useContext(LocaleContext);
+  const ctx = React.useContext(LocaleContext);
+  if (ctx) return ctx;
+  return {
+    locale: defaultLocaleFallback,
+    setLocale: () => {},
+  };
 }
 
 export function useTranslator<M extends MessageTree>(catalogues: Catalogues<M>) {

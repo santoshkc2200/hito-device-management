@@ -243,7 +243,7 @@ describe("Phase 3.9 — Visual Design & Typography System", () => {
 
       const actionStack = screen.getByTestId("idle-action-stack");
       expect(actionStack).toHaveClass("min-[700px]:flex-row");
-      expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Start|開始/ })).toBeInTheDocument();
       expect(screen.getByTestId("scan-guidance-card")).toBeInTheDocument();
 
       rerender(
@@ -427,7 +427,7 @@ describe("Phase 3.9 — Visual Design & Typography System", () => {
       );
 
       const overdueBadge = screen.getByTestId("overdue-flag-loan-overdue");
-      expect(overdueBadge).toHaveTextContent(/overdue/i);
+      expect(overdueBadge).toHaveTextContent(/overdue|超過/i);
       // SVG icon inside badge confirms visual cue + text
       expect(overdueBadge.querySelector("svg")).toBeInTheDocument();
     });

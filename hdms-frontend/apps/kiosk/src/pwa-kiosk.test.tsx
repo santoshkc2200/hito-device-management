@@ -45,6 +45,7 @@ describe("PWA and Kiosk Mode (Phase 3.7)", () => {
         kioskId: "kiosk-er-01",
         name: "Emergency Room Kiosk",
         token: "kiosk-bearer-tok-8888",
+        defaultLocale: "en",
       },
       error: undefined,
       request: new Request("http://localhost/v1/kiosks/pair"),
@@ -54,7 +55,7 @@ describe("PWA and Kiosk Mode (Phase 3.7)", () => {
     render(<App />);
 
     expect(
-      await screen.findByText(/This iPad is not yet paired/i)
+      await screen.findByTestId("pairing-title")
     ).toBeInTheDocument();
 
     // Type 6 digits on keypad
@@ -123,7 +124,7 @@ describe("PWA and Kiosk Mode (Phase 3.7)", () => {
 
     // Verify UI transitioned to PairingScreen
     expect(
-      await screen.findByText(/This iPad is not yet paired/i)
+      await screen.findByTestId("pairing-title")
     ).toBeInTheDocument();
   });
 
@@ -139,6 +140,7 @@ describe("PWA and Kiosk Mode (Phase 3.7)", () => {
       kioskId: "kiosk-01",
       kioskName: "Secure Kiosk",
       token: SECRET_TOKEN,
+      defaultLocale: "en",
     });
 
     const { container } = render(<App />);

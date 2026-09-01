@@ -1,6 +1,6 @@
 import { render, screen, act } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { LocaleProvider, useLocale, useTranslator } from "./provider";
+import { describe, expect, it, beforeEach } from "vitest";
+import { LocaleProvider, useLocale, useTranslator, setDefaultLocaleFallback } from "./provider";
 import type { Catalogues } from "./translate";
 
 const ja = { hello: "こんにちは" } as const;
@@ -21,6 +21,9 @@ function Probe() {
 }
 
 describe("LocaleProvider", () => {
+  beforeEach(() => {
+    setDefaultLocaleFallback("ja");
+  });
   it("renders the active locale's copy", () => {
     render(
       <LocaleProvider locale="en">

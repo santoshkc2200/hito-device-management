@@ -12,9 +12,7 @@ describe("App (Kiosk Entrypoint)", () => {
   it("renders PairingScreen when iPad is unpaired and passes axe a11y audit", async () => {
     const { container } = render(<App />);
 
-    expect(
-      await screen.findByText(/This iPad is not yet paired/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId("pairing-title")).toBeInTheDocument();
     expect(screen.getByTestId("pairing-keypad")).toBeInTheDocument();
 
     const results = await axe(container);
@@ -26,6 +24,7 @@ describe("App (Kiosk Entrypoint)", () => {
       kioskId: "kiosk-01",
       kioskName: "HDMS Kiosk",
       token: "mock-token-xyz",
+      defaultLocale: "en",
     });
 
     const { container } = render(<App />);

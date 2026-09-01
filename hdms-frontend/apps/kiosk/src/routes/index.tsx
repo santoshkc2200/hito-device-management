@@ -12,7 +12,9 @@ import { PairingScreen } from "@/screens/pairing-screen";
 import { CameraOverlay } from "@/components/camera-overlay";
 import { DiagnosticsModal } from "@/components/diagnostics-modal";
 import { AttendantModal } from "@/components/attendant-modal";
-import { isKioskPaired, subscribeKioskConfig } from "@/lib/kiosk-config";
+import { LocaleProvider, DEFAULT_LOCALE } from "@hdms/i18n";
+import { catalogue } from "@/i18n";
+import { getKioskConfig, isKioskPaired, subscribeKioskConfig } from "@/lib/kiosk-config";
 import { useScreenWakeLock } from "@/lib/wake-lock";
 import { useDeferredServiceWorkerUpdate } from "@/lib/sw-update";
 
@@ -50,6 +52,20 @@ export function KioskApp() {
     cancel,
   } = useKioskSession();
 
+  // Re-anchoring the provider on every return to idle is the reset: whatever
+  // language the last person selected is discarded with their session.
+  const [localeEpoch, setLocaleEpoch] = React.useState(0);
+  const previousState = React.useRef(state);
+  React.useEffect(() => {
+    if (previousState.current !== "idle" && state === "idle") {
+      setLocaleEpoch((n) => n + 1);
+    }
+    previousState.current = state;
+  }, [state]);
+
+  const config = getKioskConfig();
+  const defaultLocale = config?.defaultLocale ?? DEFAULT_LOCALE;
+
   // Screen Wake Lock & deferred SW update during active transactions
   useScreenWakeLock(paired);
   useDeferredServiceWorkerUpdate(state);
@@ -71,17 +87,19 @@ export function KioskApp() {
   // If kiosk is not paired or authorization was revoked (401/403), render PairingScreen
   if (!paired) {
     return (
-      <PairingScreen
-        initialSupportCode={context.supportCode}
-        onPaired={() => {
-          // Trigger machine reset or refresh
-        }}
-      />
+      <LocaleProvider key={localeEpoch} locale={defaultLocale} catalogue={catalogue}>
+        <PairingScreen
+          initialSupportCode={context.supportCode}
+          onPaired={() => {
+            // Trigger machine reset or refresh
+          }}
+        />
+      </LocaleProvider>
     );
   }
 
   return (
-    <>
+    <LocaleProvider key={localeEpoch} locale={defaultLocale} catalogue={catalogue}>
       {/* 1. Offline Mode Display */}
       {isOffline ? (
         <OfflineScreen
@@ -203,7 +221,7 @@ export function KioskApp() {
           // Handled via subscribeKioskConfig
         }}
       />
-    </>
+    </LocaleProvider>
   );
 }
 
