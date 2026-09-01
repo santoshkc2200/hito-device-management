@@ -25,7 +25,12 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { BulkCategoryDialog } from "@/components/bulk-category-dialog";
 import { CategoryManagerDialog } from "@/components/category-manager-dialog";
-import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/components/data-table";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  useDataTableColumns,
+  useTextSortingFn,
+} from "@/components/data-table";
 import { DeviceForm } from "@/components/device-form";
 import { DeviceImportDialog } from "@/components/device-import-dialog";
 import { DeviceLabelSheetDialog } from "@/components/device-label-sheet-dialog";
@@ -218,6 +223,7 @@ export function useDeviceColumns({
   setLabelSheetOpen: (open: boolean) => void;
 }) {
   const t = useT();
+  const sortText = useTextSortingFn<Device>();
 
   return useDataTableColumns<Device>(
     () => [
@@ -246,6 +252,7 @@ export function useDeviceColumns({
         enableHiding: false,
       }),
       columnHelper.accessor("assetTag", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.assetTag")} />,
         cell: (c) => (
           <Link
@@ -259,10 +266,12 @@ export function useDeviceColumns({
         ),
       }),
       columnHelper.accessor("name", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.name")} />,
         cell: (c) => <span className="font-medium text-foreground">{c.getValue()}</span>,
       }),
       columnHelper.accessor("categoryId", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.category")} />,
         cell: (c) => categoryName.get(c.getValue()) ?? "—",
       }),
@@ -276,10 +285,12 @@ export function useDeviceColumns({
         ),
       }),
       columnHelper.accessor("condition", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.condition")} />,
         cell: (c) => labelize(c.getValue()),
       }),
       columnHelper.accessor("model", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.model")} />,
         cell: (c) => c.getValue() || "—",
       }),
@@ -330,7 +341,7 @@ export function useDeviceColumns({
         },
       }),
     ],
-    [categoryName, t, onEditDevice, onChangeStatus, setLabelDevices, setLabelSheetOpen],
+    [categoryName, t, sortText, onEditDevice, onChangeStatus, setLabelDevices, setLabelSheetOpen],
   );
 }
 

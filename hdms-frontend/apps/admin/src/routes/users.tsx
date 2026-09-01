@@ -15,7 +15,12 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CredentialsPanel } from "@/components/credentials-panel";
-import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/components/data-table";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  useDataTableColumns,
+  useTextSortingFn,
+} from "@/components/data-table";
 import { userStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -208,6 +213,7 @@ function UserDetailSheet({
 
 export function UsersPage() {
   const t = useT();
+  const sortText = useTextSortingFn<User>();
   const search = usersRoute.useSearch();
   const navigate = useNavigate({ from: usersRoute.fullPath });
   const [createOpen, setCreateOpen] = useState(false);
@@ -296,13 +302,16 @@ export function UsersPage() {
   const columns = useDataTableColumns(
     () => [
       columnHelper.accessor("employeeNo", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("users.columnEmployeeNo")} />,
         cell: (c) => <span className="font-identifier">{c.getValue()}</span>,
       }),
       columnHelper.accessor("fullName", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.name")} />,
       }),
       columnHelper.accessor("departmentId", {
+        sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("users.columnDepartment")} />,
         cell: (c) => (c.getValue() ? (departmentName.get(c.getValue()!) ?? "—") : "—"),
       }),
@@ -361,7 +370,7 @@ export function UsersPage() {
         },
       }),
     ],
-    [departmentName, search.hasCredential, t],
+    [departmentName, search.hasCredential, t, sortText],
   );
 
   const isFiltered = Boolean(search.q || search.status || search.department || search.hasCredential !== undefined);
