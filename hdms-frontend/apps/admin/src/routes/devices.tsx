@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/i18n";
+import { csvBlob } from "@/lib/csv";
 import { RoleGate } from "@/lib/use-role";
 import { authenticatedRoute } from "./authenticated";
 
@@ -408,16 +409,16 @@ export function DevicesPage() {
       return;
     }
     const headers = [
-      "asset_tag",
-      "name",
-      "category",
-      "status",
-      "condition",
-      "manufacturer",
-      "model",
-      "serial_no",
-      "home_location",
-      "notes",
+      t("devices.csvHeaders.assetTag"),
+      t("devices.csvHeaders.name"),
+      t("devices.csvHeaders.category"),
+      t("devices.csvHeaders.status"),
+      t("devices.csvHeaders.condition"),
+      t("devices.csvHeaders.manufacturer"),
+      t("devices.csvHeaders.model"),
+      t("devices.csvHeaders.serialNumber"),
+      t("devices.csvHeaders.homeLocation"),
+      t("devices.csvHeaders.notes"),
     ];
     const csvLines = [headers.join(",")];
     for (const d of rows) {
@@ -436,7 +437,7 @@ export function DevicesPage() {
       ];
       csvLines.push(line.join(","));
     }
-    const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const blob = csvBlob(csvLines);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
