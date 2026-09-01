@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/hito-hospital/hdms/internal/platform/auth"
+	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 )
 
@@ -51,6 +52,35 @@ func (s *Server) GetCurrentAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, adminToGen(admin))
+}
+
+func (s *Server) UpdateMyLocale(w http.ResponseWriter, r *http.Request) {
+	admin, ok := auth.AdminFromContext(r.Context())
+	if !ok {
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
+		return
+	}
+	req, ok := decodeJSON[gen.UpdateLocaleRequest](w, r)
+	if !ok {
+		return
+	}
+	if req.Locale != "ja" && req.Locale != "en" {
+		// Not writeValidationFailed: that helper answers 422, and the contract
+		// for this endpoint specifies 400 for an unsupported locale.
+		p := httpx.NewProblem("validation-failed", "Validation failed", http.StatusBadRequest)
+		p.Detail = "locale must be 'ja' or 'en'"
+		p.Extensions = map[string]any{"fields": []string{"locale"}}
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+
+	updated, err := s.auth.UpdateAdminLocale(r.Context(), admin.ID, string(req.Locale))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, adminToGen(updated))
 }
 
 func (s *Server) ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
@@ -148,6 +178,11 @@ func adminToGen(a auth.AdminIdentity) gen.Admin {
 		v := true
 		mustReenrolTotp = &v
 	}
+	var locale *gen.AdminLocale
+	if a.Locale != "" {
+		loc := gen.AdminLocale(a.Locale)
+		locale = &loc
+	}
 	return gen.Admin{
 		Id:                 a.ID,
 		Email:              a.Email,
@@ -158,5 +193,6 @@ func adminToGen(a auth.AdminIdentity) gen.Admin {
 		LockedUntil:        a.LockedUntil,
 		MustChangePassword: mustChangePassword,
 		MustReenrolTotp:    mustReenrolTotp,
+		Locale:             locale,
 	}
 }

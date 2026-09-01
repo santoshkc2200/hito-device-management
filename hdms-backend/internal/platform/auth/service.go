@@ -226,6 +226,7 @@ func (s *Service) CreateAdminFull(ctx context.Context, actorID, email, fullName,
 		FullName: fullName,
 		Role:     role,
 		Status:   "active",
+		Locale:   "ja",
 	}
 
 	s.recordAudit(ctx, nil, actorID, "admin.created", "admin:"+id, map[string]any{
@@ -357,6 +358,7 @@ func (s *Service) LoginWithRecovery(ctx context.Context, email, password, totpCo
 		MustReenrolTotp:    account.MustReenrolTotp,
 		LockedUntil:        lockedUntil,
 		LastLoginAt:        lastLoginAt,
+		Locale:             account.Locale,
 	}
 
 	if isRecovery {
@@ -494,6 +496,7 @@ func (s *Service) ValidateSession(ctx context.Context, plainToken string) (Valid
 			MustReenrolTotp:    row.MustReenrolTotp,
 			LockedUntil:        lockedUntil,
 			LastLoginAt:        lastLoginAt,
+			Locale:             row.Locale,
 		},
 		CSRFToken: row.CsrfToken,
 	}, nil
@@ -542,6 +545,7 @@ func (s *Service) ListAdmins(ctx context.Context) ([]AdminIdentity, error) {
 			MustReenrolTotp:    r.MustReenrolTotp,
 			LockedUntil:        lockedUntil,
 			LastLoginAt:        lastLoginAt,
+			Locale:             r.Locale,
 		}
 	}
 	return res, nil
@@ -586,6 +590,7 @@ func (s *Service) GetAdmin(ctx context.Context, id string) (AdminIdentity, error
 		MustReenrolTotp:    r.MustReenrolTotp,
 		LockedUntil:        lockedUntil,
 		LastLoginAt:        lastLoginAt,
+		Locale:             r.Locale,
 	}, nil
 }
 
@@ -659,6 +664,59 @@ func (s *Service) UpdateAdmin(ctx context.Context, actorID, id string, fullName,
 		MustReenrolTotp:    r.MustReenrolTotp,
 		LockedUntil:        lockedUntil,
 		LastLoginAt:        lastLoginAt,
+		Locale:             r.Locale,
+	}, nil
+}
+
+// UpdateAdminLocale sets an admin's console language preference.
+func (s *Service) UpdateAdminLocale(ctx context.Context, id string, locale string) (AdminIdentity, error) {
+	uid, err := pgtypeconv.UUID(id)
+	if err != nil {
+		return AdminIdentity{}, ErrAdminNotFound
+	}
+	q := authstore.New(db.Conn(ctx, s.pool))
+	r, err := q.UpdateAdminLocale(ctx, authstore.UpdateAdminLocaleParams{
+		ID:     uid,
+		Locale: locale,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return AdminIdentity{}, ErrAdminNotFound
+		}
+		return AdminIdentity{}, fmt.Errorf("auth: update admin locale: %w", err)
+	}
+
+	var lockedUntil *time.Time
+	if r.LockedUntil.Valid {
+		t := pgtypeconv.Time(r.LockedUntil)
+		lockedUntil = &t
+	}
+	var lastLoginAt *time.Time
+	if r.LastLoginAt.Valid {
+		t := pgtypeconv.Time(r.LastLoginAt)
+		lastLoginAt = &t
+	}
+
+	resStatus := string(r.Status)
+	if lockedUntil != nil && s.clock.Now().Before(*lockedUntil) {
+		resStatus = "locked"
+	}
+
+	s.recordAudit(ctx, nil, "admin:"+id, "admin.locale_updated", "admin:"+id, map[string]any{
+		"locale": locale,
+	})
+
+	return AdminIdentity{
+		ID:                 pgtypeconv.UUIDString(r.ID),
+		Email:              r.Email,
+		FullName:           r.FullName,
+		Role:               string(r.Role),
+		Status:             resStatus,
+		MustChangePassword: r.MustChangePassword,
+		MustReenrolTotp:    r.MustReenrolTotp,
+		LockedUntil:        lockedUntil,
+		LastLoginAt:        lastLoginAt,
+		Locale:             r.Locale,
 	}, nil
 }
 

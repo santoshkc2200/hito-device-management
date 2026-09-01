@@ -59,6 +59,10 @@ export type LoginRequest = {
     recoveryCode?: string;
 };
 
+export type UpdateLocaleRequest = {
+    locale: 'ja' | 'en';
+};
+
 export type DeviceStatus = 'available' | 'on_loan' | 'maintenance' | 'retired' | 'lost';
 
 export type DeviceCondition = 'good' | 'fair' | 'damaged';
@@ -1153,6 +1157,31 @@ export type GetCurrentAdminResponses = {
 };
 
 export type GetCurrentAdminResponse = GetCurrentAdminResponses[keyof GetCurrentAdminResponses];
+
+export type UpdateMyLocaleData = {
+    body: UpdateLocaleRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/me/locale';
+};
+
+export type UpdateMyLocaleErrors = {
+    /**
+     * Unsupported locale.
+     */
+    400: Problem;
+};
+
+export type UpdateMyLocaleError = UpdateMyLocaleErrors[keyof UpdateMyLocaleErrors];
+
+export type UpdateMyLocaleResponses = {
+    /**
+     * OK.
+     */
+    200: Admin;
+};
+
+export type UpdateMyLocaleResponse = UpdateMyLocaleResponses[keyof UpdateMyLocaleResponses];
 
 export type ListDevicesData = {
     body?: never;

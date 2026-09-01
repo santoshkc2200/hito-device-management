@@ -59,7 +59,7 @@ INSERT INTO admin_accounts (id, email, full_name, password_hash, totp_secret_enc
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, email, full_name, password_hash, totp_secret_enc, role, status,
           failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
-          last_login_at, totp_pending_secret_enc, created_at, updated_at
+          last_login_at, totp_pending_secret_enc, created_at, updated_at, locale
 `
 
 type CreateAdminAccountParams struct {
@@ -88,6 +88,7 @@ type CreateAdminAccountRow struct {
 	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	Locale               string             `json:"locale"`
 }
 
 func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccountParams) (CreateAdminAccountRow, error) {
@@ -117,6 +118,7 @@ func (q *Queries) CreateAdminAccount(ctx context.Context, arg CreateAdminAccount
 		&i.TotpPendingSecretEnc,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -316,7 +318,7 @@ func (q *Queries) EnableKiosk(ctx context.Context, id pgtype.UUID) (EnableKioskR
 const getAdminAccountByEmail = `-- name: GetAdminAccountByEmail :one
 SELECT id, email, full_name, password_hash, totp_secret_enc, role, status,
        failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
-       last_login_at, totp_pending_secret_enc, created_at, updated_at
+       last_login_at, totp_pending_secret_enc, created_at, updated_at, locale
 FROM admin_accounts WHERE lower(email) = lower($1)
 `
 
@@ -337,6 +339,7 @@ type GetAdminAccountByEmailRow struct {
 	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	Locale               string             `json:"locale"`
 }
 
 // Only used at login, where a non-existent email must fail the same way a
@@ -362,6 +365,7 @@ func (q *Queries) GetAdminAccountByEmail(ctx context.Context, lower string) (Get
 		&i.TotpPendingSecretEnc,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -369,7 +373,7 @@ func (q *Queries) GetAdminAccountByEmail(ctx context.Context, lower string) (Get
 const getAdminAccountByID = `-- name: GetAdminAccountByID :one
 SELECT id, email, full_name, password_hash, totp_secret_enc, role, status,
        failed_attempts, last_failure_at, locked_until, must_change_password, must_reenrol_totp,
-       last_login_at, totp_pending_secret_enc, created_at, updated_at
+       last_login_at, totp_pending_secret_enc, created_at, updated_at, locale
 FROM admin_accounts WHERE id = $1
 `
 
@@ -390,6 +394,7 @@ type GetAdminAccountByIDRow struct {
 	TotpPendingSecretEnc []byte             `json:"totp_pending_secret_enc"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	Locale               string             `json:"locale"`
 }
 
 func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (GetAdminAccountByIDRow, error) {
@@ -412,6 +417,7 @@ func (q *Queries) GetAdminAccountByID(ctx context.Context, id pgtype.UUID) (GetA
 		&i.TotpPendingSecretEnc,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -508,7 +514,7 @@ const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT
     s.id, s.admin_id, s.session_token_hash, s.csrf_token, s.created_at, s.last_seen_at, s.expires_at,
     a.email, a.full_name, a.role, a.status AS admin_status,
-    a.must_change_password, a.must_reenrol_totp, a.locked_until, a.last_login_at
+    a.must_change_password, a.must_reenrol_totp, a.locked_until, a.last_login_at, a.locale
 FROM admin_sessions s
 JOIN admin_accounts a ON a.id = s.admin_id
 WHERE s.session_token_hash = $1
@@ -530,6 +536,7 @@ type GetSessionByTokenHashRow struct {
 	MustReenrolTotp    bool               `json:"must_reenrol_totp"`
 	LockedUntil        pgtype.Timestamptz `json:"locked_until"`
 	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	Locale             string             `json:"locale"`
 }
 
 // Joins the owning account so the middleware can reject a disabled account
@@ -553,6 +560,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, sessionTokenHash []
 		&i.MustReenrolTotp,
 		&i.LockedUntil,
 		&i.LastLoginAt,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -575,7 +583,7 @@ func (q *Queries) InsertRecoveryCode(ctx context.Context, arg InsertRecoveryCode
 
 const listAdmins = `-- name: ListAdmins :many
 SELECT id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
-       must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at
+       must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale
 FROM admin_accounts
 ORDER BY created_at ASC
 `
@@ -594,6 +602,7 @@ type ListAdminsRow struct {
 	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	Locale             string             `json:"locale"`
 }
 
 func (q *Queries) ListAdmins(ctx context.Context) ([]ListAdminsRow, error) {
@@ -619,6 +628,7 @@ func (q *Queries) ListAdmins(ctx context.Context) ([]ListAdminsRow, error) {
 			&i.LastLoginAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Locale,
 		); err != nil {
 			return nil, err
 		}
@@ -983,7 +993,7 @@ SET failed_attempts = 0,
     updated_at = now()
 WHERE id = $1
 RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
-          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale
 `
 
 type UnlockAdminAccountRow struct {
@@ -1000,6 +1010,7 @@ type UnlockAdminAccountRow struct {
 	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	Locale             string             `json:"locale"`
 }
 
 func (q *Queries) UnlockAdminAccount(ctx context.Context, id pgtype.UUID) (UnlockAdminAccountRow, error) {
@@ -1019,6 +1030,7 @@ func (q *Queries) UnlockAdminAccount(ctx context.Context, id pgtype.UUID) (Unloc
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -1062,7 +1074,7 @@ SET full_name = COALESCE($1, full_name),
     updated_at = now()
 WHERE id = $4
 RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
-          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale
 `
 
 type UpdateAdminParams struct {
@@ -1086,6 +1098,7 @@ type UpdateAdminRow struct {
 	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	Locale             string             `json:"locale"`
 }
 
 func (q *Queries) UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (UpdateAdminRow, error) {
@@ -1110,6 +1123,60 @@ func (q *Queries) UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (Updat
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
+	)
+	return i, err
+}
+
+const updateAdminLocale = `-- name: UpdateAdminLocale :one
+UPDATE admin_accounts
+SET locale = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, email, full_name, role, status, failed_attempts, last_failure_at, locked_until,
+          must_change_password, must_reenrol_totp, last_login_at, created_at, updated_at, locale
+`
+
+type UpdateAdminLocaleParams struct {
+	ID     pgtype.UUID `json:"id"`
+	Locale string      `json:"locale"`
+}
+
+type UpdateAdminLocaleRow struct {
+	ID                 pgtype.UUID        `json:"id"`
+	Email              string             `json:"email"`
+	FullName           string             `json:"full_name"`
+	Role               AdminRole          `json:"role"`
+	Status             AdminStatus        `json:"status"`
+	FailedAttempts     int32              `json:"failed_attempts"`
+	LastFailureAt      pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil        pgtype.Timestamptz `json:"locked_until"`
+	MustChangePassword bool               `json:"must_change_password"`
+	MustReenrolTotp    bool               `json:"must_reenrol_totp"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	Locale             string             `json:"locale"`
+}
+
+func (q *Queries) UpdateAdminLocale(ctx context.Context, arg UpdateAdminLocaleParams) (UpdateAdminLocaleRow, error) {
+	row := q.db.QueryRow(ctx, updateAdminLocale, arg.ID, arg.Locale)
+	var i UpdateAdminLocaleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+		&i.FailedAttempts,
+		&i.LastFailureAt,
+		&i.LockedUntil,
+		&i.MustChangePassword,
+		&i.MustReenrolTotp,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }

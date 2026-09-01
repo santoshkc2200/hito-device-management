@@ -123,6 +123,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /auth/me/locale:
+    patch:
+      operationId: updateMyLocale
+      summary: Set the signed-in administrator's console language.
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLocaleRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+        "400":
+          description: Unsupported locale.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   # --- Catalog --------------------------------------------------------------
 
   /devices:
@@ -2094,6 +2119,14 @@ components:
           description: >
             One of the admin's recovery codes, standing in for the TOTP code
             when the authenticator is unavailable. Single use.
+
+    UpdateLocaleRequest:
+      type: object
+      required: [locale]
+      properties:
+        locale:
+          type: string
+          enum: [ja, en]
 
     # --- Catalog --------------------------------------------------------------
 

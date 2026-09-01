@@ -546,3 +546,80 @@ func TestAuthAuditTrailNoPlaintextSecrets(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminCanSetTheirOwnLocale(t *testing.T) {
+	t.Parallel()
+	h := newTestHarness(t)
+	admin, _, _ := createAdminAndLogin(t, h, "admin_locale@example.org", "Locale Admin", "admin", "password123456")
+
+	status, body := admin.do(t, h, http.MethodGet, "/v1/auth/me", nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /v1/auth/me status = %d, want 200: %s", status, string(body))
+	}
+	var me gen.Admin
+	if err := json.Unmarshal(body, &me); err != nil {
+		t.Fatalf("unmarshal me: %v", err)
+	}
+	if me.Locale == nil || string(*me.Locale) != "ja" {
+		t.Fatalf("a new account defaults to Japanese, got %v", me.Locale)
+	}
+
+	status, body = admin.do(t, h, http.MethodPatch, "/v1/auth/me/locale", map[string]string{"locale": "en"})
+	if status != http.StatusOK {
+		t.Fatalf("PATCH /v1/auth/me/locale status = %d, want 200: %s", status, string(body))
+	}
+	var updated gen.Admin
+	if err := json.Unmarshal(body, &updated); err != nil {
+		t.Fatalf("unmarshal updated: %v", err)
+	}
+	if updated.Locale == nil || string(*updated.Locale) != "en" {
+		t.Fatalf("updated locale = %v, want 'en'", updated.Locale)
+	}
+
+	status, body = admin.do(t, h, http.MethodGet, "/v1/auth/me", nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /v1/auth/me status = %d, want 200: %s", status, string(body))
+	}
+	var meAfter gen.Admin
+	if err := json.Unmarshal(body, &meAfter); err != nil {
+		t.Fatalf("unmarshal meAfter: %v", err)
+	}
+	if meAfter.Locale == nil || string(*meAfter.Locale) != "en" {
+		t.Fatalf("meAfter locale = %v, want 'en'", meAfter.Locale)
+	}
+}
+
+func TestAdminLocaleRejectsAnUnsupportedValue(t *testing.T) {
+	t.Parallel()
+	h := newTestHarness(t)
+	admin, _, _ := createAdminAndLogin(t, h, "admin_badlocale@example.org", "Bad Locale Admin", "admin", "password123456")
+
+	status, body := admin.do(t, h, http.MethodPatch, "/v1/auth/me/locale", map[string]string{"locale": "de"})
+	if status != http.StatusBadRequest {
+		t.Fatalf("PATCH /v1/auth/me/locale with unsupported locale status = %d, want 400: %s", status, string(body))
+	}
+}
+
+func TestAdminLocaleIsScopedToTheCallersOwnAccount(t *testing.T) {
+	t.Parallel()
+	h := newTestHarness(t)
+	operator, _, _ := createAdminAndLogin(t, h, "operator_scope@example.org", "Operator Admin", "admin", "password123456")
+	other, _, _ := createAdminAndLogin(t, h, "other@example.test", "Other Admin", "admin", "password123456")
+
+	status, body := operator.do(t, h, http.MethodPatch, "/v1/auth/me/locale", map[string]string{"locale": "en"})
+	if status != http.StatusOK {
+		t.Fatalf("PATCH /v1/auth/me/locale status = %d, want 200: %s", status, string(body))
+	}
+
+	status, body = operator.do(t, h, http.MethodGet, "/v1/admins/"+other.id, nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /v1/admins/%s status = %d, want 200: %s", other.id, status, string(body))
+	}
+	var fetchedOther gen.Admin
+	if err := json.Unmarshal(body, &fetchedOther); err != nil {
+		t.Fatalf("unmarshal fetchedOther: %v", err)
+	}
+	if fetchedOther.Locale == nil || string(*fetchedOther.Locale) != "ja" {
+		t.Fatalf("setting my language must not touch anyone else's, got %v", fetchedOther.Locale)
+	}
+}

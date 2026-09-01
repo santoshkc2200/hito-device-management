@@ -17,6 +17,7 @@ type AdminIdentity struct {
 	MustReenrolTotp    bool
 	LastLoginAt        *time.Time
 	LockedUntil        *time.Time
+	Locale             string // "ja" | "en"
 }
 
 // KioskIdentity is the authenticated kiosk principal attached to a

@@ -61,6 +61,7 @@ type Querier interface {
 	UnlockAdminAccount(ctx context.Context, id pgtype.UUID) (UnlockAdminAccountRow, error)
 	UnlockAdminAccountByEmail(ctx context.Context, lower string) (UnlockAdminAccountByEmailRow, error)
 	UpdateAdmin(ctx context.Context, arg UpdateAdminParams) (UpdateAdminRow, error)
+	UpdateAdminLocale(ctx context.Context, arg UpdateAdminLocaleParams) (UpdateAdminLocaleRow, error)
 	UpdateKiosk(ctx context.Context, arg UpdateKioskParams) (UpdateKioskRow, error)
 	UpdateKioskLastSeen(ctx context.Context, id pgtype.UUID) error
 	// Used by both explicit rotation and pairing-code redemption, which mints
