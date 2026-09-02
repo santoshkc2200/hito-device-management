@@ -33,6 +33,13 @@ tasks:
       - docker compose up -d --build db caddy api
       - task: frontend:dev
 
+  dev:remote:
+    desc: Bring up the development stack and expose both frontend dev servers on the local network.
+    deps: [env, certs]
+    cmds:
+      - docker compose up -d --build db caddy api
+      - task: frontend:dev:remote
+
   down:
     desc: Stop the Docker Compose stack.
     cmds:
@@ -44,6 +51,13 @@ tasks:
     cmds:
       - pnpm install --frozen-lockfile
       - pnpm --parallel --filter kiosk --filter admin dev
+
+  frontend:dev:remote:
+    internal: true
+    dir: "{{.FRONTEND}}"
+    cmds:
+      - pnpm install --frozen-lockfile
+      - pnpm --parallel --filter kiosk --filter admin dev --host 0.0.0.0
 
   migrate:
     desc: Apply pending database migrations.
