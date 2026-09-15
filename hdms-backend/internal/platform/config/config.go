@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,13 @@ type Config struct {
 
 	TOTPSecretEncKey []byte        // 32 raw bytes, AES-256-GCM key for admin TOTP secrets at rest
 	AdminSessionTTL  time.Duration // admin login session TTL, 12h sliding renewal (docs/09)
+
+	EntraTenantID       string
+	EntraClientID       string
+	EntraClientSecret   string
+	EntraRedirectURL    string
+	EntraAllowedDomains []string
+	StaffSessionTTL     time.Duration
 
 	OTLPEndpoint string // empty disables the exporter
 	LogLevel     string
@@ -50,10 +58,31 @@ func Load() (Config, error) {
 	cfg.TOTPSecretEncKey = getenvBase64Key32("HDMS_TOTP_ENC_KEY", &errs)
 	cfg.AdminSessionTTL = getenvDurationDefault("HDMS_ADMIN_SESSION_TTL", 12*time.Hour, &errs)
 
+	cfg.EntraTenantID = os.Getenv("HDMS_ENTRA_TENANT_ID")
+	cfg.EntraClientID = os.Getenv("HDMS_ENTRA_CLIENT_ID")
+	cfg.EntraClientSecret = os.Getenv("HDMS_ENTRA_CLIENT_SECRET")
+	cfg.EntraRedirectURL = getenvDefault("HDMS_ENTRA_REDIRECT_URL", "https://localhost:8443/v1/staff/auth/microsoft/callback")
+	cfg.EntraAllowedDomains = splitAndTrim(os.Getenv("HDMS_ENTRA_ALLOWED_EMAIL_DOMAINS"))
+	cfg.StaffSessionTTL = getenvDurationDefault("HDMS_STAFF_SESSION_TTL", 12*time.Hour, &errs)
+
 	if len(errs) > 0 {
 		return Config{}, fmt.Errorf("config: %w", errors.Join(errs...))
 	}
 	return cfg, nil
+}
+
+func splitAndTrim(raw string) []string {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if t := strings.TrimSpace(part); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 func getenvDefault(key, def string) string {
