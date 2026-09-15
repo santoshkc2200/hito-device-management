@@ -61,6 +61,12 @@ func ValidateRegisteredBy(raw string) (string, error) {
 	if v == "" || strings.HasPrefix(v, "kiosk:") {
 		return "", ErrRegisteredByInvalid
 	}
+	// 'self:microsoft' is the Phase 7 self-signup provenance (ADR-0012): the
+	// authorising decision moved to the hospital's Entra tenant. The kiosk
+	// prefix stays refused — a walk-up terminal still never creates a user.
+	if v == "self:microsoft" {
+		return v, nil
+	}
 	if v != "import" && !strings.HasPrefix(v, "admin:") && !strings.HasPrefix(v, "import:") {
 		return "", ErrRegisteredByInvalid
 	}
