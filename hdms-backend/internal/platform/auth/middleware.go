@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/realm"
 )
 
 const (
@@ -30,6 +31,20 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := unauthenticatedPaths[r.URL.Path]; ok {
 			next.ServeHTTP(w, r)
+			return
+		}
+
+		// The staff realm is served by staffauth.Middleware, which runs
+		// first. If a request reaches here on a staff path, the staff
+		// middleware already declined it — answering 401 rather than
+		// falling through to the administrator branches is what stops an
+		// administrator cookie from ever authenticating a staff request.
+		if realm.IsStaffPath(r.URL.Path) {
+			if strings.HasPrefix(httpx.ActorFromContext(r.Context()), "staff:") || realm.IsStaffPublicPath(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			writeUnauthorized(w, r, "Authentication required")
 			return
 		}
 

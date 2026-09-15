@@ -29,8 +29,8 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/observability"
 	"github.com/hito-hospital/hdms/internal/platform/settings"
+	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-
 )
 
 func main() {
@@ -80,6 +80,7 @@ func run() error {
 	catalogSvc := catalog.New(pool, auditSvc)
 	credentialsSvc := credentials.New(pool, auditSvc, cfg.TokenPepper, cfg.CredentialEncKey)
 	authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL, auth.WithAudit(auditSvc))
+	staffAuthSvc := staffauth.New(pool, cfg.AdminSessionTTL)
 	lendingSvc := lending.New(pool, auditSvc, clock.System{})
 	settingsSvc := settings.New(pool, auditSvc)
 
@@ -126,6 +127,9 @@ func run() error {
 		if kiosk, ok := auth.KioskFromContext(r.Context()); ok {
 			return "kiosk:" + kiosk.ID
 		}
+		if staff, ok := staffauth.AccountFromContext(r.Context()); ok {
+			return "staff:" + staff.UserID
+		}
 		return ""
 	}
 
@@ -138,6 +142,7 @@ func run() error {
 		httpx.WithLogging(logger),
 		httpx.WithRecovery(logger),
 		httpx.WithCORS(devOrigins()),
+		staffAuthSvc.Middleware,
 		authSvc.Middleware,
 		httpx.WithRateLimit,
 		httpx.WithIdempotency(pool, actorOf, logger),

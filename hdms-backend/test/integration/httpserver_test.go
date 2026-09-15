@@ -32,6 +32,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/settings"
+	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 	"github.com/hito-hospital/hdms/test/testdb"
 	"github.com/pquerna/otp/totp"
 )
@@ -60,6 +61,10 @@ type testHarness struct {
 	settings    *settings.Service
 	bus         *events.Bus
 	pool        *db.Pool
+	adminSessionToken string
+	staffSessionToken string
+	staffAuth         *staffauth.Service
+	handler           http.Handler
 }
 
 func newTestHarness(t *testing.T) *testHarness {
@@ -87,6 +92,7 @@ func newTestHarness(t *testing.T) *testHarness {
 
 	sseHub := events.NewSSEHub(pool, bus, discardLogger)
 	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub)
+	staffAuthSvc := staffauth.New(pool, time.Hour)
 	mux := http.NewServeMux()
 
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
@@ -98,6 +104,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		// endpoint in production while this suite stayed green.
 		httpx.WithLogging(discardLogger),
 		httpx.WithRecovery(discardLogger),
+		staffAuthSvc.Middleware,
 		authSvc.Middleware,
 		// After the auth middleware, as in cmd/hdms-api, so keys are scoped
 		// by actor. Unlike WithRateLimit this is safe to share: the store is
@@ -116,12 +123,14 @@ func newTestHarness(t *testing.T) *testHarness {
 	h := &testHarness{
 		server:      ts,
 		client:      &http.Client{Jar: jar},
+		handler:     handler,
 		identity:    identitySvc,
 		catalog:     catalogSvc,
 		credentials: credentialsSvc,
 		lending:     lendingSvc,
 		checkout:    checkoutSvc,
 		auth:        authSvc,
+		staffAuth:   staffAuthSvc,
 		audit:       auditSvc,
 		settings:    settingsSvc,
 		bus:         bus,
@@ -129,6 +138,7 @@ func newTestHarness(t *testing.T) *testHarness {
 	}
 
 	h.bootstrapAndLogin(t, authSvc)
+	h.seedStaffAccountAndSession(t)
 	return h
 }
 
@@ -163,9 +173,47 @@ func (h *testHarness) bootstrapAndLogin(t *testing.T, authSvc *auth.Service) {
 		if c.Name == "hdms_csrf" {
 			h.csrfToken = c.Value
 		}
+		if c.Name == "hdms_session" {
+			h.adminSessionToken = c.Value
+		}
 	}
 	if h.csrfToken == "" {
 		t.Fatal("login did not set hdms_csrf cookie")
+	}
+}
+
+func (h *testHarness) seedStaffAccountAndSession(t *testing.T) {
+	t.Helper()
+	var staffUserID string
+	if err := h.pool.QueryRow(t.Context(), `
+		INSERT INTO users (id, employee_no, full_name, registered_by)
+		VALUES (gen_random_uuid(), 'E-STAFF-ENV', 'Staff Test User', 'admin:test') RETURNING id`).Scan(&staffUserID); err != nil {
+		t.Fatalf("seed staff user: %v", err)
+	}
+	staffAccount, err := h.staffAuth.EnsureAccount(t.Context(), staffUserID, "admin:test", true)
+	if err != nil {
+		t.Fatalf("EnsureAccount staff: %v", err)
+	}
+	token, _, err := h.staffAuth.StartSession(t.Context(), staffAccount.ID)
+	if err != nil {
+		t.Fatalf("StartSession staff: %v", err)
+	}
+	h.staffSessionToken = token
+}
+
+type httpTestEnv struct {
+	Handler           http.Handler
+	AdminSessionToken string
+	StaffSessionToken string
+}
+
+func newHTTPTestEnv(t *testing.T) *httpTestEnv {
+	t.Helper()
+	h := newTestHarness(t)
+	return &httpTestEnv{
+		Handler:           h.handler,
+		AdminSessionToken: h.adminSessionToken,
+		StaffSessionToken: h.staffSessionToken,
 	}
 }
 
@@ -253,6 +301,9 @@ func harnessActorOf(r *http.Request) string {
 	}
 	if kiosk, ok := auth.KioskFromContext(r.Context()); ok {
 		return "kiosk:" + kiosk.ID
+	}
+	if staff, ok := staffauth.AccountFromContext(r.Context()); ok {
+		return "staff:" + staff.UserID
 	}
 	return ""
 }
