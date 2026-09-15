@@ -112,6 +112,15 @@ func (s *Service) LookupUserByEmployeeNo(ctx context.Context, employeeNo string)
 	return toUserSummary(row), nil
 }
 
+func (s *Service) LookupUserByEmail(ctx context.Context, email string) (identityapi.UserSummary, error) {
+	q := identitystore.New(db.Conn(ctx, s.pool))
+	row, err := q.GetUserByEmail(ctx, email)
+	if err != nil {
+		return identityapi.UserSummary{}, translateUserErr(err)
+	}
+	return toUserSummary(row), nil
+}
+
 func (s *Service) ListUsers(ctx context.Context, params identityapi.ListUsersParams) (identityapi.ListUsersResult, error) {
 	limit := params.Limit
 	if limit <= 0 || limit > 200 {
@@ -188,6 +197,37 @@ func (s *Service) UpdateUser(ctx context.Context, id string, params identityapi.
 		summary = toUserSummary(row)
 		return s.audit.Record(ctx, auditapi.Event{
 			Actor: actor, Action: "user.updated", Subject: "user:" + summary.ID,
+		})
+	})
+	if err != nil {
+		return identityapi.UserSummary{}, err
+	}
+	return summary, nil
+}
+
+func (s *Service) SetEmployeeNo(ctx context.Context, id, employeeNo, actor string) (identityapi.UserSummary, error) {
+	pid, err := pgtypeconv.UUID(id)
+	if err != nil {
+		return identityapi.UserSummary{}, fmt.Errorf("identity: invalid user id: %w", err)
+	}
+	canonical, err := domain.ValidateEmployeeNo(employeeNo)
+	if err != nil {
+		return identityapi.UserSummary{}, err
+	}
+	var summary identityapi.UserSummary
+	err = db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := identitystore.New(db.Conn(ctx, s.pool))
+		row, err := q.SetUserEmployeeNo(ctx, identitystore.SetUserEmployeeNoParams{
+			ID:         pid,
+			EmployeeNo: canonical,
+		})
+		if err != nil {
+			return translateUserErr(err)
+		}
+		summary = toUserSummary(row)
+		return s.audit.Record(ctx, auditapi.Event{
+			Actor: actor, Action: "user.updated", Subject: "user:" + summary.ID,
+			Payload: map[string]any{"employeeNo": summary.EmployeeNo},
 		})
 	})
 	if err != nil {

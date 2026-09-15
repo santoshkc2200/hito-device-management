@@ -22,6 +22,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/settings"
+	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 )
 
 // Server implements gen.ServerInterface.
@@ -36,6 +37,8 @@ type Server struct {
 	audit                *audit.Service
 	settings             *settings.Service
 	sseHub               *events.SSEHub
+	staffAuth            *staffauth.Service
+	staffOIDC            *staffauth.OIDC
 	importMu             sync.Mutex
 	userImportPreviews   map[string]*userImportPreviewCacheItem
 	deviceImportPreviews map[string]*deviceImportPreviewCacheItem
@@ -47,6 +50,7 @@ func New(
 	pool *db.Pool, authSvc *auth.Service, identitySvc *identity.Service, catalogSvc *catalog.Service,
 	credentialsSvc *credentials.Service, lendingSvc *lending.Service, checkoutSvc *checkout.Service,
 	auditSvc *audit.Service, settingsSvc *settings.Service, sseHub *events.SSEHub,
+	staffAuthSvc *staffauth.Service, staffOIDC *staffauth.OIDC,
 ) *Server {
 	return &Server{
 		pool:                 pool,
@@ -59,12 +63,12 @@ func New(
 		audit:                auditSvc,
 		settings:             settingsSvc,
 		sseHub:               sseHub,
+		staffAuth:            staffAuthSvc,
+		staffOIDC:            staffOIDC,
 		userImportPreviews:   make(map[string]*userImportPreviewCacheItem),
 		deviceImportPreviews: make(map[string]*deviceImportPreviewCacheItem),
 	}
 }
-
-
 
 var _ gen.ServerInterface = (*Server)(nil)
 

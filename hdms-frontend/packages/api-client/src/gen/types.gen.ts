@@ -1008,6 +1008,34 @@ export type OverdueLoanSummary = {
     daysOverdue: number;
 };
 
+export type StaffPasswordLoginRequest = {
+    employeeNo: string;
+    password: string;
+};
+
+export type ChangeStaffPasswordRequest = {
+    currentPassword: string;
+    newPassword: string;
+};
+
+export type CompleteStaffProfileRequest = {
+    employeeNo: string;
+    departmentId?: string;
+};
+
+export type StaffMe = {
+    userId: string;
+    employeeNo: string;
+    fullName: string;
+    email?: string;
+    departmentName?: string;
+    status: 'active' | 'suspended' | 'archived';
+    profileComplete: boolean;
+    mustChangePassword: boolean;
+    hasPassword: boolean;
+    signInMethods: Array<'password' | 'microsoft'>;
+};
+
 export type IdParam = string;
 
 export type CursorParam = string;
@@ -3550,3 +3578,182 @@ export type EnableKioskResponses = {
 };
 
 export type EnableKioskResponse = EnableKioskResponses[keyof EnableKioskResponses];
+
+export type StaffPasswordLoginData = {
+    body: StaffPasswordLoginRequest;
+    path?: never;
+    query?: never;
+    url: '/staff/auth/password';
+};
+
+export type StaffPasswordLoginErrors = {
+    /**
+     * Invalid credentials, a locked account, or a suspended user.
+     */
+    default: Problem;
+};
+
+export type StaffPasswordLoginError = StaffPasswordLoginErrors[keyof StaffPasswordLoginErrors];
+
+export type StaffPasswordLoginResponses = {
+    /**
+     * Authenticated. `Set-Cookie` carries `hdms_staff_session` and `hdms_staff_csrf`.
+     */
+    200: StaffMe;
+};
+
+export type StaffPasswordLoginResponse = StaffPasswordLoginResponses[keyof StaffPasswordLoginResponses];
+
+export type StaffMicrosoftStartData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/auth/microsoft/start';
+};
+
+export type StaffMicrosoftStartErrors = {
+    /**
+     * Microsoft sign-in is not configured for this deployment.
+     */
+    default: Problem;
+};
+
+export type StaffMicrosoftStartError = StaffMicrosoftStartErrors[keyof StaffMicrosoftStartErrors];
+
+export type StaffMicrosoftStartResponses = {
+    /**
+     * Microsoft sign-in is not configured for this deployment.
+     */
+    default: Problem;
+};
+
+export type StaffMicrosoftStartResponse = StaffMicrosoftStartResponses[keyof StaffMicrosoftStartResponses];
+
+export type StaffMicrosoftCallbackData = {
+    body?: never;
+    path?: never;
+    query?: {
+        code?: string;
+        state?: string;
+        error?: string;
+    };
+    url: '/staff/auth/microsoft/callback';
+};
+
+export type StaffMicrosoftCallbackErrors = {
+    /**
+     * The state was unknown, or the tenant or domain is not allowed.
+     */
+    default: Problem;
+};
+
+export type StaffMicrosoftCallbackError = StaffMicrosoftCallbackErrors[keyof StaffMicrosoftCallbackErrors];
+
+export type StaffMicrosoftCallbackResponses = {
+    /**
+     * The state was unknown, or the tenant or domain is not allowed.
+     */
+    default: Problem;
+};
+
+export type StaffMicrosoftCallbackResponse = StaffMicrosoftCallbackResponses[keyof StaffMicrosoftCallbackResponses];
+
+export type StaffLogoutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/auth/logout';
+};
+
+export type StaffLogoutErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type StaffLogoutError = StaffLogoutErrors[keyof StaffLogoutErrors];
+
+export type StaffLogoutResponses = {
+    /**
+     * Logged out.
+     */
+    204: void;
+};
+
+export type StaffLogoutResponse = StaffLogoutResponses[keyof StaffLogoutResponses];
+
+export type GetStaffMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/me';
+};
+
+export type GetStaffMeErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetStaffMeError = GetStaffMeErrors[keyof GetStaffMeErrors];
+
+export type GetStaffMeResponses = {
+    /**
+     * The current staff member.
+     */
+    200: StaffMe;
+};
+
+export type GetStaffMeResponse = GetStaffMeResponses[keyof GetStaffMeResponses];
+
+export type CompleteStaffProfileData = {
+    body: CompleteStaffProfileRequest;
+    path?: never;
+    query?: never;
+    url: '/staff/me/profile';
+};
+
+export type CompleteStaffProfileErrors = {
+    /**
+     * The employee number is taken or invalid.
+     */
+    default: Problem;
+};
+
+export type CompleteStaffProfileError = CompleteStaffProfileErrors[keyof CompleteStaffProfileErrors];
+
+export type CompleteStaffProfileResponses = {
+    /**
+     * Profile completed.
+     */
+    200: StaffMe;
+};
+
+export type CompleteStaffProfileResponse = CompleteStaffProfileResponses[keyof CompleteStaffProfileResponses];
+
+export type ChangeStaffPasswordData = {
+    body: ChangeStaffPasswordRequest;
+    path?: never;
+    query?: never;
+    url: '/staff/me/password';
+};
+
+export type ChangeStaffPasswordErrors = {
+    /**
+     * The current password was wrong, or the new one is too short.
+     */
+    default: Problem;
+};
+
+export type ChangeStaffPasswordError = ChangeStaffPasswordErrors[keyof ChangeStaffPasswordErrors];
+
+export type ChangeStaffPasswordResponses = {
+    /**
+     * Changed.
+     */
+    204: void;
+};
+
+export type ChangeStaffPasswordResponse = ChangeStaffPasswordResponses[keyof ChangeStaffPasswordResponses];

@@ -24,6 +24,7 @@ type Querier interface {
 	GetStaffIdentity(ctx context.Context, arg GetStaffIdentityParams) (StaffIdentity, error)
 	GetStaffSessionByTokenHash(ctx context.Context, sessionTokenHash []byte) (StaffSession, error)
 	LinkStaffIdentity(ctx context.Context, arg LinkStaffIdentityParams) (StaffIdentity, error)
+	ListStaffIdentitiesForAccount(ctx context.Context, staffAccountID pgtype.UUID) ([]StaffIdentity, error)
 	MarkStaffProfileComplete(ctx context.Context, id pgtype.UUID) (StaffAccount, error)
 	RecordStaffLoginFailure(ctx context.Context, arg RecordStaffLoginFailureParams) (StaffAccount, error)
 	RecordStaffLoginSuccess(ctx context.Context, id pgtype.UUID) error

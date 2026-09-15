@@ -20,12 +20,14 @@ type Querier interface {
 	// Used by bulk import, which resolves a department name from a CSV column
 	// without needing a separate "does it exist" round trip.
 	GetOrCreateDepartment(ctx context.Context, arg GetOrCreateDepartmentParams) (Department, error)
+	GetUserByEmail(ctx context.Context, lower string) (User, error)
 	// Only among live (non-archived) users, matching the live-uniqueness index:
 	// an archived duplicate must not shadow a re-hire's new record.
 	GetUserByEmployeeNo(ctx context.Context, lower string) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	ListDepartments(ctx context.Context) ([]Department, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	SetUserEmployeeNo(ctx context.Context, arg SetUserEmployeeNoParams) (User, error)
 	StreamUsersForExport(ctx context.Context, arg StreamUsersForExportParams) ([]StreamUsersForExportRow, error)
 	UpdateDepartment(ctx context.Context, arg UpdateDepartmentParams) (Department, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)

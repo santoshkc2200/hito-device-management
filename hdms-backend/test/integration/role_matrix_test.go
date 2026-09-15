@@ -20,6 +20,7 @@ import (
 
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/realm"
 	"github.com/pquerna/otp/totp"
 )
 
@@ -110,6 +111,10 @@ func TestRoleMatrixCoversEntireSpec(t *testing.T) {
 	for _, entry := range specOperations(t) {
 		method, template, _ := strings.Cut(entry.op, " ")
 		t.Run(entry.op, func(t *testing.T) {
+			if realm.IsStaffPath("/v1" + template) {
+				return
+			}
+
 			minRole, classified := auth.RequireRole(method, "/v1"+template)
 			if !classified {
 				t.Fatalf("operation %s is in OpenAPI spec but not classified in auth.RequiredRoles", entry.op)

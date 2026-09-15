@@ -190,6 +190,31 @@ func (q *Queries) GetOrCreateDepartment(ctx context.Context, arg GetOrCreateDepa
 	return i, err
 }
 
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
+FROM users WHERE lower(email) = lower($1) AND status <> 'archived'
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, lower string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, lower)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.EmployeeNo,
+		&i.FullName,
+		&i.DepartmentID,
+		&i.Email,
+		&i.Phone,
+		&i.Status,
+		&i.Notes,
+		&i.RegisteredAt,
+		&i.RegisteredBy,
+		&i.UpdatedAt,
+		&i.ImportBatchID,
+	)
+	return i, err
+}
+
 const getUserByEmployeeNo = `-- name: GetUserByEmployeeNo :one
 SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 FROM users WHERE lower(employee_no) = lower($1) AND status <> 'archived'
@@ -345,6 +370,38 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const setUserEmployeeNo = `-- name: SetUserEmployeeNo :one
+UPDATE users
+SET employee_no = $2, updated_at = now()
+WHERE id = $1 AND status <> 'archived'
+RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
+`
+
+type SetUserEmployeeNoParams struct {
+	ID         pgtype.UUID `json:"id"`
+	EmployeeNo string      `json:"employee_no"`
+}
+
+func (q *Queries) SetUserEmployeeNo(ctx context.Context, arg SetUserEmployeeNoParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserEmployeeNo, arg.ID, arg.EmployeeNo)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.EmployeeNo,
+		&i.FullName,
+		&i.DepartmentID,
+		&i.Email,
+		&i.Phone,
+		&i.Status,
+		&i.Notes,
+		&i.RegisteredAt,
+		&i.RegisteredBy,
+		&i.UpdatedAt,
+		&i.ImportBatchID,
+	)
+	return i, err
 }
 
 const streamUsersForExport = `-- name: StreamUsersForExport :many

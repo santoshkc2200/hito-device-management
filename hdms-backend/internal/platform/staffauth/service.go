@@ -122,6 +122,57 @@ func (s *Service) AccountForUser(ctx context.Context, userID string) (Account, e
 	return toAccount(row), nil
 }
 
+func (s *Service) AccountForIdentity(ctx context.Context, provider, subject string) (Account, error) {
+	q := staffauthstore.New(db.Conn(ctx, s.pool))
+	identityRow, err := q.GetStaffIdentity(ctx, staffauthstore.GetStaffIdentityParams{
+		Provider: provider,
+		Subject:  subject,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Account{}, ErrAccountNotFound
+	}
+	if err != nil {
+		return Account{}, fmt.Errorf("staffauth: look up identity: %w", err)
+	}
+
+	acctRow, err := q.GetStaffAccountByID(ctx, identityRow.StaffAccountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Account{}, ErrAccountNotFound
+	}
+	if err != nil {
+		return Account{}, fmt.Errorf("staffauth: look up account for identity: %w", err)
+	}
+	return toAccount(acctRow), nil
+}
+
+func (s *Service) LinkIdentity(ctx context.Context, accountID, provider, subject, tenantID, email string) error {
+	aid, err := pgtypeconv.UUID(accountID)
+	if err != nil {
+		return fmt.Errorf("staffauth: invalid account id: %w", err)
+	}
+	q := staffauthstore.New(db.Conn(ctx, s.pool))
+	if _, err := q.LinkStaffIdentity(ctx, staffauthstore.LinkStaffIdentityParams{
+		ID:             pgtypeconv.NewUUID(),
+		StaffAccountID: aid,
+		Provider:       provider,
+		Subject:        subject,
+		TenantID:       tenantID,
+		EmailAtLink:    pgtypeconv.Text(email),
+	}); err != nil {
+		return fmt.Errorf("staffauth: link identity: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) IdentitiesForAccount(ctx context.Context, accountID string) ([]staffauthstore.StaffIdentity, error) {
+	aid, err := pgtypeconv.UUID(accountID)
+	if err != nil {
+		return nil, fmt.Errorf("staffauth: invalid account id: %w", err)
+	}
+	q := staffauthstore.New(db.Conn(ctx, s.pool))
+	return q.ListStaffIdentitiesForAccount(ctx, aid)
+}
+
 func (s *Service) getByID(ctx context.Context, accountID string) (staffauthstore.StaffAccount, error) {
 	aid, err := pgtypeconv.UUID(accountID)
 	if err != nil {

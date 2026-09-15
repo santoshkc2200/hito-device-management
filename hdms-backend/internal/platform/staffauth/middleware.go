@@ -12,7 +12,6 @@ import (
 // staffPathPrefix is the whole of the staff realm's surface. Everything under
 // it is served by this middleware; everything outside it is invisible to a
 // staff session.
-const staffPathPrefix = realm.StaffPathPrefix
 
 // IsStaffPath reports whether a request path belongs to the staff realm. The
 // administrator middleware calls this to hand the request over rather than

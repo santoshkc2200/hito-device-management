@@ -111,10 +111,26 @@ func run() error {
 		sweeper.Stop(stopCtx)
 	}()
 
+	var staffOIDCSvc *staffauth.OIDC
+	if cfg.EntraTenantID == "" {
+		logger.Info("microsoft sign-in is disabled: no tenant ID configured")
+	} else {
+		entraCfg := staffauth.EntraConfig{
+			TenantID:            cfg.EntraTenantID,
+			ClientID:            cfg.EntraClientID,
+			ClientSecret:        cfg.EntraClientSecret,
+			RedirectURL:         cfg.EntraRedirectURL,
+			AllowedEmailDomains: cfg.EntraAllowedDomains,
+		}
+		var err error
+		staffOIDCSvc, err = staffauth.NewOIDC(ctx, entraCfg, pool, cfg.CredentialEncKey)
+		if err != nil {
+			logger.Error("microsoft sign-in disabled: oidc discovery failed", "error", err)
+		}
+	}
+
 	sseHub := events.NewSSEHub(pool, bus, logger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub)
-
-
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc)
 
 	// actorOf scopes an idempotency key to the caller (2.5): a kiosk's key
 	// never collides with an admin's. httpx cannot import auth directly

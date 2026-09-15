@@ -37,7 +37,6 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-
 // testHarness wires the real apiServer, the real auth middleware and
 // request-ID/recovery middleware against a fresh testdb, and exposes an
 // httptest.Server plus an authenticated http.Client so HTTP-level tests
@@ -48,23 +47,24 @@ import (
 // share one budget — unrelated tests would start failing with 429s purely
 // from run order, which tests nothing this package is meant to verify.
 type testHarness struct {
-	server      *httptest.Server
-	client      *http.Client
-	csrfToken   string
-	identity    identityapi.Service
-	catalog     *catalog.Service
-	credentials *credentials.Service
-	lending     lendingapi.Service
-	checkout    checkoutapi.Service
-	auth        *auth.Service
-	audit       *audit.Service
-	settings    *settings.Service
-	bus         *events.Bus
-	pool        *db.Pool
+	server            *httptest.Server
+	client            *http.Client
+	csrfToken         string
+	identity          identityapi.Service
+	catalog           *catalog.Service
+	credentials       *credentials.Service
+	lending           lendingapi.Service
+	checkout          checkoutapi.Service
+	auth              *auth.Service
+	audit             *audit.Service
+	settings          *settings.Service
+	bus               *events.Bus
+	pool              *db.Pool
 	adminSessionToken string
 	staffSessionToken string
 	staffAuth         *staffauth.Service
 	handler           http.Handler
+	apiServer         *apiserver.Server
 }
 
 func newTestHarness(t *testing.T) *testHarness {
@@ -91,8 +91,8 @@ func newTestHarness(t *testing.T) *testHarness {
 	}, auditSvc, bus)
 
 	sseHub := events.NewSSEHub(pool, bus, discardLogger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub)
 	staffAuthSvc := staffauth.New(pool, time.Hour)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil)
 	mux := http.NewServeMux()
 
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
@@ -135,6 +135,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		settings:    settingsSvc,
 		bus:         bus,
 		pool:        pool,
+		apiServer:   srv,
 	}
 
 	h.bootstrapAndLogin(t, authSvc)
@@ -205,6 +206,12 @@ type httpTestEnv struct {
 	Handler           http.Handler
 	AdminSessionToken string
 	StaffSessionToken string
+	Server            *apiserver.Server
+	TenantID          string
+	Identity          identityapi.Service
+	Credentials       *credentials.Service
+	StaffAuth         *staffauth.Service
+	Pool              *db.Pool
 }
 
 func newHTTPTestEnv(t *testing.T) *httpTestEnv {
@@ -214,7 +221,48 @@ func newHTTPTestEnv(t *testing.T) *httpTestEnv {
 		Handler:           h.handler,
 		AdminSessionToken: h.adminSessionToken,
 		StaffSessionToken: h.staffSessionToken,
+		Server:            h.apiServer,
+		TenantID:          "test-tenant-id",
+		Identity:          h.identity,
+		Credentials:       h.credentials,
+		StaffAuth:         h.staffAuth,
+		Pool:              h.pool,
 	}
+}
+
+func (env *httpTestEnv) SeedUser(t *testing.T, employeeNo, fullName, email string) identityapi.UserSummary {
+	t.Helper()
+	user, err := env.Identity.CreateUser(t.Context(), identityapi.CreateUserParams{
+		EmployeeNo:   employeeNo,
+		FullName:     fullName,
+		Email:        email,
+		RegisteredBy: "admin:test",
+	})
+	if err != nil {
+		t.Fatalf("SeedUser: %v", err)
+	}
+	return user
+}
+
+func (env *httpTestEnv) CountActiveCredentials(t *testing.T, userID string) int {
+	t.Helper()
+	var count int
+	if err := env.Pool.QueryRow(t.Context(), `SELECT count(*) FROM credentials WHERE subject_type = 'user' AND subject_id = $1 AND status = 'active'`, userID).Scan(&count); err != nil {
+		t.Fatalf("CountActiveCredentials: %v", err)
+	}
+	return count
+}
+
+func (env *httpTestEnv) SeedStaffAccountWithPassword(t *testing.T, userID, password string) staffauth.Account {
+	t.Helper()
+	account, err := env.StaffAuth.EnsureAccount(t.Context(), userID, "admin:test", true)
+	if err != nil {
+		t.Fatalf("SeedStaffAccountWithPassword ensure: %v", err)
+	}
+	if err := env.StaffAuth.SetPassword(t.Context(), account.ID, password, false); err != nil {
+		t.Fatalf("SeedStaffAccountWithPassword set password: %v", err)
+	}
+	return account
 }
 
 func (h *testHarness) get(t *testing.T, path string) *http.Response {

@@ -294,6 +294,38 @@ func (q *Queries) LinkStaffIdentity(ctx context.Context, arg LinkStaffIdentityPa
 	return i, err
 }
 
+const listStaffIdentitiesForAccount = `-- name: ListStaffIdentitiesForAccount :many
+SELECT id, staff_account_id, provider, subject, tenant_id, email_at_link, linked_at FROM staff_identities WHERE staff_account_id = $1
+`
+
+func (q *Queries) ListStaffIdentitiesForAccount(ctx context.Context, staffAccountID pgtype.UUID) ([]StaffIdentity, error) {
+	rows, err := q.db.Query(ctx, listStaffIdentitiesForAccount, staffAccountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StaffIdentity
+	for rows.Next() {
+		var i StaffIdentity
+		if err := rows.Scan(
+			&i.ID,
+			&i.StaffAccountID,
+			&i.Provider,
+			&i.Subject,
+			&i.TenantID,
+			&i.EmailAtLink,
+			&i.LinkedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markStaffProfileComplete = `-- name: MarkStaffProfileComplete :one
 UPDATE staff_accounts SET profile_complete = true, updated_at = now()
 WHERE id = $1
