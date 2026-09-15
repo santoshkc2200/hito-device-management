@@ -7,6 +7,7 @@ import { type CameraSource } from "@hdms/scan";
 
 function createMockCameraSource(overrides?: Partial<CameraSource>): CameraSource {
   const videoEl = document.createElement("video");
+  let currentFacingMode: "user" | "environment" = "user";
   return {
     id: "camera",
     label: "Camera Scanner",
@@ -19,6 +20,11 @@ function createMockCameraSource(overrides?: Partial<CameraSource>): CameraSource
     isTorchOn: vi.fn().mockReturnValue(false),
     setTorch: vi.fn().mockResolvedValue(true),
     isActive: vi.fn().mockReturnValue(true),
+    getFacingMode: vi.fn().mockImplementation(() => currentFacingMode),
+    switchCamera: vi.fn().mockImplementation(async (mode) => {
+      currentFacingMode = mode ?? (currentFacingMode === "user" ? "environment" : "user");
+      return currentFacingMode;
+    }),
     getVideoElement: vi.fn().mockReturnValue(videoEl),
     getStream: vi.fn().mockReturnValue(null),
     getLastError: vi.fn().mockReturnValue(null),
@@ -48,6 +54,7 @@ describe("<CameraOverlay />", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Camera Barcode Scanner")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Rear Camera" })).toBeInTheDocument();
     expect(await screen.findByText("Turn Torch On")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
 
@@ -169,5 +176,43 @@ describe("<CameraOverlay />", () => {
 
     expect(onScan).toHaveBeenCalledWith("HD-U-7K3M9QXA2F-4");
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("switches camera between front and rear when switch button is clicked", async () => {
+    const user = userEvent.setup();
+    let currentMode: "user" | "environment" = "user";
+    const switchCamera = vi.fn().mockImplementation(async () => {
+      currentMode = currentMode === "user" ? "environment" : "user";
+      return currentMode;
+    });
+
+    const mockCamera = createMockCameraSource({
+      getFacingMode: () => currentMode,
+      switchCamera,
+    });
+
+    render(
+      <CameraOverlay
+        isOpen={true}
+        onClose={vi.fn()}
+        cameraSource={mockCamera}
+      />
+    );
+
+    // Initial state: front camera is default, so button offers switching to Rear Camera
+    const switchBtn = await screen.findByRole("button", { name: "Rear Camera" });
+    expect(switchBtn).toBeInTheDocument();
+
+    // Click switch camera button
+    await user.click(switchBtn);
+
+    expect(switchCamera).toHaveBeenCalledTimes(1);
+    // After switching to environment, button now displays Front Camera
+    expect(await screen.findByRole("button", { name: "Front Camera" })).toBeInTheDocument();
+
+    // Click again to switch back to Front Camera
+    await user.click(screen.getByRole("button", { name: "Front Camera" }));
+    expect(switchCamera).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole("button", { name: "Rear Camera" })).toBeInTheDocument();
   });
 });

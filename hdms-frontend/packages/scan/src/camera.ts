@@ -30,11 +30,14 @@ export type BarcodeDetectorSource =
   | HTMLCanvasElement
   | ImageBitmap;
 
+export type CameraFacingMode = "user" | "environment";
+
 export interface CameraSourceOptions {
   label?: string;
   decodeIntervalMs?: number;
   idleTimeoutMs?: number;
   autoStopOnScan?: boolean;
+  facingMode?: CameraFacingMode;
   targetDocument?: Document;
   targetNavigator?: Navigator;
   barcodeDetectorFactory?: (formats: readonly string[]) => {
@@ -49,6 +52,8 @@ export class CameraSource implements ScanSource {
   readonly id = "camera" as const;
   readonly label: string;
 
+  private defaultFacingMode: CameraFacingMode;
+  private facingMode: CameraFacingMode;
   private decodeIntervalMs: number;
   private idleTimeoutMs: number;
   private autoStopOnScan: boolean;
@@ -72,6 +77,8 @@ export class CameraSource implements ScanSource {
 
   constructor(options?: CameraSourceOptions) {
     this.label = options?.label ?? "Camera Scanner";
+    this.defaultFacingMode = options?.facingMode ?? "user";
+    this.facingMode = this.defaultFacingMode;
     this.decodeIntervalMs = options?.decodeIntervalMs ?? DEFAULT_DECODE_INTERVAL_MS;
     this.idleTimeoutMs = options?.idleTimeoutMs ?? DEFAULT_CAMERA_IDLE_TIMEOUT_MS;
     this.autoStopOnScan = options?.autoStopOnScan ?? true;
@@ -138,7 +145,7 @@ export class CameraSource implements ScanSource {
     try {
       const stream = await nav.mediaDevices.getUserMedia({
         video: {
-          facingMode: "environment",
+          facingMode: this.facingMode,
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
@@ -249,7 +256,88 @@ export class CameraSource implements ScanSource {
       }
     }
 
+    this.facingMode = this.defaultFacingMode;
     this.emitCallback = null;
+  }
+
+  /**
+   * Returns the current camera facing mode ("user" or "environment").
+   */
+  getFacingMode(): CameraFacingMode {
+    return this.facingMode;
+  }
+
+  /**
+   * Switches camera facing mode between front ("user") and back ("environment").
+   * If the camera is running, re-acquires the media stream with the new facingMode
+   * and updates the video element without terminating the scan session.
+   */
+  async switchCamera(targetMode?: CameraFacingMode): Promise<CameraFacingMode> {
+    const nextMode =
+      targetMode ?? (this.facingMode === "user" ? "environment" : "user");
+
+    if (nextMode === this.facingMode && this.isRunning) {
+      return this.facingMode;
+    }
+
+    this.facingMode = nextMode;
+
+    if (this.isRunning) {
+      // 1. Stop existing tracks
+      if (this.stream) {
+        for (const track of this.stream.getTracks()) {
+          try {
+            track.stop();
+          } catch {
+            // Ignore
+          }
+        }
+        this.stream = null;
+      }
+      this.isTorchActive = false;
+
+      // 2. Request new stream with next facingMode
+      const nav = this.targetNavigator;
+      if (!nav?.mediaDevices?.getUserMedia) {
+        const err = new Error("getUserMedia is not supported on this platform");
+        this.lastError = err;
+        this.onErrorCallback?.(err);
+        throw err;
+      }
+
+      try {
+        const stream = await nav.mediaDevices.getUserMedia({
+          video: {
+            facingMode: this.facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+
+        this.stream = stream;
+
+        // 3. Update video element srcObject
+        if (this.videoElement) {
+          this.videoElement.srcObject = stream;
+          try {
+            await this.videoElement.play();
+          } catch {
+            // Ignore play interruption errors
+          }
+        }
+
+        // 4. Reset idle timer on user interaction
+        this.resetIdleTimer();
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        this.lastError = error;
+        this.onErrorCallback?.(error);
+        throw error;
+      }
+    }
+
+    return this.facingMode;
   }
 
   /**

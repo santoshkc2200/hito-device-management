@@ -24,6 +24,7 @@ export {
   DEFAULT_CAMERA_IDLE_TIMEOUT_MS,
 } from "./camera";
 export type {
+  CameraFacingMode,
   CameraSourceOptions,
   SupportedBarcodeFormat,
 } from "./camera";

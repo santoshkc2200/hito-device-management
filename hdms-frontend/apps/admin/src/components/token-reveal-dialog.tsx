@@ -1,12 +1,10 @@
 import bwipjs from "bwip-js/browser";
-import { Copy, Download, Printer } from "lucide-react";
-import { toast } from "sonner";
+import { Download, Printer } from "lucide-react";
 import { barcodeSvg } from "@/components/barcode";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -59,10 +57,9 @@ export function TokenRevealDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{t("tokenRevealDialog.title")}</DialogTitle>
-          <DialogDescription>{t("tokenRevealDialog.description")}</DialogDescription>
         </DialogHeader>
         <style>{`@page { size: ${subject.type === "device" ? "60mm 30mm" : "85.6mm 54mm"}; margin: 0; }`}</style>
         <div className="print-area flex justify-center py-2">
@@ -86,16 +83,6 @@ export function TokenRevealDialog({
         </div>
         <p className="text-center font-identifier text-xs text-muted-foreground">{token}</p>
         <DialogFooter className="gap-2 sm:justify-center">
-          <Button
-            variant="outline"
-            onClick={() => {
-              void navigator.clipboard.writeText(token);
-              toast.success(t("tokenRevealDialog.tokenCopied"));
-            }}
-          >
-            <Copy className="size-4" data-icon="inline-start" />
-            {t("tokenRevealDialog.copyToken")}
-          </Button>
           <Button variant="outline" onClick={() => exportPng(token)}>
             <Download className="size-4" data-icon="inline-start" />
             {/* i18n-allow-literal: PNG is a file-format acronym, not translatable prose */}

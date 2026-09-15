@@ -1,5 +1,6 @@
 import * as React from "react";
-import { type CameraSource } from "@hdms/scan";
+import { SwitchCamera } from "lucide-react";
+import { type CameraFacingMode, type CameraSource } from "@hdms/scan";
 import { Button } from "@/components/ui/button";
 import { useTranslator } from "@/i18n";
 
@@ -21,6 +22,8 @@ function CameraOverlayContent({
   const [hasPermissionError, setHasPermissionError] = React.useState(false);
   const [torchEnabled, setTorchEnabled] = React.useState(false);
   const [hasTorchCapability, setHasTorchCapability] = React.useState(false);
+  const [facingMode, setFacingMode] = React.useState<CameraFacingMode>("user");
+  const [isSwitching, setIsSwitching] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -40,6 +43,7 @@ function CameraOverlayContent({
         });
 
         if (!isMounted) return;
+        setFacingMode(source.getFacingMode());
         setHasTorchCapability(source.hasTorch());
 
         // Attach video element to preview container
@@ -76,6 +80,21 @@ function CameraOverlayContent({
     }
   };
 
+  const handleSwitchCamera = async () => {
+    if (!cameraSource || isSwitching) return;
+    setIsSwitching(true);
+    try {
+      const nextMode = await cameraSource.switchCamera();
+      setFacingMode(nextMode);
+      setHasTorchCapability(cameraSource.hasTorch());
+      setTorchEnabled(cameraSource.isTorchOn());
+    } catch {
+      // Keep current state on error
+    } finally {
+      setIsSwitching(false);
+    }
+  };
+
   return (
     <div
       role="dialog"
@@ -91,18 +110,34 @@ function CameraOverlayContent({
         >
           {t("camera.title")}
         </h2>
-        {hasTorchCapability && !hasPermissionError && (
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="border-white/40 bg-white/10 text-white hover:bg-white/20"
-            onClick={handleToggleTorch}
-            aria-pressed={torchEnabled}
-          >
-            {torchEnabled ? t("camera.torchOff") : t("camera.torchOn")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!hasPermissionError && (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="border-white/40 bg-white/10 text-white hover:bg-white/20"
+              onClick={handleSwitchCamera}
+              data-testid="camera-switch-button"
+              disabled={isSwitching}
+            >
+              <SwitchCamera className="mr-2 h-5 w-5" aria-hidden="true" />
+              {facingMode === "user" ? t("camera.backCamera") : t("camera.frontCamera")}
+            </Button>
+          )}
+          {hasTorchCapability && !hasPermissionError && (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="border-white/40 bg-white/10 text-white hover:bg-white/20"
+              onClick={handleToggleTorch}
+              aria-pressed={torchEnabled}
+            >
+              {torchEnabled ? t("camera.torchOff") : t("camera.torchOn")}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main Viewfinder Area */}

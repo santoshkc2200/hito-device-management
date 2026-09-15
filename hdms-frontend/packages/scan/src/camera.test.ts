@@ -317,4 +317,86 @@ describe("CameraSource", () => {
 
     await router.stop();
   });
+
+  it("defaults to front camera ('user') and can be configured with custom mode", async () => {
+    const { stream } = createMockStream();
+    const getUserMedia = vi.fn().mockResolvedValue(stream);
+    const mockNav = {
+      mediaDevices: { getUserMedia },
+    } as unknown as Navigator;
+
+    const defaultCamera = new CameraSource({ targetNavigator: mockNav });
+    expect(defaultCamera.getFacingMode()).toBe("user");
+
+    await defaultCamera.start(vi.fn());
+    expect(getUserMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({
+          facingMode: "user",
+        }),
+      })
+    );
+    await defaultCamera.stop();
+
+    const rearCamera = new CameraSource({
+      targetNavigator: mockNav,
+      facingMode: "environment",
+    });
+    expect(rearCamera.getFacingMode()).toBe("environment");
+
+    await rearCamera.start(vi.fn());
+    expect(getUserMedia).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({
+          facingMode: "environment",
+        }),
+      })
+    );
+    await rearCamera.stop();
+  });
+
+  it("switches camera when running, releases old stream and rebinds new stream", async () => {
+    const stream1 = createMockStream(false);
+    const stream2 = createMockStream(true);
+
+    const getUserMedia = vi
+      .fn()
+      .mockResolvedValueOnce(stream1.stream)
+      .mockResolvedValueOnce(stream2.stream);
+
+    const mockNav = {
+      mediaDevices: { getUserMedia },
+    } as unknown as Navigator;
+
+    const camera = new CameraSource({ targetNavigator: mockNav });
+    expect(camera.getFacingMode()).toBe("user");
+
+    await camera.start(vi.fn());
+    expect(camera.hasTorch()).toBe(false);
+
+    // Switch camera from front (user) to rear (environment)
+    const newMode = await camera.switchCamera();
+    expect(newMode).toBe("environment");
+    expect(camera.getFacingMode()).toBe("environment");
+
+    // Check old track was stopped
+    expect(stream1.tracks[0]?.stop).toHaveBeenCalled();
+
+    // Check second stream was requested with "environment"
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(getUserMedia).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({
+          facingMode: "environment",
+        }),
+      })
+    );
+
+    // Stream 2 had torch capability
+    expect(camera.hasTorch()).toBe(true);
+
+    // Stopping resets to default facing mode
+    await camera.stop();
+    expect(camera.getFacingMode()).toBe("user");
+  });
 });
