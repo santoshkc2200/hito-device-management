@@ -174,23 +174,24 @@ configured tenant and domain allowlist are refused before any row is written.
 ## API surface
 
 Everything is additive, under a new path prefix, per the extension rules in
-`docs/phases/phase-6/6.0-intake-and-extension-rules.md`.
+`docs/phases/phase-6/6.0-intake-and-extension-rules.md`. Paths below are shown
+relative to the server's `/v1` base, as the contract already is.
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/staff/auth/password` | Employee number + password, issues the staff session |
-| GET | `/api/staff/auth/microsoft/start` | Redirects to Entra with PKCE and state |
-| GET | `/api/staff/auth/microsoft/callback` | Validates, links or provisions, issues the session |
-| POST | `/api/staff/auth/logout` | Ends the session |
-| GET | `/api/staff/me` | Profile, status, whether a password is set, whether the profile is complete |
-| POST | `/api/staff/me/password` | Self-service change; requires the current password |
-| POST | `/api/staff/me/profile` | One-time completion: employee number |
-| GET | `/api/staff/me/credential` | The signed-in user's own QR token |
-| GET | `/api/staff/devices` | Catalog with availability and expected return |
-| GET | `/api/staff/devices/{id}` | Device detail, same disclosure rule |
-| GET | `/api/staff/me/loans` | What this user has out, and their history |
-| GET | `/api/admin/users/{id}/credentials/{cid}/token` | Reveal for print — `admin` role only, audited |
-| POST | `/api/admin/users/{id}/password-reset` | Issue a temporary password, forcing a change |
+| POST | `/v1/staff/auth/password` | Employee number + password, issues the staff session |
+| GET | `/v1/staff/auth/microsoft/start` | Redirects to Entra with PKCE and state |
+| GET | `/v1/staff/auth/microsoft/callback` | Validates, links or provisions, issues the session |
+| POST | `/v1/staff/auth/logout` | Ends the session |
+| GET | `/v1/staff/me` | Profile, status, whether a password is set, whether the profile is complete |
+| POST | `/v1/staff/me/password` | Self-service change; requires the current password |
+| POST | `/v1/staff/me/profile` | One-time completion: employee number |
+| GET | `/v1/staff/me/credential` | The signed-in user's own QR token |
+| GET | `/v1/staff/devices` | Catalog with availability and expected return |
+| GET | `/v1/staff/devices/{id}` | Device detail, same disclosure rule |
+| GET | `/v1/staff/me/loans` | What this user has out, and their history |
+| POST | `/v1/credentials/{id}/reveal` | Reveal for print — `admin` role only, audited. POST so it carries the CSRF header and never lands in a proxy log's URL |
+| POST | `/v1/users/{id}/staff-password-reset` | Issue a temporary password, forcing a change |
 
 The device endpoints return `available` or `in_use` with an expected return time
 and never a borrower identity. That rule lives in the handler, not the client, and
@@ -233,7 +234,7 @@ for key handling and rotation is part of this phase, not an afterthought.
   applicable, `Secure`, `SameSite=Lax`, 12-hour sliding expiry, the token stored
   hashed, exactly as `admin_sessions`.
 - Scope separation is enforced in middleware and proven both ways: an admin
-  cookie is rejected on `/api/staff/*`, a staff cookie on `/api/admin/*`.
+  cookie is rejected on `/v1/staff/*`, a staff cookie on `/v1/*` admin routes.
 - Password login reuses the existing lockout counters and is rate-limited per
   employee number and per IP. The response does not distinguish an unknown
   employee number from a wrong password.
