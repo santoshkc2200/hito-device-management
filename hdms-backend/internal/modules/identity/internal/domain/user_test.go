@@ -85,3 +85,20 @@ func TestValidateTransition(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateRegisteredByAcceptsSelfMicrosoftAndStillRefusesKiosk(t *testing.T) {
+	got, err := domain.ValidateRegisteredBy("self:microsoft")
+	if err != nil {
+		t.Fatalf("ValidateRegisteredBy(self:microsoft) = %v, want nil", err)
+	}
+	if got != "self:microsoft" {
+		t.Fatalf("canonical form = %q, want %q", got, "self:microsoft")
+	}
+
+	if _, err := domain.ValidateRegisteredBy("kiosk:abc"); err == nil {
+		t.Fatal("ValidateRegisteredBy(kiosk:abc) = nil, want an error — INV-11 still holds")
+	}
+	if _, err := domain.ValidateRegisteredBy("self:something-else"); err == nil {
+		t.Fatal("only self:microsoft is a recognised self-registration provenance")
+	}
+}
