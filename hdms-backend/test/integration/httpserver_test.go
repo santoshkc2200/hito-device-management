@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,9 +19,11 @@ import (
 	"github.com/hito-hospital/hdms/internal/apiserver"
 	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
+	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
 	"github.com/hito-hospital/hdms/internal/modules/checkout"
 	"github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
+	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending"
@@ -62,6 +65,7 @@ type testHarness struct {
 	pool              *db.Pool
 	adminSessionToken string
 	staffSessionToken string
+	staffUser         identityapi.UserSummary
 	staffAuth         *staffauth.Service
 	handler           http.Handler
 	apiServer         *apiserver.Server
@@ -200,18 +204,33 @@ func (h *testHarness) seedStaffAccountAndSession(t *testing.T) {
 		t.Fatalf("StartSession staff: %v", err)
 	}
 	h.staffSessionToken = token
+	user, err := h.identity.LookupUser(t.Context(), staffUserID)
+	if err != nil {
+		t.Fatalf("LookupUser staff: %v", err)
+	}
+	h.staffUser = user
 }
 
 type httpTestEnv struct {
 	Handler           http.Handler
 	AdminSessionToken string
 	StaffSessionToken string
+	StaffUser         identityapi.UserSummary
 	Server            *apiserver.Server
 	TenantID          string
 	Identity          identityapi.Service
+	Catalog           *catalog.Service
 	Credentials       *credentials.Service
+	Lending           lendingapi.Service
+	Auth              *auth.Service
 	StaffAuth         *staffauth.Service
 	Pool              *db.Pool
+}
+
+type credentialsTestEnv = httpTestEnv
+
+func newCredentialsTestEnv(t *testing.T) *credentialsTestEnv {
+	return newHTTPTestEnv(t)
 }
 
 func newHTTPTestEnv(t *testing.T) *httpTestEnv {
@@ -221,10 +240,14 @@ func newHTTPTestEnv(t *testing.T) *httpTestEnv {
 		Handler:           h.handler,
 		AdminSessionToken: h.adminSessionToken,
 		StaffSessionToken: h.staffSessionToken,
+		StaffUser:         h.staffUser,
 		Server:            h.apiServer,
 		TenantID:          "test-tenant-id",
 		Identity:          h.identity,
+		Catalog:           h.catalog,
 		Credentials:       h.credentials,
+		Lending:           h.lending,
+		Auth:              h.auth,
 		StaffAuth:         h.staffAuth,
 		Pool:              h.pool,
 	}
@@ -263,6 +286,76 @@ func (env *httpTestEnv) SeedStaffAccountWithPassword(t *testing.T, userID, passw
 		t.Fatalf("SeedStaffAccountWithPassword set password: %v", err)
 	}
 	return account
+}
+
+func (env *httpTestEnv) SeedActiveUserCard(t *testing.T, userID string) string {
+	t.Helper()
+	issued, err := env.Credentials.Issue(t.Context(), credentialsapi.IssueParams{
+		SubjectType: credentialsapi.SubjectUser,
+		SubjectID:   userID,
+		Kind:        credentialsapi.KindQR,
+		IssuedBy:    "admin:test",
+	})
+	if err != nil {
+		t.Fatalf("SeedActiveUserCard: %v", err)
+	}
+	return issued.Credential.ID
+}
+
+type AdminSession struct {
+	Token     string
+	CSRFToken string
+}
+
+func (env *httpTestEnv) AdminSessionForRole(t *testing.T, role string) AdminSession {
+	t.Helper()
+	email := fmt.Sprintf("%s_%d@example.org", role, time.Now().UnixNano())
+	password := "correct horse battery staple"
+
+	_, secret, _, err := env.Auth.CreateAdminAccount(t.Context(), email, "Test "+role, password, role)
+	if err != nil {
+		t.Fatalf("CreateAdminAccount for role %s: %v", role, err)
+	}
+	code, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		t.Fatalf("GenerateCode: %v", err)
+	}
+
+	sessionToken, csrfToken, _, err := env.Auth.Login(t.Context(), email, password, code)
+	if err != nil {
+		t.Fatalf("Login for role %s: %v", role, err)
+	}
+
+	return AdminSession{Token: sessionToken, CSRFToken: csrfToken}
+}
+
+func (env *httpTestEnv) SeedDevice(t *testing.T, assetTag, name string) catalogapi.DeviceSummary {
+	t.Helper()
+	cat, err := env.Catalog.GetOrCreateCategory(t.Context(), "General")
+	if err != nil {
+		t.Fatalf("SeedDevice create category: %v", err)
+	}
+	device, err := env.Catalog.CreateDevice(t.Context(), catalogapi.CreateDeviceParams{
+		AssetTag:   assetTag,
+		Name:       name,
+		CategoryID: cat.ID,
+	}, "admin:test")
+	if err != nil {
+		t.Fatalf("SeedDevice: %v", err)
+	}
+	return device
+}
+
+func (env *httpTestEnv) SeedOpenLoan(t *testing.T, deviceID, userID string) lendingapi.Loan {
+	t.Helper()
+	loan, err := env.Lending.OpenLoan(t.Context(), deviceID, userID, nil, lendingapi.OpenMeta{
+		Actor:  "admin:test",
+		Source: "manual",
+	})
+	if err != nil {
+		t.Fatalf("SeedOpenLoan: %v", err)
+	}
+	return loan
 }
 
 func (h *testHarness) get(t *testing.T, path string) *http.Response {

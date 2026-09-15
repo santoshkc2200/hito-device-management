@@ -205,6 +205,8 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		writeValidationFailed(w, r, "manualToken is required when kind is manual", []string{"manualToken"})
 	case errors.Is(err, credentialsapi.ErrTokenAlreadyRegistered):
 		httpx.WriteProblem(w, r, httpx.NewProblem("credential-token-taken", "That token is already registered to a credential", http.StatusConflict))
+	case errors.Is(err, credentialsapi.ErrTokenNotRecoverable):
+		httpx.WriteProblem(w, r, httpx.NewProblem("token-not-recoverable", "This credential predates reversible storage", http.StatusConflict))
 
 	// Auth errors
 	case errors.Is(err, auth.ErrInvalidCredentials), errors.Is(err, auth.ErrSessionInvalid):

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ArchiveUserData, ArchiveUserErrors, ArchiveUserResponses, BeginTotpReenrolmentData, BeginTotpReenrolmentErrors, BeginTotpReenrolmentResponses, BindCredentialData, BindCredentialErrors, BindCredentialResponses, CancelSessionData, CancelSessionErrors, CancelSessionResponses, ChangeOwnPasswordData, ChangeOwnPasswordErrors, ChangeOwnPasswordResponses, ChangeStaffPasswordData, ChangeStaffPasswordErrors, ChangeStaffPasswordResponses, CheckEmployeeNoData, CheckEmployeeNoErrors, CheckEmployeeNoResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, CommitDeviceImportData, CommitDeviceImportErrors, CommitDeviceImportResponses, CommitUserImportData, CommitUserImportErrors, CommitUserImportResponses, CompleteStaffProfileData, CompleteStaffProfileErrors, CompleteStaffProfileResponses, ConfirmTotpReenrolmentData, ConfirmTotpReenrolmentErrors, ConfirmTotpReenrolmentResponses, CorrectLoanAttributionData, CorrectLoanAttributionErrors, CorrectLoanAttributionResponses, CreateAdminData, CreateAdminErrors, CreateAdminResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDepartmentData, CreateDepartmentErrors, CreateDepartmentResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateKioskData, CreateKioskErrors, CreateKioskPairingCodeData, CreateKioskPairingCodeErrors, CreateKioskPairingCodeResponses, CreateKioskResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteDepartmentData, DeleteDepartmentErrors, DeleteDepartmentResponses, DisableKioskData, DisableKioskErrors, DisableKioskResponses, EnableKioskData, EnableKioskErrors, EnableKioskResponses, ExportAuditCsvData, ExportAuditCsvErrors, ExportAuditCsvResponses, ExportDevicesCsvData, ExportDevicesCsvErrors, ExportDevicesCsvResponses, ExportLoansCsvData, ExportLoansCsvErrors, ExportLoansCsvResponses, ExportUsersCsvData, ExportUsersCsvErrors, ExportUsersCsvResponses, ForceAdminTotpReenrolmentData, ForceAdminTotpReenrolmentErrors, ForceAdminTotpReenrolmentResponses, ForceReturnLoanData, ForceReturnLoanErrors, ForceReturnLoanResponses, GetAdminData, GetAdminErrors, GetAdminResponses, GetBackfillLastEntryData, GetBackfillLastEntryErrors, GetBackfillLastEntryResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEventsStreamData, GetEventsStreamErrors, GetEventsStreamResponse, GetEventsStreamResponses, GetHealthzData, GetHealthzResponses, GetKioskData, GetKioskErrors, GetKioskResponses, GetLoanData, GetLoanErrors, GetLoanResponses, GetOperationalHealthData, GetOperationalHealthErrors, GetOperationalHealthResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetReportSummaryData, GetReportSummaryErrors, GetReportSummaryResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetStaffMeData, GetStaffMeErrors, GetStaffMeResponses, GetTransactionsByOriginData, GetTransactionsByOriginErrors, GetTransactionsByOriginResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListAdminsData, ListAdminsErrors, ListAdminsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDeviceLoansData, ListDeviceLoansErrors, ListDeviceLoansResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListDisputedLoansData, ListDisputedLoansErrors, ListDisputedLoansResponses, ListKiosksData, ListKiosksErrors, ListKiosksResponses, ListLoansData, ListLoansErrors, ListLoansResponses, ListUserLoansData, ListUserLoansErrors, ListUserLoansResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, PairKioskData, PairKioskErrors, PairKioskResponses, PreviewBackfillBatchData, PreviewBackfillBatchErrors, PreviewBackfillBatchResponses, PreviewDeviceImportData, PreviewDeviceImportErrors, PreviewDeviceImportResponses, PreviewUserImportData, PreviewUserImportErrors, PreviewUserImportResponses, RecordBackfillBatchData, RecordBackfillBatchErrors, RecordBackfillBatchResponses, RegenerateRecoveryCodesData, RegenerateRecoveryCodesErrors, RegenerateRecoveryCodesResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResetAdminPasswordData, ResetAdminPasswordErrors, ResetAdminPasswordResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, ReturnSessionLoanData, ReturnSessionLoanErrors, ReturnSessionLoanResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, RotateKioskTokenData, RotateKioskTokenErrors, RotateKioskTokenResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, StaffLogoutData, StaffLogoutErrors, StaffLogoutResponses, StaffMicrosoftCallbackData, StaffMicrosoftCallbackErrors, StaffMicrosoftCallbackResponses, StaffMicrosoftStartData, StaffMicrosoftStartErrors, StaffMicrosoftStartResponses, StaffPasswordLoginData, StaffPasswordLoginErrors, StaffPasswordLoginResponses, SubmitScanData, SubmitScanErrors, SubmitScanResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UnlockAdminData, UnlockAdminErrors, UnlockAdminResponses, UpdateAdminData, UpdateAdminErrors, UpdateAdminResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDepartmentData, UpdateDepartmentErrors, UpdateDepartmentResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateKioskData, UpdateKioskErrors, UpdateKioskResponses, UpdateMyLocaleData, UpdateMyLocaleErrors, UpdateMyLocaleResponses, UpdateSettingsData, UpdateSettingsErrors, UpdateSettingsResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses, WriteOffLoanData, WriteOffLoanErrors, WriteOffLoanResponses } from './types.gen';
+import type { ArchiveUserData, ArchiveUserErrors, ArchiveUserResponses, BeginTotpReenrolmentData, BeginTotpReenrolmentErrors, BeginTotpReenrolmentResponses, BindCredentialData, BindCredentialErrors, BindCredentialResponses, CancelSessionData, CancelSessionErrors, CancelSessionResponses, ChangeOwnPasswordData, ChangeOwnPasswordErrors, ChangeOwnPasswordResponses, ChangeStaffPasswordData, ChangeStaffPasswordErrors, ChangeStaffPasswordResponses, CheckEmployeeNoData, CheckEmployeeNoErrors, CheckEmployeeNoResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, CommitDeviceImportData, CommitDeviceImportErrors, CommitDeviceImportResponses, CommitUserImportData, CommitUserImportErrors, CommitUserImportResponses, CompleteStaffProfileData, CompleteStaffProfileErrors, CompleteStaffProfileResponses, ConfirmTotpReenrolmentData, ConfirmTotpReenrolmentErrors, ConfirmTotpReenrolmentResponses, CorrectLoanAttributionData, CorrectLoanAttributionErrors, CorrectLoanAttributionResponses, CreateAdminData, CreateAdminErrors, CreateAdminResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDepartmentData, CreateDepartmentErrors, CreateDepartmentResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateKioskData, CreateKioskErrors, CreateKioskPairingCodeData, CreateKioskPairingCodeErrors, CreateKioskPairingCodeResponses, CreateKioskResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteDepartmentData, DeleteDepartmentErrors, DeleteDepartmentResponses, DisableKioskData, DisableKioskErrors, DisableKioskResponses, EnableKioskData, EnableKioskErrors, EnableKioskResponses, ExportAuditCsvData, ExportAuditCsvErrors, ExportAuditCsvResponses, ExportDevicesCsvData, ExportDevicesCsvErrors, ExportDevicesCsvResponses, ExportLoansCsvData, ExportLoansCsvErrors, ExportLoansCsvResponses, ExportUsersCsvData, ExportUsersCsvErrors, ExportUsersCsvResponses, ForceAdminTotpReenrolmentData, ForceAdminTotpReenrolmentErrors, ForceAdminTotpReenrolmentResponses, ForceReturnLoanData, ForceReturnLoanErrors, ForceReturnLoanResponses, GetAdminData, GetAdminErrors, GetAdminResponses, GetBackfillLastEntryData, GetBackfillLastEntryErrors, GetBackfillLastEntryResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEventsStreamData, GetEventsStreamErrors, GetEventsStreamResponse, GetEventsStreamResponses, GetHealthzData, GetHealthzResponses, GetKioskData, GetKioskErrors, GetKioskResponses, GetLoanData, GetLoanErrors, GetLoanResponses, GetOperationalHealthData, GetOperationalHealthErrors, GetOperationalHealthResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetReportSummaryData, GetReportSummaryErrors, GetReportSummaryResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetStaffDeviceData, GetStaffDeviceErrors, GetStaffDeviceResponses, GetStaffDevicesData, GetStaffDevicesErrors, GetStaffDevicesResponses, GetStaffMeCredentialData, GetStaffMeCredentialErrors, GetStaffMeCredentialResponses, GetStaffMeData, GetStaffMeErrors, GetStaffMeLoansData, GetStaffMeLoansErrors, GetStaffMeLoansResponses, GetStaffMeResponses, GetTransactionsByOriginData, GetTransactionsByOriginErrors, GetTransactionsByOriginResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListAdminsData, ListAdminsErrors, ListAdminsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDeviceLoansData, ListDeviceLoansErrors, ListDeviceLoansResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListDisputedLoansData, ListDisputedLoansErrors, ListDisputedLoansResponses, ListKiosksData, ListKiosksErrors, ListKiosksResponses, ListLoansData, ListLoansErrors, ListLoansResponses, ListUserLoansData, ListUserLoansErrors, ListUserLoansResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, PairKioskData, PairKioskErrors, PairKioskResponses, PreviewBackfillBatchData, PreviewBackfillBatchErrors, PreviewBackfillBatchResponses, PreviewDeviceImportData, PreviewDeviceImportErrors, PreviewDeviceImportResponses, PreviewUserImportData, PreviewUserImportErrors, PreviewUserImportResponses, RecordBackfillBatchData, RecordBackfillBatchErrors, RecordBackfillBatchResponses, RegenerateRecoveryCodesData, RegenerateRecoveryCodesErrors, RegenerateRecoveryCodesResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResetAdminPasswordData, ResetAdminPasswordErrors, ResetAdminPasswordResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, ReturnSessionLoanData, ReturnSessionLoanErrors, ReturnSessionLoanResponses, RevealCredentialData, RevealCredentialErrors, RevealCredentialResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, RotateKioskTokenData, RotateKioskTokenErrors, RotateKioskTokenResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, StaffLogoutData, StaffLogoutErrors, StaffLogoutResponses, StaffMicrosoftCallbackData, StaffMicrosoftCallbackErrors, StaffMicrosoftCallbackResponses, StaffMicrosoftStartData, StaffMicrosoftStartErrors, StaffMicrosoftStartResponses, StaffPasswordLoginData, StaffPasswordLoginErrors, StaffPasswordLoginResponses, SubmitScanData, SubmitScanErrors, SubmitScanResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UnlockAdminData, UnlockAdminErrors, UnlockAdminResponses, UpdateAdminData, UpdateAdminErrors, UpdateAdminResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDepartmentData, UpdateDepartmentErrors, UpdateDepartmentResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateKioskData, UpdateKioskErrors, UpdateKioskResponses, UpdateMyLocaleData, UpdateMyLocaleErrors, UpdateMyLocaleResponses, UpdateSettingsData, UpdateSettingsErrors, UpdateSettingsResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses, WriteOffLoanData, WriteOffLoanErrors, WriteOffLoanResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -461,6 +461,19 @@ export const reprintCredential = <ThrowOnError extends boolean = false>(options:
             type: 'apiKey'
         }],
     url: '/credentials/{id}/reprint',
+    ...options
+});
+
+/**
+ * Disclose an active credential's plaintext token for display and printing. Administrators only; audited.
+ */
+export const revealCredential = <ThrowOnError extends boolean = false>(options: Options<RevealCredentialData, ThrowOnError>): RequestResult<RevealCredentialResponses, RevealCredentialErrors, ThrowOnError> => (options.client ?? client).post<RevealCredentialResponses, RevealCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/credentials/{id}/reveal',
     ...options
 });
 
@@ -1409,4 +1422,56 @@ export const changeStaffPassword = <ThrowOnError extends boolean = false>(option
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Catalog with availability and expected return.
+ */
+export const getStaffDevices = <ThrowOnError extends boolean = false>(options?: Options<GetStaffDevicesData, ThrowOnError>): RequestResult<GetStaffDevicesResponses, GetStaffDevicesErrors, ThrowOnError> => (options?.client ?? client).get<GetStaffDevicesResponses, GetStaffDevicesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/staff/devices',
+    ...options
+});
+
+/**
+ * Device detail with availability and expected return.
+ */
+export const getStaffDevice = <ThrowOnError extends boolean = false>(options: Options<GetStaffDeviceData, ThrowOnError>): RequestResult<GetStaffDeviceResponses, GetStaffDeviceErrors, ThrowOnError> => (options.client ?? client).get<GetStaffDeviceResponses, GetStaffDeviceErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/staff/devices/{id}',
+    ...options
+});
+
+/**
+ * Loans for the signed-in staff member.
+ */
+export const getStaffMeLoans = <ThrowOnError extends boolean = false>(options?: Options<GetStaffMeLoansData, ThrowOnError>): RequestResult<GetStaffMeLoansResponses, GetStaffMeLoansErrors, ThrowOnError> => (options?.client ?? client).get<GetStaffMeLoansResponses, GetStaffMeLoansErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/staff/me/loans',
+    ...options
+});
+
+/**
+ * Plaintext QR token for the signed-in staff member. Audited.
+ */
+export const getStaffMeCredential = <ThrowOnError extends boolean = false>(options?: Options<GetStaffMeCredentialData, ThrowOnError>): RequestResult<GetStaffMeCredentialResponses, GetStaffMeCredentialErrors, ThrowOnError> => (options?.client ?? client).get<GetStaffMeCredentialResponses, GetStaffMeCredentialErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/staff/me/credential',
+    ...options
 });

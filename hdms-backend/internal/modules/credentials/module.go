@@ -104,12 +104,14 @@ func (s *Service) issueOne(ctx context.Context, params credentialsapi.IssueParam
 		return credentialsapi.IssuedCredential{}, fmt.Errorf("credentials: invalid replaces id: %w", err)
 	}
 
-	var tokenEnc []byte
-	if params.SubjectType == credentialsapi.SubjectDevice {
-		tokenEnc, err = cryptox.Encrypt(token, s.encKey)
-		if err != nil {
-			return credentialsapi.IssuedCredential{}, fmt.Errorf("credentials: encrypt device token: %w", err)
-		}
+	// Both subject types are stored reversibly from Phase 7 (ADR-0016): a
+	// device sticker was never a secret, and an administrator must be able to
+	// print a staff card again without invalidating the one in the wallet.
+	// The deployment key is what protects both, which is why reveal is
+	// admin-only and audited.
+	tokenEnc, err := cryptox.Encrypt(token, s.encKey)
+	if err != nil {
+		return credentialsapi.IssuedCredential{}, fmt.Errorf("credentials: encrypt token: %w", err)
 	}
 
 	q := credentialsstore.New(db.Conn(ctx, s.pool))
@@ -300,6 +302,52 @@ func (s *Service) Reprint(ctx context.Context, credentialID, actor string) (cred
 			return err
 		}
 
+		result = credentialsapi.IssuedCredential{Credential: cred, Token: token}
+		return nil
+	})
+	if err != nil {
+		return credentialsapi.IssuedCredential{}, err
+	}
+	return result, nil
+}
+
+// Reveal returns the plaintext token of an active credential of either
+// subject type. It does not count as a print and does not mint anything: it
+// is the administrator looking at a card they are allowed to look at, and it
+// is recorded as such.
+func (s *Service) Reveal(ctx context.Context, credentialID, actor string) (credentialsapi.IssuedCredential, error) {
+	cid, err := pgtypeconv.UUID(credentialID)
+	if err != nil {
+		return credentialsapi.IssuedCredential{}, fmt.Errorf("credentials: invalid credential id: %w", err)
+	}
+
+	var result credentialsapi.IssuedCredential
+	err = db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := credentialsstore.New(db.Conn(ctx, s.pool))
+		current, err := q.GetCredentialByID(ctx, cid)
+		if err != nil {
+			return translateCredentialErr(err)
+		}
+		if current.Status != credentialsstore.CredentialStatusActive {
+			return credentialsapi.ErrCredentialNotActive
+		}
+		if len(current.TokenEnc) == 0 {
+			return credentialsapi.ErrTokenNotRecoverable
+		}
+		token, err := cryptox.Decrypt(current.TokenEnc, s.encKey)
+		if err != nil {
+			return fmt.Errorf("credentials: decrypt for reveal: %w", err)
+		}
+		cred := toCredential(current)
+		if err := s.insertEvent(ctx, current.ID, "revealed", actor, "", nil); err != nil {
+			return err
+		}
+		if err := s.audit.Record(ctx, auditapi.Event{
+			Actor: actor, Action: "credential.revealed", Subject: subjectOrCredential(cred),
+			Payload: map[string]any{"credentialId": cred.ID},
+		}); err != nil {
+			return err
+		}
 		result = credentialsapi.IssuedCredential{Credential: cred, Token: token}
 		return nil
 	})

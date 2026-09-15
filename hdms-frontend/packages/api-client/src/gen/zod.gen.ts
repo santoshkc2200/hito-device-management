@@ -965,6 +965,41 @@ export const zStaffMe = z.object({
     signInMethods: z.array(z.enum(['password', 'microsoft']))
 });
 
+export const zStaffDevice = z.object({
+    id: z.uuid(),
+    assetTag: z.string(),
+    name: z.string(),
+    model: z.string().optional(),
+    categoryName: z.string().optional(),
+    availability: z.enum([
+        'available',
+        'in_use',
+        'unavailable'
+    ]),
+    expectedBackAt: z.iso.datetime().optional()
+});
+
+export const zStaffDeviceList = z.object({
+    items: z.array(zStaffDevice),
+    nextCursor: z.string().optional()
+});
+
+export const zStaffLoan = z.object({
+    id: z.uuid(),
+    deviceId: z.uuid(),
+    deviceAssetTag: z.string(),
+    deviceName: z.string(),
+    borrowedAt: z.iso.datetime(),
+    dueAt: z.iso.datetime().optional(),
+    returnedAt: z.iso.datetime().optional(),
+    status: zLoanStatus
+});
+
+export const zStaffLoanList = z.object({
+    items: z.array(zStaffLoan),
+    nextCursor: z.string().optional()
+});
+
 export const zIdParam = z.string();
 
 export const zCursorParam = z.string();
@@ -1256,6 +1291,15 @@ export const zReprintCredentialPath = z.object({
  * OK. Never cached.
  */
 export const zReprintCredentialResponse = zIssuedCredential;
+
+export const zRevealCredentialPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK. Never cached.
+ */
+export const zRevealCredentialResponse = zIssuedCredential;
 
 export const zRevokeCredentialBody = zRevokeCredentialRequest;
 
@@ -1903,3 +1947,27 @@ export const zChangeStaffPasswordBody = zChangeStaffPasswordRequest;
  * Changed.
  */
 export const zChangeStaffPasswordResponse = z.void();
+
+/**
+ * Devices.
+ */
+export const zGetStaffDevicesResponse = zStaffDeviceList;
+
+export const zGetStaffDevicePath = z.object({
+    id: z.string()
+});
+
+/**
+ * Device detail.
+ */
+export const zGetStaffDeviceResponse = zStaffDevice;
+
+/**
+ * Loans.
+ */
+export const zGetStaffMeLoansResponse = zStaffLoanList;
+
+/**
+ * The active credential and plaintext token.
+ */
+export const zGetStaffMeCredentialResponse = zIssuedCredential;

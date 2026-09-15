@@ -1036,6 +1036,37 @@ export type StaffMe = {
     signInMethods: Array<'password' | 'microsoft'>;
 };
 
+export type StaffDevice = {
+    id: string;
+    assetTag: string;
+    name: string;
+    model?: string;
+    categoryName?: string;
+    availability: 'available' | 'in_use' | 'unavailable';
+    expectedBackAt?: string;
+};
+
+export type StaffDeviceList = {
+    items: Array<StaffDevice>;
+    nextCursor?: string;
+};
+
+export type StaffLoan = {
+    id: string;
+    deviceId: string;
+    deviceAssetTag: string;
+    deviceName: string;
+    borrowedAt: string;
+    dueAt?: string;
+    returnedAt?: string;
+    status: LoanStatus;
+};
+
+export type StaffLoanList = {
+    items: Array<StaffLoan>;
+    nextCursor?: string;
+};
+
 export type IdParam = string;
 
 export type CursorParam = string;
@@ -1880,6 +1911,33 @@ export type ReprintCredentialResponses = {
 };
 
 export type ReprintCredentialResponse = ReprintCredentialResponses[keyof ReprintCredentialResponses];
+
+export type RevealCredentialData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credentials/{id}/reveal';
+};
+
+export type RevealCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RevealCredentialError = RevealCredentialErrors[keyof RevealCredentialErrors];
+
+export type RevealCredentialResponses = {
+    /**
+     * OK. Never cached.
+     */
+    200: IssuedCredential;
+};
+
+export type RevealCredentialResponse = RevealCredentialResponses[keyof RevealCredentialResponses];
 
 export type RevokeCredentialData = {
     body: RevokeCredentialRequest;
@@ -3757,3 +3815,105 @@ export type ChangeStaffPasswordResponses = {
 };
 
 export type ChangeStaffPasswordResponse = ChangeStaffPasswordResponses[keyof ChangeStaffPasswordResponses];
+
+export type GetStaffDevicesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/devices';
+};
+
+export type GetStaffDevicesErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetStaffDevicesError = GetStaffDevicesErrors[keyof GetStaffDevicesErrors];
+
+export type GetStaffDevicesResponses = {
+    /**
+     * Devices.
+     */
+    200: StaffDeviceList;
+};
+
+export type GetStaffDevicesResponse = GetStaffDevicesResponses[keyof GetStaffDevicesResponses];
+
+export type GetStaffDeviceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/staff/devices/{id}';
+};
+
+export type GetStaffDeviceErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetStaffDeviceError = GetStaffDeviceErrors[keyof GetStaffDeviceErrors];
+
+export type GetStaffDeviceResponses = {
+    /**
+     * Device detail.
+     */
+    200: StaffDevice;
+};
+
+export type GetStaffDeviceResponse = GetStaffDeviceResponses[keyof GetStaffDeviceResponses];
+
+export type GetStaffMeLoansData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/me/loans';
+};
+
+export type GetStaffMeLoansErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetStaffMeLoansError = GetStaffMeLoansErrors[keyof GetStaffMeLoansErrors];
+
+export type GetStaffMeLoansResponses = {
+    /**
+     * Loans.
+     */
+    200: StaffLoanList;
+};
+
+export type GetStaffMeLoansResponse = GetStaffMeLoansResponses[keyof GetStaffMeLoansResponses];
+
+export type GetStaffMeCredentialData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/me/credential';
+};
+
+export type GetStaffMeCredentialErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetStaffMeCredentialError = GetStaffMeCredentialErrors[keyof GetStaffMeCredentialErrors];
+
+export type GetStaffMeCredentialResponses = {
+    /**
+     * The active credential and plaintext token.
+     */
+    200: IssuedCredential;
+};
+
+export type GetStaffMeCredentialResponse = GetStaffMeCredentialResponses[keyof GetStaffMeCredentialResponses];

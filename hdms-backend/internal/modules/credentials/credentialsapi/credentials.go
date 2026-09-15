@@ -64,6 +64,7 @@ var (
 	ErrKindNotIssuableInV1    = errors.New("credentials: nfc and rfid credentials are not issued until Phase 6")
 	ErrManualTokenRequired    = errors.New("credentials: a manual credential requires an explicit token value")
 	ErrTokenAlreadyRegistered = errors.New("credentials: that token is already registered to a credential")
+	ErrTokenNotRecoverable    = errors.New("credentials: this credential predates reversible storage")
 )
 
 // SubjectRef is what Resolve returns for a scanned token: which subject it
@@ -159,6 +160,10 @@ type Service interface {
 	// printed_count. It fails with ErrNotDeviceCredential for a user
 	// credential — those must be reissued instead.
 	Reprint(ctx context.Context, credentialID, actor string) (IssuedCredential, error)
+
+	// Reveal returns the plaintext token of an active credential of either
+	// subject type. It does not count as a print and does not mint anything.
+	Reveal(ctx context.Context, credentialID, actor string) (IssuedCredential, error)
 
 	// Revoke kills a token permanently with no replacement minted.
 	Revoke(ctx context.Context, credentialID, reason, actor string) (Credential, error)

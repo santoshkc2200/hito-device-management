@@ -670,6 +670,29 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /credentials/{id}/reveal:
+    post:
+      operationId: revealCredential
+      summary: Disclose an active credential's plaintext token for display and printing. Administrators only; audited.
+      tags: [credentials]
+      x-sensitive: true
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK. Never cached.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedCredential"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /credentials/{id}/revoke:
     post:
       operationId: revokeCredential
@@ -2142,6 +2165,70 @@ paths:
           content:
             application/problem+json:
               schema: {$ref: "#/components/schemas/Problem"}
+
+  /staff/devices:
+    get:
+      operationId: getStaffDevices
+      summary: Catalog with availability and expected return.
+      tags: [staff]
+      responses:
+        "200":
+          description: Devices.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffDeviceList"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /staff/devices/{id}:
+    get:
+      operationId: getStaffDevice
+      summary: Device detail with availability and expected return.
+      tags: [staff]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: Device detail.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffDevice"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /staff/me/loans:
+    get:
+      operationId: getStaffMeLoans
+      summary: Loans for the signed-in staff member.
+      tags: [staff]
+      responses:
+        "200":
+          description: Loans.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffLoanList"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /staff/me/credential:
+    get:
+      operationId: getStaffMeCredential
+      summary: Plaintext QR token for the signed-in staff member. Audited.
+      tags: [staff]
+      x-sensitive: true
+      responses:
+        "200":
+          description: The active credential and plaintext token.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/IssuedCredential"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
 
 components:
   schemas:
@@ -3657,6 +3744,51 @@ components:
         signInMethods:
           type: array
           items: {type: string, enum: [password, microsoft]}
+
+    StaffDevice:
+      type: object
+      required: [id, assetTag, name, availability]
+      properties:
+        id: {type: string, format: uuid}
+        assetTag: {type: string}
+        name: {type: string}
+        model: {type: string}
+        categoryName: {type: string}
+        availability: {type: string, enum: [available, in_use, unavailable]}
+        expectedBackAt: {type: string, format: date-time}
+
+    StaffDeviceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffDevice"
+        nextCursor: {type: string}
+
+    StaffLoan:
+      type: object
+      required: [id, deviceId, deviceAssetTag, deviceName, borrowedAt, status]
+      properties:
+        id: {type: string, format: uuid}
+        deviceId: {type: string, format: uuid}
+        deviceAssetTag: {type: string}
+        deviceName: {type: string}
+        borrowedAt: {type: string, format: date-time}
+        dueAt: {type: string, format: date-time}
+        returnedAt: {type: string, format: date-time}
+        status: {$ref: "#/components/schemas/LoanStatus"}
+
+    StaffLoanList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffLoan"
+        nextCursor: {type: string}
 
   parameters:
     IDParam:

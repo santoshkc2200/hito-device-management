@@ -19,9 +19,9 @@ import (
 //   - "": anonymous / probe operations requiring no authentication.
 var RequiredRoles = map[string]string{
 	// --- Anonymous / Probes / Auth initiation --------------------------------
-	"GET /v1/healthz":     "",
-	"GET /v1/readyz":      "",
-	"POST /v1/auth/login": "",
+	"GET /v1/healthz":      "",
+	"GET /v1/readyz":       "",
+	"POST /v1/auth/login":  "",
 	"POST /v1/kiosks/pair": "",
 
 	// --- Self-Service Auth (any authenticated admin) -------------------------
@@ -65,36 +65,37 @@ var RequiredRoles = map[string]string{
 	"POST /v1/loans/{id}/force-return":  "technician",
 
 	// --- Admin-Only: Users & Registration ------------------------------------
-	"GET /v1/users":                      "admin",
-	"POST /v1/users":                     "admin",
-	"POST /v1/users/register-with-card":  "admin",
-	"GET /v1/users/{id}":                 "admin",
-	"PATCH /v1/users/{id}":               "admin",
-	"POST /v1/users/{id}/suspend":        "admin",
-	"POST /v1/users/{id}/archive":        "admin",
-	"GET /v1/users/check-employee-no":    "admin",
-	"POST /v1/imports/users/preview":     "admin",
-	"POST /v1/imports/users":             "admin",
+	"GET /v1/users":                     "admin",
+	"POST /v1/users":                    "admin",
+	"POST /v1/users/register-with-card": "admin",
+	"GET /v1/users/{id}":                "admin",
+	"PATCH /v1/users/{id}":              "admin",
+	"POST /v1/users/{id}/suspend":       "admin",
+	"POST /v1/users/{id}/archive":       "admin",
+	"GET /v1/users/check-employee-no":   "admin",
+	"POST /v1/imports/users/preview":    "admin",
+	"POST /v1/imports/users":            "admin",
 
 	// --- Admin-Only: Categories & Policies -----------------------------------
 	"POST /v1/categories":       "admin",
 	"PATCH /v1/categories/{id}": "admin",
 
 	// --- Admin-Only: Credentials ---------------------------------------------
-	"GET /v1/credentials":                 "admin",
-	"POST /v1/credentials":                "admin",
-	"POST /v1/credentials/blank-batch":    "admin",
-	"GET /v1/credentials/unbound-count":   "admin",
-	"GET /v1/credentials/resolve":         "admin",
-	"POST /v1/credentials/{id}/bind":      "admin",
-	"POST /v1/credentials/{id}/revoke":    "admin",
-	"POST /v1/credentials/{id}/reissue":   "admin",
-	"GET /v1/credentials/{id}/history":    "admin",
+	"GET /v1/credentials":               "admin",
+	"POST /v1/credentials":              "admin",
+	"POST /v1/credentials/blank-batch":  "admin",
+	"GET /v1/credentials/unbound-count": "admin",
+	"GET /v1/credentials/resolve":       "admin",
+	"POST /v1/credentials/{id}/bind":    "admin",
+	"POST /v1/credentials/{id}/reveal":  "admin",
+	"POST /v1/credentials/{id}/revoke":  "admin",
+	"POST /v1/credentials/{id}/reissue": "admin",
+	"GET /v1/credentials/{id}/history":  "admin",
 
 	// --- Admin-Only: Backfill ------------------------------------------------
-	"POST /v1/backfill/preview":    "admin",
-	"POST /v1/backfill":            "admin",
-	"GET /v1/backfill/last-entry":  "admin",
+	"POST /v1/backfill/preview":   "admin",
+	"POST /v1/backfill":           "admin",
+	"GET /v1/backfill/last-entry": "admin",
 
 	// --- Admin-Only: Loan Overrides & Write-offs -----------------------------
 	"POST /v1/loans/{id}/write-off":           "admin",
@@ -105,25 +106,25 @@ var RequiredRoles = map[string]string{
 	"GET /v1/audit.csv": "admin",
 
 	// --- Admin-Only: Settings & Kiosks ---------------------------------------
-	"GET /v1/settings":                   "admin",
-	"PATCH /v1/settings":                 "admin",
-	"GET /v1/kiosks":                     "admin",
-	"POST /v1/kiosks":                    "admin",
-	"GET /v1/kiosks/{id}":                "admin",
-	"PATCH /v1/kiosks/{id}":              "admin",
-	"POST /v1/kiosks/{id}/enable":        "admin",
-	"POST /v1/kiosks/{id}/disable":       "admin",
-	"POST /v1/kiosks/{id}/rotate-token":  "admin",
-	"POST /v1/kiosks/{id}/pairing-code":  "admin",
+	"GET /v1/settings":                  "admin",
+	"PATCH /v1/settings":                "admin",
+	"GET /v1/kiosks":                    "admin",
+	"POST /v1/kiosks":                   "admin",
+	"GET /v1/kiosks/{id}":               "admin",
+	"PATCH /v1/kiosks/{id}":             "admin",
+	"POST /v1/kiosks/{id}/enable":       "admin",
+	"POST /v1/kiosks/{id}/disable":      "admin",
+	"POST /v1/kiosks/{id}/rotate-token": "admin",
+	"POST /v1/kiosks/{id}/pairing-code": "admin",
 
 	// --- Admin-Only: Admin Account Lifecycle ---------------------------------
-	"GET /v1/admins":                          "admin",
-	"POST /v1/admins":                         "admin",
-	"GET /v1/admins/{id}":                     "admin",
-	"PATCH /v1/admins/{id}":                   "admin",
-	"POST /v1/admins/{id}/reset-password":     "admin",
-	"POST /v1/admins/{id}/reset-totp":         "admin",
-	"POST /v1/admins/{id}/unlock":             "admin",
+	"GET /v1/admins":                      "admin",
+	"POST /v1/admins":                     "admin",
+	"GET /v1/admins/{id}":                 "admin",
+	"PATCH /v1/admins/{id}":               "admin",
+	"POST /v1/admins/{id}/reset-password": "admin",
+	"POST /v1/admins/{id}/reset-totp":     "admin",
+	"POST /v1/admins/{id}/unlock":         "admin",
 
 	// --- Admin-Only / Kiosk Session lifecycle --------------------------------
 	"POST /v1/sessions":                  "admin",
