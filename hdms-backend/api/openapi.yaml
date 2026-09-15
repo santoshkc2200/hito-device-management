@@ -19,7 +19,9 @@ info:
     (a recovery code may stand in for it) and AdminRole gaining the role names
     docs/08-admin-console.md specifies; the v1.0.0 names remain accepted and
     are removed at v2, not here.
-  version: "1.1.0"
+
+    v1.2.0 (Phase 7, staff identity) adds the staff realm and is additive only.
+  version: "1.2.0"
 servers:
   - url: /v1
 
@@ -2009,6 +2011,138 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /staff/auth/password:
+    post:
+      operationId: staffPasswordLogin
+      summary: Staff login with employee number and password. Sets the staff session cookies.
+      tags: [staff]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffPasswordLoginRequest"
+      responses:
+        "200":
+          description: Authenticated. `Set-Cookie` carries `hdms_staff_session` and `hdms_staff_csrf`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMe"
+        default:
+          description: Invalid credentials, a locked account, or a suspended user.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /staff/auth/microsoft/start:
+    get:
+      operationId: staffMicrosoftStart
+      summary: Begin Microsoft sign-in. Redirects to Entra.
+      tags: [staff]
+      security: []
+      responses:
+        "302":
+          description: Redirect to the identity provider.
+        default:
+          description: Microsoft sign-in is not configured for this deployment.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /staff/auth/microsoft/callback:
+    get:
+      operationId: staffMicrosoftCallback
+      summary: Entra redirect target. Links or provisions the user and sets the staff session cookies.
+      tags: [staff]
+      security: []
+      parameters:
+        - {name: code, in: query, required: false, schema: {type: string}}
+        - {name: state, in: query, required: false, schema: {type: string}}
+        - {name: error, in: query, required: false, schema: {type: string}}
+      responses:
+        "302":
+          description: Redirect back into the staff app, signed in or with an error code.
+        default:
+          description: The state was unknown, or the tenant or domain is not allowed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /staff/auth/logout:
+    post:
+      operationId: staffLogout
+      summary: End the staff session.
+      tags: [staff]
+      responses:
+        "204": {description: Logged out.}
+        default:
+          description: Error.
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+
+  /staff/me:
+    get:
+      operationId: getStaffMe
+      summary: The signed-in staff member, their status, and what the app must ask them for next.
+      tags: [staff]
+      responses:
+        "200":
+          description: The current staff member.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffMe"}
+        default:
+          description: Error.
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+
+  /staff/me/profile:
+    post:
+      operationId: completeStaffProfile
+      summary: One-time completion of a self-signed-up profile. Sets the employee number and mints the QR.
+      tags: [staff]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CompleteStaffProfileRequest"}
+      responses:
+        "200":
+          description: Profile completed.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffMe"}
+        default:
+          description: The employee number is taken or invalid.
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+
+  /staff/me/password:
+    post:
+      operationId: changeStaffPassword
+      summary: Change the signed-in staff member's own password.
+      tags: [staff]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ChangeStaffPasswordRequest"}
+      responses:
+        "204": {description: Changed.}
+        default:
+          description: The current password was wrong, or the new one is too short.
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+
 components:
   schemas:
     HealthStatus:
@@ -3485,6 +3619,44 @@ components:
         userEmployeeNo: { type: string }
         dueAt: { type: string, format: date-time }
         daysOverdue: { type: integer }
+
+    StaffPasswordLoginRequest:
+      type: object
+      required: [employeeNo, password]
+      properties:
+        employeeNo: {type: string, maxLength: 32}
+        password: {type: string, maxLength: 256}
+
+    ChangeStaffPasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: {type: string, maxLength: 256}
+        newPassword: {type: string, minLength: 12, maxLength: 256}
+
+    CompleteStaffProfileRequest:
+      type: object
+      required: [employeeNo]
+      properties:
+        employeeNo: {type: string, maxLength: 32}
+        departmentId: {type: string, format: uuid}
+
+    StaffMe:
+      type: object
+      required: [userId, employeeNo, fullName, status, profileComplete, mustChangePassword, hasPassword, signInMethods]
+      properties:
+        userId: {type: string, format: uuid}
+        employeeNo: {type: string}
+        fullName: {type: string}
+        email: {type: string}
+        departmentName: {type: string}
+        status: {type: string, enum: [active, suspended, archived]}
+        profileComplete: {type: boolean}
+        mustChangePassword: {type: boolean}
+        hasPassword: {type: boolean}
+        signInMethods:
+          type: array
+          items: {type: string, enum: [password, microsoft]}
 
   parameters:
     IDParam:

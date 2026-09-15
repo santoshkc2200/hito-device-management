@@ -44,6 +44,10 @@ FROM users WHERE id = $1;
 SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 FROM users WHERE lower(employee_no) = lower($1) AND status <> 'archived';
 
+-- name: GetUserByEmail :one
+SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
+FROM users WHERE lower(email) = lower($1) AND status <> 'archived';
+
 -- name: ListUsers :many
 SELECT id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id
 FROM users u
@@ -76,6 +80,12 @@ LIMIT sqlc.arg('result_limit');
 -- name: UpdateUser :one
 UPDATE users
 SET full_name = $2, department_id = $3, email = $4, phone = $5, notes = $6, updated_at = now()
+WHERE id = $1 AND status <> 'archived'
+RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id;
+
+-- name: SetUserEmployeeNo :one
+UPDATE users
+SET employee_no = $2, updated_at = now()
 WHERE id = $1 AND status <> 'archived'
 RETURNING id, employee_no, full_name, department_id, email, phone, status, notes, registered_at, registered_by, updated_at, import_batch_id;
 

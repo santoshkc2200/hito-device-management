@@ -707,6 +707,15 @@ type Loan struct {
 	Disputed      bool                `json:"disputed"`
 }
 
+type OauthLoginState struct {
+	StateHash   []byte             `json:"state_hash"`
+	VerifierEnc []byte             `json:"verifier_enc"`
+	RedirectTo  pgtype.Text        `json:"redirect_to"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	ConsumedAt  pgtype.Timestamptz `json:"consumed_at"`
+}
+
 type Outbox struct {
 	ID            int64              `json:"id"`
 	Topic         string             `json:"topic"`
@@ -769,6 +778,41 @@ type Setting struct {
 	SlipColumns               []string           `json:"slip_columns"`
 	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
 	UpdatedBy                 string             `json:"updated_by"`
+}
+
+type StaffAccount struct {
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             pgtype.UUID        `json:"user_id"`
+	PasswordHash       pgtype.Text        `json:"password_hash"`
+	MustChangePassword bool               `json:"must_change_password"`
+	ProfileComplete    bool               `json:"profile_complete"`
+	FailedAttempts     int32              `json:"failed_attempts"`
+	LastFailureAt      pgtype.Timestamptz `json:"last_failure_at"`
+	LockedUntil        pgtype.Timestamptz `json:"locked_until"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	CreatedBy          string             `json:"created_by"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+type StaffIdentity struct {
+	ID             pgtype.UUID        `json:"id"`
+	StaffAccountID pgtype.UUID        `json:"staff_account_id"`
+	Provider       string             `json:"provider"`
+	Subject        string             `json:"subject"`
+	TenantID       string             `json:"tenant_id"`
+	EmailAtLink    pgtype.Text        `json:"email_at_link"`
+	LinkedAt       pgtype.Timestamptz `json:"linked_at"`
+}
+
+type StaffSession struct {
+	ID               pgtype.UUID        `json:"id"`
+	StaffAccountID   pgtype.UUID        `json:"staff_account_id"`
+	SessionTokenHash []byte             `json:"session_token_hash"`
+	CsrfToken        string             `json:"csrf_token"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	LastSeenAt       pgtype.Timestamptz `json:"last_seen_at"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
 }
 
 type User struct {

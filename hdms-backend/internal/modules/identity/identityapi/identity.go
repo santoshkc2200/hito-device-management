@@ -157,6 +157,13 @@ type Service interface {
 	// employee number, case-insensitively.
 	LookupUserByEmployeeNo(ctx context.Context, employeeNo string) (UserSummary, error)
 
+	// LookupUserByEmail fetches one live (non-archived) user by
+	// email, case-insensitively.
+	LookupUserByEmail(ctx context.Context, email string) (UserSummary, error)
+
+	// SetEmployeeNo updates a user's employee number during profile completion.
+	SetEmployeeNo(ctx context.Context, id, employeeNo, actor string) (UserSummary, error)
+
 	// ListUsers returns a cursor page of users matching params.
 	ListUsers(ctx context.Context, params ListUsersParams) (ListUsersResult, error)
 

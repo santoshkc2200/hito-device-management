@@ -43,6 +43,9 @@ RETURNING *;
 -- name: GetStaffIdentity :one
 SELECT * FROM staff_identities WHERE provider = $1 AND subject = $2;
 
+-- name: ListStaffIdentitiesForAccount :many
+SELECT * FROM staff_identities WHERE staff_account_id = $1;
+
 -- name: CreateStaffSession :one
 INSERT INTO staff_sessions (id, staff_account_id, session_token_hash, csrf_token, expires_at)
 VALUES ($1, $2, $3, $4, $5)

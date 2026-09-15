@@ -933,6 +933,38 @@ export const zDashboard = z.object({
     paperBacklogHours: z.int().optional()
 });
 
+export const zStaffPasswordLoginRequest = z.object({
+    employeeNo: z.string().max(32),
+    password: z.string().max(256)
+});
+
+export const zChangeStaffPasswordRequest = z.object({
+    currentPassword: z.string().max(256),
+    newPassword: z.string().min(12).max(256)
+});
+
+export const zCompleteStaffProfileRequest = z.object({
+    employeeNo: z.string().max(32),
+    departmentId: z.uuid().optional()
+});
+
+export const zStaffMe = z.object({
+    userId: z.uuid(),
+    employeeNo: z.string(),
+    fullName: z.string(),
+    email: z.string().optional(),
+    departmentName: z.string().optional(),
+    status: z.enum([
+        'active',
+        'suspended',
+        'archived'
+    ]),
+    profileComplete: z.boolean(),
+    mustChangePassword: z.boolean(),
+    hasPassword: z.boolean(),
+    signInMethods: z.array(z.enum(['password', 'microsoft']))
+});
+
 export const zIdParam = z.string();
 
 export const zCursorParam = z.string();
@@ -1824,3 +1856,50 @@ export const zEnableKioskPath = z.object({
  * OK.
  */
 export const zEnableKioskResponse = zKiosk;
+
+export const zStaffPasswordLoginBody = zStaffPasswordLoginRequest;
+
+/**
+ * Authenticated. `Set-Cookie` carries `hdms_staff_session` and `hdms_staff_csrf`.
+ */
+export const zStaffPasswordLoginResponse = zStaffMe;
+
+/**
+ * Microsoft sign-in is not configured for this deployment.
+ */
+export const zStaffMicrosoftStartResponse = zProblem;
+
+export const zStaffMicrosoftCallbackQuery = z.object({
+    code: z.string().optional(),
+    state: z.string().optional(),
+    error: z.string().optional()
+});
+
+/**
+ * The state was unknown, or the tenant or domain is not allowed.
+ */
+export const zStaffMicrosoftCallbackResponse = zProblem;
+
+/**
+ * Logged out.
+ */
+export const zStaffLogoutResponse = z.void();
+
+/**
+ * The current staff member.
+ */
+export const zGetStaffMeResponse = zStaffMe;
+
+export const zCompleteStaffProfileBody = zCompleteStaffProfileRequest;
+
+/**
+ * Profile completed.
+ */
+export const zCompleteStaffProfileResponse = zStaffMe;
+
+export const zChangeStaffPasswordBody = zChangeStaffPasswordRequest;
+
+/**
+ * Changed.
+ */
+export const zChangeStaffPasswordResponse = z.void();
