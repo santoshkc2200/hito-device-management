@@ -26,8 +26,8 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/i18n"
-	"golang.org/x/text/language"
 	"golang.org/x/term"
+	"golang.org/x/text/language"
 )
 
 func main() {
@@ -81,7 +81,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|admin bootstrap|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -146,7 +146,7 @@ func runImport(ctx context.Context, cfg config.Config, args []string, cat *i18n.
 
 	var report cliimport.Report
 	switch resource {
-		case "devices":
+	case "devices":
 		catalogSvc := catalog.New(pool, auditSvc)
 		report, err = cliimport.ImportDevices(ctx, cliimport.DeviceImportDeps{
 			Catalog:     catalogSvc,
@@ -182,7 +182,7 @@ func runImport(ctx context.Context, cfg config.Config, args []string, cat *i18n.
 
 func runAdmin(ctx context.Context, cfg config.Config, args []string, cat *i18n.Catalogue) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: hdms-cli admin <bootstrap|unlock>")
+		return fmt.Errorf("usage: hdms-cli admin <bootstrap|set-password|unlock>")
 	}
 
 	switch args[0] {
@@ -243,6 +243,42 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string, cat *i18n.C
 		fmt.Println()
 		return nil
 
+	case "set-password":
+		fs := flag.NewFlagSet("set-password", flag.ContinueOnError)
+		emailFlag := fs.String("email", "", "admin account email (required)")
+		passwordFlag := fs.String("password", "", "new password (optional; prompted if omitted — prefer the prompt, a flag leaks into shell history)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *emailFlag == "" {
+			return fmt.Errorf("usage: hdms-cli admin set-password --email <email>")
+		}
+		password := *passwordFlag
+		if password == "" {
+			var err error
+			password, err = promptPassword()
+			if err != nil {
+				return err
+			}
+		} else if len(password) < 12 {
+			return fmt.Errorf("password must be at least 12 characters")
+		}
+
+		pool, err := db.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer pool.Close()
+
+		auditSvc := audit.New(pool)
+		authSvc := auth.New(pool, cfg.TokenPepper, cfg.TOTPSecretEncKey, cfg.AdminSessionTTL, auth.WithAudit(auditSvc))
+		if err := authSvc.SetAdminPasswordByEmail(ctx, *emailFlag, password); err != nil {
+			return fmt.Errorf("set admin password: %w", err)
+		}
+
+		fmt.Println(cat.T("Password updated for %s — all existing sessions revoked. The TOTP secret is unchanged.", *emailFlag))
+		return nil
+
 	case "unlock":
 		fs := flag.NewFlagSet("unlock", flag.ContinueOnError)
 		emailFlag := fs.String("email", "", "admin account email (required)")
@@ -273,7 +309,7 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string, cat *i18n.C
 		return nil
 
 	default:
-		return fmt.Errorf("usage: hdms-cli admin <bootstrap|unlock>")
+		return fmt.Errorf("usage: hdms-cli admin <bootstrap|set-password|unlock>")
 	}
 }
 

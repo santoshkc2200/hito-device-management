@@ -230,6 +230,16 @@ func (rec *idempotencyRecorder) Write(b []byte) (int, error) {
 	return rec.ResponseWriter.Write(b)
 }
 
+// Flush and Unwrap mirror statusWriter's: a recorded handler that streams
+// must still reach the real writer's flusher.
+func (rec *idempotencyRecorder) Flush() {
+	if f, ok := rec.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (rec *idempotencyRecorder) Unwrap() http.ResponseWriter { return rec.ResponseWriter }
+
 // SweepExpiredIdempotencyKeys deletes idempotency records older than 24h
 // (NFR-5's replay window). Meant to be folded into an existing background
 // loop (events.Dispatcher's, via AddSweep) rather than run from a second

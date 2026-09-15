@@ -78,6 +78,19 @@ func (w *statusWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
+// Flush keeps streaming handlers working through the wrapper: the SSE hub
+// asserts http.Flusher on the writer it is handed, and an embedded
+// ResponseWriter does not carry that interface across the wrap.
+func (w *statusWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap lets http.ResponseController reach the real writer for deadlines
+// and hijacking, which the embedding alone would also hide.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
 // WithRecovery turns a panic in a handler into a 500 problem+json response
 // instead of a crashed process, and logs the stack trace for diagnosis.
 func WithRecovery(logger *slog.Logger) Middleware {

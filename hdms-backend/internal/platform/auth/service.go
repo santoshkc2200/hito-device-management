@@ -278,7 +278,7 @@ func (s *Service) LoginWithRecovery(ctx context.Context, email, password, totpCo
 	// Verify password
 	ok, err := VerifyPassword(account.PasswordHash, password)
 	if err != nil || !ok {
-		s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt)
+		s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "password_mismatch")
 		return "", "", AdminIdentity{}, ErrInvalidCredentials
 	}
 
@@ -300,7 +300,7 @@ func (s *Service) LoginWithRecovery(ctx context.Context, email, password, totpCo
 			}
 		}
 		if !matchedID.Valid {
-			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt)
+			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "recovery_code_no_match")
 			return "", "", AdminIdentity{}, ErrInvalidCredentials
 		}
 
@@ -309,7 +309,7 @@ func (s *Service) LoginWithRecovery(ctx context.Context, email, password, totpCo
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				// Code was already used concurrently
-				s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt)
+				s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "recovery_code_already_used")
 				return "", "", AdminIdentity{}, ErrInvalidCredentials
 			}
 			return "", "", AdminIdentity{}, fmt.Errorf("auth: consume recovery code: %w", err)
@@ -317,11 +317,11 @@ func (s *Service) LoginWithRecovery(ctx context.Context, email, password, totpCo
 		usedRecoveryCodeID = marked.ID
 	} else {
 		if strings.TrimSpace(totpCode) == "" {
-			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt)
+			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "totp_code_missing")
 			return "", "", AdminIdentity{}, ErrInvalidCredentials
 		}
 		if len(account.TotpSecretEnc) == 0 {
-			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt)
+			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "totp_not_enrolled")
 			return "", "", AdminIdentity{}, ErrInvalidCredentials
 		}
 		secret, err := decryptSecret(account.TotpSecretEnc, s.totpEncKey)
@@ -329,7 +329,7 @@ func (s *Service) LoginWithRecovery(ctx context.Context, email, password, totpCo
 			return "", "", AdminIdentity{}, fmt.Errorf("auth: decrypt totp secret: %w", err)
 		}
 		if !ValidateTOTPCode(secret, totpCode) {
-			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt)
+			s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "totp_code_invalid")
 			return "", "", AdminIdentity{}, ErrInvalidCredentials
 		}
 	}
@@ -378,7 +378,7 @@ func (s *Service) LoginWithRecovery(ctx context.Context, email, password, totpCo
 	return sessionToken, csrfToken, admin, nil
 }
 
-func (s *Service) handleFailedLogin(ctx context.Context, adminID pgtype.UUID, failedAttempts int32, lastFailureAt pgtype.Timestamptz) {
+func (s *Service) handleFailedLogin(ctx context.Context, adminID pgtype.UUID, failedAttempts int32, lastFailureAt pgtype.Timestamptz, reason string) {
 	q := authstore.New(db.Conn(ctx, s.pool))
 	adminIDStr := pgtypeconv.UUIDString(adminID)
 
@@ -401,9 +401,14 @@ func (s *Service) handleFailedLogin(ctx context.Context, adminID pgtype.UUID, fa
 		LockedUntil: lockedUntil,
 	})
 
+	// reason distinguishes which factor failed. It stays out of the HTTP
+	// response (that is deliberately a generic 401) but belongs in the audit
+	// trail, which only administrators read, so an operator can tell a
+	// forgotten password from a drifted authenticator.
 	s.recordAudit(ctx, nil, "system", "auth.login_failed", "admin:"+adminIDStr, map[string]any{
 		"failed_attempts": newAttempts,
 		"locked":          willLock,
+		"reason":          reason,
 	})
 
 	if willLock {
@@ -828,6 +833,47 @@ func (s *Service) UnlockAdminByEmail(ctx context.Context, email string) error {
 		return fmt.Errorf("auth: unlock admin by email: %w", err)
 	}
 	s.recordAudit(ctx, nil, "cli", "admin.unlocked", "admin:"+pgtypeconv.UUIDString(r.ID), map[string]any{
+		"email": email,
+		"via":   "cli",
+	})
+	return nil
+}
+
+// SetAdminPasswordByEmail replaces an admin's password from the operator
+// console, revoking every existing session. It is the recovery path for a
+// forgotten admin password: recovery codes only substitute for the TOTP
+// factor, and ChangeOwnPassword needs a session the locked-out admin cannot
+// obtain. Unlike ResetAdminPassword (one admin resetting another) it does not
+// set must_change_password — the operator running the CLI is choosing the
+// password themselves.
+func (s *Service) SetAdminPasswordByEmail(ctx context.Context, email, newPassword string) error {
+	if len(newPassword) < 12 {
+		return ErrPasswordTooShort
+	}
+	q := authstore.New(db.Conn(ctx, s.pool))
+	account, err := q.GetAdminAccountByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrAdminNotFound
+		}
+		return fmt.Errorf("auth: get admin by email: %w", err)
+	}
+
+	hash, err := HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	if _, err := q.ResetAdminPassword(ctx, authstore.ResetAdminPasswordParams{
+		ID:                 account.ID,
+		PasswordHash:       hash,
+		MustChangePassword: false,
+	}); err != nil {
+		return fmt.Errorf("auth: set password: %w", err)
+	}
+
+	_ = q.DeleteSessionsByAdminID(ctx, account.ID)
+
+	s.recordAudit(ctx, nil, "cli", "admin.password_reset", "admin:"+pgtypeconv.UUIDString(account.ID), map[string]any{
 		"email": email,
 		"via":   "cli",
 	})

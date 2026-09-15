@@ -54,3 +54,40 @@ func TestIsSensitiveField(t *testing.T) {
 		t.Error("fullName should not be treated as sensitive")
 	}
 }
+
+// TestWithLoggingPreservesFlusher pins the interface that the SSE hub
+// depends on: WithLogging wraps the ResponseWriter, and a wrapper that
+// drops http.Flusher turns every /v1/events/stream request into a 500
+// ("Streaming unsupported") that only shows up in the browser as a feed
+// stuck on "Offline".
+func TestWithLoggingPreservesFlusher(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
+
+	var sawFlusher bool
+	handler := httpx.WithLogging(logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f, ok := w.(http.Flusher)
+		sawFlusher = ok
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		f.Flush()
+		_, _ = w.Write([]byte("data: hello\n\n"))
+		f.Flush()
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/events/stream", nil))
+
+	if !sawFlusher {
+		t.Fatal("handler did not receive an http.Flusher through WithLogging")
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "data: hello") {
+		t.Fatalf("body = %q, want the streamed event", rec.Body.String())
+	}
+}

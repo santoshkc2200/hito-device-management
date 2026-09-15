@@ -92,6 +92,11 @@ func newTestHarness(t *testing.T) *testHarness {
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
 	handler := httpx.Chain(
 		httpx.WithRequestID,
+		// WithLogging is in the chain here because it is in the chain in
+		// cmd/hdms-api: it wraps the ResponseWriter, and a harness that
+		// skipped it let a wrapper that dropped http.Flusher break the SSE
+		// endpoint in production while this suite stayed green.
+		httpx.WithLogging(discardLogger),
 		httpx.WithRecovery(discardLogger),
 		authSvc.Middleware,
 		// After the auth middleware, as in cmd/hdms-api, so keys are scoped
