@@ -110,4 +110,14 @@ sql:
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_interface: true
+  - engine: "postgresql"
+    queries: "queries/staffauth"
+    schema: "migrations"
+    gen:
+      go:
+        package: "staffauthstore"
+        out: "internal/platform/staffauth/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
 
