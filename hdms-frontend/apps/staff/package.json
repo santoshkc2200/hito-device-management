@@ -14,6 +14,7 @@
     "@hdms/api-client": "workspace:*",
     "@hdms/i18n": "workspace:*",
     "@hdms/ui": "workspace:*",
+    "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-router": "^1.170.30",
     "bwip-js": "^4.11.3",
