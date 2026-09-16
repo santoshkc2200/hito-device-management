@@ -3,7 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { queryClient } from "./lib/query-client";
 import { authenticatedRoute } from "./routes/authenticated";
 import { completeProfileRoute } from "./routes/complete-profile";
-import { indexRoute } from "./routes/index";
+import { homeRoute } from "./routes/home";
 import { loginRoute } from "./routes/login";
 import { rootRoute } from "./routes/root";
 
@@ -22,7 +22,7 @@ export const changePasswordRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authenticatedRoute.addChildren([
-    indexRoute,
+    homeRoute,
     completeProfileRoute,
     devicesRoute,
     changePasswordRoute,

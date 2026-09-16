@@ -31,6 +31,22 @@ export const ja: StaffCatalogue = {
     employeeNoTaken: "この職員番号は既に使用されているか無効です",
     genericError: "プロフィールの更新に失敗しました。もう一度お試しください。",
   },
+  myQr: {
+    alt: "あなたのQRコード",
+    instructions: "キオスクのスキャナーにかざしてください",
+  },
+  home: {
+    title: "ホーム",
+    myLoans: "利用中の機器",
+    noLoans: "利用中の機器はありません",
+    deviceName: "機器名",
+    borrowedAt: "持出日時",
+    dueAt: "返却期限",
+    loadError: "読み込みに失敗しました",
+  },
+  devices: {
+    title: "機器一覧",
+  },
   validation: {
     employeeNoRequired: "職員番号を入力してください",
     passwordRequired: "パスワードを入力してください",

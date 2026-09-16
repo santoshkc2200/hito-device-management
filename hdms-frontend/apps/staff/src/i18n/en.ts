@@ -29,6 +29,22 @@ export const en = {
     employeeNoTaken: "This employee number is already taken or invalid",
     genericError: "Failed to complete profile. Please try again.",
   },
+  myQr: {
+    alt: "Your QR code",
+    instructions: "Hold this up to the kiosk scanner",
+  },
+  home: {
+    title: "Home",
+    myLoans: "Current Loans",
+    noLoans: "No active loans",
+    deviceName: "Device",
+    borrowedAt: "Borrowed",
+    dueAt: "Due",
+    loadError: "Failed to load",
+  },
+  devices: {
+    title: "Devices",
+  },
   validation: {
     employeeNoRequired: "Employee number is required",
     passwordRequired: "Password is required",
