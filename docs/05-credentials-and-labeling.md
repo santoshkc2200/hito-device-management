@@ -63,6 +63,15 @@ under separate encryption. Decision: **print-at-issue**, with an explicit
 > unchanged. A staff card *is* a bearer credential, so a lost one must be
 > reissued. This matches the real risk in each case and still satisfies FR-13
 > for the case that actually recurs: peeling stickers on equipment.
+>
+> *Phase 7 update:* Choice (b) was reversed in Phase 7 ([ADR-0016](adr/0016-user-credential-tokens-stored-reversibly.md)).
+> User tokens are now also stored reversibly (`token_enc`, AES-GCM under `HDMS_CREDENTIAL_ENC_KEY`)
+> to enable the staff phone PWA to display the borrower's QR on demand and allow
+> administrators to reprint active badges. The security risks are mitigated by
+> single-token reveal endpoints, mandatory audit logging per reveal, and
+> retaining the revoke-and-reissue workflow for physically lost cards. The
+> reasoning above remains essential context for why the encryption key must be
+> protected.
 
 ## Symbology
 

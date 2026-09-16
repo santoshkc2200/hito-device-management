@@ -15,12 +15,13 @@
 
 ## Authentication
 
-Three principals, three mechanisms.
+Four principals, four mechanisms.
 
 | Principal | Mechanism | Scope |
 |---|---|---|
 | **Kiosk** | `Authorization: Bearer <kiosk-token>` — a long-lived opaque token issued when the kiosk is registered, rotated on demand | Create sessions, submit scans, borrow and return, read the minimum device/user data needed to render a screen. **It cannot create, modify or list users, and has no admin capability whatsoever** (FR-45). |
-| **Admin user** | Session cookie (`HttpOnly`, `Secure`, `SameSite=Lax`) after password + TOTP login | Everything permitted by their role |
+| **Admin user** | Session cookie (`hdms_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) after password + TOTP login | Everything permitted by their role |
+| **Staff user** | Session cookie (`hdms_staff_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) after password login or Microsoft Entra ID SSO | View own QR code, check own active loans, browse device availability, change own password. **Cannot access admin routes or view other users' data** ([ADR-0009](adr/0009-staff-authentication-realm.md)). |
 | **Service/CLI** | `Authorization: Bearer <service-token>` | Imports, exports, scheduled jobs |
 
 The kiosk token deserves emphasis: an iPad in a public corridor is a device that
@@ -67,6 +68,24 @@ else (FR-45's spirit). Every other `/v1/*` route (except `/healthz`, `/readyz`
 and `/auth/login` itself) requires the `adminSession` cookie; mutating
 methods additionally require the `X-CSRF-Token` header to match the
 `hdms_csrf` cookie (double-submit).
+
+### Staff auth & self-service (PWA)
+
+Staff endpoints are mounted under `/v1/staff/*` and belong to a dedicated authentication realm ([ADR-0009](adr/0009-staff-authentication-realm.md)). Admin cookies are rejected on `/v1/staff/*`, and staff cookies (`hdms_staff_session`) are rejected on `/v1/*` admin routes:
+
+```
+POST   /v1/staff/auth/password            { employeeNo, password } → staff identity; sets hdms_staff_session + hdms_staff_csrf
+GET    /v1/staff/auth/microsoft/start     → 302 to Entra authorization endpoint (PKCE)
+GET    /v1/staff/auth/microsoft/callback  { code, state } → sets staff session cookies, redirects to /
+POST   /v1/staff/auth/logout              revoke the current staff session
+GET    /v1/staff/me                       signed-in staff identity, profile completion, and credential status
+POST   /v1/staff/me/profile               { employeeNo, departmentId? } complete initial self-signup profile
+POST   /v1/staff/me/password              { currentPassword, newPassword } change own password
+GET    /v1/staff/me/credential            → active QR token for the signed-in user
+GET    /v1/staff/me/loans                 → active loans for the signed-in user
+GET    /v1/staff/devices                  → catalogue of devices with availability status
+GET    /v1/staff/devices/{id}             → device details and availability
+```
 
 ### Session and checkout — the kiosk's hot path
 
