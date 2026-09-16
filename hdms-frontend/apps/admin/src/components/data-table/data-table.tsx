@@ -315,8 +315,16 @@ function DataTableInner<TData, TValue>({
                       isFocused &&
                         "bg-accent/70 ring-1 ring-inset ring-primary/40 text-accent-foreground font-medium"
                     )}
-                    onClick={() => {
+                    onClick={(event) => {
                       setFocusedRowIndex(index);
+                      // A row doubles as a link to its detail page, so a click on a
+                      // control inside the row — the selection checkbox, a row menu,
+                      // a link — must not also navigate, or the control's own effect
+                      // is lost with the page.
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest('button, a, input, select, textarea, label, [role="checkbox"], [role="menuitem"]')) {
+                        return;
+                      }
                       onRowClick?.(row.original);
                     }}
                   >

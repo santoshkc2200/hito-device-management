@@ -49,6 +49,8 @@ capability that previously made a stolen kiosk interesting. Rotatable from the
 admin console without reinstalling anything on the iPad. Kiosk requests are
 rate-limited and their source IP recorded.
 
+**Staff login (PWA).** Handled by the dedicated `staffauth` realm ([ADR-0009](adr/0009-staff-authentication-realm.md)) using either Argon2id password verification or Microsoft Entra ID OIDC with PKCE. Issues a distinct session cookie (`hdms_staff_session`, `HttpOnly; Secure; SameSite=Lax`) and CSRF token. Five failed password attempts trigger a 15-minute lockout. Staff sessions possess zero administrative permissions and cannot invoke `/v1/*` administrative operations.
+
 **Authorisation.** Enforced in HTTP middleware from a role→permission map, and
 re-asserted in the module layer for anything destructive. Every check failure
 produces an audit row — repeated `forbidden` responses for one actor is a signal.
@@ -62,10 +64,12 @@ and are never photographed or stored. **No patient data. No health data. No home
 national ID numbers.** The schema has no column for them and code review should
 reject any attempt to add one without an explicit decision.
 
-**Minimisation on the kiosk.** The kiosk screen shows the borrower's name and
+**Minimisation on the kiosk and staff PWA.** The kiosk screen shows the borrower's name and
 their own open loans, and nothing else. It cannot list users, search staff, or
 create them. The screen clears on a short timer so the next person in the queue
-sees nothing.
+sees nothing. In the staff PWA, staff view only their own identity, QR badge, and
+active loans; in the device catalogue, availability and return times are shown,
+but **no staff-facing payload names another person** — borrower identities are never exposed.
 
 **No use of the hospital's access-control cards in v1.** Staff ID cards carry
 RFID/NFC, but this system does not read them and holds no data from them. If they

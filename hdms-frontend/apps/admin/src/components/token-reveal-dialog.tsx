@@ -81,7 +81,7 @@ export function TokenRevealDialog({
             />
           )}
         </div>
-        <p className="text-center font-identifier text-xs text-muted-foreground">{token}</p>
+        <p data-testid="revealed-token" className="text-center font-identifier text-xs text-muted-foreground">{token}</p>
         <DialogFooter className="gap-2 sm:justify-center">
           <Button variant="outline" onClick={() => exportPng(token)}>
             <Download className="size-4" data-icon="inline-start" />

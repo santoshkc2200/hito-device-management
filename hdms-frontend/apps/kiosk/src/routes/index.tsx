@@ -113,7 +113,6 @@ export function KioskApp() {
         <SuccessScreen
           kind={outcomeView.outcome.kind}
           device={outcomeView.outcome.device ?? context.pendingDevice}
-          message={outcomeView.message}
           dueAt={outcomeView.outcome.dueAt}
           itemCount={context.openLoans.length || 1}
           onDone={dismissOutcome}

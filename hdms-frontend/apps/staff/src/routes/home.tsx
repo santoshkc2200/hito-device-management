@@ -34,12 +34,20 @@ export function HomePage() {
     <div className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{t("home.title")}</h1>
-        <Link
-          to="/devices"
-          className="text-sm font-medium text-primary hover:underline"
-        >
-          {t("devices.title")}
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/devices"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            {t("devices.title")}
+          </Link>
+          <Link
+            to="/settings"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            {t("settings.title")}
+          </Link>
+        </div>
       </header>
 
       <section className="flex flex-col items-center justify-center rounded-2xl border bg-card p-6 shadow-sm">

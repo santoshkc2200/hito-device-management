@@ -368,7 +368,7 @@ Stated explicitly so tests can assert each one by name.
 | INV-8 | Audit rows are never modified or deleted | Postgres role grants |
 | INV-9 | A session resolves to at most one transaction per device scan | Idempotency key = `(session_id, device_id, action)` |
 | INV-10 | No user or device with loan history is hard-deleted | `identity`/`catalog` archive instead of delete |
-| INV-11 | A user is only ever created by an administrator or an import — never by a kiosk | Kiosk token scope; `registered_by` cannot hold a `kiosk:` value; asserted by test |
+| INV-11 | A user is only ever created by an administrator, an import, or Entra ID self-signup ([ADR-0012](adr/0012-relaxing-administrator-only-registration.md)) — never by a kiosk | Kiosk token scope; `registered_by` accepts `admin:<id>`, `import`, `import:<batch>` and `self:microsoft`, never a `kiosk:` value; asserted by test |
 | INV-12 | An unbound credential (`subject_id IS NULL`) can never open a loan | `checkout` refuses a subject of type `unbound` |
 | INV-13 | No two loans of the same device overlap in time | Exclusion constraint `loans_no_overlapping_custody` |
 | INV-14 | A paper-backfilled loan always records who typed it, when, and its slip reference | `CHECK loans_paper_needs_provenance` |

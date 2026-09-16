@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { execSync } from "node:child_process";
 import type { Page } from "@playwright/test";
+import { CURRENT_SCHEMA_VERSION } from "../../apps/kiosk/src/lib/kiosk-config";
 
 // Local development uses mkcert or self-signed certs for HTTPS
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -378,11 +379,25 @@ export class TestApiClient {
       throw new Error(`Register kiosk failed: ${await res.text()}`);
     }
     const data = (await res.json()) as { id: string; name: string; token: string; defaultLocale?: string };
+
+    // CreateKioskRequest carries no locale — the admin console sets it with a
+    // follow-up PATCH (UpdateKioskRequest), so the fixture does the same. Without
+    // this the kiosk keeps the column default and an `en` test reads a `ja` screen.
+    if (data.defaultLocale !== defaultLocale) {
+      const patched = await this.request(`/v1/kiosks/${data.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ defaultLocale }),
+      });
+      if (!patched.ok) {
+        throw new Error(`Set kiosk locale failed: ${await patched.text()}`);
+      }
+    }
+
     return {
       id: data.id,
       name: data.name,
       token: data.token,
-      defaultLocale: data.defaultLocale ?? defaultLocale,
+      defaultLocale,
     };
   }
 
@@ -499,6 +514,21 @@ export class TestApiClient {
     return res.json();
   }
 
+  /**
+   * Resets a staff member's password to a generated temporary one, which the
+   * staff app then forces them to replace on first sign-in.
+   */
+  async resetStaffPassword(userId: string): Promise<string> {
+    const res = await this.request(`/v1/users/${userId}/staff-password-reset`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      throw new Error(`Reset staff password failed: ${await res.text()}`);
+    }
+    const body = (await res.json()) as { temporaryPassword: string };
+    return body.temporaryPassword;
+  }
+
   async getCurrentAdmin(): Promise<any> {
     const res = await this.request("/v1/auth/me");
     if (!res.ok) {
@@ -522,16 +552,23 @@ export async function prePairKiosk(
       localStorage.setItem(
         "hdms_kiosk_config",
         JSON.stringify({
-          schemaVersion: 1,
+          schemaVersion: cfg.schemaVersion,
           kioskId: cfg.id,
           kioskName: cfg.name,
           token: cfg.token,
           defaultLocale: cfg.defaultLocale,
           muteEnabled: true, // Mute audio in automated tests to prevent noisy audio contexts
-          enabledSources,
+          enabledSources: cfg.enabledSources,
         })
       );
     },
-    { id: kiosk.id, name: kiosk.name, token: kiosk.token, defaultLocale: kiosk.defaultLocale ?? defaultLocale }
+    {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      id: kiosk.id,
+      name: kiosk.name,
+      token: kiosk.token,
+      defaultLocale: kiosk.defaultLocale ?? defaultLocale,
+      enabledSources,
+    }
   );
 }

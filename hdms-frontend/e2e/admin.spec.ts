@@ -50,11 +50,15 @@ test("E20_AdminRegistersAndPairsKioskWithoutCLI", async ({ page, browser }) => {
     await expect(kioskPage.getByTestId("idle-prompt")).toBeVisible({ timeout: 10_000 });
     await expect(kioskPage.getByText(kioskName)).toBeVisible();
 
-    const secondKiosk = await kioskContext.newPage();
+    // A second tablet, not a second tab: the first kiosk's pairing lives in this
+    // origin's localStorage, so a page in the same context would already be paired.
+    const secondContext = await browser.newContext({ ignoreHTTPSErrors: true });
+    const secondKiosk = await secondContext.newPage();
     await secondKiosk.goto("https://localhost:5173/");
     for (const digit of code) await secondKiosk.getByTestId(`pairing-key-${digit}`).click();
     await secondKiosk.getByTestId("pairing-submit-button").click();
     await expect(secondKiosk.getByTestId("pairing-error-message")).toBeVisible({ timeout: 10_000 });
+    await secondContext.close();
   } finally {
     await kioskContext.close();
   }
@@ -90,10 +94,15 @@ test("E8b_RegisterBorrowerWithBlankCard_ThenBorrowAtKiosk", async ({ page }) => 
   await page.getByLabel("Full name").fill(fullName);
   await page.getByLabel("Employee no.").fill(empNo);
 
-  // 5. Select Option A (Scan a blank card) and enter the blank card token
-  await page.getByLabel(/scan a blank card/i).check();
-  const tokenInput = page.getByPlaceholder("Scan or enter blank card token...");
-  await tokenInput.fill(blankCard.token);
+  // 5. Select Option A (Scan a blank card) and enter the blank card token.
+  // The option's label text is also the label of the token field it reveals, so
+  // address the radio by role rather than by label text.
+  await page.getByRole("radio", { name: new RegExp(en.register.scanBlankCard, "i") }).check();
+  // A real scanner ends its wedge input with Enter, which is what triggers the
+  // credential lookup that enables the submit button.
+  await page.locator("#scan-token").fill(blankCard.token);
+  await page.locator("#scan-token").press("Enter");
+  await expect(page.getByText(new RegExp(en.register.readyToBind.split("{")[0], "i"))).toBeVisible({ timeout: 10_000 });
 
   // 6. Submit registration
   const submitBtn = page.getByRole("button", { name: /register & issue/i });
@@ -106,8 +115,8 @@ test("E8b_RegisterBorrowerWithBlankCard_ThenBorrowAtKiosk", async ({ page }) => 
 
   // 8. Verify the registered borrower can now borrow a device at the kiosk using this bound card
   const loanRes = await api.seedLoanViaKiosk(kiosk.token, device.token, blankCard.token);
-  expect(loanRes.event).toBe("loan_opened");
-  expect(loanRes.loan).toBeDefined();
+  expect(loanRes.outcome.kind).toBe("borrowed");
+  expect(loanRes.outcome.loanId).toBeDefined();
 
   // Verify active loan for device
   const loans = await api.getDeviceLoans(device.id);
@@ -138,33 +147,33 @@ test("E14_ReissueLostCard_KillsOldToken_NewWorksAtKiosk", async ({ page }) => {
   await page.goto(`/users/${user.id}`);
   await expect(page.getByRole("heading", { name: "Dr. Evelyn Reed" })).toBeVisible({ timeout: 10_000 });
 
-  // 4. Click Report Lost & Reissue / Reissue & Print
-  const reissueBtn = page.getByRole("button", { name: /reissue & print/i });
+  // 4. Report the card lost, which reissues it
+  const reissueBtn = page.getByRole("button", { name: en.credentialsPanel.reportLost, exact: true });
   await expect(reissueBtn).toBeVisible({ timeout: 5_000 });
   await reissueBtn.click();
 
   // 5. Fill reason and submit
-  await expect(page.getByText(/the current card in the borrower's pocket stops working immediately/i)).toBeVisible();
-  await page.getByPlaceholder(/lost in cafeteria/i).fill("Card lost in operating theater");
-  await page.getByRole("button", { name: /reissue & print card/i }).click();
+  await expect(page.getByText(en.credentialsPanel.reissueConfirmDescriptionUser)).toBeVisible();
+  await page.getByPlaceholder(en.credentialsPanel.reasonPlaceholder).fill("Card lost in operating theater");
+  await page.getByRole("button", { name: en.credentialsPanel.reissueConfirmButtonUser }).click();
 
   // 6. Token reveal dialog appears with the new token
-  await expect(page.getByRole("heading", { name: /credential minted/i })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: en.tokenRevealDialog.title })).toBeVisible({ timeout: 10_000 });
   const newTokenElement = page.getByTestId("revealed-token");
   await expect(newTokenElement).toBeVisible();
   const newTokenText = (await newTokenElement.innerText()).trim();
 
   // Close reveal dialog
-  await page.getByRole("button", { name: /done/i }).click();
+  await page.keyboard.press("Escape");
 
   // 7. Verify old token is dead at kiosk
   const oldAttempt = await api.seedLoanViaKiosk(kiosk.token, device.token, user.token);
-  expect(oldAttempt.event).toBe("card_revoked");
+  expect(oldAttempt.outcome.kind).toBe("rejected");
 
   // 8. Verify new token works at kiosk
   const newAttempt = await api.seedLoanViaKiosk(kiosk.token, device.token, newTokenText);
-  expect(newAttempt.event).toBe("loan_opened");
-  expect(newAttempt.loan).toBeDefined();
+  expect(newAttempt.outcome.kind).toBe("borrowed");
+  expect(newAttempt.outcome.loanId).toBeDefined();
 });
 
 test("E15_ForceReturn_AuditsOverrideAndReason", async ({ page }) => {
@@ -178,8 +187,8 @@ test("E15_ForceReturn_AuditsOverrideAndReason", async ({ page }) => {
   const kiosk = await api.registerKiosk("E15 Kiosk", "ICU");
 
   const openRes = await api.seedLoanViaKiosk(kiosk.token, device.token, user.token);
-  expect(openRes.event).toBe("loan_opened");
-  const loanId = openRes.loan.id;
+  expect(openRes.outcome.kind).toBe("borrowed");
+  const loanId = openRes.outcome.loanId;
 
   // 2. Admin login (form before auth is in ja, use id selectors)
   await page.goto("/login");
@@ -204,7 +213,9 @@ test("E15_ForceReturn_AuditsOverrideAndReason", async ({ page }) => {
   // 5. Verify loan status is now returned
   await expect(page.getByText(/returned/i).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/loan\.force_returned/i)).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText(/Device returned to charge bay by orderly without scanning/i)).toBeVisible();
+  // The reason shows twice on the page — as the audit note and inside the raw
+  // event payload — so assert on the first.
+  await expect(page.getByText(/Device returned to charge bay by orderly without scanning/i).first()).toBeVisible();
 });
 
 // One signed-in admin journey per locale — sign in, list devices, open one,

@@ -45,6 +45,7 @@ Each phase has its own plan with tasks, deliverables and exit criteria.
 | 4 | [Admin console](phases/phase-4-admin-console.md) · [sub-phases](phases/phase-4/) | Registration, paper backfill, monitoring, reissue, reports | ~2–3 wk |
 | 5 | [Hardening & pilot](phases/phase-5-hardening-pilot.md) · [sub-phases](phases/phase-5/) | Security, backups, offline, UAT, rollout | ~2 wk + 2 wk pilot |
 | 6 | [Extensibility & roadmap](phases/phase-6-extensibility.md) · [sub-phases](phases/phase-6/) | **Adopt the RFID/NFC ID cards**, notifications, multi-location | ongoing |
+| 7 | [Staff identity, self-signup & staff PWA](phases/phase-7-staff-identity.md) | Staff login (Microsoft SSO / password), staff PWA (QR, loans, device catalogue), reversible token storage | ~2 wk |
 
 Estimates assume one full-time developer. Phases 3 and 4 can run in parallel once
 Phase 2 freezes the API contract. Total to pilot: **~10–11 weeks**.
@@ -59,6 +60,9 @@ Phase 2 freezes the API contract. Total to pilot: **~10–11 weeks**.
 - [ADR-0006 — Spec-first OpenAPI with generated server and client](adr/0006-spec-first-openapi.md)
 - [ADR-0007 — Web PWA kiosk instead of a native iPad app](adr/0007-pwa-kiosk-not-native.md)
 - [ADR-0008 — Temporal exclusion constraint for device custody](adr/0008-temporal-custody-constraint.md)
+- [ADR-0009 — Dedicated staff authentication realm](adr/0009-staff-authentication-realm.md)
+- [ADR-0012 — Relaxing administrator-only registration for Entra ID self-signup](adr/0012-relaxing-administrator-only-registration.md)
+- [ADR-0016 — User credential tokens stored reversibly](adr/0016-user-credential-tokens-stored-reversibly.md)
 
 ## Repository layout
 
@@ -66,5 +70,5 @@ Phase 2 freezes the API contract. Total to pilot: **~10–11 weeks**.
 hito-device-management/
 ├── docs/                 # this documentation set
 ├── hdms-backend/         # Go modular monolith
-└── hdms-frontend/        # pnpm workspace: kiosk app, admin app, shared packages
+└── hdms-frontend/        # pnpm workspace: kiosk app, admin app, staff app, shared packages
 ```
