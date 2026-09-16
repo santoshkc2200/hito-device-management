@@ -44,7 +44,7 @@ for (const locale of ["en", "ja"] as const) {
       await simulateScan(page, user.token);
       await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
       await expect(page.getByTestId("success-title")).toContainText(msgs.success.borrowTitle);
-      await expect(page.getByTestId("success-kind-badge")).toContainText(msgs.success.borrowKind);
+      await expect(page.getByTestId("success-kind-badge")).toContainText(msgs.success.borrowBadge);
       await expect(page.getByTestId("success-device-card")).toContainText(device.name);
 
       // Assert DB state: 1 active loan exists
@@ -71,7 +71,7 @@ for (const locale of ["en", "ja"] as const) {
       await simulateScan(page, user.token);
       await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
       await expect(page.getByTestId("success-title")).toContainText(msgs.success.returnTitle);
-      await expect(page.getByTestId("success-kind-badge")).toContainText(msgs.success.returnKind);
+      await expect(page.getByTestId("success-kind-badge")).toContainText(msgs.success.returnBadge);
 
       // Assert DB state: loan is closed
       const loansAfter = await api.getDeviceLoans(device.id);
@@ -113,7 +113,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
     // Step 2: Scan User
     await simulateScan(page, user.token);
     await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByTestId("success-title")).toContainText(/borrow/i);
+    await expect(page.getByTestId("success-title")).toContainText(ja.success.borrowTitle);
     await expect(page.getByTestId("success-device-card")).toContainText(device.name);
 
     // Assert database state via API: 1 active loan exists
@@ -141,7 +141,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
     // Step 2: Scan Device
     await simulateScan(page, device.token);
     await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByTestId("success-title")).toContainText(/borrow/i);
+    await expect(page.getByTestId("success-title")).toContainText(ja.success.borrowTitle);
 
     // Assert database state via API: 1 active loan exists
     const loans = await api.getDeviceLoans(device.id);
@@ -170,7 +170,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
     // Step 2: Scan Borrower's User Card
     await simulateScan(page, user.token);
     await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByTestId("success-kind-badge")).toContainText(/return/i);
+    await expect(page.getByTestId("success-kind-badge")).toContainText(ja.success.returnBadge);
 
     // Assert database state via API: loan is closed
     const loans = await api.getDeviceLoans(device.id);
@@ -199,7 +199,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
     // Step 2: Scan on-loan Device
     await simulateScan(page, device.token);
     await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByTestId("success-kind-badge")).toContainText(/return/i);
+    await expect(page.getByTestId("success-kind-badge")).toContainText(ja.success.returnBadge);
 
     // Assert database state via API: loan is closed
     const loans = await api.getDeviceLoans(device.id);
@@ -438,13 +438,13 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
     await page.goto("/");
     await expect(page.getByTestId("idle-prompt")).toBeVisible();
 
-    // Start hardware scanning, then use the inline fallback when no HID scanner is configured.
-    await page.getByRole("button", { name: "Start" }).click();
-    await expect(page.getByTestId("scanner-unavailable-card")).toBeVisible();
-    await page.getByRole("button", { name: "Yes, start camera" }).click();
+    // Start scanning, then reach for the camera from the header — the kiosk is
+    // paired with `camera` as its only source, so that button is the fallback.
+    await page.getByTestId("start-scanning-button").click();
+    await page.getByRole("button", { name: ja.header.cameraAriaLabel }).click();
 
     // Assert camera viewfinder overlay is rendered
-    await expect(page.getByRole("heading", { name: "Camera Barcode Scanner" })).toBeVisible({
+    await expect(page.getByRole("heading", { name: ja.camera.title })).toBeVisible({
       timeout: 5_000,
     });
     await expect(page.getByTestId("camera-preview-feed")).toBeVisible();
@@ -454,7 +454,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
     expect(a11y.violations).toEqual([]);
 
     // Close camera overlay
-    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.getByRole("button", { name: ja.common.cancel }).click();
     await expect(page.getByTestId("idle-prompt")).toBeVisible();
   });
 });

@@ -31,13 +31,28 @@ This directory contains automated end-to-end tests exercising critical user jour
 
 ## Running Tests Locally
 
+The suite signs in as a dedicated test administrator and seeds some fixtures over
+`psql`, so a fresh machine needs both before `task e2e` will pass:
+
 ```bash
 # 1. Start database and backend stack
 task dev
 
-# 2. Run Playwright E2E suite
+# 2. Once per database — create the administrator the suite signs in as
+cd hdms-backend && go run ./cmd/hdms-cli admin bootstrap \
+  --email admin@example.org --name "Admin" \
+  --password "correct horse battery staple" \
+  --totp-secret "VIPF7BGMNRBOPVSVYOIAG33Q5NHWVOZ7"
+
+# 3. `psql` must be on PATH (macOS: brew install libpq, then add its bin)
+psql --version
+
+# 4. Run Playwright E2E suite
 task e2e
 ```
+
+The credentials above are the ones in `.env` (`HDMS_TEST_ADMIN_*`) and in CI; they
+are development-only.
 
 Or run via pnpm directly in `hdms-frontend`:
 ```bash
