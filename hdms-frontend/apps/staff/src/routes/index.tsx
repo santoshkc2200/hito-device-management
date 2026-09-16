@@ -1,6 +1,6 @@
 import { createRoute } from "@tanstack/react-router";
-import { rootRoute } from "./root";
 import { useT } from "@/i18n";
+import { authenticatedRoute } from "./authenticated";
 
 export function IndexPage() {
   const t = useT();
@@ -12,7 +12,7 @@ export function IndexPage() {
 }
 
 export const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/",
   component: IndexPage,
 });

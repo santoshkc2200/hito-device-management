@@ -1,22 +1,13 @@
-import { useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { LocaleProvider } from "@hdms/i18n";
+import { installAuthInterceptors } from "./lib/auth";
+import { queryClient } from "./lib/query-client";
 import { router } from "./router";
 
-export function App() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            retry: 1,
-            staleTime: 10_000,
-          },
-        },
-      }),
-  );
+installAuthInterceptors();
 
+export function App() {
   return (
     <LocaleProvider>
       <QueryClientProvider client={queryClient}>
