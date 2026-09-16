@@ -3,15 +3,11 @@ import type { QueryClient } from "@tanstack/react-query";
 import { queryClient } from "./lib/query-client";
 import { authenticatedRoute } from "./routes/authenticated";
 import { completeProfileRoute } from "./routes/complete-profile";
+import { devicesRoute } from "./routes/devices";
+import { deviceDetailRoute } from "./routes/devices.$deviceId";
 import { homeRoute } from "./routes/home";
 import { loginRoute } from "./routes/login";
 import { rootRoute } from "./routes/root";
-
-export const devicesRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "/devices",
-  component: () => <div>Devices</div>,
-});
 
 export const changePasswordRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
@@ -25,6 +21,7 @@ export const routeTree = rootRoute.addChildren([
     homeRoute,
     completeProfileRoute,
     devicesRoute,
+    deviceDetailRoute,
     changePasswordRoute,
   ]),
 ]);

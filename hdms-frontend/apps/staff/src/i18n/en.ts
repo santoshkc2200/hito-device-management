@@ -44,6 +44,21 @@ export const en = {
   },
   devices: {
     title: "Devices",
+    searchPlaceholder: "Search by name or asset tag…",
+    connectionRequired: "You need a connection to see devices",
+    available: "Available",
+    inUse: "In use",
+    unavailable: "Unavailable",
+    expectedBackAt: "Expected back {time}",
+    noDevices: "No devices found",
+    detail: {
+      assetTag: "Asset Tag",
+      model: "Model",
+      category: "Category",
+      status: "Status",
+      backToDevices: "Back to devices",
+      notFound: "Device not found",
+    },
   },
   validation: {
     employeeNoRequired: "Employee number is required",

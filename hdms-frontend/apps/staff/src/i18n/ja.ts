@@ -46,6 +46,21 @@ export const ja: StaffCatalogue = {
   },
   devices: {
     title: "機器一覧",
+    searchPlaceholder: "機器名または資産タグで検索…",
+    connectionRequired: "機器を表示するにはインターネット接続が必要です",
+    available: "利用可能",
+    inUse: "利用中",
+    unavailable: "利用不可",
+    expectedBackAt: "返却予定 {time}",
+    noDevices: "機器が見つかりませんでした",
+    detail: {
+      assetTag: "資産タグ",
+      model: "モデル",
+      category: "カテゴリ",
+      status: "状態",
+      backToDevices: "機器一覧に戻る",
+      notFound: "機器が見つかりません",
+    },
   },
   validation: {
     employeeNoRequired: "職員番号を入力してください",
