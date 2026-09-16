@@ -18,7 +18,7 @@ We **reverse Choice (b)** and store user credential tokens reversibly alongside 
 
 1. **Reversible encryption (`token_enc`):** Every active user credential row stores `token_enc`, encrypted using AES-256-GCM under the server secret `HDMS_CREDENTIAL_ENC_KEY`.
 2. **Preserved HMAC indexing:** The `token_hash` column remains `HMAC-SHA256(token, pepper)`. Kiosk barcode scans continue to perform fast, constant-time indexed lookups against `token_hash`. Decryption is never performed on the checkout path.
-3. **Admin reveal capability:** An administrator can reveal any active user credential token (`POST /v1/users/{id}/credentials/{credId}/reveal`) to preview or print a badge.
+3. **Admin reveal capability:** An administrator can reveal any active user credential token (`POST /v1/credentials/{id}/reveal`) to preview or print a badge.
 4. **Staff self-service reveal:** An authenticated staff member can retrieve their own active credential token (`GET /v1/staff/me/credential`) to display on their device.
 
 ## Consequences
@@ -29,7 +29,7 @@ We **reverse Choice (b)** and store user credential tokens reversibly alongside 
 **Compensating Controls**
 To mitigate this risk, three strict controls are enforced:
 1. **No bulk reveal endpoint:** There is no API to export or reveal tokens in bulk. Tokens must be queried individually by authorized actors.
-2. **Mandatory audit logging:** Every invocation of the admin reveal endpoint writes an immutable row to `audit_events` with the actor, target user ID, credential ID, timestamp, and client IP.
+2. **Mandatory audit logging:** Every invocation of the admin reveal endpoint writes an immutable row to `audit_events` with the actor, the credential's subject, the credential id, the request id and the timestamp, and the credential's own event history gains a `revealed` entry.
 3. **Retained revoke-and-issue workflow:** Physical security is not relaxed. If a staff member physically loses a printed card, administrators do not "reprint" the existing token. They revoke the lost credential and issue a fresh one, immediately blacklisting the lost barcode at all kiosks.
 
 ## Alternatives

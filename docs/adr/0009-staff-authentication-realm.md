@@ -32,7 +32,7 @@ We establish a **dedicated staff authentication realm** isolated from the admini
 **Good**
 - **Zero privilege escalation risk between realms:** A staff session cookie can never satisfy administrative middleware. Admin queries do not need to add defensive clauses (`WHERE role != 'staff'`).
 - **Clean domain boundaries:** The `users` table remains a pure representation of hospital personnel and custody subjects, free of web authentication tokens, temporary password flags, or failed login counters.
-- **Minimal client footprint:** Mobile browsers hold only an encrypted session cookie. No token refresh loops, token storage vulnerabilities, or OIDC client logic exist in the staff PWA bundle.
+- **Minimal client footprint:** Mobile browsers hold only an opaque session cookie. No token refresh loops, token storage vulnerabilities, or OIDC client logic exist in the staff PWA bundle.
 - **Auditable credential boundaries:** External provider links (`staff_identities`) are distinct from password-backed credentials, allowing passwordless accounts to exist naturally alongside password-authenticated staff.
 
 **Bad**
@@ -42,7 +42,7 @@ We establish a **dedicated staff authentication realm** isolated from the admini
 ## Alternatives
 
 - **Unified account model in `admin_accounts`:** Rejected. Administrators require email addresses and mandatory TOTP, whereas hospital staff log in with employee numbers and may authenticate exclusively via Microsoft SSO without local passwords or TOTP. Conflating the two would compromise admin security invariants.
-- **Credentials embedded in `users`:** Rejected. Violates domain module decoupling (INV-12) and creates schema churn on a core entity whenever authentication mechanisms change.
+- **Credentials embedded in `users`:** Rejected. Violates the module decoupling of ADR-0001 and creates schema churn on a core entity whenever authentication mechanisms change.
 - **Client-side OIDC with Entra JWTs passed to the API:** Rejected. Exposes raw external tokens to client-side storage, requires complex token refresh handling in the PWA, and forces the backend to validate third-party signatures on every request rather than evaluating our own lightweight session store.
 
 ## What would make us revisit this

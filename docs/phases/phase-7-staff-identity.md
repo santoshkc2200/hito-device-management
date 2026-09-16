@@ -24,7 +24,7 @@ The architecture preserves module isolation while delivering self-service onboar
 - Migration `0018_staff_auth.sql`: tables `staff_accounts`, `staff_identities`, `staff_sessions`, `oauth_login_states`, and unique index `users_email_live_uk`.
 - Core `staffauth` service with password hashing, account lockout protection (5 failed attempts, 15 min lockout), and sliding session cookies (`hdms_staff_session`).
 - Microsoft Entra ID OIDC client with PKCE state management.
-- Credential token encryption helper (`token_enc`) and reversible migration `0019_credential_tokens_encrypted.sql`.
+- Credential token encryption extended to user credentials, reusing the `token_enc` column added for device credentials in `0004_credentials.sql` (no new migration).
 
 ### Phase 7b: API Server Endpoints & Security Boundaries (Tasks 6–9)
 - OpenAPI contract update (spec-first) specifying `/v1/staff/*` endpoints and bumping version to 1.2.0.
@@ -40,7 +40,7 @@ The architecture preserves module isolation while delivering self-service onboar
 - Session guard in `authenticatedRoute` enforcing first-run employee number completion and mandatory temporary password changes.
 
 ### Phase 7d: Core Staff Experience (Tasks 13–14)
-- Home screen with wake-locked accessible SVG QR code display and current loan list.
+- Home screen with wake-locked, accessibly-labelled QR image (canvas PNG, with an SVG fallback where no 2D context exists) and current loan list.
 - Device catalogue listing with live search, availability status indicators, and expected return times (borrower identities are strictly withheld).
 
 ### Phase 7e: Settings & Lifecycle Management (Task 15)

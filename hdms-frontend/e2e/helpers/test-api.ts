@@ -499,6 +499,21 @@ export class TestApiClient {
     return res.json();
   }
 
+  /**
+   * Resets a staff member's password to a generated temporary one, which the
+   * staff app then forces them to replace on first sign-in.
+   */
+  async resetStaffPassword(userId: string): Promise<string> {
+    const res = await this.request(`/v1/users/${userId}/staff-password-reset`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      throw new Error(`Reset staff password failed: ${await res.text()}`);
+    }
+    const body = (await res.json()) as { temporaryPassword: string };
+    return body.temporaryPassword;
+  }
+
   async getCurrentAdmin(): Promise<any> {
     const res = await this.request("/v1/auth/me");
     if (!res.ok) {

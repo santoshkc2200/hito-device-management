@@ -32,40 +32,36 @@ This operational runbook covers the configuration, access controls, rotation, an
 
 Key rotation re-encrypts all existing ciphertext payloads (`token_enc` in the `credentials` table) under a new AES-256-GCM key without altering the underlying tokens or their HMAC hashes (`token_hash`).
 
-Rotation is performed while the server is active using the internal CLI utility or migration script:
+> **Not yet implemented.** There is no rotation command in `hdms-cli` today — its
+> subcommands are `seed`, `admin`, `import` and `kiosk`. The procedure below is the
+> one a rotation job must follow; write it before the first rotation is needed, and
+> delete this note when it ships.
 
-### Step-by-Step Rotation
+### The procedure a rotation job must follow
 
-1. **Generate the New Key:**
+1. **Generate the new key:**
    ```bash
    NEW_KEY=$(openssl rand -base64 32)
    ```
-2. **Execute Re-encryption in a Single Transaction:**
-   Run the CLI rotation job passing both the current active key and the proposed new key:
-   ```bash
-   hdms-cli credentials rotate-encryption-key \
-     --old-key="${HDMS_CREDENTIAL_ENC_KEY}" \
-     --new-key="${NEW_KEY}"
-   ```
-   *Execution Details:*
-   - Opens a database transaction.
-   - Selects every `credentials` row where `token_enc IS NOT NULL` using `FOR UPDATE`.
-   - Decrypts each `token_enc` with the old key, verifies the GCM tag, and re-encrypts it with the new key.
-   - Updates the rows and commits the transaction.
-3. **Update Server Environment:**
-   Update `HDMS_CREDENTIAL_ENC_KEY` in the environment configuration file:
+2. **Re-encrypt every ciphertext in one transaction**, with the old key still configured:
+   - Open a database transaction.
+   - Select every `credentials` row where `token_enc IS NOT NULL`, `FOR UPDATE`.
+   - Decrypt each `token_enc` with the old key, verifying the GCM tag, and re-encrypt under the new key.
+   - Update the rows and commit. A partial rotation must roll back — a half-rotated table is
+     readable under neither key alone.
+   - Hold the old key until the job has committed, so a failure is recoverable.
+   `token_hash` is untouched: it is an HMAC under `HDMS_TOKEN_PEPPER`, not under this key, so
+   scanning is unaffected throughout.
+3. **Update the server environment:**
    ```bash
    sed -i "s|^HDMS_CREDENTIAL_ENC_KEY=.*|HDMS_CREDENTIAL_ENC_KEY=${NEW_KEY}|" /etc/hdms/hdms.env
    ```
-4. **Restart the API Server:**
+4. **Restart the API server:**
    ```bash
    systemctl restart hdms-backend
    ```
-5. **Verify Rotation:**
-   Verify that a staff user can view their QR code in the staff PWA and that the admin reveal endpoint functions without error:
-   ```bash
-   curl -s -H "Cookie: hdms_session=..." https://localhost:8443/v1/users/{id}/credentials/{credId}/reveal
-   ```
+5. **Verify:** a staff member can still see their QR in the staff PWA (`GET /v1/staff/me/credential`),
+   and an administrator can still reveal a card (`POST /v1/credentials/{id}/reveal`).
 
 ---
 
@@ -78,7 +74,7 @@ If `HDMS_CREDENTIAL_ENC_KEY` is permanently lost, overwritten, or destroyed with
 
 ### What Breaks
 - **Staff Mobile PWA Cannot Display QR:** Any attempt by a staff member to view their digital badge (`GET /v1/staff/me/credential`) will fail with decryption errors.
-- **Admin Badge Reveal & Reprinting Fails:** Administrators can no longer view or print active staff badges (`POST /v1/users/{id}/credentials/{credId}/reveal`).
+- **Admin Badge Reveal & Reprinting Fails:** Administrators can no longer view or print active staff badges (`POST /v1/credentials/{id}/reveal`).
 
 ### Recovery Procedure
 Because AES-GCM ciphertext cannot be recovered without the key, recovery requires a mass re-issuance:

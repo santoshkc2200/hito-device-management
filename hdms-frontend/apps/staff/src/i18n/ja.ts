@@ -92,7 +92,6 @@ export const ja: StaffCatalogue = {
     save: "保存",
     saving: "保存中…",
     backToSettings: "設定に戻る",
-    success: "パスワードを更新しました",
     invalidCurrentPassword: "現在のパスワードが正しくありません",
     genericError: "パスワードの更新に失敗しました。もう一度お試しください。",
   },
@@ -100,7 +99,6 @@ export const ja: StaffCatalogue = {
     employeeNoRequired: "職員番号を入力してください",
     passwordRequired: "パスワードを入力してください",
     currentPasswordRequired: "現在のパスワードを入力してください",
-    newPasswordRequired: "新しいパスワードを入力してください",
     passwordMinLength: "パスワードは12文字以上で入力してください",
   },
 };

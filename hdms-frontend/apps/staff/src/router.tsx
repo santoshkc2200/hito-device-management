@@ -11,8 +11,6 @@ import { loginRoute } from "./routes/login";
 import { rootRoute } from "./routes/root";
 import { settingsRoute } from "./routes/settings";
 
-export { changePasswordRoute };
-
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authenticatedRoute.addChildren([

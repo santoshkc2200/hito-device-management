@@ -35,6 +35,11 @@ export default defineConfig({
       testMatch: /admin\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: "https://localhost:5174" },
     },
+    {
+      name: "staff",
+      testMatch: /staff-login\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], baseURL: "https://localhost:5175" },
+    },
   ],
   webServer: [
     {
@@ -46,6 +51,12 @@ export default defineConfig({
     {
       command: "pnpm --filter admin dev",
       url: "https://localhost:5174",
+      reuseExistingServer: !process.env.CI,
+      ignoreHTTPSErrors: true,
+    },
+    {
+      command: "pnpm --filter staff dev",
+      url: "https://localhost:5175",
       reuseExistingServer: !process.env.CI,
       ignoreHTTPSErrors: true,
     },

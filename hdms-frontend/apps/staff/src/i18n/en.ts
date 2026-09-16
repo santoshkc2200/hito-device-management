@@ -90,7 +90,6 @@ export const en = {
     save: "Save",
     saving: "Saving…",
     backToSettings: "Back to settings",
-    success: "Password updated successfully",
     invalidCurrentPassword: "Current password is incorrect",
     genericError: "Failed to update password. Please try again.",
   },
@@ -98,7 +97,6 @@ export const en = {
     employeeNoRequired: "Employee number is required",
     passwordRequired: "Password is required",
     currentPasswordRequired: "Current password is required",
-    newPasswordRequired: "New password is required",
     passwordMinLength: "Password must be at least 12 characters",
   },
 };
