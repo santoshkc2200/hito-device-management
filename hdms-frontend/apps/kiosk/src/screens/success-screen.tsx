@@ -1,6 +1,6 @@
 import * as React from "react";
 import { CheckCircle2, CornerDownLeft, Laptop, PackageCheck } from "lucide-react";
-import type { SessionDevice, SessionMessage, OutcomeKind } from "@hdms/api-client";
+import type { SessionDevice, OutcomeKind } from "@hdms/api-client";
 import { useLocale } from "@hdms/i18n";
 import { Button } from "@/components/ui/button";
 import { formatHumanDueDate } from "@/lib/date-format";
@@ -10,7 +10,6 @@ import { ScreenFrame } from "./screen-frame";
 export interface SuccessScreenProps {
   kind: OutcomeKind | "borrowed" | "returned" | string;
   device?: SessionDevice | null;
-  message?: SessionMessage | null;
   dueAt?: string | null;
   itemCount?: number;
   onDone: () => void;
@@ -27,7 +26,6 @@ export interface SuccessScreenProps {
 export function SuccessScreen({
   kind,
   device,
-  message,
   dueAt,
   itemCount = 1,
   onDone,
@@ -53,12 +51,13 @@ export function SuccessScreen({
     return () => clearTimeout(timer);
   }, [onDone]);
 
-  const title =
-    message?.title ||
-    (isReturn ? t("success.returnTitle") : t("success.borrowTitle"));
-  const detail =
-    message?.detail ||
-    (isReturn ? t("success.returnDetail") : t("success.borrowDetail"));
+  // The outcome text comes from this app's catalogue, not from the server's
+  // SessionMessage. The backend rule in docs/superpowers/specs/2026-08-31-i18n-l10n-design.md
+  // is that responses stay code-only and the client renders the copy; the
+  // server's English title would otherwise sit inside an otherwise Japanese
+  // screen. `kind` carries everything this screen needs to choose its wording.
+  const title = isReturn ? t("success.returnTitle") : t("success.borrowTitle");
+  const detail = isReturn ? t("success.returnDetail") : t("success.borrowDetail");
 
   return (
     <ScreenFrame

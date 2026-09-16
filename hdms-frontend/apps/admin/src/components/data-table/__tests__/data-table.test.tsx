@@ -3,7 +3,7 @@ import { fireEvent, render, renderHook, screen, waitFor } from "@testing-library
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ja } from "@/i18n/ja";
 import {
   DataTable,
@@ -156,6 +156,57 @@ describe("4.2b DataTable Component", () => {
       expect(clearBtn).toBeInTheDocument();
       fireEvent.click(clearBtn);
       expect(handleReset).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Row selection alongside row navigation", () => {
+    it("selects a row without opening it when the selection checkbox is clicked", async () => {
+      const user = userEvent.setup();
+      const onRowClick = vi.fn();
+
+      function SelectableTable() {
+        const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+        const columns = useMemo(
+          () => [
+            columnHelper.display({
+              id: "select",
+              header: () => null,
+              cell: ({ row }) => (
+                <input
+                  type="checkbox"
+                  aria-label={`Select row ${row.original.id}`}
+                  checked={row.getIsSelected()}
+                  onChange={row.getToggleSelectedHandler()}
+                />
+              ),
+            }),
+            columnHelper.accessor("name", { header: "Name" }),
+          ],
+          []
+        );
+
+        return (
+          <DataTable
+            columns={columns}
+            data={mockData}
+            enableRowSelection={true}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            onRowClick={onRowClick}
+          />
+        );
+      }
+
+      render(<SelectableTable />);
+
+      await user.click(screen.getByRole("checkbox", { name: "Select row 1" }));
+
+      expect(screen.getByRole("checkbox", { name: "Select row 1" })).toBeChecked();
+      expect(onRowClick).not.toHaveBeenCalled();
+
+      // A click on the row itself still opens it.
+      await user.click(screen.getByText(mockData[0].name));
+      expect(onRowClick).toHaveBeenCalledWith(mockData[0]);
     });
   });
 

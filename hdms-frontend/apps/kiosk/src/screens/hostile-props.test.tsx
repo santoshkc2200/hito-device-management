@@ -88,11 +88,6 @@ describe("Hostile Props Safety Guard (All Kiosk Screens)", () => {
       <SuccessScreen
         kind={"some_future_unknown_kind" as any}
         device={null}
-        message={{
-          title: "",
-          detail: "",
-          tone: "unknown_tone" as any,
-        }}
         dueAt={"invalid-due-date"}
         itemCount={0}
         onDone={vi.fn()}

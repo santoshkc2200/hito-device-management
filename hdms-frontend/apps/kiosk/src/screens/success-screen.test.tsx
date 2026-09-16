@@ -16,11 +16,6 @@ describe("SuccessScreen", () => {
           name: "Philips HeartStart XL+",
           assetTag: "MED-0042",
         }}
-        message={{
-          title: "Device Borrowed Successfully",
-          detail: "Defibrillator issued to Dr. Smith.",
-          tone: "success",
-        }}
         dueAt={new Date(Date.now() + 86400000).toISOString()}
         itemCount={1}
         onDone={onDone}
@@ -29,7 +24,7 @@ describe("SuccessScreen", () => {
 
     expect(screen.getByTestId("success-kind-badge")).toHaveTextContent(/Borrow Confirmed/i);
     expect(screen.getByTestId("success-title")).toHaveTextContent("Device Borrowed Successfully");
-    expect(screen.getByTestId("success-detail")).toHaveTextContent("Defibrillator issued to Dr. Smith.");
+    expect(screen.getByTestId("success-detail")).toHaveTextContent("Borrow recorded.");
     expect(screen.getByText("Philips HeartStart XL+")).toBeInTheDocument();
     expect(screen.getByText("MED-0042")).toBeInTheDocument();
 
@@ -47,11 +42,6 @@ describe("SuccessScreen", () => {
           name: "Welch Allyn Spot Vital Signs",
           assetTag: "MED-0099",
         }}
-        message={{
-          title: "Device Returned Successfully",
-          detail: "Return logged to inventory.",
-          tone: "success",
-        }}
         itemCount={1}
         onDone={onDone}
       />
@@ -59,7 +49,7 @@ describe("SuccessScreen", () => {
 
     expect(screen.getByTestId("success-kind-badge")).toHaveTextContent(/Return Confirmed/i);
     expect(screen.getByTestId("success-title")).toHaveTextContent("Device Returned Successfully");
-    expect(screen.getByTestId("success-detail")).toHaveTextContent("Return logged to inventory.");
+    expect(screen.getByTestId("success-detail")).toHaveTextContent("Return confirmed.");
   });
 
   it("successWithoutDueDateOmitsTheDueLine", () => {
