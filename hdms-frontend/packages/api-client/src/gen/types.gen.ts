@@ -1018,6 +1018,10 @@ export type ChangeStaffPasswordRequest = {
     newPassword: string;
 };
 
+export type StaffPasswordResetResponse = {
+    temporaryPassword: string;
+};
+
 export type CompleteStaffProfileRequest = {
     employeeNo: string;
     departmentId?: string;
@@ -1622,6 +1626,33 @@ export type SuspendUserResponses = {
 };
 
 export type SuspendUserResponse = SuspendUserResponses[keyof SuspendUserResponses];
+
+export type ResetStaffPasswordData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/staff-password-reset';
+};
+
+export type ResetStaffPasswordErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ResetStaffPasswordError = ResetStaffPasswordErrors[keyof ResetStaffPasswordErrors];
+
+export type ResetStaffPasswordResponses = {
+    /**
+     * Temporary password generated. Shown once to the administrator.
+     */
+    200: StaffPasswordResetResponse;
+};
+
+export type ResetStaffPasswordResponse = ResetStaffPasswordResponses[keyof ResetStaffPasswordResponses];
 
 export type ListDepartmentsData = {
     body?: never;
