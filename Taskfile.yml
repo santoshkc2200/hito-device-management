@@ -46,18 +46,18 @@ tasks:
       - docker compose down
 
   frontend:dev:
-    desc: Run both Vite dev servers (kiosk + admin) over HTTPS.
+    desc: Run both Vite dev servers (kiosk + admin + staff) over HTTPS.
     dir: "{{.FRONTEND}}"
     cmds:
       - pnpm install --frozen-lockfile
-      - pnpm --parallel --filter kiosk --filter admin dev
+      - pnpm --parallel --filter kiosk --filter admin --filter staff dev
 
   frontend:dev:remote:
     internal: true
     dir: "{{.FRONTEND}}"
     cmds:
       - pnpm install --frozen-lockfile
-      - pnpm --parallel --filter kiosk --filter admin dev --host 0.0.0.0
+      - pnpm --parallel --filter kiosk --filter admin --filter staff dev --host 0.0.0.0
 
   migrate:
     desc: Apply pending database migrations.

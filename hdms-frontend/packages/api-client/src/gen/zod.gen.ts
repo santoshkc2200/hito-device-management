@@ -943,6 +943,10 @@ export const zChangeStaffPasswordRequest = z.object({
     newPassword: z.string().min(12).max(256)
 });
 
+export const zStaffPasswordResetResponse = z.object({
+    temporaryPassword: z.string()
+});
+
 export const zCompleteStaffProfileRequest = z.object({
     employeeNo: z.string().max(32),
     departmentId: z.uuid().optional()
@@ -1200,6 +1204,15 @@ export const zSuspendUserPath = z.object({
  * OK.
  */
 export const zSuspendUserResponse = zUser;
+
+export const zResetStaffPasswordPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Temporary password generated. Shown once to the administrator.
+ */
+export const zResetStaffPasswordResponse = zStaffPasswordResetResponse;
 
 /**
  * OK.

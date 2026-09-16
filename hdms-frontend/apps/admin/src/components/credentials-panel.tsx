@@ -8,6 +8,7 @@ import {
   reissueCredential,
   reprintCredential,
   resolveCredential,
+  revealCredential,
   revokeCredential,
 } from "@hdms/api-client";
 import { inspectToken } from "@hdms/domain";
@@ -20,6 +21,7 @@ import {
   Link as LinkIcon,
   Plus,
   Printer,
+  QrCode,
   RotateCcw,
   ShieldX,
 } from "lucide-react";
@@ -392,6 +394,16 @@ export function CredentialsPanel({
     onError: () => toast.error(t("credentialsPanel.reprintFailed")),
   });
 
+  const revealMutation = useMutation({
+    mutationFn: async (id: string) => revealCredential({ path: { id } }),
+    onSuccess: async ({ data, error }) => {
+      if (error) throw error;
+      await invalidate();
+      setRevealToken(data?.token);
+    },
+    onError: () => toast.error(t("credentialsPanel.revealFailed")),
+  });
+
   const revokeMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) =>
       revokeCredential({ path: { id }, body: { reason } }),
@@ -614,20 +626,32 @@ export function CredentialsPanel({
                             disabled={reprintMutation.isPending}
                           >
                             <Printer className="size-4" data-icon="inline-start" />
-                            {t("tokenRevealDialog.print")}
+                            {t("credentialsPanel.reprint")}
                           </Button>
                         )}
                         {subjectType === "user" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-amber-500/30 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
-                            title={t("credentialsPanel.reportLostAction")}
-                            onClick={() => setReissueTarget(c)}
-                          >
-                            <RotateCcw className="size-4" data-icon="inline-start" />
-                            {t("credentialsPanel.reissueAndPrint")}
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              title={t("credentialsPanel.viewQrAction")}
+                              onClick={() => revealMutation.mutate(c.id)}
+                              disabled={revealMutation.isPending}
+                            >
+                              <QrCode className="size-4" data-icon="inline-start" />
+                              {t("credentialsPanel.viewQr")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-amber-500/30 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                              title={t("credentialsPanel.reportLostAction")}
+                              onClick={() => setReissueTarget(c)}
+                            >
+                              <RotateCcw className="size-4" data-icon="inline-start" />
+                              {t("credentialsPanel.reportLost")}
+                            </Button>
+                          </>
                         ) : (
                           <Button
                             size="sm"

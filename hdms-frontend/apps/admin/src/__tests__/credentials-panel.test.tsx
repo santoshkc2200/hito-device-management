@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
-import { translate } from "@hdms/i18n";
+import { LocaleProvider, translate } from "@hdms/i18n";
 import { catalogues } from "@/i18n";
 import { ja } from "@/i18n/ja";
 import { CredentialsPanel } from "../components/credentials-panel";
@@ -21,6 +21,7 @@ vi.mock("@hdms/api-client", async (importOriginal) => {
     reissueCredential: vi.fn(),
     bindCredential: vi.fn(),
     resolveCredential: vi.fn(),
+    revealCredential: vi.fn(),
   };
 });
 
@@ -215,13 +216,13 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     expect(
       await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 1 }))
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: ja.tokenRevealDialog.print })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: ja.credentialsPanel.reprint })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: ja.credentialsPanel.reissueAndPrint })
+      screen.queryByRole("button", { name: ja.credentialsPanel.reportLost })
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'Reissue & print' on user panel and never plain 'Print'", async () => {
+  it("renders 'View QR' and 'Report lost' on user panel and never plain 'Print'", async () => {
     vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
       data: { items: mockUserCredentials },
       error: undefined,
@@ -246,10 +247,13 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
       await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: ja.credentialsPanel.reissueAndPrint })
+      screen.getByRole("button", { name: ja.credentialsPanel.viewQr })
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: ja.tokenRevealDialog.print })
+      screen.getByRole("button", { name: ja.credentialsPanel.reportLost })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: ja.credentialsPanel.reprint })
     ).not.toBeInTheDocument();
   });
 
@@ -278,7 +282,7 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     expect(
       await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
     ).toBeInTheDocument();
-    const reissueBtn = screen.getByRole("button", { name: ja.credentialsPanel.reissueAndPrint });
+    const reissueBtn = screen.getByRole("button", { name: ja.credentialsPanel.reportLost });
     await user.click(reissueBtn);
 
     // Dialog opens with consequences description
@@ -332,7 +336,7 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     expect(
       await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: ja.credentialsPanel.reissueAndPrint }));
+    await user.click(screen.getByRole("button", { name: ja.credentialsPanel.reportLost }));
 
     const textarea = screen.getByPlaceholderText(ja.credentialsPanel.reasonPlaceholder);
     await user.type(textarea, "Card broken into two pieces");
@@ -390,6 +394,63 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     const cancelBtn = screen.getByRole("button", { name: ja.common.cancel });
     await user.click(cancelBtn);
     expect(apiClient.revokeCredential).not.toHaveBeenCalled();
+  });
+
+  function renderPanel({
+    subjectType,
+    credentials,
+  }: {
+    subjectType: "user" | "device";
+    credentials: apiClient.Credential[];
+  }) {
+    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
+      data: { items: credentials },
+      error: undefined,
+    } as any);
+
+    const subject =
+      subjectType === "user"
+        ? {
+            type: "user" as const,
+            fullName: "Dr. Taro Yamada",
+            employeeNo: "HH-1001",
+            department: "Emergency Department",
+          }
+        : {
+            type: "device" as const,
+            assetTag: "TAG-001",
+            name: "Infusion Pump",
+            model: "IP-1000",
+          };
+
+    return render(
+      <LocaleProvider locale="en">
+        <QueryClientProvider client={queryClient}>
+          <CredentialsPanel
+            subjectType={subjectType}
+            subjectId={subjectType === "user" ? "user-1" : "dev-1"}
+            subject={subject}
+          />
+        </QueryClientProvider>
+      </LocaleProvider>
+    );
+  }
+
+  it("offers view and print on a user card and no reissue-to-reprint", async () => {
+    renderPanel({ subjectType: "user", credentials: [mockUserCredentials[0]] });
+
+    expect(await screen.findByRole("button", { name: /view qr/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^reissue$/i })).not.toBeInTheDocument();
+    // The lost-card path survives: it is the only way to invalidate a card
+    // someone can no longer find (ADR-0016).
+    expect(screen.getByRole("button", { name: /report lost/i })).toBeInTheDocument();
+  });
+
+  it("keeps reissue and reprint on a device credential", async () => {
+    renderPanel({ subjectType: "device", credentials: [mockDeviceCredentials[0]] });
+
+    expect(await screen.findByRole("button", { name: /reissue/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reprint/i })).toBeInTheDocument();
   });
 
   it("passes axe accessibility checks", async () => {

@@ -435,6 +435,23 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /users/{id}/staff-password-reset:
+    post:
+      operationId: resetStaffPassword
+      summary: Reset a staff member's password to a generated temporary password and revoke their sessions.
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: Temporary password generated. Shown once to the administrator.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffPasswordResetResponse"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /departments:
     get:
       operationId: listDepartments
@@ -3720,6 +3737,12 @@ components:
       properties:
         currentPassword: {type: string, maxLength: 256}
         newPassword: {type: string, minLength: 12, maxLength: 256}
+
+    StaffPasswordResetResponse:
+      type: object
+      required: [temporaryPassword]
+      properties:
+        temporaryPassword: {type: string}
 
     CompleteStaffProfileRequest:
       type: object

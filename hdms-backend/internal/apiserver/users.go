@@ -2,12 +2,14 @@ package apiserver
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/platform/db"
@@ -335,4 +337,71 @@ func (s *Server) CheckEmployeeNo(w http.ResponseWriter, r *http.Request, params 
 	}
 
 	s.writeServiceError(w, r, err)
+}
+
+const temporaryPasswordChars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+func generateTemporaryPassword(length int) (string, error) {
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate temporary password: %w", err)
+	}
+	for i := range buf {
+		buf[i] = temporaryPasswordChars[int(buf[i])%len(temporaryPasswordChars)]
+	}
+	return string(buf), nil
+}
+
+func (s *Server) resetStaffPassword(ctx context.Context, userID string, actor string) (string, error) {
+	user, err := s.identity.LookupUser(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+
+	account, err := s.staffAuth.EnsureAccount(ctx, user.ID, actor, true)
+	if err != nil {
+		return "", fmt.Errorf("ensure staff account: %w", err)
+	}
+
+	tempPassword, err := generateTemporaryPassword(16)
+	if err != nil {
+		return "", err
+	}
+
+	if err := s.staffAuth.SetPassword(ctx, account.ID, tempPassword, true); err != nil {
+		return "", fmt.Errorf("set temp password: %w", err)
+	}
+
+	if err := s.staffAuth.RevokeAllSessions(ctx, account.ID); err != nil {
+		return "", fmt.Errorf("revoke staff sessions: %w", err)
+	}
+
+	_ = s.audit.Record(ctx, auditapi.Event{
+		Actor:   actor,
+		Action:  "staff.password_reset",
+		Subject: "user:" + user.ID,
+		Payload: map[string]any{
+			"userId":    user.ID,
+			"accountId": account.ID,
+		},
+	})
+
+	return tempPassword, nil
+}
+
+func (s *Server) ResetStaffPassword(w http.ResponseWriter, r *http.Request, id gen.IDParam) {
+	tempPassword, err := s.resetStaffPassword(r.Context(), id, actorFrom(r))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	setNoStore(w)
+	writeJSON(w, http.StatusOK, gen.StaffPasswordResetResponse{
+		TemporaryPassword: tempPassword,
+	})
+}
+
+// ResetStaffPasswordForTest exposes the staff password reset to integration tests.
+func (s *Server) ResetStaffPasswordForTest(ctx context.Context, userID, actor string) (string, error) {
+	return s.resetStaffPassword(ctx, userID, actor)
 }
