@@ -51,6 +51,7 @@ func run() error {
 
 	logger := observability.NewLogger(cfg.LogLevel)
 	slog.SetDefault(logger)
+	cfg.LogEffective(logger)
 
 	shutdownTracing, err := observability.InitTracing(ctx, "hdms-api", cfg.OTLPEndpoint)
 	if err != nil {
@@ -157,10 +158,10 @@ func run() error {
 		httpx.WithRequestID,
 		httpx.WithLogging(logger),
 		httpx.WithRecovery(logger),
-		httpx.WithCORS(devOrigins()),
+		httpx.WithCORS(cfg.CORSAllowedOrigins),
 		staffAuthSvc.Middleware,
 		authSvc.Middleware,
-		httpx.WithRateLimit,
+		httpx.WithRateLimiting(cfg.RateLimitEnabled),
 		httpx.WithIdempotency(pool, actorOf, logger),
 	)(otelhttp.NewHandler(mux, "hdms-api"))
 
@@ -192,14 +193,4 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return server.Shutdown(shutdownCtx)
-}
-
-// devOrigins is the Vite dev server allowlist for local development. Caddy
-// terminates same-origin in every other environment, where CORS is not in
-// the request path at all.
-func devOrigins() []string {
-	return []string{
-		"https://localhost:5173",
-		"https://localhost:5174",
-	}
 }

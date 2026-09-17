@@ -1587,6 +1587,11 @@ export const ja = {
     credentialReissued: "認証カードを再発行しました",
     reissueFailed: "認証カードを再発行できませんでした",
   },
+  staging: {
+    banner: "【ステージング環境】検証・訓練用です。実在の利用者を登録しないでください",
+    registerWarningTitle: "【ステージング環境】実在の職員・利用者情報は絶対に登録しないでください",
+    registerWarningDescription: "この環境は演習・リハーサル・負荷テスト用です。登録されたデータはリセットまたはテストで上書きされます。",
+  },
 };
 
 export type AdminMessages = typeof ja;

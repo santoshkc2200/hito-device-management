@@ -1,0 +1,45 @@
+# Staging stack override for Docker Compose.
+# Run with: docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d
+# Or via Taskfile: task staging:up / task staging:down / task staging:seed
+
+name: hdms-staging
+
+services:
+  db:
+    ports: !override
+      - "5443:5432"
+    volumes: !override
+      - hdms-staging-db-data:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hdms_staging}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hdms_staging_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-hdms_staging}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hdms_staging}"]
+
+  api:
+    env_file: !override
+      - ${HDMS_STAGING_ENV_FILE:-.env.staging}
+    environment:
+      HDMS_ENV: staging
+      HDMS_RATE_LIMIT: "on"
+      HDMS_HTTP_ADDR: ":8443"
+      HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms_staging}:${POSTGRES_PASSWORD:-hdms_staging_secret}@db:5432/${POSTGRES_DB:-hdms_staging}?sslmode=disable
+      HDMS_TLS_CERT_FILE: /certs/localhost.pem
+      HDMS_TLS_KEY_FILE: /certs/localhost-key.pem
+    # No source bind-mount: runs container image code without dev hot-reload
+    volumes: !override
+      - ./certs:/certs:ro
+    command: ["go", "run", "./cmd/hdms-api"]
+
+  caddy:
+    # Own host port and own site address, so staging and dev can be up at the
+    # same time: a drill against staging must not require stopping dev.
+    ports: !override
+      - "9443:9443"
+    volumes: !override
+      - ./deploy/Caddyfile.staging:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+
+volumes:
+  hdms-staging-db-data:

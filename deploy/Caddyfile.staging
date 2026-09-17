@@ -1,0 +1,28 @@
+# Staging front door. Same shape as the dev Caddyfile, on a separate host port
+# so the staging stack and the dev stack can run side by side — a drill against
+# staging must never require taking the dev environment down. 5.3a replaces this
+# with the production front door, which staging will then mirror.
+{
+	auto_https off
+}
+
+https://localhost:9443 {
+	tls /certs/localhost.pem /certs/localhost-key.pem
+
+	@options {
+		method OPTIONS
+	}
+	handle @options {
+		header ?Access-Control-Allow-Origin "https://localhost:5175"
+		header ?Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS"
+		header ?Access-Control-Allow-Headers "Authorization, Content-Type, Idempotency-Key, Cache-Control, X-CSRF-Token"
+		header ?Access-Control-Max-Age "3600"
+		respond 204
+	}
+
+	reverse_proxy api:8443 {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}

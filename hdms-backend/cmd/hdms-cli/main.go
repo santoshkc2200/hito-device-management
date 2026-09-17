@@ -26,6 +26,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/i18n"
+	"github.com/hito-hospital/hdms/internal/platform/seed"
 	"golang.org/x/term"
 	"golang.org/x/text/language"
 )
@@ -100,7 +101,7 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 	case "migrate":
 		return db.Migrate(ctx, cfg.DatabaseURL)
 	case "seed":
-		return db.Migrate(ctx, cfg.DatabaseURL) // Phase 1 adds fixture data beyond the schema.
+		return runSeed(ctx, cfg, args)
 	case "admin":
 		return runAdmin(ctx, cfg, args, cat)
 	case "import":
@@ -110,6 +111,37 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 	default:
 		return fmt.Errorf("unknown subcommand %q", cmd)
 	}
+}
+
+func runSeed(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("seed", flag.ContinueOnError)
+	scale := fs.Bool("scale", false, "populate pilot-scale synthetic data (~800 users, ~500 devices, 5 000 loans)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	isScale := *scale
+	for _, a := range fs.Args() {
+		if a == "scale" || a == "--scale" {
+			isScale = true
+		}
+	}
+
+	if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
+	if isScale {
+		pool, err := db.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return fmt.Errorf("open db: %w", err)
+		}
+		defer pool.Close()
+		fmt.Println("Seeding synthetic pilot-scale data (~800 users, ~500 devices, 5 000 loans)...")
+		if err := seed.SeedRealisticScaleDataset(ctx, pool); err != nil {
+			return fmt.Errorf("seed scale data: %w", err)
+		}
+		fmt.Println("Seeding completed successfully.")
+	}
+	return nil
 }
 
 func runImport(ctx context.Context, cfg config.Config, args []string, cat *i18n.Catalogue) error {
