@@ -156,4 +156,32 @@ describe("api library & resilience", () => {
     const nextSignal = getSessionAbortSignal();
     expect(nextSignal.aborted).toBe(false);
   });
+
+  it("honoursRetryAfterHeaderOn429", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount += 1;
+      if (callCount === 1) {
+        const headers = new Headers();
+        headers.set("Retry-After", "5");
+        return new Response(JSON.stringify({ type: "rate-limited" }), {
+          status: 429,
+          headers,
+        });
+      }
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    });
+
+    const fetchPromise = resilientFetch("https://api.test/v1/sessions/123/scan");
+
+    // Advance 4999ms - should still be waiting
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(callCount).toBe(1);
+
+    // Advance 2ms (total 5001ms) - should have retried
+    await vi.advanceTimersByTimeAsync(2);
+    const response = await fetchPromise;
+    expect(response.status).toBe(200);
+    expect(callCount).toBe(2);
+  });
 });

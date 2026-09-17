@@ -119,13 +119,9 @@ func (s *Server) staffMe(ctx context.Context, user identityapi.UserSummary, acco
 
 func (s *Server) StaffPasswordLogin(w http.ResponseWriter, r *http.Request) {
 	if !staffLimiter.allow(getClientIP(r)) {
+		w.Header().Set("Retry-After", "60")
 		httpx.WriteProblem(w, r, httpx.NewProblem("too-many-attempts", "Too many attempts", http.StatusTooManyRequests))
 		return
-	}
-
-	// Session fixation protection: invalidate any existing staff session passed by caller
-	if cookie, err := r.Cookie(staffauth.SessionCookieName); err == nil && cookie.Value != "" {
-		_ = s.staffAuth.RevokeSession(r.Context(), cookie.Value)
 	}
 
 	req, ok := decodeJSON[gen.StaffPasswordLoginRequest](w, r)
@@ -158,6 +154,13 @@ func (s *Server) StaffPasswordLogin(w http.ResponseWriter, r *http.Request) {
 		s.writeServiceError(w, r, err)
 		return
 	}
+	// Session fixation protection: the identifier the caller arrived with is
+	// revoked only once authentication has succeeded, so a failed attempt can
+	// never log a live session out.
+	if cookie, err := r.Cookie(staffauth.SessionCookieName); err == nil && cookie.Value != "" && cookie.Value != sessionToken {
+		_ = s.staffAuth.RevokeSession(r.Context(), cookie.Value)
+	}
+
 	ttl := int(s.staffAuth.SessionTTL().Seconds())
 	http.SetCookie(w, staffauth.SessionCookie(sessionToken, ttl))
 	http.SetCookie(w, staffauth.CSRFCookie(csrfToken, ttl))

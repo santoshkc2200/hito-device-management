@@ -164,11 +164,20 @@ export async function resilientFetch(
       if (isRetryableError(response.status)) {
         if (attempt < MAX_RETRY_COUNT) {
           attempt += 1;
-          const delay = calculateRetryDelay(attempt - 1);
+          let delay = calculateRetryDelay(attempt - 1);
+          if (response.status === 429) {
+            const retryAfterHeader = response.headers?.get?.("Retry-After");
+            if (retryAfterHeader) {
+              const seconds = parseInt(retryAfterHeader, 10);
+              if (!isNaN(seconds) && seconds > 0) {
+                delay = seconds * 1000;
+              }
+            }
+          }
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
-        // Exhausted retries on 5xx
+        // Exhausted retries on 5xx or 429
         recordRequestFailure();
         return response;
       }

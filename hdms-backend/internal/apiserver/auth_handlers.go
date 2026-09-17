@@ -9,11 +9,6 @@ import (
 )
 
 func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
-	// Session fixation protection: invalidate any existing session passed by caller
-	if cookie, err := r.Cookie("hdms_session"); err == nil && cookie.Value != "" {
-		_ = s.auth.RevokeSession(r.Context(), cookie.Value)
-	}
-
 	req, ok := decodeJSON[gen.LoginRequest](w, r)
 	if !ok {
 		return
@@ -32,6 +27,14 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
+	}
+
+	// Session fixation protection: the identifier the caller arrived with is
+	// revoked once authentication has succeeded, so it can never be reused
+	// against the new privilege level. A failed attempt leaves it alone —
+	// otherwise an unauthenticated request could log a live session out.
+	if cookie, err := r.Cookie("hdms_session"); err == nil && cookie.Value != "" && cookie.Value != sessionToken {
+		_ = s.auth.RevokeSession(r.Context(), cookie.Value)
 	}
 
 	ttlSeconds := int(s.auth.SessionTTL().Seconds())

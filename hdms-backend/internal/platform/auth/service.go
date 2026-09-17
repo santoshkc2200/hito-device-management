@@ -629,6 +629,22 @@ func (s *Service) UpdateAdmin(ctx context.Context, actorID, id string, fullName,
 	}
 
 	q := authstore.New(db.Conn(ctx, s.pool))
+
+	// A role change is a privilege change, so the admin's sessions are revoked
+	// below. Read the current role first, so that writing the same role back is
+	// not treated as a change and does not log the admin out.
+	var roleChanged bool
+	if role != nil {
+		current, err := q.GetAdminAccountByID(ctx, uid)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return AdminIdentity{}, ErrAdminNotFound
+			}
+			return AdminIdentity{}, fmt.Errorf("auth: update admin: %w", err)
+		}
+		roleChanged = string(current.Role) != *role
+	}
+
 	r, err := q.UpdateAdmin(ctx, authstore.UpdateAdminParams{
 		ID:       uid,
 		FullName: fullText,
@@ -642,8 +658,9 @@ func (s *Service) UpdateAdmin(ctx context.Context, actorID, id string, fullName,
 		return AdminIdentity{}, fmt.Errorf("auth: update admin: %w", err)
 	}
 
-	// If status changed to disabled or role changed, revoke all sessions for this admin
-	if (status != nil && *status == "disabled") || role != nil {
+	// If status changed to disabled or the role actually changed, revoke all
+	// sessions for this admin.
+	if (status != nil && *status == "disabled") || roleChanged {
 		_ = q.DeleteSessionsByAdminID(ctx, uid)
 	}
 

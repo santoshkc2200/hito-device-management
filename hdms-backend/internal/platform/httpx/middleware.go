@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -27,22 +28,55 @@ func Chain(mws ...Middleware) Middleware {
 	}
 }
 
-// sensitiveFields never reach the logging middleware, request or response.
-// Enforced by TestSensitiveFieldsNeverLogged so a future field can't be
-// added to a log line without also being added — deliberately — here.
+// sensitiveFields never reach the logging middleware, request or response,
+// OpenTelemetry traces, RFC 9457 error bodies, or audit event payloads.
+// Enforced by TestSensitiveFieldsNeverLogged and companion tests so a future
+// field can't be added without also being added — deliberately — here.
 var sensitiveFields = map[string]struct{}{
-	"token":         {},
-	"password":      {},
-	"totpCode":      {},
-	"totpSecret":    {},
-	"tokenHash":     {},
-	"kioskToken":    {},
-	"authorization": {},
+	"token":               {},
+	"password":            {},
+	"totpCode":            {},
+	"totpcode":            {},
+	"totp_code":           {},
+	"totpSecret":          {},
+	"totpsecret":          {},
+	"totp_secret":         {},
+	"tokenHash":           {},
+	"tokenhash":           {},
+	"token_hash":          {},
+	"kioskToken":          {},
+	"kiosktoken":          {},
+	"kiosk_token":         {},
+	"authorization":       {},
+	"clientSecret":        {},
+	"clientsecret":        {},
+	"client_secret":       {},
+	"entraClientSecret":   {},
+	"entraclientsecret":   {},
+	"entra_client_secret": {},
+	"secret":              {},
+	"recoveryCode":        {},
+	"recoverycode":        {},
+	"recovery_code":       {},
+	"tokenPepper":         {},
+	"tokenpepper":         {},
+	"token_pepper":        {},
+	"sessionToken":        {},
+	"sessiontoken":        {},
+	"session_token":       {},
+	"csrfToken":           {},
+	"csrftoken":           {},
+	"csrf_token":          {},
+	"bearer":              {},
 }
 
-// IsSensitiveField reports whether a field name must never be logged.
+// IsSensitiveField reports whether a field name must never be logged or exposed.
 func IsSensitiveField(name string) bool {
-	_, ok := sensitiveFields[name]
+	if _, ok := sensitiveFields[name]; ok {
+		return true
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "-", "_"))
+	_, ok := sensitiveFields[normalized]
 	return ok
 }
 
@@ -125,28 +159,51 @@ func ActorFromContext(ctx context.Context) string {
 	return ""
 }
 
-// principalLimiters holds token buckets keyed by actor ("admin:<id>", "kiosk:<id>") or client IP.
-var principalLimiters sync.Map // map[string]*rate.Limiter
-
-// loginLimiters is scoped to POST /v1/auth/login to blunt password-guessing.
-var loginLimiters sync.Map // map[string]*rate.Limiter
-
-// pairLimiters is scoped to POST /v1/kiosks/pair (5 attempts per minute per IP).
-var pairLimiters sync.Map // map[string]*rate.Limiter
-
-const (
-	generalRateLimit = 10.0 // sustained rate
-	generalBurst     = 300
-	loginRateLimit   = 1.0
-	loginBurst       = 20
-	pairRateLimit    = 5.0 / 60.0 // 5 attempts per minute
-	pairBurst        = 10
+// Rate limiter sync.Maps per class.
+var (
+	principalLimiters sync.Map // fallback / general map[string]*rate.Limiter
+	loginLimiters     sync.Map // login class map[string]*rate.Limiter
+	pairLimiters      sync.Map // pairing class map[string]*rate.Limiter
+	kioskScanLimiters sync.Map // kiosk scan class map[string]*rate.Limiter
+	adminReadLimiters sync.Map // admin reads class map[string]*rate.Limiter
+	exportLimiters    sync.Map // exports class map[string]*rate.Limiter
+	generalLimiters   sync.Map // general class map[string]*rate.Limiter
 )
 
-// WithRateLimiting applies per-principal / per-IP rate limits (docs/06-api-contract.md, 2.6.5):
-// - 60 req/min per kiosk token and per admin session
-// - 5 req/min per IP on POST /v1/kiosks/pair
-// - 1 attempt per 10s per IP on POST /v1/auth/login
+const (
+	// Login class (strict): blunts credential-guessing attacks while allowing
+	// legitimate retries up to the 5-attempt account lockout threshold.
+	loginRateLimit = 10.0 / 60.0 // 10 attempts per minute sustained
+	loginBurst     = 10
+
+	// Pairing class (strict): 5 attempts per minute per client IP.
+	pairRateLimit = 5.0 / 60.0
+	pairBurst     = 10
+
+	// Kiosk scan class (generous): must easily pass the Phase 5.1c replay burst
+	// where an offline queue of up to 200 items drains upon network reconnect.
+	kioskScanRateLimit = 20.0 // 20 req/s sustained
+	kioskScanBurst     = 300  // generous burst to drain 200 items without failure
+
+	// Admin reads class (moderate): interactive navigation and search for admins.
+	adminReadRateLimit = 10.0 // 10 req/s sustained
+	adminReadBurst     = 60
+
+	// Exports class (strict): heavy CSV database streaming reports.
+	exportRateLimit = 6.0 / 60.0 // 6 exports per minute (1 per 10s)
+	exportBurst     = 5
+
+	// General fallback.
+	generalRateLimit = 10.0
+	generalBurst     = 100
+)
+
+// WithRateLimiting applies per-principal / per-IP rate limits tuned per class (docs/06-api-contract.md, 2.6.5, 5.2b):
+// - login (strict): POST /v1/auth/login, POST /v1/staff/auth/password
+// - pairing (strict): POST /v1/kiosks/pair
+// - kiosk scan (generous): POST /v1/sessions* or kiosk-authenticated requests (sized for 5.1c replay burst)
+// - exports (strict): CSV reporting endpoints
+// - admin reads (moderate): GET endpoints across administrative entities
 // Denials return 429 with Retry-After header and RFC 9457 problem JSON.
 func WithRateLimiting(enabled bool) Middleware {
 	return func(next http.Handler) http.Handler {
@@ -154,9 +211,11 @@ func WithRateLimiting(enabled bool) Middleware {
 			return next
 		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := clientIP(r)
+			ip := ClientIP(r)
+			actor := ActorFromContext(r.Context())
 
-			if r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login" {
+			// 1. Login class (strict, keyed by client IP)
+			if r.Method == http.MethodPost && (r.URL.Path == "/v1/auth/login" || r.URL.Path == "/v1/staff/auth/password") {
 				if !allow(&loginLimiters, ip, loginRateLimit, loginBurst) {
 					w.Header().Set("Retry-After", "60")
 					WriteProblem(w, r, NewProblem("rate-limited", "Too many login attempts", http.StatusTooManyRequests))
@@ -164,6 +223,7 @@ func WithRateLimiting(enabled bool) Middleware {
 				}
 			}
 
+			// 2. Kiosk pairing (strict, keyed by client IP)
 			if r.Method == http.MethodPost && r.URL.Path == "/v1/kiosks/pair" {
 				if !allow(&pairLimiters, ip, pairRateLimit, pairBurst) {
 					w.Header().Set("Retry-After", "60")
@@ -172,12 +232,46 @@ func WithRateLimiting(enabled bool) Middleware {
 				}
 			}
 
-			key := ActorFromContext(r.Context())
+			key := actor
 			if key == "" {
 				key = ip
 			}
 
-			if !allow(&principalLimiters, key, generalRateLimit, generalBurst) {
+			// 3. Exports class (heavy CSV report downloads)
+			if strings.HasSuffix(r.URL.Path, ".csv") || (r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/reports/") && strings.Contains(r.URL.Path, "export")) {
+				if !allow(&exportLimiters, key, exportRateLimit, exportBurst) {
+					w.Header().Set("Retry-After", "60")
+					WriteProblem(w, r, NewProblem("rate-limited", "Too many export requests", http.StatusTooManyRequests))
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// 4. Kiosk scan class (generous: allows offline queue drain up to 200 items in burst)
+			if strings.HasPrefix(key, "kiosk:") || (r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/sessions")) {
+				if !allow(&kioskScanLimiters, key, kioskScanRateLimit, kioskScanBurst) {
+					w.Header().Set("Retry-After", "60")
+					WriteProblem(w, r, NewProblem("rate-limited", "Rate limit exceeded", http.StatusTooManyRequests))
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// 5. Admin reads class
+			if r.Method == http.MethodGet && !strings.HasPrefix(r.URL.Path, "/v1/healthz") && !strings.HasPrefix(r.URL.Path, "/v1/readyz") && !strings.HasPrefix(r.URL.Path, "/v1/events/stream") {
+				if !allow(&adminReadLimiters, key, adminReadRateLimit, adminReadBurst) {
+					w.Header().Set("Retry-After", "60")
+					WriteProblem(w, r, NewProblem("rate-limited", "Rate limit exceeded", http.StatusTooManyRequests))
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// 6. General fallback
+			if !allow(&generalLimiters, key, generalRateLimit, generalBurst) {
 				w.Header().Set("Retry-After", "60")
 				WriteProblem(w, r, NewProblem("rate-limited", "Rate limit exceeded", http.StatusTooManyRequests))
 				return
@@ -207,18 +301,37 @@ func ResetRateLimiters() {
 		pairLimiters.Delete(key)
 		return true
 	})
+	kioskScanLimiters.Range(func(key, value any) bool {
+		kioskScanLimiters.Delete(key)
+		return true
+	})
+	adminReadLimiters.Range(func(key, value any) bool {
+		adminReadLimiters.Delete(key)
+		return true
+	})
+	exportLimiters.Range(func(key, value any) bool {
+		exportLimiters.Delete(key)
+		return true
+	})
+	generalLimiters.Range(func(key, value any) bool {
+		generalLimiters.Delete(key)
+		return true
+	})
 }
 
-// clientIP prefers the first hop of X-Forwarded-For (Caddy sets this in
-// front of the app in every environment except native `go run` dev, where
-// there is no proxy and RemoteAddr is the real client) and falls back to
-// RemoteAddr.
-func clientIP(r *http.Request) string {
+// ClientIP returns the client's IP address, preferring the first hop of
+// X-Forwarded-For (Caddy sets this in front of the app in every environment except
+// native `go run` dev) and falling back to RemoteAddr stripped of port.
+func ClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		if i := strings.IndexByte(xff, ','); i >= 0 {
 			return strings.TrimSpace(xff[:i])
 		}
 		return strings.TrimSpace(xff)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
 	}
 	return r.RemoteAddr
 }

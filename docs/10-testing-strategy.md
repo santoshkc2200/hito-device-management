@@ -116,6 +116,13 @@ past timestamp and therefore the only path that can corrupt history:
   retried with the same idempotency key.
 - Append-only audit: the application role's `UPDATE`/`DELETE` on `audit_events`
   is rejected by the database.
+- **Rate limiting tuned per class (§5.2b)**: login lockout threshold reached before 429 lockout,
+  and 5.1c offline replay burst of 200 items passing without throttling (`TestLoginLockoutThresholdAndScanBurstAtReplayVolume`).
+- **Rate limiter proxy keying (§5.2b)**: client IP correctly extracted from `X-Forwarded-For` behind Caddy
+  so clients do not share a single proxy bucket (`TestRateLimitKeyIsPerClientBehindTheProxy`).
+- **Token redaction across all sinks (§5.2c)**: credential tokens and secrets never appear in
+  request logs (`TestTokenNeverAppearsInLogOutput`), OpenTelemetry span attributes (`TestTokenNeverAppearsInSpanAttributes`),
+  RFC 9457 error bodies (`TestTokenNeverAppearsInProblemDetails`), or audit event payloads (`TestTokenNeverAppearsInAuditPayload`).
 
 ### Module boundary tests
 

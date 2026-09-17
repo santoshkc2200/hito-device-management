@@ -55,6 +55,22 @@ rate-limited and their source IP recorded.
 re-asserted in the module layer for anything destructive. Every check failure
 produces an audit row — repeated `forbidden` responses for one actor is a signal.
 
+**Rate limiting (§5.2b).** Enforced in HTTP middleware (`httpx.WithRateLimiting`)
+tuned per traffic class to defend the service without breaking operational recovery:
+- **Login (strict):** 10 attempts/min, burst 10 per client IP on `POST /v1/auth/login`
+  and `POST /v1/staff/auth/password`; 5 attempts/min, burst 10 on `POST /v1/kiosks/pair`.
+  Strict to blunt credential-guessing, yet allows reaching the 5-attempt account lockout
+  threshold before tripping 429.
+- **Kiosk scan (generous):** 20 req/s, burst 300 on `POST /v1/sessions*` and kiosk-authenticated
+  requests. Sized specifically so that a full Phase 5.1c offline queue drain (up to 200 items)
+  after an outage passes immediately without throttling.
+- **Admin reads (moderate):** 10 req/s, burst 60 across administrative GET routes.
+- **Exports (strict):** 6 req/min (1 per 10s), burst 5 for heavy CSV report streaming.
+- **Keying behind reverse proxy:** `httpx.ClientIP` prefers the first hop of `X-Forwarded-For`
+  (set by Caddy) so that clients behind the proxy have independent buckets rather than
+  sharing the proxy's IP. Denials return `429 Too Many Requests` with a `Retry-After` header
+  and RFC 9457 problem JSON; the kiosk `resilientFetch` client honours `Retry-After`.
+
 ## Privacy
 
 **Data held:** staff name, employee number, department, work email/phone,
@@ -156,22 +172,23 @@ timing the whole thing. A backup that has never been restored is a hypothesis.
 ## Observability
 
 **Logs** — `log/slog` in JSON, with request ID, actor, module, and duration on
-every request. Credential tokens are never logged: the logging middleware has an
-explicit denylist for the fields carrying them, and a test asserts a token value
-never appears in log output.
-
-**Metrics** — Prometheus format at `/metrics` (internal only):
-
-- `hdms_loans_open` (gauge), `hdms_devices_by_status` (gauge)
-- `hdms_transactions_total{action,source,outcome}` (counter)
-- `hdms_scan_rejections_total{reason}` (counter)
-- `hdms_http_request_duration_seconds{route,status}` (histogram)
-- `hdms_kiosk_last_seen_seconds{kiosk}` (gauge)
-- `hdms_session_expired_total` (counter)
+every request. Credential tokens and secrets are never logged: `httpx.WithLogging`
+only logs method, path (without query parameters), status, duration, and request ID.
+Sensitive headers and bodies are omitted by construction, backed by an explicit
+sensitive-field denylist (`httpx.IsSensitiveField`).
 
 **Traces** — OpenTelemetry spans across HTTP → module → database, sampled at
-100% given the trivial volume. Debugging "the kiosk was slow at 09:14" becomes
-looking at one trace.
+100% given the trivial volume. `observability.NewRedactingSpanProcessor` intercepts
+all span creation, actively redacting sensitive fields (`token`, `password`, `totpCode`, etc.)
+and sanitizing query strings in `http.target` and URL attributes.
+
+**Error bodies & audit events (§5.2c)** — Tokens cannot leak into RFC 9457 error
+bodies (`httpx.WriteProblem` sanitizes `p.Detail`, strips sensitive keys from
+`p.Extensions`, and confines `p.Instance` to `r.URL.Path`) or audit event payloads
+(`audit.SanitizePayload` sanitizes/redacts all payload maps before database insertion).
+Tokens never reach URLs, query strings, or referrers (`Referrer-Policy: strict-origin-when-cross-origin`).
+CI enforces repository-wide scanning preventing committed private keys and preventing
+`dev-only-pepper-change-me` from appearing outside `.env.example`.
 
 **Alerts** that actually warrant waking someone:
 

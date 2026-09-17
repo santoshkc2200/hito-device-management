@@ -8,14 +8,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"regexp"
 	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
 	"github.com/hito-hospital/hdms/internal/modules/audit/internal/store"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+var tokenPattern = regexp.MustCompile(`HD-[UD]-[0-9A-Z]{10}-[0-9A-Z]`)
 
 // Service implements auditapi.Service against Postgres.
 type Service struct {
@@ -34,7 +38,8 @@ var _ auditapi.Service = (*Service)(nil)
 // already on ctx so it commits atomically with the domain change it
 // describes.
 func (s *Service) Record(ctx context.Context, ev auditapi.Event) error {
-	payload, err := marshalPayload(ev.Payload)
+	sanitizedPayload := SanitizePayload(ev.Payload)
+	payload, err := marshalPayload(sanitizedPayload)
 	if err != nil {
 		return fmt.Errorf("audit: record: %w", err)
 	}
@@ -75,7 +80,6 @@ func (s *Service) List(ctx context.Context, params auditapi.ListParams) ([]audit
 			return nil, fmt.Errorf("audit: invalid cursor id: %w", err)
 		}
 	}
-
 
 	q := auditstore.New(db.Conn(ctx, s.pool))
 	rows, err := q.ListAuditEvents(ctx, auditstore.ListAuditEventsParams{
@@ -172,3 +176,25 @@ func timeParam(t time.Time) pgtype.Timestamptz {
 	return pgtypeconv.Timestamptz(t)
 }
 
+// SanitizePayload strips or redacts sensitive fields and credential tokens
+// matching the platform sensitive-field denylist from an audit event payload.
+func SanitizePayload(payload map[string]any) map[string]any {
+	if payload == nil {
+		return nil
+	}
+	clean := make(map[string]any, len(payload))
+	for k, v := range payload {
+		if httpx.IsSensitiveField(k) {
+			clean[k] = "[REDACTED]"
+			continue
+		}
+		if sub, ok := v.(map[string]any); ok {
+			clean[k] = SanitizePayload(sub)
+		} else if s, ok := v.(string); ok {
+			clean[k] = tokenPattern.ReplaceAllString(s, "[REDACTED]")
+		} else {
+			clean[k] = v
+		}
+	}
+	return clean
+}

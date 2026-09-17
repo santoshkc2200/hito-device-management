@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
@@ -65,7 +67,6 @@ func TestHTTPAuditEndpoints(t *testing.T) {
 		t.Fatalf("item action = %s, want device.overridden", filteredList.Items[0].Action)
 	}
 
-
 	// 3. Export audit CSV
 	resp = h.get(t, "/v1/audit.csv")
 	if resp.StatusCode != http.StatusOK {
@@ -91,5 +92,58 @@ func TestHTTPAuditEndpoints(t *testing.T) {
 	}
 	if records[0][0] != "id" || records[0][2] != "actor" {
 		t.Fatalf("audit.csv header = %+v", records[0])
+	}
+}
+
+// TestStoredAuditPayloadCarriesNoSecret proves the redaction runs on the write
+// path itself, not only in the SanitizePayload unit test: an event recorded
+// with a credential token must come back out of the database redacted.
+func TestStoredAuditPayloadCarriesNoSecret(t *testing.T) {
+	h := newTestHarness(t)
+	ctx := context.Background()
+
+	const plaintextToken = "HD-U-9Q4M2XZA7F-3"
+
+	if err := h.audit.Record(ctx, auditapi.Event{
+		Actor:   "admin:super",
+		Action:  "credential.issued",
+		Subject: "user:redaction-probe",
+		Payload: map[string]any{
+			"token":    plaintextToken,
+			"password": "secretPassword123",
+			"nested":   map[string]any{"kioskToken": plaintextToken},
+			"reason":   "redaction probe",
+		},
+	}); err != nil {
+		t.Fatalf("Record: %v", err)
+	}
+
+	entries, err := h.audit.List(ctx, auditapi.ListParams{Limit: 50})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+
+	var found bool
+	for _, e := range entries {
+		if e.Subject != "user:redaction-probe" {
+			continue
+		}
+		found = true
+		raw, err := json.Marshal(e.Payload)
+		if err != nil {
+			t.Fatalf("marshal stored payload: %v", err)
+		}
+		if strings.Contains(string(raw), plaintextToken) {
+			t.Fatalf("stored audit payload contains the plaintext token: %s", raw)
+		}
+		if strings.Contains(string(raw), "secretPassword123") {
+			t.Fatalf("stored audit payload contains the plaintext password: %s", raw)
+		}
+		if !strings.Contains(string(raw), "redaction probe") {
+			t.Fatalf("stored audit payload lost its non-sensitive field: %s", raw)
+		}
+	}
+	if !found {
+		t.Fatal("recorded audit event was not returned by List")
 	}
 }
