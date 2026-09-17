@@ -99,6 +99,11 @@ export const ja: KioskCatalogue = {
     paperFallbackTitle: "紙の管理台帳をご利用ください",
     paperFallbackInstruction: "復旧するまでの間、担当者が紙の台帳で貸出・返却を記録します。お待ちいただく必要はありません。",
     reconnectingNotice: "バックグラウンドで自動再接続を行っています。",
+    borrowRefusedStale: "オフラインのため機器の最新状態を確認できません。紙の管理台帳に記入してください。",
+    borrowRefusedUnavailable: "この機器は現在貸出できません。紙の管理台帳に記入してください。",
+    borrowRefusedNoCache: "オフラインのため機器情報を取得できません。紙の管理台帳に記入してください。",
+    borrowRefusedDefault: "オフライン中は貸出を処理できません。紙の管理台帳に記入してください。",
+    unsupportedAction: "この操作はオフラインでキューに登録できません。紙の管理台帳をご利用ください。",
   },
   pairing: {
     title: "このiPadはまだペアリングされていません",
