@@ -443,6 +443,16 @@ func (s *Service) createSession(ctx context.Context, adminID pgtype.UUID) (sessi
 	return plainToken, csrfToken, nil
 }
 
+// CreateSessionForAdminID creates a fresh session for the given admin ID.
+// Used when regenerating session identifiers on privilege changes.
+func (s *Service) CreateSessionForAdminID(ctx context.Context, adminID string) (sessionToken, csrfToken string, err error) {
+	uid, err := pgtypeconv.UUID(adminID)
+	if err != nil {
+		return "", "", fmt.Errorf("auth: invalid admin id: %w", err)
+	}
+	return s.createSession(ctx, uid)
+}
+
 // ValidatedSession is what Middleware needs from a valid session cookie.
 type ValidatedSession struct {
 	Admin     AdminIdentity
@@ -632,8 +642,8 @@ func (s *Service) UpdateAdmin(ctx context.Context, actorID, id string, fullName,
 		return AdminIdentity{}, fmt.Errorf("auth: update admin: %w", err)
 	}
 
-	// If status changed to disabled, revoke all sessions for this admin
-	if status != nil && *status == "disabled" {
+	// If status changed to disabled or role changed, revoke all sessions for this admin
+	if (status != nil && *status == "disabled") || role != nil {
 		_ = q.DeleteSessionsByAdminID(ctx, uid)
 	}
 

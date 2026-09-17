@@ -123,6 +123,11 @@ func (s *Server) StaffPasswordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Session fixation protection: invalidate any existing staff session passed by caller
+	if cookie, err := r.Cookie(staffauth.SessionCookieName); err == nil && cookie.Value != "" {
+		_ = s.staffAuth.RevokeSession(r.Context(), cookie.Value)
+	}
+
 	req, ok := decodeJSON[gen.StaffPasswordLoginRequest](w, r)
 	if !ok {
 		return

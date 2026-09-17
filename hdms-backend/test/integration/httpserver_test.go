@@ -102,8 +102,9 @@ func newTestHarness(t *testing.T) *testHarness {
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
 	handler := httpx.Chain(
 		httpx.WithRequestID,
+		httpx.WithSecurityHeaders(),
 		// WithLogging is in the chain here because it is in the chain in
-		// cmd/hdms-api: it wraps the ResponseWriter, and a harness that
+		// cmd/hdms-api: it wraps the ResponseWriter, and a wrapper that
 		// skipped it let a wrapper that dropped http.Flusher break the SSE
 		// endpoint in production while this suite stayed green.
 		httpx.WithLogging(discardLogger),

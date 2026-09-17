@@ -156,6 +156,7 @@ func run() error {
 
 	handler := httpx.Chain(
 		httpx.WithRequestID,
+		httpx.WithSecurityHeaders(),
 		httpx.WithLogging(logger),
 		httpx.WithRecovery(logger),
 		httpx.WithCORS(cfg.CORSAllowedOrigins),

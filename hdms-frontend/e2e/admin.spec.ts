@@ -15,7 +15,7 @@ test("admin loads over HTTPS and redirects an unauthenticated visitor to login",
   await expect(page.locator("#email")).toBeVisible();
 });
 
-test("E20_AdminRegistersAndPairsKioskWithoutCLI", async ({ page, browser }) => {
+test("AdminRegistersAndPairsKioskWithoutCLI", async ({ page, browser }) => {
   const kioskContext = await browser.newContext({ ignoreHTTPSErrors: true });
   const kioskPage = await kioskContext.newPage();
   const kioskName = `E20 Kiosk ${Date.now().toString().slice(-6)}`;

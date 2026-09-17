@@ -123,6 +123,12 @@ liability, not a capability.
   not in Phase 5.
 - **Frontend assets** are built to static files and served by Caddy. Two hosts or
   two paths: `/` for the kiosk, `/admin` for the console.
+- **Security headers boundary (app vs proxy).** The Go application (`httpx.WithSecurityHeaders`)
+  is the single authoritative source for security response headers:
+  `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, and `X-Frame-Options: DENY`.
+  Caddy handles TLS termination and CORS preflight (`OPTIONS`), and reverse-proxies
+  requests without injecting or duplicating security headers.
 - **Migrations** run on startup from the embedded goose set, guarded by an
   advisory lock so concurrent starts cannot race.
 - **Configuration** entirely by environment variables, twelve-factor style.

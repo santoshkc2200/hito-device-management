@@ -9,6 +9,11 @@ import (
 )
 
 func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
+	// Session fixation protection: invalidate any existing session passed by caller
+	if cookie, err := r.Cookie("hdms_session"); err == nil && cookie.Value != "" {
+		_ = s.auth.RevokeSession(r.Context(), cookie.Value)
+	}
+
 	req, ok := decodeJSON[gen.LoginRequest](w, r)
 	if !ok {
 		return

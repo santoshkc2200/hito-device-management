@@ -467,6 +467,45 @@ export class TestApiClient {
     return scan2.json();
   }
 
+  async openKioskSession(kioskToken: string): Promise<{ id: string }> {
+    const res = await fetch(`${this.baseUrl}/v1/sessions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${kioskToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) {
+      throw new Error(`Kiosk session open failed: ${await res.text()}`);
+    }
+    return res.json();
+  }
+
+  async scanSession(
+    kioskToken: string,
+    sessionId: string,
+    token: string,
+    idempotencyKey?: string
+  ): Promise<any> {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${kioskToken}`,
+      "Content-Type": "application/json",
+    };
+    if (idempotencyKey) {
+      headers["Idempotency-Key"] = idempotencyKey;
+    }
+    const res = await fetch(`${this.baseUrl}/v1/sessions/${sessionId}/scan`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ token, source: "scanner" }),
+    });
+    if (!res.ok) {
+      throw new Error(`Kiosk scan failed: ${await res.text()}`);
+    }
+    return res.json();
+  }
+
   async getLoans(): Promise<any[]> {
     const res = await this.request("/v1/loans");
     if (!res.ok) {

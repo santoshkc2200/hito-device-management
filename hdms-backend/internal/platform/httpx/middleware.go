@@ -248,3 +248,64 @@ func WithCORS(allowedOrigins []string) Middleware {
 		})
 	}
 }
+
+// defaultCSP defines the Content-Security-Policy matching what HDMS frontend apps
+// (kiosk, admin console, staff PWA) actually load, without 'unsafe-inline':
+//
+//  1. default-src 'self': Fallback constraint ensuring any unclassified resource category
+//     loads strictly from the same origin.
+//  2. script-src 'self': Only first-party JavaScript bundles produced by Vite are executable.
+//     No 'unsafe-inline' is permitted, preventing arbitrary script injection (XSS).
+//  3. style-src 'self' https://fonts.googleapis.com: Permits bundled CSS and Google Fonts
+//     stylesheets used by the admin interface (index.html).
+//  4. font-src 'self' https://fonts.gstatic.com data:: Allows web font binary assets from
+//     the same origin, Google Fonts CDN (fonts.gstatic.com), and data: URIs.
+//  5. img-src 'self' data: blob:: Permits local images, dynamic data: URIs (such as SVG icons
+//     and client-rendered QR codes), and blob: URIs used during photo / scanning rendering.
+//  6. media-src 'self' blob:: Camera video stream via navigator.mediaDevices.getUserMedia
+//     attaches the live stream to an HTMLVideoElement preview, and audio feedback beeps
+//     synthesised/buffered via Web Audio API. blob: is required for MediaStream/audio buffers.
+//  7. connect-src 'self': Directs Fetch, XHR, and Server-Sent Events (SSE /v1/events/stream)
+//     strictly to the application's own API origin.
+//  8. worker-src 'self': Permits the VitePWA service worker (sw.js) to register and control
+//     clients, enabling offline caching and background sync for the kiosk.
+//  9. manifest-src 'self': Permits loading the PWA web app manifest (manifest.webmanifest).
+//  10. frame-ancestors 'none': Prohibits embedding any HDMS page in an iframe or frame
+//     anywhere, defending against clickjacking alongside X-Frame-Options: DENY.
+//  11. base-uri 'self': Prevents attackers from injecting a <base> tag to hijack relative links.
+//  12. form-action 'self': Restricts form action destinations to the application's origin.
+//  13. object-src 'none': Completely blocks legacy executable plugins (Flash, Java, Silverlight).
+const defaultCSP = "default-src 'self'; " +
+	"script-src 'self'; " +
+	"style-src 'self' https://fonts.googleapis.com; " +
+	"font-src 'self' https://fonts.gstatic.com data:; " +
+	"img-src 'self' data: blob:; " +
+	"media-src 'self' blob:; " +
+	"connect-src 'self'; " +
+	"worker-src 'self'; " +
+	"manifest-src 'self'; " +
+	"frame-ancestors 'none'; " +
+	"base-uri 'self'; " +
+	"form-action 'self'; " +
+	"object-src 'none'"
+
+// WithSecurityHeaders injects standard hardening headers across all HTTP responses:
+// - Strict-Transport-Security: enforces TLS encryption for 1 year across subdomains
+// - Content-Security-Policy: restrict resource execution to trusted origins without 'unsafe-inline'
+// - X-Content-Type-Options: nosniff prevents MIME type sniffing
+// - Referrer-Policy: strict-origin-when-cross-origin protects referrer leakage
+// - X-Frame-Options: DENY plus CSP frame-ancestors 'none' defend against clickjacking
+func WithSecurityHeaders() Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+			h.Set("Content-Security-Policy", defaultCSP)
+			h.Set("X-Content-Type-Options", "nosniff")
+			h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			h.Set("X-Frame-Options", "DENY")
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}

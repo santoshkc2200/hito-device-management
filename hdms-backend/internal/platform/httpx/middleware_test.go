@@ -91,3 +91,43 @@ func TestWithLoggingPreservesFlusher(t *testing.T) {
 		t.Fatalf("body = %q, want the streamed event", rec.Body.String())
 	}
 }
+
+func TestWithSecurityHeaders(t *testing.T) {
+	handler := httpx.WithSecurityHeaders()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/test", nil))
+
+	expectedHeaders := map[string]string{
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+		"X-Content-Type-Options":    "nosniff",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
+		"X-Frame-Options":           "DENY",
+	}
+
+	for header, expected := range expectedHeaders {
+		got := rec.Header().Get(header)
+		if got != expected {
+			t.Errorf("header %q = %q, want %q", header, got, expected)
+		}
+	}
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Fatal("Content-Security-Policy header is missing")
+	}
+	if strings.Contains(csp, "'unsafe-inline'") {
+		t.Errorf("Content-Security-Policy should NOT contain 'unsafe-inline': %s", csp)
+	}
+	if !strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("Content-Security-Policy should contain frame-ancestors 'none': %s", csp)
+	}
+	if !strings.Contains(csp, "media-src 'self' blob:") {
+		t.Errorf("Content-Security-Policy should permit camera/media blob: %s", csp)
+	}
+	if !strings.Contains(csp, "worker-src 'self'") {
+		t.Errorf("Content-Security-Policy should permit service worker: %s", csp)
+	}
+}

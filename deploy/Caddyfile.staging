@@ -2,6 +2,12 @@
 # so the staging stack and the dev stack can run side by side — a drill against
 # staging must never require taking the dev environment down. 5.3a replaces this
 # with the production front door, which staging will then mirror.
+#
+# Security headers boundary (5.2a):
+# The Go application (httpx.WithSecurityHeaders) is the authoritative source
+# for all security headers (HSTS, CSP, X-Content-Type-Options, Referrer-Policy,
+# X-Frame-Options). Caddy terminates TLS and handles CORS preflight (@options)
+# without injecting or duplicating security headers on reverse_proxy responses.
 {
 	auto_https off
 }

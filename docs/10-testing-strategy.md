@@ -196,6 +196,7 @@ The scenario list, each mapping to a requirement:
 | E17 | A backfill row conflicting with existing custody is flagged before save, and the batch cannot be saved until resolved | FR-75 |
 | E18 | A device made on-loan by backfill is scanned at the kiosk and returns normally | FR-79 |
 | E19 | Backfill screen: one row entered keyboard-only in under 20 s | NFR-9b |
+| E20 | 10 transactions attempted across a 30-minute simulated outage, all replayed exactly once; refused borrow produces no row | NFR-4, FR-20, FR-22 |
 
 E13 is the awkward one: it needs a fake camera. Playwright's
 `--use-fake-device-for-media-stream` with a generated Y4M file containing a

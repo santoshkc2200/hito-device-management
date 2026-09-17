@@ -3,6 +3,7 @@ package apiserver
 import (
 	"net/http"
 
+	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 )
 
@@ -84,6 +85,19 @@ func (s *Server) UpdateAdmin(w http.ResponseWriter, r *http.Request, id gen.IDPa
 		s.writeServiceError(w, r, err)
 		return
 	}
+
+	// If the admin's role was changed and the current caller is this admin, regenerate session identifier.
+	if roleStr != nil {
+		if caller, ok := auth.AdminFromContext(r.Context()); ok && caller.ID == id {
+			sessionToken, csrfToken, err := s.auth.CreateSessionForAdminID(r.Context(), id)
+			if err == nil {
+				ttlSeconds := int(s.auth.SessionTTL().Seconds())
+				http.SetCookie(w, auth.SessionCookie(sessionToken, ttlSeconds))
+				http.SetCookie(w, auth.CSRFCookie(csrfToken, ttlSeconds))
+			}
+		}
+	}
+
 	writeJSON(w, http.StatusOK, adminToGen(admin))
 }
 

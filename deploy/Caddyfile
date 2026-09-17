@@ -2,6 +2,12 @@
 # the kiosk's camera fallback (BarcodeDetector) — which refuses to run over
 # plain HTTP — works the same way it will in front of the real deploy,
 # where Caddy holds a real certificate instead of a local one.
+#
+# Security headers boundary (5.2a):
+# The Go application (httpx.WithSecurityHeaders) is the authoritative source
+# for all security headers (HSTS, CSP, X-Content-Type-Options, Referrer-Policy,
+# X-Frame-Options). Caddy terminates TLS and handles CORS preflight (@options)
+# without injecting or duplicating security headers on reverse_proxy responses.
 {
 	auto_https off
 }

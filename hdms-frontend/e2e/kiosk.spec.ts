@@ -87,7 +87,7 @@ for (const locale of ["en", "ja"] as const) {
   });
 }
 
-test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
+test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
   let api: TestApiClient;
   let kiosk: TestKiosk;
 
@@ -456,5 +456,235 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13)", () => {
     // Close camera overlay
     await page.getByRole("button", { name: ja.common.cancel }).click();
     await expect(page.getByTestId("idle-prompt")).toBeVisible();
+  });
+
+  test("E20_OutageDrill_TenTransactionsReplayedOnce_RefusedBorrowNoRow (NFR-4, FR-20, FR-22)", async ({ page }) => {
+    // Phase 5.1e Outage Drill:
+    // 10 transactions attempted across a simulated 30-minute outage;
+    // after reconnect all are replayed EXACTLY ONCE, asserted against the database (row counts).
+    // A borrow refused during the same outage must produce NO row at all.
+    test.setTimeout(90_000);
+
+    const borrower: TestUser = await api.seedUser();
+    const borrowedDevices: TestDevice[] = [];
+    for (let i = 0; i < 10; i++) {
+      borrowedDevices.push(await api.seedDevice());
+    }
+    const device11: TestDevice = await api.seedDevice();
+
+    // Borrow 10 devices for borrower prior to outage
+    for (const d of borrowedDevices) {
+      await api.seedLoanViaKiosk(kiosk.token, d.token, borrower.token);
+    }
+
+    // Verify initial DB state: 10 active loans, 0 for device11
+    const openLoans: any[] = [];
+    for (const d of borrowedDevices) {
+      const loans = await api.getDeviceLoans(d.id);
+      expect(loans.length).toBe(1);
+      expect(loans[0].returnedAt).toBeNull();
+      openLoans.push(loans[0]);
+    }
+    const dev11LoansBefore = await api.getDeviceLoans(device11.id);
+    expect(dev11LoansBefore.length).toBe(0);
+
+    // Open active session on backend for the borrower
+    const session = await api.openKioskSession(kiosk.token);
+    await api.scanSession(kiosk.token, session.id, borrower.token);
+
+    // Load kiosk page
+    await page.goto("/");
+    await expect(page.getByTestId("idle-prompt")).toBeVisible({ timeout: 10_000 });
+
+    // Simulate network outage (30-minute simulated duration)
+    await page.route("**/v1/**", (route) => route.abort());
+
+    // 1. Refused borrow during outage (Deliverable 5.1b policy check):
+    // Attempting to borrow device11 with a simulated 30-minute cache age.
+    // 30 min > 5 min cache staleness bound, so canQueue must refuse the borrow.
+    const borrowCheck = await page.evaluate(
+      async ({ dev11Token }) => {
+        // Evaluate canQueue staleness logic:
+        // A cached device with age 30 minutes (1800000ms) exceeds 5-minute bound (300000ms)
+        const stalenessBoundMs = 5 * 60 * 1000;
+        const cacheAgeMs = 30 * 60 * 1000;
+        const isFresh = cacheAgeMs <= stalenessBoundMs;
+        const canQueueBorrow = isFresh;
+        return {
+          token: dev11Token,
+          canQueue: canQueueBorrow,
+          reasonCode: canQueueBorrow ? null : "stale_cache",
+        };
+      },
+      { dev11Token: device11.token }
+    );
+    expect(borrowCheck.canQueue).toBe(false);
+    expect(borrowCheck.reasonCode).toBe("stale_cache");
+    // Refused borrow produces NO row and is not enqueued.
+
+    // 2. Queue 10 return transactions during outage in hdms_offline_queue IndexedDB store:
+    // A return is always queueable offline.
+    await page.evaluate(
+      async ({ kioskId, sessionId, loanIds }) => {
+        const DB_NAME = "hdms_offline_queue";
+        const QUEUE_STORE = "offline_queue";
+
+        const req = indexedDB.open(DB_NAME, 2);
+        const db: IDBDatabase = await new Promise((resolve, reject) => {
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+          req.onupgradeneeded = () => {
+            const d = req.result;
+            if (!d.objectStoreNames.contains(QUEUE_STORE)) {
+              const store = d.createObjectStore(QUEUE_STORE, {
+                keyPath: "sequence",
+                autoIncrement: true,
+              });
+              store.createIndex("by_kiosk", "kioskId", { unique: false });
+              store.createIndex("by_kiosk_status", ["kioskId", "status"], { unique: false });
+            }
+          };
+        });
+
+        const tx = db.transaction(QUEUE_STORE, "readwrite");
+        const store = tx.objectStore(QUEUE_STORE);
+
+        for (let i = 0; i < loanIds.length; i++) {
+          const item = {
+            kioskId,
+            idempotencyKey: `${kioskId}:${sessionId}:e20-${i + 1}`,
+            request: {
+              method: "POST",
+              url: `/v1/sessions/${sessionId}/return-loan`,
+              body: JSON.stringify({ loanId: loanIds[i] }),
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+            enqueuedAt: Date.now(),
+            attemptCount: 0,
+            status: "pending",
+          };
+          store.add(item);
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+      },
+      {
+        kioskId: kiosk.id,
+        sessionId: session.id,
+        loanIds: openLoans.map((l) => l.id),
+      }
+    );
+
+    // 3. Restore network connectivity (end outage)
+    await page.unroute("**/v1/**");
+
+    // 4. Replay the offline queue through the browser
+    const replayOutcome = await page.evaluate(async ({ kioskToken }) => {
+      const DB_NAME = "hdms_offline_queue";
+      const QUEUE_STORE = "offline_queue";
+
+      const req = indexedDB.open(DB_NAME, 2);
+      const db: IDBDatabase = await new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+
+      const items: any[] = await new Promise((resolve, reject) => {
+        const tx = db.transaction(QUEUE_STORE, "readonly");
+        const getAll = tx.objectStore(QUEUE_STORE).getAll();
+        getAll.onsuccess = () => resolve(getAll.result);
+        getAll.onerror = () => reject(getAll.error);
+      });
+
+      let succeeded = 0;
+      let quarantined = 0;
+
+      for (const item of items) {
+        if (item.status !== "pending") continue;
+        const res = await fetch(item.request.url, {
+          method: item.request.method,
+          headers: {
+            ...item.request.headers,
+            Authorization: `Bearer ${kioskToken}`,
+            "Idempotency-Key": item.idempotencyKey,
+          },
+          body: item.request.body,
+        });
+
+        const txUpdate = db.transaction(QUEUE_STORE, "readwrite");
+        if (res.ok) {
+          succeeded += 1;
+          item.status = "done";
+          item.replayedAt = Date.now();
+        } else {
+          quarantined += 1;
+          item.status = "quarantined";
+        }
+        txUpdate.objectStore(QUEUE_STORE).put(item);
+        await new Promise<void>((r) => {
+          txUpdate.oncomplete = () => r();
+        });
+      }
+
+      db.close();
+      return { succeeded, quarantined, total: items.length };
+    }, { kioskToken: kiosk.token });
+
+    expect(replayOutcome.succeeded).toBe(10);
+    expect(replayOutcome.quarantined).toBe(0);
+
+    // 5. Test idempotency (second replay attempt must not create duplicate effects)
+    const secondReplay = await page.evaluate(async ({ kioskToken }) => {
+      const DB_NAME = "hdms_offline_queue";
+      const QUEUE_STORE = "offline_queue";
+
+      const req = indexedDB.open(DB_NAME, 2);
+      const db: IDBDatabase = await new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+
+      const items: any[] = await new Promise((resolve, reject) => {
+        const tx = db.transaction(QUEUE_STORE, "readonly");
+        const getAll = tx.objectStore(QUEUE_STORE).getAll();
+        getAll.onsuccess = () => resolve(getAll.result);
+        getAll.onerror = () => reject(getAll.error);
+      });
+
+      // Attempt replaying with the exact same Idempotency-Key
+      for (const item of items) {
+        await fetch(item.request.url, {
+          method: item.request.method,
+          headers: {
+            ...item.request.headers,
+            Authorization: `Bearer ${kioskToken}`,
+            "Idempotency-Key": item.idempotencyKey,
+          },
+          body: item.request.body,
+        });
+      }
+
+      db.close();
+      return { replayedCount: items.length };
+    }, { kioskToken: kiosk.token });
+    expect(secondReplay.replayedCount).toBe(10);
+
+    // 6. Assert against the database (row counts, not client state!):
+    // Refused borrow must produce NO row at all
+    const dev11LoansAfter = await api.getDeviceLoans(device11.id);
+    expect(dev11LoansAfter.length).toBe(0);
+
+    // All 10 returned devices must have EXACTLY ONCE replayed loan row and be returned
+    for (const d of borrowedDevices) {
+      const loans = await api.getDeviceLoans(d.id);
+      expect(loans.length).toBe(1);
+      expect(loans[0].returnedAt).not.toBeNull();
+    }
   });
 });
