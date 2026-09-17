@@ -7,14 +7,19 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 )
 
+// DevTokenPepper is the known example value from .env.example.
+const DevTokenPepper = "dev-only-pepper-change-me"
+
 // Config holds every environment-driven setting the API needs to start.
 type Config struct {
-	Env         string // "development" | "test" | "production"
+	Env         string // "development" | "test" | "staging" | "production"
 	HTTPAddr    string
 	DatabaseURL string
 	TLSCertFile string
@@ -33,6 +38,9 @@ type Config struct {
 	EntraRedirectURL    string
 	EntraAllowedDomains []string
 	StaffSessionTTL     time.Duration
+
+	RateLimitEnabled   bool
+	CORSAllowedOrigins []string
 
 	OTLPEndpoint string // empty disables the exporter
 	LogLevel     string
@@ -65,10 +73,134 @@ func Load() (Config, error) {
 	cfg.EntraAllowedDomains = splitAndTrim(os.Getenv("HDMS_ENTRA_ALLOWED_EMAIL_DOMAINS"))
 	cfg.StaffSessionTTL = getenvDurationDefault("HDMS_STAFF_SESSION_TTL", 12*time.Hour, &errs)
 
+	// Rate limiting: HDMS_RATE_LIMIT=off disables, on enables.
+	// Defaults to enabled in staging/production/test, and disabled in development.
+	rateLimitEnv := strings.ToLower(strings.TrimSpace(os.Getenv("HDMS_RATE_LIMIT")))
+	if rateLimitEnv == "off" {
+		cfg.RateLimitEnabled = false
+	} else if rateLimitEnv == "on" {
+		cfg.RateLimitEnabled = true
+	} else {
+		cfg.RateLimitEnabled = (cfg.Env != "development")
+	}
+
+	// CORS allowed origins: HDMS_CORS_ALLOWED_ORIGINS comma-separated.
+	// In development and test, defaults to the Vite dev server ports.
+	// In production/staging, defaults to nil (same-origin behind reverse proxy).
+	corsEnv := os.Getenv("HDMS_CORS_ALLOWED_ORIGINS")
+	if corsEnv != "" {
+		cfg.CORSAllowedOrigins = splitAndTrim(corsEnv)
+	} else if cfg.Env == "development" || cfg.Env == "test" {
+		cfg.CORSAllowedOrigins = []string{
+			"https://localhost:5173",
+			"https://localhost:5174",
+		}
+	} else {
+		cfg.CORSAllowedOrigins = nil
+	}
+
+	validate(cfg, &errs)
+
 	if len(errs) > 0 {
 		return Config{}, fmt.Errorf("config: %w", errors.Join(errs...))
 	}
 	return cfg, nil
+}
+
+// validate enforces fail-closed production safety constraints.
+func validate(cfg Config, errs *[]error) {
+	if cfg.Env != "production" {
+		return
+	}
+
+	// 1. Token pepper cannot use dev example value.
+	if cfg.TokenPepper == DevTokenPepper {
+		*errs = append(*errs, errors.New("HDMS_TOKEN_PEPPER: cannot use the example development pepper in production; generate a secure random 32-byte hex pepper with 'openssl rand -hex 32'"))
+	}
+
+	// 2. Rate limiting cannot be disabled in production.
+	if strings.ToLower(strings.TrimSpace(os.Getenv("HDMS_RATE_LIMIT"))) == "off" {
+		*errs = append(*errs, errors.New("HDMS_RATE_LIMIT: rate limiting cannot be set to 'off' in production; remove HDMS_RATE_LIMIT or set to 'on'"))
+	}
+
+	// 3. TLS cannot be disabled, and cert/key cannot point to dev/localhost defaults.
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("HDMS_TLS_ENABLED"))); v == "false" || v == "off" {
+		*errs = append(*errs, errors.New("HDMS_TLS_ENABLED: TLS cannot be disabled in production"))
+	}
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("HDMS_TLS_DISABLED"))); v == "true" || v == "1" {
+		*errs = append(*errs, errors.New("HDMS_TLS_DISABLED: TLS cannot be disabled in production"))
+	}
+	if cfg.TLSCertFile == "" || cfg.TLSCertFile == "certs/localhost.pem" || cfg.TLSCertFile == "/certs/localhost.pem" || strings.Contains(strings.ToLower(cfg.TLSCertFile), "localhost") {
+		*errs = append(*errs, fmt.Errorf("HDMS_TLS_CERT_FILE: TLS certificate cannot use development/localhost defaults in production (got %q); provide path to valid certificate", cfg.TLSCertFile))
+	}
+	if cfg.TLSKeyFile == "" || cfg.TLSKeyFile == "certs/localhost-key.pem" || cfg.TLSKeyFile == "/certs/localhost-key.pem" || strings.Contains(strings.ToLower(cfg.TLSKeyFile), "localhost") {
+		*errs = append(*errs, fmt.Errorf("HDMS_TLS_KEY_FILE: TLS private key cannot use development/localhost defaults in production (got %q); provide path to valid private key", cfg.TLSKeyFile))
+	}
+
+	// 4. CORS cannot allow wildcard or dev/localhost origins in production.
+	for _, origin := range cfg.CORSAllowedOrigins {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed == "*" {
+			*errs = append(*errs, errors.New("HDMS_CORS_ALLOWED_ORIGINS: production CORS cannot allow wildcard '*'; configure specific allowed domains or leave unset for same-origin"))
+		} else if strings.Contains(strings.ToLower(trimmed), "localhost") || strings.Contains(trimmed, "127.0.0.1") || strings.HasPrefix(strings.ToLower(trimmed), "http://") {
+			*errs = append(*errs, fmt.Errorf("HDMS_CORS_ALLOWED_ORIGINS: production CORS cannot allow localhost or unencrypted development origins (got %q); configure specific allowed production domains or leave unset for same-origin", trimmed))
+		}
+	}
+
+	// 5. HDMS_CREDENTIAL_ENC_KEY and HDMS_TOTP_ENC_KEY must be set.
+	// Note: requireEnv already catches missing variables, but validate checks explicitly in case empty.
+	if len(cfg.CredentialEncKey) == 0 {
+		*errs = append(*errs, errors.New("HDMS_CREDENTIAL_ENC_KEY: missing required environment variable; provide a base64-encoded 32-byte key generated with 'openssl rand -base64 32'"))
+	}
+	if len(cfg.TOTPSecretEncKey) == 0 {
+		*errs = append(*errs, errors.New("HDMS_TOTP_ENC_KEY: missing required environment variable; provide a base64-encoded 32-byte key generated with 'openssl rand -base64 32'"))
+	}
+}
+
+// LogEffective logs the active configuration to the provided logger with all
+// secrets redacted (token pepper, AES encryption keys, Entra client secret,
+// and any password in the database URL).
+func (c Config) LogEffective(logger *slog.Logger) {
+	logger.Info("effective configuration",
+		slog.String("env", c.Env),
+		slog.String("http_addr", c.HTTPAddr),
+		slog.String("database_url", redactURL(c.DatabaseURL)),
+		slog.String("tls_cert_file", c.TLSCertFile),
+		slog.String("tls_key_file", c.TLSKeyFile),
+		slog.String("token_pepper", "[REDACTED]"),
+		slog.String("credential_enc_key", "[REDACTED]"),
+		slog.Duration("session_ttl", c.SessionTTL),
+		slog.String("totp_secret_enc_key", "[REDACTED]"),
+		slog.Duration("admin_session_ttl", c.AdminSessionTTL),
+		slog.String("entra_tenant_id", c.EntraTenantID),
+		slog.String("entra_client_id", c.EntraClientID),
+		slog.String("entra_client_secret", redactSecret(c.EntraClientSecret)),
+		slog.String("entra_redirect_url", c.EntraRedirectURL),
+		slog.Any("entra_allowed_domains", c.EntraAllowedDomains),
+		slog.Duration("staff_session_ttl", c.StaffSessionTTL),
+		slog.Bool("rate_limit_enabled", c.RateLimitEnabled),
+		slog.Any("cors_allowed_origins", c.CORSAllowedOrigins),
+		slog.String("otlp_endpoint", c.OTLPEndpoint),
+		slog.String("log_level", c.LogLevel),
+	)
+}
+
+func redactSecret(v string) string {
+	if v == "" {
+		return ""
+	}
+	return "[REDACTED]"
+}
+
+func redactURL(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "[malformed database url]"
+	}
+	return u.Redacted()
 }
 
 func splitAndTrim(raw string) []string {
@@ -95,7 +227,7 @@ func getenvDefault(key, def string) string {
 func requireEnv(key string, errs *[]error) string {
 	v, ok := os.LookupEnv(key)
 	if !ok || v == "" {
-		*errs = append(*errs, fmt.Errorf("missing required environment variable %s", key))
+		*errs = append(*errs, fmt.Errorf("%s: missing required environment variable", key))
 		return ""
 	}
 	return v

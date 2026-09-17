@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -144,48 +143,49 @@ const (
 	pairBurst        = 10
 )
 
-// WithRateLimit applies per-principal / per-IP rate limits (docs/06-api-contract.md, 2.6.5):
+// WithRateLimiting applies per-principal / per-IP rate limits (docs/06-api-contract.md, 2.6.5):
 // - 60 req/min per kiosk token and per admin session
 // - 5 req/min per IP on POST /v1/kiosks/pair
 // - 1 attempt per 10s per IP on POST /v1/auth/login
 // Denials return 429 with Retry-After header and RFC 9457 problem JSON.
-func WithRateLimit(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if os.Getenv("HDMS_RATE_LIMIT") == "off" || os.Getenv("HDMS_ENV") == "development" {
+func WithRateLimiting(enabled bool) Middleware {
+	return func(next http.Handler) http.Handler {
+		if !enabled {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := clientIP(r)
+
+			if r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login" {
+				if !allow(&loginLimiters, ip, loginRateLimit, loginBurst) {
+					w.Header().Set("Retry-After", "60")
+					WriteProblem(w, r, NewProblem("rate-limited", "Too many login attempts", http.StatusTooManyRequests))
+					return
+				}
+			}
+
+			if r.Method == http.MethodPost && r.URL.Path == "/v1/kiosks/pair" {
+				if !allow(&pairLimiters, ip, pairRateLimit, pairBurst) {
+					w.Header().Set("Retry-After", "60")
+					WriteProblem(w, r, NewProblem("rate-limited", "Too many pairing attempts", http.StatusTooManyRequests))
+					return
+				}
+			}
+
+			key := ActorFromContext(r.Context())
+			if key == "" {
+				key = ip
+			}
+
+			if !allow(&principalLimiters, key, generalRateLimit, generalBurst) {
+				w.Header().Set("Retry-After", "60")
+				WriteProblem(w, r, NewProblem("rate-limited", "Rate limit exceeded", http.StatusTooManyRequests))
+				return
+			}
+
 			next.ServeHTTP(w, r)
-			return
-		}
-		ip := clientIP(r)
-
-		if r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login" {
-			if !allow(&loginLimiters, ip, loginRateLimit, loginBurst) {
-				w.Header().Set("Retry-After", "60")
-				WriteProblem(w, r, NewProblem("rate-limited", "Too many login attempts", http.StatusTooManyRequests))
-				return
-			}
-		}
-
-		if r.Method == http.MethodPost && r.URL.Path == "/v1/kiosks/pair" {
-			if !allow(&pairLimiters, ip, pairRateLimit, pairBurst) {
-				w.Header().Set("Retry-After", "60")
-				WriteProblem(w, r, NewProblem("rate-limited", "Too many pairing attempts", http.StatusTooManyRequests))
-				return
-			}
-		}
-
-		key := ActorFromContext(r.Context())
-		if key == "" {
-			key = ip
-		}
-
-		if !allow(&principalLimiters, key, generalRateLimit, generalBurst) {
-			w.Header().Set("Retry-After", "60")
-			WriteProblem(w, r, NewProblem("rate-limited", "Rate limit exceeded", http.StatusTooManyRequests))
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+		})
+	}
 }
 
 func allow(limiters *sync.Map, key string, r rate.Limit, burst int) bool {

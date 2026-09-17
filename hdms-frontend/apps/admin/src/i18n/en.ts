@@ -1584,4 +1584,9 @@ export const en: AdminMessages = {
     credentialReissued: "Credential reissued",
     reissueFailed: "Could not reissue credential",
   },
+  staging: {
+    banner: "STAGING ENVIRONMENT — Do not register real borrowers",
+    registerWarningTitle: "STAGING ENVIRONMENT — Never register real staff or borrower information",
+    registerWarningDescription: "This environment is for drills, rehearsals, and load testing. Any registered data will be overwritten or reset.",
+  },
 };

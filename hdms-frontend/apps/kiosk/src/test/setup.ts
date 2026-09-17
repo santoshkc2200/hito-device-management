@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import * as matchers from "vitest-axe/matchers";
+import "fake-indexeddb/auto";
 import { afterEach, expect } from "vitest";
 import { setDefaultLocaleFallback } from "@hdms/i18n";
 

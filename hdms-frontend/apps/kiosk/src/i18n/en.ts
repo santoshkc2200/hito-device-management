@@ -97,6 +97,11 @@ export const en = {
     paperFallbackTitle: "Paper Register Fallback",
     paperFallbackInstruction: "The attendant can record your device loan or return on the paper register in the meantime. You do not need to wait.",
     reconnectingNotice: "Automatic background reconnect is in progress.",
+    borrowRefusedStale: "Device status cannot be verified while offline; please record your checkout on the paper register.",
+    borrowRefusedUnavailable: "This device is unavailable for checkout; please record your request on the paper register.",
+    borrowRefusedNoCache: "Device records are not available offline; please record your checkout on the paper register.",
+    borrowRefusedDefault: "This device cannot be issued while offline; please record your checkout on the paper register.",
+    unsupportedAction: "This action cannot be queued offline; please use the paper register.",
   },
   pairing: {
     title: "This iPad is not yet paired",

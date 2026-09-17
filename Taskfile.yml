@@ -45,6 +45,33 @@ tasks:
     cmds:
       - docker compose down
 
+  staging:env:
+    desc: Create .env.staging from .env.staging.example if it doesn't exist yet.
+    status:
+      - test -f .env.staging
+    cmds:
+      - cp .env.staging.example .env.staging
+      - 'echo ".env.staging created from .env.staging.example — edit secrets before staging runs"'
+
+  staging:up:
+    desc: Bring up Postgres, Caddy and API for staging using the staging compose override.
+    deps: [staging:env, certs]
+    cmds:
+      - docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --build
+
+  staging:down:
+    desc: Stop the staging Docker Compose stack.
+    cmds:
+      - docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging down
+
+  staging:seed:
+    desc: Migrate and load pilot-scale synthetic data (~800 staff, ~500 devices, ~5000 loans) into staging.
+    deps: [staging:env]
+    dotenv: ['.env.staging']
+    dir: "{{.BACKEND}}"
+    cmds:
+      - go run ./cmd/hdms-cli seed --scale
+
   frontend:dev:
     desc: Run both Vite dev servers (kiosk + admin + staff) over HTTPS.
     dir: "{{.FRONTEND}}"

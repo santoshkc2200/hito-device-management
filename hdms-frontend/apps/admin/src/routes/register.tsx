@@ -9,7 +9,7 @@ import {
 } from "@hdms/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, CreditCard, Printer, ScanLine, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, CreditCard, Printer, ScanLine, ShieldAlert, UserPlus, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TokenRevealDialog } from "@/components/token-reveal-dialog";
+import { isStagingEnvironment } from "@/lib/environment";
 import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { authenticatedRoute } from "./authenticated";
 import { useT } from "@/i18n";
@@ -376,6 +377,23 @@ function RegisterBorrowerForm() {
         <h1 className="text-xl font-semibold">{t("nav.register")}</h1>
         <p className="text-sm text-muted-foreground">{t("register.subtitle")}</p>
       </div>
+
+      {isStagingEnvironment() && (
+        <div
+          data-testid="staging-register-warning"
+          className="flex items-start gap-3 rounded-lg border-2 border-amber-500 bg-amber-500/15 p-4 text-amber-950 dark:text-amber-200 shadow-sm"
+        >
+          <ShieldAlert className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="flex flex-col gap-1">
+            <p className="font-bold text-sm">
+              {t("staging.registerWarningTitle")}
+            </p>
+            <p className="text-xs text-amber-900/90 dark:text-amber-300">
+              {t("staging.registerWarningDescription")}
+            </p>
+          </div>
+        </div>
+      )}
       <form
         onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
         className="flex flex-col gap-6 rounded-lg border border-border bg-card p-6"
