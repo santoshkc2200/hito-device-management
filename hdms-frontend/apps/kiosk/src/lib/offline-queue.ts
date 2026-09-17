@@ -4,9 +4,10 @@ import { getKioskConfig, getSessionId } from "./kiosk-config";
 
 export const MAX_QUEUE_SIZE = 200;
 export const DB_NAME = "hdms_offline_queue";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const QUEUE_STORE = "offline_queue";
 export const AUDIT_STORE = "queue_audit";
+export const LEASE_STORE = "replay_lease";
 
 export type QueueItemStatus = "pending" | "quarantined" | "done";
 
@@ -26,6 +27,8 @@ export interface QueueItem {
   attemptCount: number;
   status: QueueItemStatus;
   quarantineReason?: string;
+  serverOutcome?: unknown;
+  replayedAt?: number;
 }
 
 export interface QueueDeletionAudit {
@@ -35,6 +38,13 @@ export interface QueueDeletionAudit {
   idempotencyKey: string;
   deletedAt: number;
   reason: string;
+}
+
+export interface ReplayLease {
+  kioskId: string;
+  holderId: string;
+  acquiredAt: number;
+  expiresAt: number;
 }
 
 export interface OfflineQueueDBSchema extends DBSchema {
@@ -52,6 +62,10 @@ export interface OfflineQueueDBSchema extends DBSchema {
     indexes: {
       by_kiosk: string;
     };
+  };
+  [LEASE_STORE]: {
+    key: string;
+    value: ReplayLease;
   };
 }
 
@@ -88,6 +102,11 @@ export function getQueueDb(): Promise<IDBPDatabase<OfflineQueueDBSchema>> {
             autoIncrement: true,
           });
           auditStore.createIndex("by_kiosk", "kioskId");
+        }
+        if (!db.objectStoreNames.contains(LEASE_STORE)) {
+          db.createObjectStore(LEASE_STORE, {
+            keyPath: "kioskId",
+          });
         }
       },
     });
@@ -182,6 +201,7 @@ export async function enqueueQueueItem(options: EnqueueOptions): Promise<QueueIt
   await tx.store.put(item);
   await tx.done;
 
+  notifyQueueChange();
   return item;
 }
 
@@ -229,7 +249,8 @@ export async function getQueueItemBySequence(sequence: number): Promise<QueueIte
 export async function updateQueueItemStatus(
   sequence: number,
   status: QueueItemStatus,
-  quarantineReason?: string
+  quarantineReason?: string,
+  serverOutcome?: unknown
 ): Promise<QueueItem> {
   const db = await getQueueDb();
   const tx = db.transaction(QUEUE_STORE, "readwrite");
@@ -239,11 +260,19 @@ export async function updateQueueItemStatus(
     throw new Error(`Queue item with sequence ${sequence} not found`);
   }
   item.status = status;
-  if (quarantineReason) {
+  if (quarantineReason !== undefined) {
     item.quarantineReason = quarantineReason;
+  }
+  if (serverOutcome !== undefined) {
+    item.serverOutcome = serverOutcome;
+  }
+  if (status === "done" || status === "quarantined") {
+    item.replayedAt = Date.now();
   }
   await tx.store.put(item);
   await tx.done;
+
+  notifyQueueChange();
   return item;
 }
 
@@ -258,6 +287,8 @@ export async function incrementAttemptCount(sequence: number): Promise<QueueItem
   item.attemptCount += 1;
   await tx.store.put(item);
   await tx.done;
+
+  notifyQueueChange();
   return item;
 }
 
@@ -287,6 +318,8 @@ export async function deleteQueueItem(sequence: number, reason: string): Promise
   await auditStore.add(auditRecord);
   await queueStore.delete(sequence);
   await tx.done;
+
+  notifyQueueChange();
 }
 
 export async function clearQueue(reason: string, kioskId?: string): Promise<number> {
@@ -319,6 +352,8 @@ export async function clearQueue(reason: string, kioskId?: string): Promise<numb
   }
 
   await tx.done;
+
+  notifyQueueChange();
   return items.length;
 }
 
@@ -330,4 +365,93 @@ export async function getDeletionAuditLogs(kioskId?: string): Promise<QueueDelet
     return index.getAll(IDBKeyRange.only(kioskId));
   }
   return tx.store.getAll();
+}
+
+export async function acquireReplayLease(
+  kioskId: string,
+  holderId: string,
+  durationMs = 15_000,
+  now = Date.now()
+): Promise<boolean> {
+  const db = await getQueueDb();
+  const tx = db.transaction(LEASE_STORE, "readwrite");
+  const existing = await tx.store.get(kioskId);
+
+  if (existing && existing.expiresAt > now && existing.holderId !== holderId) {
+    await tx.done;
+    return false;
+  }
+
+  const lease: ReplayLease = {
+    kioskId,
+    holderId,
+    acquiredAt: existing && existing.holderId === holderId ? existing.acquiredAt : now,
+    expiresAt: now + durationMs,
+  };
+
+  await tx.store.put(lease);
+  await tx.done;
+  return true;
+}
+
+export async function renewReplayLease(
+  kioskId: string,
+  holderId: string,
+  durationMs = 15_000,
+  now = Date.now()
+): Promise<boolean> {
+  const db = await getQueueDb();
+  const tx = db.transaction(LEASE_STORE, "readwrite");
+  const existing = await tx.store.get(kioskId);
+
+  if (!existing || existing.holderId !== holderId) {
+    await tx.done;
+    return false;
+  }
+
+  existing.expiresAt = now + durationMs;
+  await tx.store.put(existing);
+  await tx.done;
+  return true;
+}
+
+export async function releaseReplayLease(
+  kioskId: string,
+  holderId: string
+): Promise<void> {
+  const db = await getQueueDb();
+  const tx = db.transaction(LEASE_STORE, "readwrite");
+  const existing = await tx.store.get(kioskId);
+
+  if (existing && existing.holderId === holderId) {
+    await tx.store.delete(kioskId);
+  }
+  await tx.done;
+}
+
+export async function getReplayLease(
+  kioskId: string
+): Promise<ReplayLease | undefined> {
+  const db = await getQueueDb();
+  return db.get(LEASE_STORE, kioskId);
+}
+
+type QueueListener = () => void;
+const queueListeners = new Set<QueueListener>();
+
+export function subscribeQueue(listener: QueueListener): () => void {
+  queueListeners.add(listener);
+  return () => {
+    queueListeners.delete(listener);
+  };
+}
+
+export function notifyQueueChange(): void {
+  for (const listener of queueListeners) {
+    try {
+      listener();
+    } catch {
+      // Ignore listener callback exceptions
+    }
+  }
 }

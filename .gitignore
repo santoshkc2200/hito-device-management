@@ -44,3 +44,7 @@ hdms-frontend/playwright-report/
 hdms-frontend/blob-report/
 
 .agents/
+
+# --- Local agent/tool scratch ---
+.playwright/
+.zcode/

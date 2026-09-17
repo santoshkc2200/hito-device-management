@@ -3,6 +3,8 @@ import { Camera, QrCode, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { LanguageToggle } from "@/components/language-toggle";
+import { OfflineIndicator } from "@/components/offline-indicator";
+import { useConnectivity } from "@/lib/connectivity";
 import { useTranslator } from "@/i18n";
 
 export interface ScreenFrameProps {
@@ -12,6 +14,7 @@ export interface ScreenFrameProps {
   scannerFresh?: boolean;
   expiresAt?: string | null;
   totalDurationSeconds?: number;
+  isSuspended?: boolean;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
   onOpenManualEntry?: () => void;
@@ -26,6 +29,7 @@ export function ScreenFrame({
   scannerFresh = true,
   expiresAt = null,
   totalDurationSeconds,
+  isSuspended: isSuspendedProp,
   onToggleCamera,
   onOpenDiagnostics,
   onOpenManualEntry,
@@ -33,6 +37,8 @@ export function ScreenFrame({
   className = "",
 }: ScreenFrameProps) {
   const t = useTranslator();
+  const { isOffline } = useConnectivity();
+  const isSuspended = isSuspendedProp ?? isOffline;
   const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handlePointerDown = () => {
@@ -55,6 +61,7 @@ export function ScreenFrame({
       data-testid="screen-frame"
       className={`relative flex min-h-dvh flex-col justify-between bg-background text-foreground select-none ${className}`}
     >
+      <OfflineIndicator />
       {/* Top Persistent Chrome Header */}
       <header className="flex w-full items-center justify-between border-b border-border bg-card px-6 py-4 shadow-xs">
         {/* Left: Kiosk Identification & Status */}
@@ -112,6 +119,7 @@ export function ScreenFrame({
             <CountdownTimer
               expiresAt={expiresAt}
               totalDurationSeconds={totalDurationSeconds}
+              isSuspended={isSuspended}
             />
           )}
         </div>

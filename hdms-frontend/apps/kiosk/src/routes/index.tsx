@@ -16,6 +16,7 @@ import { LocaleProvider, DEFAULT_LOCALE } from "@hdms/i18n";
 import { getKioskConfig, isKioskPaired, subscribeKioskConfig } from "@/lib/kiosk-config";
 import { useScreenWakeLock } from "@/lib/wake-lock";
 import { useDeferredServiceWorkerUpdate } from "@/lib/sw-update";
+import { initReplayEngine } from "@/lib/replay-engine";
 
 export function KioskApp() {
   // Track kiosk pairing state reactively
@@ -68,6 +69,10 @@ export function KioskApp() {
   // Screen Wake Lock & deferred SW update during active transactions
   useScreenWakeLock(paired);
   useDeferredServiceWorkerUpdate(state);
+
+  React.useEffect(() => {
+    return initReplayEngine();
+  }, []);
 
   const openCameraFallback = React.useCallback(() => {
     void startScanning();
