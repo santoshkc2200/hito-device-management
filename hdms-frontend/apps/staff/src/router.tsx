@@ -23,9 +23,18 @@ export const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
+export const routerBasepath = (() => {
+  // Production serves the staff PWA under /staff (5.3a); dev serves at /.
+  // VITE_BASE_PATH is set to /staff/ only for the production build.
+  const raw = (import.meta as any).env?.VITE_BASE_PATH ?? "/";
+  if (raw === "/") return "/";
+  return raw.replace(/\/$/, "");
+})();
+
 export function createStaffRouter(history?: RouterHistory, qc: QueryClient = queryClient) {
   return createRouter({
     routeTree,
+    basepath: routerBasepath,
     history,
     context: { queryClient: qc },
   });

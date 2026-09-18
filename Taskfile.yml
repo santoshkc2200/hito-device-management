@@ -54,15 +54,38 @@ tasks:
       - 'echo ".env.staging created from .env.staging.example — edit secrets before staging runs"'
 
   staging:up:
-    desc: Bring up Postgres, Caddy and API for staging using the staging compose override.
+    desc: Bring up Postgres, Caddy and API for staging from the production images plus the staging override.
     deps: [staging:env, certs]
     cmds:
-      - docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --build
+      - docker compose -f deploy/production/compose.yaml -f docker-compose.staging.yml --env-file .env.staging up -d --build
 
   staging:down:
     desc: Stop the staging Docker Compose stack.
     cmds:
-      - docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging down
+      - docker compose -f deploy/production/compose.yaml -f docker-compose.staging.yml --env-file .env.staging down
+
+  prod:env:
+    desc: Create .env.production from deploy/production/production.env.example if it doesn't exist yet (local verification only — the real host uses /etc/hdms/hdms.env).
+    status:
+      - test -f .env.production
+    cmds:
+      - cp deploy/production/production.env.example .env.production
+      - 'echo ".env.production created — edit secrets before any production run"'
+
+  prod:up:
+    desc: Bring up the production stack (Caddy + API + Postgres 18) from deploy/production/compose.yaml.
+    cmds:
+      - HDMS_PROD_ENV_FILE="${HDMS_PROD_ENV_FILE:-$PWD/.env.production}" docker compose -f deploy/production/compose.yaml --env-file "${HDMS_PROD_ENV_FILE:-$PWD/.env.production}" up -d --build
+
+  prod:down:
+    desc: Stop the production Docker Compose stack.
+    cmds:
+      - HDMS_PROD_ENV_FILE="${HDMS_PROD_ENV_FILE:-$PWD/.env.production}" docker compose -f deploy/production/compose.yaml --env-file "${HDMS_PROD_ENV_FILE:-$PWD/.env.production}" down
+
+  prod:smoke:
+    desc: "Smoke-check a running production stack: /v1/healthz, /v1/readyz, login and scan."
+    cmds:
+      - sh deploy/production/smoke.sh
 
   staging:seed:
     desc: Migrate and load pilot-scale synthetic data (~800 staff, ~500 devices, ~5000 loans) into staging.

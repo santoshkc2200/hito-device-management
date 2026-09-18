@@ -44,7 +44,15 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-export const router = createRouter({ routeTree, context: { queryClient } });
+export const routerBasepath = (() => {
+  // Production serves the admin console under /admin (5.3a); dev serves at /.
+  // VITE_BASE_PATH is set to /admin/ only for the production build.
+  const raw = (import.meta as any).env?.VITE_BASE_PATH ?? "/";
+  if (raw === "/") return "/";
+  return raw.replace(/\/$/, "");
+})();
+
+export const router = createRouter({ routeTree, basepath: routerBasepath, context: { queryClient } });
 
 declare module "@tanstack/react-router" {
   interface Register {

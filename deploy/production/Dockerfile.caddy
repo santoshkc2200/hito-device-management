@@ -1,0 +1,47 @@
+# Production Caddy image (Phase 5.3a): reverse proxy + baked frontend assets.
+#
+# Multi-stage: the builder compiles the three Vite apps with their production
+# base paths (/ kiosk, /admin console, /staff PWA), and the runtime copies
+# only the static dist output into the stock Caddy image. No source, no
+# toolchain, no bind-mounts — what ships is what was built.
+#
+# Build context is the repository root:
+#   docker build -f deploy/production/Dockerfile.caddy .
+# Or via: docker compose -f deploy/production/compose.yaml build caddy
+#
+# Build args (all have production-correct defaults):
+#   VITE_API_BASE_URL  — same-origin /v1 for every app behind Caddy.
+
+# Frontend builder: Node 26 (repo requires Node 24+), pinned by index digest.
+FROM node:26-alpine@sha256:d1afba4b9c2edf2dcc56684c90e6c670309eecbc558b9d4bc7f530efb9934b43 AS frontend-builder
+
+ARG VITE_API_BASE_URL=/v1
+
+WORKDIR /src
+
+# The node:26-alpine variant has no corepack, so install the same pnpm
+# major the repo uses (10.x) via npm, pinned for reproducibility.
+RUN npm install -g pnpm@10.32.1 --no-fund --no-audit
+
+COPY hdms-frontend/package.json hdms-frontend/pnpm-lock.yaml hdms-frontend/pnpm-workspace.yaml hdms-frontend/tsconfig.base.json ./hdms-frontend/
+COPY hdms-frontend/apps ./hdms-frontend/apps
+COPY hdms-frontend/packages ./hdms-frontend/packages
+
+WORKDIR /src/hdms-frontend
+
+RUN pnpm install --frozen-lockfile
+
+# Kiosk at /: same-origin /v1 needs no extra base.
+RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} pnpm --filter kiosk build
+# Admin console at /admin: subpath base + same-origin API.
+RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} VITE_BASE_PATH=/admin/ pnpm --filter admin build
+# Staff PWA at /staff: subpath base; the generated client defaults to /v1.
+RUN VITE_BASE_PATH=/staff/ pnpm --filter staff build
+
+# Runtime: stock Caddy, pinned by index digest (same pin as dev compose).
+FROM caddy:2-alpine@sha256:ad27e531c8b286ff153c0e6e16587a1583e4111bb58c4d83bd73d6d3ef0a0ce1
+
+COPY --from=frontend-builder /src/hdms-frontend/apps/kiosk/dist /srv/kiosk
+COPY --from=frontend-builder /src/hdms-frontend/apps/admin/dist /srv/admin
+COPY --from=frontend-builder /src/hdms-frontend/apps/staff/dist /srv/staff
+COPY deploy/production/Caddyfile /etc/caddy/Caddyfile

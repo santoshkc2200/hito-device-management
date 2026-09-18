@@ -1,0 +1,69 @@
+# Production front door (Phase 5.3a).
+#
+# Shape: Caddy terminates TLS with the hospital CA-issued certificate
+# (5.3b distributes the CA root to the iPads), serves the baked frontend
+# assets — / kiosk, /admin console, /staff PWA (docs/09) — and proxies
+# /v1/* to the API. /metrics is deliberately NOT routed: 5.5a exposes it
+# only to the monitoring host, never to the kiosk VLAN.
+#
+# Security headers boundary (5.2a): the Go application
+# (httpx.WithSecurityHeaders) is the single authoritative source for HSTS,
+# CSP, X-Content-Type-Options, Referrer-Policy and X-Frame-Options. This
+# file terminates TLS and routes — it never injects security headers.
+#
+# THR-01 (rate-limit key spoofing): Caddy overwrites X-Forwarded-For with
+# the peer IP before proxying, so the backend's httpx.ClientIP cannot be
+# steered by an attacker-controlled first hop. Caddy appends by default;
+# the header_up below replaces the inbound value with the TCP peer.
+{
+	auto_https off
+}
+
+{$HDMS_SITE_ADDR:hdms.hospital.local} {
+	tls {$HDMS_TLS_CERT_FILE:/etc/ssl/certs/hdms.hospital.crt} {$HDMS_TLS_KEY_FILE:/etc/ssl/private/hdms.hospital.key}
+
+	log {
+		output stdout
+		format json
+	}
+
+	# API — same-origin for all three frontends, so no CORS block is needed
+	# here (the app answers OPTIONS itself via httpx.WithCORS).
+	handle /v1/* {
+		reverse_proxy api:8443 {
+			transport http {
+				# The API serves HTTPS with the same hospital certificate, but
+				# it is dialled as `api:8443` inside the compose network, so
+				# the handshake hostname never matches the certificate name.
+				# Traffic stays inside the compose network; 5.3b pins the
+				# hospital CA here once the PKI material exists.
+				tls_insecure_skip_verify
+			}
+			header_up X-Forwarded-For {http.request.remote.host}
+			header_up X-Real-IP {http.request.remote.host}
+		}
+	}
+
+	# Admin console at /admin (built with VITE_BASE_PATH=/admin/).
+	handle /admin/* {
+		root * /srv/admin
+		uri strip_prefix /admin
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Staff PWA at /staff (built with VITE_BASE_PATH=/staff/).
+	handle /staff/* {
+		root * /srv/staff
+		uri strip_prefix /staff
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Kiosk at / (must stay last: it is the fallback site root).
+	handle {
+		root * /srv/kiosk
+		try_files {path} /index.html
+		file_server
+	}
+}

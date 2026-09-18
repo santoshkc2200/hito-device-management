@@ -1,6 +1,14 @@
-# Staging stack override for Docker Compose.
-# Run with: docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d
+# Staging stack override for Docker Compose (Phase 5.3a).
+# Staging runs the SAME images as production (5.0c) with its own secrets
+# and its own database — the only differences are host ports, the staging
+# database volume, the localhost TLS material, and the staging site address.
+# Run from the repository root with:
+#   docker compose -f deploy/production/compose.yaml -f docker-compose.staging.yml --env-file .env.staging up -d --build
 # Or via Taskfile: task staging:up / task staging:down / task staging:seed
+#
+# Path note: the project directory is deploy/production (the first -f file),
+# so relative paths below are written as ../../* to reach the repository
+# root (certs, deploy/Caddyfile.staging, .env.staging).
 
 name: hdms-staging
 
@@ -19,7 +27,7 @@ services:
 
   api:
     env_file: !override
-      - ${HDMS_STAGING_ENV_FILE:-.env.staging}
+      - ${HDMS_STAGING_ENV_FILE:-../../.env.staging}
     environment:
       HDMS_ENV: staging
       HDMS_RATE_LIMIT: "on"
@@ -27,19 +35,21 @@ services:
       HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms_staging}:${POSTGRES_PASSWORD:-hdms_staging_secret}@db:5432/${POSTGRES_DB:-hdms_staging}?sslmode=disable
       HDMS_TLS_CERT_FILE: /certs/localhost.pem
       HDMS_TLS_KEY_FILE: /certs/localhost-key.pem
-    # No source bind-mount: runs container image code without dev hot-reload
+    # Same production image, no source bind-mount — only the localhost
+    # TLS material differs from production's hospital PKI mounts.
     volumes: !override
-      - ./certs:/certs:ro
-    command: ["go", "run", "./cmd/hdms-api"]
+      - ../../certs:/certs:ro
 
   caddy:
     # Own host port and own site address, so staging and dev can be up at the
-    # same time: a drill against staging must not require stopping dev.
+    # same time: a drill against staging must never require stopping dev.
+    # Same production image (baked /srv/* frontends); only the Caddyfile and
+    # the localhost TLS material are overridden for the staging address.
     ports: !override
       - "9443:9443"
     volumes: !override
-      - ./deploy/Caddyfile.staging:/etc/caddy/Caddyfile:ro
-      - ./certs:/certs:ro
+      - ../../deploy/Caddyfile.staging:/etc/caddy/Caddyfile:ro
+      - ../../certs:/certs:ro
 
 volumes:
   hdms-staging-db-data:

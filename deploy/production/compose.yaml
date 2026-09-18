@@ -1,0 +1,143 @@
+# Production stack (Phase 5.3a).
+#
+# Run with (secrets come from the root-only host file, never from git):
+#   docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env up -d --build
+# Or via Taskfile: task prod:up / task prod:down / task prod:smoke
+# (Taskfile exports HDMS_PROD_ENV_FILE as an absolute path so the service
+# env_file below and the --env-file flag agree. If you override
+# HDMS_PROD_ENV_FILE yourself, use an absolute path — service env_file
+# entries resolve against the project directory, deploy/production.)
+#
+# What makes this production rather than dev (docker-compose.yml):
+# - API runs the compiled binary from hdms-backend/Dockerfile as a non-root
+#   user — no bind-mounted source, no air, no toolchain in the image.
+# - Caddy serves the baked frontend assets (/ kiosk, /admin console,
+#   /staff PWA) from deploy/production/Dockerfile.caddy and proxies /v1/*
+#   with X-Forwarded-For overwritten to the peer IP (THR-01).
+# - The database port is NOT published: only api reaches db:5432 on the
+#   compose network. Every service has resource limits, restart policy and
+#   a healthcheck; startup order is gated on health, not on sleep.
+# - HDMS_ENV=production and HDMS_RATE_LIMIT=on are enforced here
+#   (environment overrides any env file), so the fail-closed checks in
+#   internal/platform/config cannot be softened by a stale secrets file.
+# - Migrations run on API startup from the embedded goose set under the
+#   advisory lock — two API replicas starting together migrate exactly once
+#   (see test/integration/production_migrate_concurrent_test.go).
+
+name: hdms-production
+
+services:
+  db:
+    image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hdms_prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must come from /etc/hdms/hdms.env}
+      POSTGRES_DB: ${POSTGRES_DB:-hdms_prod}
+    # No ports: the database is reachable only as db:5432 on this network.
+    volumes:
+      - hdms-prod-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-hdms_prod} -d $${POSTGRES_DB:-hdms_prod}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    build:
+      context: ../../hdms-backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Secrets (HDMS_DATABASE_URL, HDMS_TOKEN_PEPPER, HDMS_CREDENTIAL_ENC_KEY,
+    # HDMS_TOTP_ENC_KEY, HDMS_BACKUP_ENC_KEY, POSTGRES_*) arrive via
+    # --env-file /etc/hdms/hdms.env for interpolation AND via env_file below
+    # into the container. The values in `environment` are the production
+    # posture and override the file on purpose.
+    env_file:
+      - ${HDMS_PROD_ENV_FILE:-/etc/hdms/hdms.env}
+    environment:
+      HDMS_ENV: production
+      HDMS_RATE_LIMIT: "on"
+      HDMS_HTTP_ADDR: ":8443"
+      HDMS_TLS_CERT_FILE: /etc/ssl/certs/hdms.hospital.crt
+      HDMS_TLS_KEY_FILE: /etc/ssl/private/hdms.hospital.key
+      HDMS_LOG_LEVEL: ${HDMS_LOG_LEVEL:-info}
+      HDMS_OTLP_ENDPOINT: ${HDMS_OTLP_ENDPOINT:-}
+    volumes:
+      # Hospital PKI material, provisioned in 5.3b; read-only, never in git.
+      - ${HDMS_TLS_CERT_HOST_PATH:-/etc/ssl/certs/hdms.hospital.crt}:/etc/ssl/certs/hdms.hospital.crt:ro
+      - ${HDMS_TLS_KEY_HOST_PATH:-/etc/ssl/private/hdms.hospital.key}:/etc/ssl/private/hdms.hospital.key:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1:8443/v1/healthz | grep -q '\"status\":\"ok\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile.caddy
+    restart: unless-stopped
+    environment:
+      HDMS_SITE_ADDR: ${HDMS_SITE_ADDR:-hdms.hospital.local}
+      HDMS_TLS_CERT_FILE: /etc/ssl/certs/hdms.hospital.crt
+      HDMS_TLS_KEY_FILE: /etc/ssl/private/hdms.hospital.key
+    ports:
+      - "${HDMS_HTTPS_PORT:-443}:443"
+      - "${HDMS_HTTP_PORT:-80}:80"
+    volumes:
+      - ${HDMS_TLS_CERT_HOST_PATH:-/etc/ssl/certs/hdms.hospital.crt}:/etc/ssl/certs/hdms.hospital.crt:ro
+      - ${HDMS_TLS_KEY_HOST_PATH:-/etc/ssl/private/hdms.hospital.key}:/etc/ssl/private/hdms.hospital.key:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --no-check-certificate https://127.0.0.1:443/v1/healthz || wget -q -O /dev/null --no-check-certificate https://127.0.0.1:8443/v1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  hdms-prod-db-data:

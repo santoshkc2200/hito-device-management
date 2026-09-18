@@ -91,11 +91,14 @@ export function installAuthInterceptors() {
 
     if (response.status === 401 && !isAuthCall) {
       queryClient.removeQueries({ queryKey: currentStaffQueryKey });
+      // Base-aware: production serves under /staff (5.3a), dev at /.
+      const base = (import.meta as any).env?.VITE_BASE_PATH ?? "/";
+      const loginPath = base === "/" ? "/login" : `${base.replace(/\/$/, "")}/login`;
       if (
         typeof window !== "undefined" &&
-        !window.location.pathname.startsWith("/login")
+        !window.location.pathname.startsWith(loginPath)
       ) {
-        window.location.href = "/login";
+        window.location.href = loginPath;
       }
     }
     return response;

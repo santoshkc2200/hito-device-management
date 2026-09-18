@@ -51,7 +51,9 @@ export function LoginPage({ onSubmit, error: errorProp }: LoginPageProps = {}) {
       mutationFn: loginWithPassword,
       onSuccess: async () => {
         if (typeof window !== "undefined") {
-          window.location.href = "/";
+          // Base-aware: production serves under /staff (5.3a), dev at /.
+          const base = (import.meta as any).env?.VITE_BASE_PATH ?? "/";
+          window.location.href = base === "/" ? "/" : `${base.replace(/\/$/, "")}/`;
         }
       },
       onError: (error: unknown) => {

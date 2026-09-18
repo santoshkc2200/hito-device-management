@@ -8,9 +8,7 @@ This operational runbook covers the provisioning, verification, data seeding, an
 
 **Rehearsal never happens against production.** Testing disaster recovery against a live system risks data loss; testing alerts in production produces operator fatigue; soak testing against the counter disrupts clinical staff.
 
-The staging stack runs the **same Docker Compose definition as production**, with its own secrets and its own isolated database.
-
-**Known gap until 5.3a lands.** There is no production compose file yet — [5.3a](../phases/phase-5/5.3-deployment.md) writes it. Until then this override sits on top of `docker-compose.yml`, so the API still builds from `Dockerfile.dev` and still serves the dev `certs/localhost.pem`. What staging already gives you is a separate database, separate secrets, separate host ports and production-like rate limiting — enough for a restore drill or a seeded soak, not yet enough to call it a faithful copy of the production build. When 5.3a adds the production compose file, this override must be re-pointed at it and this paragraph deleted.
+The staging stack runs the **same Docker Compose definition as production** (`deploy/production/compose.yaml` plus the `docker-compose.staging.yml` override), with its own secrets and its own isolated database — the same production images (compiled API binary, Caddy with baked frontends), the same advisory-locked startup migrations, and production-like rate limiting.
 
 Staging is the mandatory, designated operational target for:
 1. **Restore Drills (Phase 5.4c):** Exercising full and point-in-time PostgreSQL database restores from automated backups.
@@ -22,13 +20,13 @@ Staging is the mandatory, designated operational target for:
 
 ## 2. Architecture & Isolation from Production
 
-The staging environment is implemented via a Compose override (`docker-compose.staging.yml`) applied atop `docker-compose.yml`, configured via `.env.staging`:
+The staging environment is implemented via a Compose override (`docker-compose.staging.yml`) applied atop the production stack (`deploy/production/compose.yaml`, [5.3a](../phases/phase-5/5.3-deployment.md)), configured via `.env.staging`:
 
 - **Project Namespace:** `hdms-staging` (creates isolated Docker network `hdms-staging_default` and volumes).
 - **Database Service:** Runs `postgres:18-alpine` backed by volume `hdms-staging-db-data`.
 - **Database Port:** Mapped to host port **`5443`** (development uses `5442`; default local Postgres uses `5432`; production is unmapped to the host).
-- **Front Door:** Caddy serves staging on host port **`9443`** using `deploy/Caddyfile.staging` (development uses `8443`), so the staging and development stacks can be up at the same time — a drill must never require stopping dev.
-- **API Service:** Runs identical image without source code bind-mounts (`volumes: !override [./certs:/certs:ro]`) and without hot-reloading (`air`).
+- **Front Door:** Caddy serves staging on host port **`9443`** using `deploy/Caddyfile.staging` — the same shape as the production Caddyfile (baked `/` kiosk, `/admin` console, `/staff` PWA, `/v1/*` proxied with `X-Forwarded-For` overwritten) on a separate site address (development uses `8443`), so the staging and development stacks can be up at the same time — a drill must never require stopping dev.
+- **API Service:** Runs the identical production image (compiled binary, no source bind-mount, no `air`) with only the localhost TLS material differing from production's hospital PKI mounts.
 - **Rate Limiting:** Enabled (`HDMS_RATE_LIMIT=on`).
 - **Secrets:** Dedicated staging keys (`HDMS_TOKEN_PEPPER`, `HDMS_CREDENTIAL_ENC_KEY`, `HDMS_TOTP_ENC_KEY`) generated independently of development and production.
 - **UI Safeguard:** Frontends in staging display a prominent amber staging banner, and the borrower registration interface displays a warning banner prohibiting registration of real staff cards.
@@ -42,7 +40,7 @@ Before executing any destructive rehearsal (database drop, restore drill, chaos 
 ### Step 1: Inspect the Staging Database Connection String
 Run:
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging exec api env | grep HDMS_DATABASE_URL
+docker compose -f deploy/production/compose.yaml -f docker-compose.staging.yml --env-file .env.staging exec api env | grep HDMS_DATABASE_URL
 ```
 
 **Verification Criteria:**
@@ -53,7 +51,7 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .e
 ### Step 2: Verify PostgreSQL Network and Database Identity
 Connect to the staging database container and inspect database name and peer connections:
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging exec db psql -U hdms_staging -d hdms_staging -c "SELECT current_database(), inet_server_addr(), inet_server_port();"
+docker compose -f deploy/production/compose.yaml -f docker-compose.staging.yml --env-file .env.staging exec db psql -U hdms_staging -d hdms_staging -c "SELECT current_database(), inet_server_addr(), inet_server_port();"
 ```
 Ensure `current_database()` reports `hdms_staging`.
 

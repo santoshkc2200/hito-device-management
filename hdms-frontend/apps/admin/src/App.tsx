@@ -6,7 +6,7 @@ import { installAuthInterceptors } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
 import { router } from "./router";
 
-client.setConfig({ baseUrl: import.meta.env.VITE_API_BASE_URL });
+client.setConfig({ baseUrl: import.meta.env.VITE_API_BASE_URL ?? "/v1" });
 installAuthInterceptors();
 
 export function App() {

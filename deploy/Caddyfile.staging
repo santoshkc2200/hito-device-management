@@ -1,13 +1,14 @@
-# Staging front door. Same shape as the dev Caddyfile, on a separate host port
-# so the staging stack and the dev stack can run side by side — a drill against
-# staging must never require taking the dev environment down. 5.3a replaces this
-# with the production front door, which staging will then mirror.
+# Staging front door. Same shape as the production Caddyfile
+# (deploy/production/Caddyfile) — baked /srv/* frontends, /v1/* proxied with
+# X-Forwarded-For overwritten (THR-01) — on a separate host port so the
+# staging stack and the dev stack can run side by side. A drill against
+# staging must never require taking the dev environment down.
 #
 # Security headers boundary (5.2a):
 # The Go application (httpx.WithSecurityHeaders) is the authoritative source
 # for all security headers (HSTS, CSP, X-Content-Type-Options, Referrer-Policy,
-# X-Frame-Options). Caddy terminates TLS and handles CORS preflight (@options)
-# without injecting or duplicating security headers on reverse_proxy responses.
+# X-Frame-Options). Caddy terminates TLS and routes without injecting or
+# duplicating security headers on reverse_proxy responses.
 {
 	auto_https off
 }
@@ -15,20 +16,38 @@
 https://localhost:9443 {
 	tls /certs/localhost.pem /certs/localhost-key.pem
 
-	@options {
-		method OPTIONS
-	}
-	handle @options {
-		header ?Access-Control-Allow-Origin "https://localhost:5175"
-		header ?Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS"
-		header ?Access-Control-Allow-Headers "Authorization, Content-Type, Idempotency-Key, Cache-Control, X-CSRF-Token"
-		header ?Access-Control-Max-Age "3600"
-		respond 204
+	log {
+		output stdout
+		format json
 	}
 
-	reverse_proxy api:8443 {
-		transport http {
-			tls_insecure_skip_verify
+	handle /v1/* {
+		reverse_proxy api:8443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up X-Forwarded-For {http.request.remote.host}
+			header_up X-Real-IP {http.request.remote.host}
 		}
+	}
+
+	handle /admin/* {
+		root * /srv/admin
+		uri strip_prefix /admin
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle /staff/* {
+		root * /srv/staff
+		uri strip_prefix /staff
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle {
+		root * /srv/kiosk
+		try_files {path} /index.html
+		file_server
 	}
 }

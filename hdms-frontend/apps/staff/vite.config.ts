@@ -60,6 +60,9 @@ export const pwaOptions = {
 };
 
 export default defineConfig({
+  // Production serves the staff PWA under /staff behind Caddy (5.3a).
+  // Override-only so `pnpm dev` keeps running at /.
+  base: process.env.VITE_BASE_PATH ?? "/",
   plugins: [
     react(),
     tailwindcss(),
