@@ -1,8 +1,8 @@
-# Security Findings Register (Phase 5.2e)
+# Security Findings Register (Phase 5.2)
 
 **Owner:** Santosh KC  
 **Date:** 2026-09-18  
-**Parent:** [5.2 Security Review](./5.2-security-review.md)
+**Parent:** [5.2 Security Review](./5.2-security-review.md) · **Walkthrough:** [threat-model-walkthrough.md](./threat-model-walkthrough.md)
 
 ---
 
@@ -75,3 +75,24 @@ To update base image digests safely during routine maintenance:
    - Run security scans: `govulncheck ./...`, `gosec ./...`
    - Run CI workflow validation
 5. **Record in findings register:** Log the digest transition and verification date.
+
+---
+
+## 5. Threat-walkthrough findings (5.2f)
+
+From the [T1–T13 walkthrough](./threat-model-walkthrough.md) and the manual
+`security-review` pass over the 5.2a–e diff on 2026-09-18. No `security-review`
+skill is installed in this environment; the pass covered the headers/CSP
+boundary, tiered limiter, four-path redaction, kiosk-scope matrix, migration
+0019 + startup privilege check, the session-fixation fix, `#nosec` annotations,
+CLI path handling, and the CI security job — see the walkthrough's review
+section for what was checked and cleared.
+
+| ID | Finding | Severity | Owner | Resolution / Acceptance | Review Date |
+|---|---|---|---|---|---|
+| **THR-01** | Rate-limit client key trusts the first hop of `X-Forwarded-For` (three copies: `httpx.ClientIP`, `apiserver.getClientIP`, `auth.clientIP`) with no Caddy `header_up` overwrite yet. Behind Caddy — which appends — the first hop is attacker-controllable, so buckets can be evaded by header rotation; limiter maps also grow without eviction. Per-account lockout still bounds per-account guessing. | Low | Santosh KC | **Closed in 5.3a (spoofing vector):** production (`deploy/production/Caddyfile`) and staging (`deploy/Caddyfile.staging`) Caddyfiles overwrite `X-Forwarded-For`/`X-Real-IP` with `{http.request.remote.host}` — verified in the adapted JSON. Residual accepted for the single-host pilot: limiter maps have no eviction, bounded in practice by the kiosk/admin population; revisit with a shared store if the API ever scales past one replica. | 2026-09-18 |
+| **THR-02** | T2 — borrowing on a colleague's card remains possible by design. | Low–Medium | Santosh KC | **Accepted for the pilot:** card possession is the factor, as with the paper register; audit + suspend is the response. Hospital sign-off due at the 5.8d go/no-go, with the PIN option documented as the upgrade path. | 5.8d |
+| **THR-03** | T5 residual — HMAC-pepper storage and the CI secret scan are in place, but encrypted nightly backups do not exist yet, so the "backup leaked" mitigation is half-built. | Medium | Santosh KC | **Open → 5.4a:** nightly encrypted backup + pepper-in-password-manager separation; close when the restore drill passes. | 5.4 close-out |
+| **THR-04** | T6 residual — no hospital-AD OIDC yet; auth rests on password + TOTP + lockout + RBAC. | Low | Santosh KC | **Accepted:** Phase 6 upgrade path is designed in (pluggable `auth` package); current controls tested (see walkthrough T6 row). | 2026-10-01 |
+| **THR-05** | T1 operational half — Guided Access lock, locked mount, and drawer discipline are procedure, not code. | Medium | Santosh KC | **Accepted with verification:** `docs/runbooks/kiosk-ipad-setup.md` steps 6–7 + checklist; verified at 5.8a readiness, not here. | 5.8a |
+| **THR-06** | T13 operational half — dashboard 48 h warning and `last-entry` are built and tested; the daily typing routine is people, not code. | Low–Medium | Santosh KC | **Accepted with verification:** daily backfill practice timed in 5.8b; paper-vs-system agreement is a pilot exit criterion. | 5.8d |
