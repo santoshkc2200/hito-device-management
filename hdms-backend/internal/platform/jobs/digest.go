@@ -103,8 +103,8 @@ func RunWeeklyDigest(ctx context.Context, pool *db.Pool, notifSvc notificationap
 	// 2. Query active admins
 	const adminsQuery = `
 		SELECT id::text, email
-		FROM admins
-		WHERE disabled_at IS NULL
+		FROM admin_accounts
+		WHERE status = 'active'
 		  AND email != ''
 		ORDER BY id ASC`
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -590,5 +591,353 @@ func TestALoanReturnedWhileQueuedIsSuppressedBeforeSending(t *testing.T) {
 	}
 	if d.Status != notificationapi.StatusSuppressed {
 		t.Fatalf("delivery status = %s, want suppressed", d.Status)
+	}
+}
+
+// ═══ 6.2c & 6.2e: Manual loan reminders, rate limiting, digests, and admin auth ═══
+
+// TestManualRemindLoanOutcomes proves 6.2e:
+// Manual reminders exercise the delivery pipeline and enforce quiet hours, deduplication,
+// opt-out preferences, and return/dispute state suppression.
+func TestManualRemindLoanOutcomes(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	// 03:00 local time (in quiet hours: 21:00 - 07:00)
+	tNight := time.Date(2026, 9, 18, 3, 0, 0, 0, loc)
+	fakeClock := clock.NewFake(tNight)
+
+	memTransport := notification.NewMemoryTransport()
+	notifSvc := notification.New(pool, fakeClock, notification.Config{
+		Transport: memTransport,
+		QuietHours: notification.QuietHoursConfig{
+			Enabled:   true,
+			StartHour: 21,
+			EndHour:   7,
+			Location:  loc,
+		},
+	})
+
+	loanID, _, userID := fixtures.OpenLoan(t, pool)
+	borrowedAt := tNight.Add(-10 * time.Hour)
+	dueAt := tNight.Add(-2 * time.Hour)
+	if _, err := pool.Exec(ctx, `UPDATE loans SET borrowed_at = $1, due_at = $2 WHERE id = $3`, borrowedAt, dueAt, loanID); err != nil {
+		t.Fatalf("set loan overdue: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET email = $1 WHERE id = $2`, "doctor@hospital.local", userID); err != nil {
+		t.Fatalf("set borrower email: %v", err)
+	}
+
+	// 1. Quiet hours: reminder is queued for window open, not sent immediately
+	outcome1, err := notifSvc.RemindLoan(ctx, loanID)
+	if err != nil {
+		t.Fatalf("remind during quiet hours: %v", err)
+	}
+	if outcome1.Outcome != notificationapi.RemindOutcomeQueuedQuietHours {
+		t.Fatalf("outcome at 03:00 = %s, want queued_quiet_hours", outcome1.Outcome)
+	}
+	if len(memTransport.GetMessages()) != 0 {
+		t.Fatalf("messages sent during quiet hours = %d, want 0", len(memTransport.GetMessages()))
+	}
+
+	// 2. Daytime: advance clock to 10:00, open a second overdue loan, and remind -> sent immediately
+	fakeClock.Set(time.Date(2026, 9, 18, 10, 0, 0, 0, loc))
+	loanID2, _, userID2 := fixtures.OpenLoan(t, pool)
+	if _, err := pool.Exec(ctx, `UPDATE loans SET borrowed_at = $1, due_at = $2 WHERE id = $3`, borrowedAt, dueAt, loanID2); err != nil {
+		t.Fatalf("set loan2 overdue: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET email = $1 WHERE id = $2`, "nurse@hospital.local", userID2); err != nil {
+		t.Fatalf("set borrower2 email: %v", err)
+	}
+
+	outcome2, err := notifSvc.RemindLoan(ctx, loanID2)
+	if err != nil {
+		t.Fatalf("remind during daytime: %v", err)
+	}
+	if outcome2.Outcome != notificationapi.RemindOutcomeSent {
+		t.Fatalf("outcome at 10:00 = %s, want sent", outcome2.Outcome)
+	}
+	if len(memTransport.GetMessages()) != 1 {
+		t.Fatalf("messages sent after daytime remind = %d, want 1", len(memTransport.GetMessages()))
+	}
+
+	// 3. Dedupe: second reminder at same escalation step is refused
+	outcome3, err := notifSvc.RemindLoan(ctx, loanID2)
+	if err != nil {
+		t.Fatalf("second remind at same step: %v", err)
+	}
+	if outcome3.Outcome != notificationapi.RemindOutcomeRefused {
+		t.Fatalf("outcome for duplicate reminder = %s, want refused", outcome3.Outcome)
+	}
+	if !strings.Contains(outcome3.Reason, "already exists") {
+		t.Fatalf("refused reason = %q, want already exists", outcome3.Reason)
+	}
+
+	// 4. Opt-out: recipient opted out returns outcome refused
+	loanID3, _, userID3 := fixtures.OpenLoan(t, pool)
+	if _, err := pool.Exec(ctx, `UPDATE loans SET borrowed_at = $1, due_at = $2 WHERE id = $3`, borrowedAt, dueAt, loanID3); err != nil {
+		t.Fatalf("set loan3 overdue: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET email = $1 WHERE id = $2`, "optout@hospital.local", userID3); err != nil {
+		t.Fatalf("set borrower3 email: %v", err)
+	}
+	if _, err := notifSvc.SetPreferences(ctx, notificationapi.SetPreferencesParams{
+		UserID:    userID3,
+		Channel:   notificationapi.ChannelEmail,
+		OptedOut:  true,
+		UpdatedBy: "admin:test",
+	}); err != nil {
+		t.Fatalf("set preferences: %v", err)
+	}
+
+	outcome4, err := notifSvc.RemindLoan(ctx, loanID3)
+	if err != nil {
+		t.Fatalf("remind opted-out user: %v", err)
+	}
+	if outcome4.Outcome != notificationapi.RemindOutcomeRefused {
+		t.Fatalf("outcome for opted-out user = %s, want refused", outcome4.Outcome)
+	}
+	if !strings.Contains(outcome4.Reason, "opted out") {
+		t.Fatalf("refused reason = %q, want opted out", outcome4.Reason)
+	}
+
+	// 5. Returned loan is refused
+	loanID4, _, userID4 := fixtures.OpenLoan(t, pool)
+	if _, err := pool.Exec(ctx, `UPDATE loans SET borrowed_at = $1, due_at = $2, status = 'returned', returned_at = $3 WHERE id = $4`, borrowedAt, dueAt, fakeClock.Now(), loanID4); err != nil {
+		t.Fatalf("set loan4 returned: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET email = $1 WHERE id = $2`, "returned@hospital.local", userID4); err != nil {
+		t.Fatalf("set borrower4 email: %v", err)
+	}
+
+	outcome5, err := notifSvc.RemindLoan(ctx, loanID4)
+	if err != nil {
+		t.Fatalf("remind returned loan: %v", err)
+	}
+	if outcome5.Outcome != notificationapi.RemindOutcomeRefused {
+		t.Fatalf("outcome for returned loan = %s, want refused", outcome5.Outcome)
+	}
+	if !strings.Contains(outcome5.Reason, "not open") {
+		t.Fatalf("refused reason = %q, want not open", outcome5.Reason)
+	}
+
+	// 6. Disputed loan is refused
+	loanID5, _, userID5 := fixtures.OpenLoan(t, pool)
+	if _, err := pool.Exec(ctx, `UPDATE loans SET disputed = true, due_at = $1 WHERE id = $2`, dueAt, loanID5); err != nil {
+		t.Fatalf("set loan5 disputed: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET email = $1 WHERE id = $2`, "disputed@hospital.local", userID5); err != nil {
+		t.Fatalf("set borrower5 email: %v", err)
+	}
+
+	outcome6, err := notifSvc.RemindLoan(ctx, loanID5)
+	if err != nil {
+		t.Fatalf("remind disputed loan: %v", err)
+	}
+	if outcome6.Outcome != notificationapi.RemindOutcomeRefused {
+		t.Fatalf("outcome for disputed loan = %s, want refused", outcome6.Outcome)
+	}
+	if !strings.Contains(outcome6.Reason, "disputed") {
+		t.Fatalf("refused reason = %q, want disputed", outcome6.Reason)
+	}
+}
+
+// TestWeeklyDigestJobExecutionAndDedupe proves 6.2c:
+// RunWeeklyDigest enqueues digests for active admins, records a success job_run,
+// and skips subsequent runs within the same ISO calendar week.
+func TestWeeklyDigestJobExecutionAndDedupe(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	now := time.Date(2026, 9, 21, 8, 0, 0, 0, time.UTC) // Monday morning
+	fakeClock := clock.NewFake(now)
+
+	memTransport := notification.NewMemoryTransport()
+	notifSvc := notification.New(pool, fakeClock, notification.Config{
+		Transport:  memTransport,
+		QuietHours: notification.QuietHoursConfig{Enabled: false},
+	})
+
+	// Seed an active admin
+	adminEmail := fmt.Sprintf("admin_digest_%d@hospital.local", time.Now().UnixNano())
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO admin_accounts (id, email, full_name, password_hash, role, status)
+		VALUES (gen_random_uuid(), $1, 'Digest Admin', 'fakehash', 'admin', 'active')`,
+		adminEmail); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	// Seed an overdue loan
+	loanID, _, userID := fixtures.OpenLoan(t, pool)
+	dueAt := now.Add(-3 * 24 * time.Hour)
+	if _, err := pool.Exec(ctx, `UPDATE loans SET due_at = $1 WHERE id = $2`, dueAt, loanID); err != nil {
+		t.Fatalf("set loan overdue: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET email = $1 WHERE id = $2`, "digestborrower@hospital.local", userID); err != nil {
+		t.Fatalf("set borrower email: %v", err)
+	}
+
+	// Run 1: Should collect overdue loan and enqueue digest for admin
+	rep1, err := jobs.RunWeeklyDigest(ctx, pool, notifSvc, now, t.TempDir())
+	if err != nil {
+		t.Fatalf("RunWeeklyDigest 1: %v", err)
+	}
+	if rep1.AdminsTargeted < 1 {
+		t.Fatalf("AdminsTargeted = %d, want >= 1", rep1.AdminsTargeted)
+	}
+	if rep1.DigestsEnqueued < 1 {
+		t.Fatalf("DigestsEnqueued = %d, want >= 1", rep1.DigestsEnqueued)
+	}
+	if rep1.OverdueLoansCount < 1 {
+		t.Fatalf("OverdueLoansCount = %d, want >= 1", rep1.OverdueLoansCount)
+	}
+
+	// Verify job_runs record
+	var runOutcome string
+	if err := pool.QueryRow(ctx, `SELECT outcome FROM job_runs WHERE job = 'weekly-digest' ORDER BY started_at DESC LIMIT 1`).Scan(&runOutcome); err != nil {
+		t.Fatalf("query job_runs: %v", err)
+	}
+	if runOutcome != "success" {
+		t.Fatalf("job_runs outcome = %s, want success", runOutcome)
+	}
+
+	// Run 2: Same calendar week (e.g. 2 hours later) -> must skip via dedupe
+	rep2, err := jobs.RunWeeklyDigest(ctx, pool, notifSvc, now.Add(2*time.Hour), t.TempDir())
+	if err != nil {
+		t.Fatalf("RunWeeklyDigest 2: %v", err)
+	}
+	if rep2.DigestsEnqueued != 0 {
+		t.Fatalf("Run 2 DigestsEnqueued = %d, want 0", rep2.DigestsEnqueued)
+	}
+	if rep2.SkippedDedupe < 1 {
+		t.Fatalf("Run 2 SkippedDedupe = %d, want >= 1", rep2.SkippedDedupe)
+	}
+}
+
+// TestNotificationEndpointsAuthorization proves 6.2b, 6.2d, 6.2e:
+// - Quarantined deliveries & preferences endpoints require admin role.
+// - Remind endpoint permits admin and technician, rejects viewer and unauthenticated.
+func TestNotificationEndpointsAuthorization(t *testing.T) {
+	h := newTestHarness(t)
+	ctx := context.Background()
+
+	admCaller := createAdminCaller(t, h, "admin")
+	techCaller := createAdminCaller(t, h, "technician")
+	viewerCaller := createAdminCaller(t, h, "viewer")
+	anonCaller := adminCaller{client: &http.Client{}}
+
+	// Seed a test user for preference tests
+	userID := fixtures.User(t, h.pool)
+
+	// 1. GET /v1/notifications/quarantined
+	status, _, _ := doRoleRequest(t, h, admCaller, http.MethodGet, "/v1/notifications/quarantined")
+	if status != http.StatusOK {
+		t.Fatalf("admin GET /v1/notifications/quarantined status = %d, want 200", status)
+	}
+	status, _, _ = doRoleRequest(t, h, techCaller, http.MethodGet, "/v1/notifications/quarantined")
+	if status != http.StatusForbidden {
+		t.Fatalf("technician GET /v1/notifications/quarantined status = %d, want 403", status)
+	}
+	status, _, _ = doRoleRequest(t, h, viewerCaller, http.MethodGet, "/v1/notifications/quarantined")
+	if status != http.StatusForbidden {
+		t.Fatalf("viewer GET /v1/notifications/quarantined status = %d, want 403", status)
+	}
+	status, _, _ = doRoleRequest(t, h, anonCaller, http.MethodGet, "/v1/notifications/quarantined")
+	if status != http.StatusUnauthorized {
+		t.Fatalf("anon GET /v1/notifications/quarantined status = %d, want 401", status)
+	}
+
+	// 2. GET & PUT /v1/users/{id}/notification-preferences
+	prefPath := "/v1/users/" + userID + "/notification-preferences"
+	status, _, _ = doRoleRequest(t, h, admCaller, http.MethodGet, prefPath)
+	if status != http.StatusOK {
+		t.Fatalf("admin GET %s status = %d, want 200", prefPath, status)
+	}
+	status, _, _ = doRoleRequest(t, h, techCaller, http.MethodGet, prefPath)
+	if status != http.StatusForbidden {
+		t.Fatalf("technician GET %s status = %d, want 403", prefPath, status)
+	}
+	status, _, _ = doRoleRequest(t, h, viewerCaller, http.MethodGet, prefPath)
+	if status != http.StatusForbidden {
+		t.Fatalf("viewer GET %s status = %d, want 403", prefPath, status)
+	}
+	status, _, _ = doRoleRequest(t, h, anonCaller, http.MethodGet, prefPath)
+	if status != http.StatusUnauthorized {
+		t.Fatalf("anon GET %s status = %d, want 401", prefPath, status)
+	}
+
+	status, _, _ = doRoleRequest(t, h, techCaller, http.MethodPut, prefPath)
+	if status != http.StatusForbidden {
+		t.Fatalf("technician PUT %s status = %d, want 403", prefPath, status)
+	}
+	status, _, _ = doRoleRequest(t, h, admCaller, http.MethodPut, prefPath)
+	if status != http.StatusOK {
+		t.Fatalf("admin PUT %s status = %d, want 200", prefPath, status)
+	}
+
+	// 3. POST /v1/loans/{id}/remind
+	loanID, _, borrowerID := fixtures.OpenLoan(t, h.pool)
+	pastDue := time.Now().Add(-2 * time.Hour)
+	if _, err := h.pool.Exec(ctx, `UPDATE loans SET due_at = $1 WHERE id = $2`, pastDue, loanID); err != nil {
+		t.Fatalf("set loan overdue: %v", err)
+	}
+	if _, err := h.pool.Exec(ctx, `UPDATE users SET email = 'remindauth@hospital.local' WHERE id = $1`, borrowerID); err != nil {
+		t.Fatalf("set borrower email: %v", err)
+	}
+
+	remindPath := "/v1/loans/" + loanID + "/remind"
+
+	// Viewer cannot remind (403)
+	status, _, _ = doRoleRequest(t, h, viewerCaller, http.MethodPost, remindPath)
+	if status != http.StatusForbidden {
+		t.Fatalf("viewer POST %s status = %d, want 403", remindPath, status)
+	}
+
+	// Anonymous cannot remind (401)
+	status, _, _ = doRoleRequest(t, h, anonCaller, http.MethodPost, remindPath)
+	if status != http.StatusUnauthorized {
+		t.Fatalf("anon POST %s status = %d, want 401", remindPath, status)
+	}
+
+	// Technician CAN remind (200)
+	status, _, _ = doRoleRequest(t, h, techCaller, http.MethodPost, remindPath)
+	if status != http.StatusOK {
+		t.Fatalf("technician POST %s status = %d, want 200", remindPath, status)
+	}
+}
+
+// TestRemindLoanRateLimit proves 6.2e:
+// Rapid manual reminder clicks on the same loan are rate-limited to 1/min sustained (burst of 1),
+// returning HTTP 429 Too Many Requests with Retry-After: 60 and RFC 7807 problem JSON.
+func TestRemindLoanRateLimit(t *testing.T) {
+	h := newTestHarnessWithRateLimiting(t)
+	ctx := context.Background()
+
+	adminCaller := createAdminCaller(t, h, "admin")
+
+	loanID, _, borrowerID := fixtures.OpenLoan(t, h.pool)
+	pastDue := time.Now().Add(-2 * time.Hour)
+	if _, err := h.pool.Exec(ctx, `UPDATE loans SET due_at = $1 WHERE id = $2`, pastDue, loanID); err != nil {
+		t.Fatalf("set loan overdue: %v", err)
+	}
+	if _, err := h.pool.Exec(ctx, `UPDATE users SET email = 'ratelimit@hospital.local' WHERE id = $1`, borrowerID); err != nil {
+		t.Fatalf("set borrower email: %v", err)
+	}
+
+	remindPath := "/v1/loans/" + loanID + "/remind"
+
+	// 1st request succeeds
+	status1, _, _ := doRoleRequest(t, h, adminCaller, http.MethodPost, remindPath)
+	if status1 != http.StatusOK {
+		t.Fatalf("1st remind status = %d, want 200", status1)
+	}
+
+	// 2nd request immediately on same loan trips the limiter -> HTTP 429
+	status2, _, body2 := doRoleRequest(t, h, adminCaller, http.MethodPost, remindPath)
+	if status2 != http.StatusTooManyRequests {
+		t.Fatalf("2nd remind status = %d, want 429", status2)
+	}
+	if !strings.Contains(string(body2), "rate-limited") {
+		t.Fatalf("429 response body = %s, want rate-limited problem detail", string(body2))
 	}
 }
