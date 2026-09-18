@@ -1,0 +1,18 @@
+[Unit]
+Description=HDMS nightly custody reconciliation INV-3 (5.5e)
+Documentation=file:///opt/hdms/docs/runbooks/reconciliation.md
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=hdms
+Group=hdms
+# Root-only env file holding HDMS_DATABASE_URL (and HDMS_JOB_METRICS_DIR
+# when node_exporter textfiles are wanted). Reconcile takes no mode flag:
+# it is report-only by design and never mutates custody.
+EnvironmentFile=/etc/hdms/hdms.env
+ExecStart=/opt/hdms/bin/hdms-cli reconcile
+# A mismatch exits non-zero AND writes a failure job_runs row; the 5.5c
+# alert fires on either. See docs/runbooks/reconciliation.md.
+SyslogIdentifier=hdms-reconcile

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HDMS retention pass nightly at 03:40 (5.5e)
+
+[Timer]
+OnCalendar=03:40
+Persistent=true
+RandomizedDelaySec=600
+Unit=hdms-retention.service
+
+[Install]
+WantedBy=timers.target

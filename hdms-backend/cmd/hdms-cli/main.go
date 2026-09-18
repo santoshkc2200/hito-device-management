@@ -27,6 +27,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/i18n"
+	"github.com/hito-hospital/hdms/internal/platform/jobs"
 	"github.com/hito-hospital/hdms/internal/platform/seed"
 	"golang.org/x/term"
 	"golang.org/x/text/language"
@@ -83,7 +84,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|reconcile|retention|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -105,6 +106,10 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 		return runSeed(ctx, cfg, args)
 	case "backup":
 		return runBackup(ctx, cfg, args)
+	case "reconcile":
+		return runReconcile(ctx, cfg, args)
+	case "retention":
+		return runRetention(ctx, cfg, args)
 	case "admin":
 		return runAdmin(ctx, cfg, args, cat)
 	case "import":
@@ -180,6 +185,69 @@ func runBackup(ctx context.Context, cfg config.Config, args []string) error {
 		return err
 	}
 	fmt.Printf("Backup written: %s\n", path)
+	return nil
+}
+
+// runReconcile implements 5.5e: nightly INV-3 assertion, report-only by
+// design — it names disagreeing devices and exits non-zero, it never
+// mutates custody. Invoked nightly by the systemd timer in
+// deploy/systemd/hdms-reconcile.timer; see docs/runbooks/reconciliation.md.
+func runReconcile(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("reconcile", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("usage: hdms-cli reconcile (no arguments)")
+	}
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	report, err := jobs.Run(ctx, pool.Pool, time.Now().UTC(), cfg.JobMetricsDir)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Reconcile: %d device(s) checked, 0 mismatches\n", report.DevicesChecked)
+	return nil
+}
+
+// runRetention implements 5.5e: the docs/09 retention policy. The mode is
+// explicit configuration — HDMS_RETENTION_MODE (default "report") unless
+// --mode overrides it for this run. Report-only until Q7 is confirmed in
+// writing; enforce anonymises closed loans at 3 years, archived users with
+// them, and deletes scan_events at 90 days. Invoked by the systemd timer
+// in deploy/systemd/hdms-retention.timer; see docs/runbooks/retention.md.
+func runRetention(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("retention", flag.ContinueOnError)
+	modeFlag := fs.String("mode", "", "report (default, from HDMS_RETENTION_MODE) or enforce (deletes/anonymises — only with written Q7 approval)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("usage: hdms-cli retention [--mode report|enforce]")
+	}
+	mode, err := jobs.ParseRetentionMode(*modeFlag, cfg.RetentionMode)
+	if err != nil {
+		return err
+	}
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	summary, err := jobs.RunRetention(ctx, pool.Pool, time.Now().UTC(), mode, cfg.JobMetricsDir)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Retention (%s): %d closed-loan, %d user, %d scan-event, %d audit candidates; anonymised %d loan(s) + %d user(s), deleted %d scan event(s), %d audit event(s)\n",
+		summary.Mode, summary.LoanCandidates, summary.UserCandidates, summary.ScanEventCandidates, summary.AuditCandidates,
+		summary.LoansAnonymised, summary.UsersAnonymised, summary.ScanEventsDeleted, summary.AuditEventsDeleted)
 	return nil
 }
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HDMS custody reconciliation nightly at 03:10 (5.5e)
+
+[Timer]
+OnCalendar=03:10
+Persistent=true
+RandomizedDelaySec=300
+Unit=hdms-reconcile.service
+
+[Install]
+WantedBy=timers.target

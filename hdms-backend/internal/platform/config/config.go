@@ -52,6 +52,18 @@ type Config struct {
 	BackupDir    string // 5.4a: nightly backup target (HDMS_BACKUP_DIR, default /var/backups/hdms)
 	BackupEncKey []byte // 5.4a: 32 raw bytes, AES-256-GCM key for backup encryption (HDMS_BACKUP_ENC_KEY); nil when unconfigured — the backup command fails closed, the API does not require it to boot
 
+	// RetentionMode gates the 5.5e retention job: "report" (default) only
+	// reports candidates and changes no domain rows; "enforce" anonymises
+	// and deletes per docs/09-security-privacy-ops.md. Report-only until
+	// Q7 is answered in writing — the mode is explicit configuration, not
+	// a commented-out line. See jobs.ParseRetentionMode.
+	RetentionMode string
+
+	// JobMetricsDir optionally receives node_exporter textfile metrics
+	// (hdms_job_last_success) from scheduled jobs (5.4b/5.5e). Empty
+	// disables the textfile write — job_runs remains the source of truth.
+	JobMetricsDir string
+
 	OTLPEndpoint string // empty disables the exporter
 	LogLevel     string
 }
@@ -83,6 +95,15 @@ func Load() (Config, error) {
 	// file), never in the backup target itself.
 	cfg.BackupDir = getenvDefault("HDMS_BACKUP_DIR", "/var/backups/hdms")
 	cfg.BackupEncKey = getenvOptionalBase64Key32("HDMS_BACKUP_ENC_KEY", &errs)
+
+	// 5.5e: retention mode is explicit configuration defaulting to
+	// report-only. A misspelled value fails closed at startup.
+	cfg.RetentionMode = parseRetentionModeEnv(&errs)
+
+	// 5.4b/5.5e: node_exporter textfile directory for job last-success
+	// metrics. Unset by default — the textfile is a convenience, job_runs
+	// is the source of truth.
+	cfg.JobMetricsDir = strings.TrimSpace(os.Getenv("HDMS_JOB_METRICS_DIR"))
 
 	cfg.EntraTenantID = os.Getenv("HDMS_ENTRA_TENANT_ID")
 	cfg.EntraClientID = os.Getenv("HDMS_ENTRA_CLIENT_ID")
@@ -209,6 +230,8 @@ func (c Config) LogEffective(logger *slog.Logger) {
 		slog.Any("metrics_allow_cidrs", c.MetricsAllowCIDRs),
 		slog.String("backup_dir", c.BackupDir),
 		slog.String("backup_enc_key", "[REDACTED]"),
+		slog.String("retention_mode", c.RetentionMode),
+		slog.String("job_metrics_dir", c.JobMetricsDir),
 		slog.String("otlp_endpoint", c.OTLPEndpoint),
 		slog.String("log_level", c.LogLevel),
 	)
@@ -230,6 +253,24 @@ func redactURL(rawURL string) string {
 		return "[malformed database url]"
 	}
 	return u.Redacted()
+}
+
+// parseRetentionModeEnv reads HDMS_RETENTION_MODE (5.5e). Unset or blank
+// means "report" — the job ships report-only until Q7 is answered in
+// writing. Any other value besides "report" or "enforce" is a startup
+// error naming the variable, so a typo can never silently enable deletion.
+func parseRetentionModeEnv(errs *[]error) string {
+	v, ok := os.LookupEnv("HDMS_RETENTION_MODE")
+	if !ok || strings.TrimSpace(v) == "" {
+		return "report"
+	}
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "report", "enforce":
+		return strings.ToLower(strings.TrimSpace(v))
+	default:
+		*errs = append(*errs, fmt.Errorf("HDMS_RETENTION_MODE: must be \"report\" or \"enforce\", got %q", strings.TrimSpace(v)))
+		return "report"
+	}
 }
 
 func splitAndTrim(raw string) []string {

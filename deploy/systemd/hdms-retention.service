@@ -1,0 +1,19 @@
+[Unit]
+Description=HDMS nightly retention pass (5.5e)
+Documentation=file:///opt/hdms/docs/runbooks/retention.md
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=hdms
+Group=hdms
+# Root-only env file holding HDMS_DATABASE_URL, HDMS_RETENTION_MODE and
+# HDMS_JOB_METRICS_DIR. The mode comes from the env file (default report):
+# this unit deletes/anonymises nothing unless HDMS_RETENTION_MODE=enforce
+# is set there AND Q7 has been answered in writing.
+EnvironmentFile=/etc/hdms/hdms.env
+ExecStart=/opt/hdms/bin/hdms-cli retention
+# Every run writes a job_runs row; the 5.5c alert fires on absence of
+# success. See docs/runbooks/retention.md.
+SyslogIdentifier=hdms-retention
