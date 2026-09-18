@@ -42,6 +42,9 @@ type Config struct {
 	RateLimitEnabled   bool
 	CORSAllowedOrigins []string
 
+	BackupDir    string // 5.4a: nightly backup target (HDMS_BACKUP_DIR, default /var/backups/hdms)
+	BackupEncKey []byte // 5.4a: 32 raw bytes, AES-256-GCM key for backup encryption (HDMS_BACKUP_ENC_KEY); nil when unconfigured — the backup command fails closed, the API does not require it to boot
+
 	OTLPEndpoint string // empty disables the exporter
 	LogLevel     string
 }
@@ -65,6 +68,14 @@ func Load() (Config, error) {
 	cfg.CredentialEncKey = getenvBase64Key32("HDMS_CREDENTIAL_ENC_KEY", &errs)
 	cfg.TOTPSecretEncKey = getenvBase64Key32("HDMS_TOTP_ENC_KEY", &errs)
 	cfg.AdminSessionTTL = getenvDurationDefault("HDMS_ADMIN_SESSION_TTL", 12*time.Hour, &errs)
+
+	// 5.4a: backup target and encryption key. The dir always has a default;
+	// the key is optional at boot (the API serves without it) and required
+	// at backup time — runBackup fails closed naming HDMS_BACKUP_ENC_KEY.
+	// It must live separately from the backups (password manager + root-only
+	// file), never in the backup target itself.
+	cfg.BackupDir = getenvDefault("HDMS_BACKUP_DIR", "/var/backups/hdms")
+	cfg.BackupEncKey = getenvOptionalBase64Key32("HDMS_BACKUP_ENC_KEY", &errs)
 
 	cfg.EntraTenantID = os.Getenv("HDMS_ENTRA_TENANT_ID")
 	cfg.EntraClientID = os.Getenv("HDMS_ENTRA_CLIENT_ID")
@@ -180,6 +191,8 @@ func (c Config) LogEffective(logger *slog.Logger) {
 		slog.Duration("staff_session_ttl", c.StaffSessionTTL),
 		slog.Bool("rate_limit_enabled", c.RateLimitEnabled),
 		slog.Any("cors_allowed_origins", c.CORSAllowedOrigins),
+		slog.String("backup_dir", c.BackupDir),
+		slog.String("backup_enc_key", "[REDACTED]"),
 		slog.String("otlp_endpoint", c.OTLPEndpoint),
 		slog.String("log_level", c.LogLevel),
 	)
@@ -241,6 +254,27 @@ func getenvBase64Key32(key string, errs *[]error) []byte {
 		return nil
 	}
 	raw, err := base64.StdEncoding.DecodeString(v)
+	if err != nil {
+		*errs = append(*errs, fmt.Errorf("%s: invalid base64: %w", key, err))
+		return nil
+	}
+	if len(raw) != 32 {
+		*errs = append(*errs, fmt.Errorf("%s: must decode to 32 bytes for AES-256, got %d", key, len(raw)))
+		return nil
+	}
+	return raw
+}
+
+// getenvOptionalBase64Key32 reads HDMS_BACKUP_ENC_KEY when set, returning nil
+// when unset so the API can boot without backup configured. A present but
+// malformed value is still a startup error — silently running backups under
+// a bad key would be worse than refusing to start.
+func getenvOptionalBase64Key32(key string, errs *[]error) []byte {
+	v, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(v) == "" {
+		return nil
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(v))
 	if err != nil {
 		*errs = append(*errs, fmt.Errorf("%s: invalid base64: %w", key, err))
 		return nil

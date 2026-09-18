@@ -1,0 +1,17 @@
+[Unit]
+Description=HDMS nightly encrypted backup (5.4a)
+Documentation=file:///opt/hdms/docs/runbooks/nightly-backup.md
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=hdms
+Group=hdms
+# Root-only env file holding HDMS_DATABASE_URL and HDMS_BACKUP_ENC_KEY.
+# The encryption key MUST live here (and in the hospital password manager),
+# never in the backup target itself — see docs/runbooks/nightly-backup.md.
+EnvironmentFile=/etc/hdms/hdms.env
+ExecStart=/opt/hdms/bin/hdms-cli backup
+# Every run writes a job_runs row; the 5.4b alert fires on absence of success.
+SyslogIdentifier=hdms-backup

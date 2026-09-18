@@ -23,6 +23,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
+	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/i18n"
@@ -82,7 +83,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -102,6 +103,8 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 		return db.Migrate(ctx, cfg.DatabaseURL)
 	case "seed":
 		return runSeed(ctx, cfg, args)
+	case "backup":
+		return runBackup(ctx, cfg, args)
 	case "admin":
 		return runAdmin(ctx, cfg, args, cat)
 	case "import":
@@ -141,6 +144,42 @@ func runSeed(ctx context.Context, cfg config.Config, args []string) error {
 		}
 		fmt.Println("Seeding completed successfully.")
 	}
+	return nil
+}
+
+// runBackup implements 5.4a: pg_dump -Fc → gzip → AES-256-GCM → file,
+// 30-daily + 12-monthly pruning, and a job_runs row. Idempotent and safe
+// to run twice or by hand mid-day — each run writes a uniquely-named file
+// under a dir lock. Invoked nightly at 02:00 by the systemd timer in
+// deploy/systemd/hdms-backup.timer; see docs/runbooks/nightly-backup.md.
+func runBackup(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("backup", flag.ContinueOnError)
+	dirFlag := fs.String("dir", "", "backup target directory (default HDMS_BACKUP_DIR)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	dir := *dirFlag
+	if dir == "" {
+		dir = cfg.BackupDir
+	}
+	if dir == "" {
+		dir = "/var/backups/hdms"
+	}
+	if len(cfg.BackupEncKey) != 32 {
+		return fmt.Errorf("HDMS_BACKUP_ENC_KEY: missing or invalid backup encryption key; provide a base64-encoded 32-byte key generated with 'openssl rand -base64 32' (stored separately from the backups, e.g. hospital password manager + root-only env file)")
+	}
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	path, err := backup.Run(ctx, pool.Pool, cfg.DatabaseURL, dir, cfg.BackupEncKey, time.Now().UTC(), nil)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Backup written: %s\n", path)
 	return nil
 }
 

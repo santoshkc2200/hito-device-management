@@ -153,12 +153,13 @@ lane and not a failure.
 lands in a visible quarantine with a reason. No code path deletes one without
 recording why.
 
-**Migrations.** goose, embedded, in order. Phase 5 claims `0017`–`0018`:
+**Migrations.** goose, embedded, in order. Phase 5 claims `0019`–`0020`
+(`0017`–`0018` were taken by locale/staff-auth before this breakdown landed):
 
 | File | Sub-phase |
 |---|---|
-| `migrations/0017_audit_append_only.sql` | 5.2d |
-| `migrations/0018_job_runs.sql` | 5.4a |
+| `migrations/0019_audit_append_only.sql` | 5.2d |
+| `migrations/0020_job_runs.sql` | 5.4a |
 
 Both need a working `-- +goose Down`, and `test/integration/migrations_test.go`
 must stay green.

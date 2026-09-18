@@ -324,3 +324,83 @@ func TestMigration0019_AuditAppendOnly(t *testing.T) {
 		t.Errorf("expected append-only privileges after up to latest; got select=%v insert=%v update=%v", canSelect, canInsert, canUpdate)
 	}
 }
+
+// TestMigration0020_JobRuns proves 5.4a's shared job_runs table:
+//  1. The table exists with the (job, started, finished, outcome, detail)
+//     shape every scheduled job uses.
+//  2. A success row inserts and reads back.
+//  3. The outcome CHECK rejects anything but success/failure.
+//  4. Down to 19 drops the table; Up restores it (reversible migration).
+func TestMigration0020_JobRuns(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	connStr := pool.Config().ConnConfig.ConnString()
+
+	sqlDB, err := sql.Open("pgx", connStr)
+	if err != nil {
+		t.Fatalf("open sql.DB: %v", err)
+	}
+	defer sqlDB.Close()
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatalf("set dialect: %v", err)
+	}
+
+	var exists bool
+	if err := pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'job_runs')`,
+	).Scan(&exists); err != nil {
+		t.Fatalf("check job_runs exists: %v", err)
+	}
+	if !exists {
+		t.Fatalf("expected table job_runs to exist after migration (5.4a)")
+	}
+
+	var id int64
+	if err := pool.QueryRow(ctx,
+		`INSERT INTO job_runs (job, outcome, detail) VALUES ('backup', 'success', '{"bytes": 1}') RETURNING id`,
+	).Scan(&id); err != nil {
+		t.Fatalf("insert job_runs row: %v", err)
+	}
+
+	var job, outcome string
+	if err := pool.QueryRow(ctx,
+		`SELECT job, outcome FROM job_runs WHERE id = $1`, id,
+	).Scan(&job, &outcome); err != nil {
+		t.Fatalf("read job_runs row: %v", err)
+	}
+	if job != "backup" || outcome != "success" {
+		t.Fatalf("job_runs row = (%q, %q), want (backup, success)", job, outcome)
+	}
+
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO job_runs (job, outcome) VALUES ('backup', 'bogus')`,
+	); err == nil {
+		t.Fatalf("expected outcome CHECK to reject 'bogus', but insert succeeded")
+	}
+
+	if err := goose.DownToContext(ctx, sqlDB, ".", 19); err != nil {
+		t.Fatalf("goose down to 19: %v", err)
+	}
+	if err := pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'job_runs')`,
+	).Scan(&exists); err != nil {
+		t.Fatalf("check job_runs after down: %v", err)
+	}
+	if exists {
+		t.Fatalf("expected job_runs to be dropped after down to 19")
+	}
+
+	if err := goose.UpContext(ctx, sqlDB, "."); err != nil {
+		t.Fatalf("goose up to latest: %v", err)
+	}
+	if err := pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'job_runs')`,
+	).Scan(&exists); err != nil {
+		t.Fatalf("check job_runs after up: %v", err)
+	}
+	if !exists {
+		t.Fatalf("expected job_runs to exist after up to latest")
+	}
+}

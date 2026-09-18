@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HDMS nightly backup at 02:00 (5.4a)
+
+[Timer]
+OnCalendar=02:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=hdms-backup.service
+
+[Install]
+WantedBy=timers.target
