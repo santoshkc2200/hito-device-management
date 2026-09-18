@@ -43,6 +43,13 @@ func (s *Service) execute(
 	case machine.ActionSetUser:
 		return s.executeSetUser(ctx, q, session, decision, in, params)
 	case machine.ActionReject:
+		// 6.4e: a walk-up borrow refused because someone else holds the
+		// reservation is one of the four numbers that say whether this
+		// feature earned its ten days. Counted here, where the refusal
+		// actually happens, rather than inferred later from audit rows.
+		if decision.MessageKey == machine.MsgDeviceReserved {
+			observability.IncReservationConflictRefused()
+		}
 		return s.executeRejectOrNoop(ctx, q, session, decision, in, params, checkoutapi.OutcomeRejected, "rejected")
 	case machine.ActionDuplicate:
 		return s.executeRejectOrNoop(ctx, q, session, decision, in, params, checkoutapi.OutcomeDuplicate, "duplicate")
@@ -168,8 +175,21 @@ func (s *Service) executeBorrow(
 	}
 	observability.ObserveTransaction("borrow", params.Source, "success")
 
+	// Phase 6.4c/d: a borrow that collects a reservation closes the
+	// reservation in the same request that opened the loan, so the expiry
+	// job can never later expire a reservation whose device is already in
+	// its reserver's hands. The loan itself is unchanged — only the
+	// outcome kind differs, so the kiosk can confirm it distinctly.
+	kind := checkoutapi.OutcomeBorrowed
+	if decision.FulfillsReservationID != "" && s.deps.Reservations != nil {
+		if err := s.deps.Reservations.MarkCollected(ctx, decision.FulfillsReservationID, loan.ID); err != nil {
+			return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: mark reservation collected: %w", err)
+		}
+		kind = checkoutapi.OutcomeReservationCollected
+	}
+
 	outcome := checkoutapi.Outcome{
-		Kind: checkoutapi.OutcomeBorrowed, LoanID: loan.ID,
+		Kind: kind, LoanID: loan.ID,
 		Device: &checkoutapi.DeviceView{ID: device.ID, AssetTag: device.AssetTag, Name: device.Name}, DueAt: loan.DueAt,
 	}
 	extra := map[string]any{}

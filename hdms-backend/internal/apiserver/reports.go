@@ -438,3 +438,83 @@ func (s *Server) ExportUsersCsv(w http.ResponseWriter, r *http.Request, params g
 		flusher.Flush()
 	}
 }
+
+// ListLeaverEscalations returns open equipment loans held by staff members suspended during directory sync (6.3c).
+func (s *Server) ListLeaverEscalations(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	const query = `
+		SELECT l.id::text AS loan_id,
+		       l.device_id::text,
+		       d.name AS device_name,
+		       d.asset_tag AS device_asset_tag,
+		       u.id::text AS user_id,
+		       u.full_name AS borrower_name,
+		       u.employee_no AS borrower_employee_no,
+		       COALESCE(dept.id::text, '') AS department_id,
+		       COALESCE(dept.name, '') AS department_name,
+		       l.borrowed_at,
+		       l.due_at,
+		       u.updated_at AS suspended_at
+		FROM loans l
+		JOIN users u ON u.id = l.user_id
+		JOIN user_directory_links udl ON udl.user_id = u.id
+		JOIN devices d ON d.id = l.device_id
+		LEFT JOIN departments dept ON dept.id = u.department_id
+		WHERE l.status = 'open'
+		  AND u.status = 'suspended'
+		ORDER BY l.borrowed_at ASC`
+
+	rows, err := s.pool.Query(ctx, query)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	defer rows.Close()
+
+	var items []gen.LeaverEscalation
+	for rows.Next() {
+		var (
+			e           gen.LeaverEscalation
+			deptID      string
+			borrowedAt  time.Time
+			dueAt       *time.Time
+			suspendedAt time.Time
+		)
+		if err := rows.Scan(
+			&e.LoanId,
+			&e.DeviceId,
+			&e.DeviceName,
+			&e.DeviceAssetTag,
+			&e.UserId,
+			&e.BorrowerName,
+			&e.BorrowerEmployeeNo,
+			&deptID,
+			&e.DepartmentName,
+			&borrowedAt,
+			&dueAt,
+			&suspendedAt,
+		); err != nil {
+			s.writeServiceError(w, r, err)
+			return
+		}
+		e.BorrowedAt = borrowedAt
+		e.DueAt = dueAt
+		e.SuspendedAt = &suspendedAt
+		if deptID != "" {
+			e.DepartmentId = &deptID
+		}
+		items = append(items, e)
+	}
+	if err := rows.Err(); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	if items == nil {
+		items = []gen.LeaverEscalation{}
+	}
+
+	writeJSON(w, http.StatusOK, gen.LeaverEscalationList{
+		Items: items,
+	})
+}

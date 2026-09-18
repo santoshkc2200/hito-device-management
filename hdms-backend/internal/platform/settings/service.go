@@ -19,11 +19,13 @@ var (
 )
 
 type PolicySettings struct {
-	BlockOnOverdue            bool `json:"blockOnOverdue"`
-	SessionIdleTimeoutSeconds int  `json:"sessionIdleTimeoutSeconds"`
-	KioskSoundEnabled         bool `json:"kioskSoundEnabled"`
-	LowStockThreshold         int  `json:"lowStockThreshold"`
-	PaperBacklogHours         int  `json:"paperBacklogHours"`
+	BlockOnOverdue                bool `json:"blockOnOverdue"`
+	SessionIdleTimeoutSeconds     int  `json:"sessionIdleTimeoutSeconds"`
+	KioskSoundEnabled             bool `json:"kioskSoundEnabled"`
+	LowStockThreshold             int  `json:"lowStockThreshold"`
+	PaperBacklogHours             int  `json:"paperBacklogHours"`
+	ReservationPreWindowMinutes   int  `json:"reservationPreWindowMinutes"`
+	ReservationExpiryGraceMinutes int  `json:"reservationExpiryGraceMinutes"`
 }
 
 type LabelTemplateSettings struct {
@@ -135,6 +137,8 @@ func (s *Service) UpdateSettings(ctx context.Context, params UpdateSettingsParam
 		arg.KioskSoundEnabled = params.Policy.KioskSoundEnabled
 		arg.LowStockThreshold = int32(params.Policy.LowStockThreshold)
 		arg.PaperBacklogHours = int32(params.Policy.PaperBacklogHours)
+		arg.ReservationPreWindowMinutes = int32(params.Policy.ReservationPreWindowMinutes)
+		arg.ReservationExpiryGraceMinutes = int32(params.Policy.ReservationExpiryGraceMinutes)
 	}
 
 	if params.LabelTemplate != nil {
@@ -208,6 +212,12 @@ func validatePolicy(p PolicySettings) error {
 	if p.PaperBacklogHours <= 0 {
 		return fmt.Errorf("%w: paperBacklogHours must be greater than 0", ErrInvalidSettingValue)
 	}
+	if p.ReservationPreWindowMinutes < 0 {
+		return fmt.Errorf("%w: reservationPreWindowMinutes must be non-negative", ErrInvalidSettingValue)
+	}
+	if p.ReservationExpiryGraceMinutes < 0 {
+		return fmt.Errorf("%w: reservationExpiryGraceMinutes must be non-negative", ErrInvalidSettingValue)
+	}
 	return nil
 }
 
@@ -264,11 +274,13 @@ func validateSlipTemplate(st SlipTemplateSettings) error {
 func mapSettingRow(row settingsstore.Setting) Settings {
 	return Settings{
 		Policy: PolicySettings{
-			BlockOnOverdue:            row.BlockOnOverdue,
-			SessionIdleTimeoutSeconds: int(row.SessionIdleTimeoutSeconds),
-			KioskSoundEnabled:         row.KioskSoundEnabled,
-			LowStockThreshold:         int(row.LowStockThreshold),
-			PaperBacklogHours:         int(row.PaperBacklogHours),
+			BlockOnOverdue:                row.BlockOnOverdue,
+			SessionIdleTimeoutSeconds:     int(row.SessionIdleTimeoutSeconds),
+			KioskSoundEnabled:             row.KioskSoundEnabled,
+			LowStockThreshold:             int(row.LowStockThreshold),
+			PaperBacklogHours:             int(row.PaperBacklogHours),
+			ReservationPreWindowMinutes:   int(row.ReservationPreWindowMinutes),
+			ReservationExpiryGraceMinutes: int(row.ReservationExpiryGraceMinutes),
 		},
 		LabelTemplate: LabelTemplateSettings{
 			SheetWidthMm:  row.SheetWidthMm,

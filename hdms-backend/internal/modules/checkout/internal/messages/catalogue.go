@@ -40,6 +40,23 @@ var catalogue = map[machine.MessageKey]Template{
 	machine.MsgDevicePendingAvailable: {
 		Title: "Device scanned", Detail: `{{or .deviceName "That device"}} — now scan your ID card`, Tone: checkoutapi.ToneInfo,
 	},
+	machine.MsgDevicePendingReserved: {
+		Title:  "Reserved",
+		Detail: `{{or .deviceName "That device"}} is reserved{{with .reservedForName}} for {{.}}{{end}}{{with .reservationStartAtText}} from {{.}}{{end}} — scan your card`,
+		Tone:   checkoutapi.ToneInfo,
+	},
+	machine.MsgDeviceReserved: {
+		Title: "Reserved for someone else",
+		Detail: `{{or .deviceName "That device"}} is reserved{{with .reservedForName}} for {{.}}{{end}}` +
+			`{{with .reservationStartAtText}} from {{.}}{{end}}. Please choose another device or ` +
+			`see the equipment desk.`,
+		Tone: checkoutapi.ToneWarning,
+	},
+	machine.MsgReservationCollected: {
+		Title:  "Reservation collected",
+		Detail: `{{or .deviceName "That device"}} is yours{{with .reservationStartAtText}}, reserved from {{.}}{{end}}. Enjoy.`,
+		Tone:   checkoutapi.ToneSuccess,
+	},
 	machine.MsgDevicePendingOnLoan: {
 		Title: "On loan", Detail: "On loan — scan your card", Tone: checkoutapi.ToneInfo,
 	},

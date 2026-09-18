@@ -96,10 +96,54 @@ var (
 		},
 		[]string{"channel", "template", "status"},
 	)
+
+	// ReservationsMadeTotal counts total reservations created.
+	ReservationsMadeTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "hdms_reservations_made_total",
+			Help: "Total reservations created.",
+		},
+	)
+
+	// ReservationsCollectedTotal counts total reservations fulfilled/collected.
+	ReservationsCollectedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "hdms_reservations_collected_total",
+			Help: "Total reservations collected.",
+		},
+	)
+
+	// ReservationsExpiredTotal counts total reservations expired due to no-show.
+	ReservationsExpiredTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "hdms_reservations_expired_total",
+			Help: "Total reservations expired due to no-show.",
+		},
+	)
+
+	// ReservationConflictsRefusedTotal counts borrows refused due to active/upcoming reservation conflicts.
+	ReservationConflictsRefusedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "hdms_reservation_conflicts_refused_total",
+			Help: "Total walk-up borrows refused due to active or upcoming reservation conflicts.",
+		},
+	)
 )
 
 func init() {
-	prometheus.MustRegister(TransactionsTotal, ScanRejectionsTotal, SessionExpiredTotal, LoansOpen, DevicesByStatus, KioskLastSeenSeconds, NotificationDeliveriesTotal)
+	prometheus.MustRegister(
+		TransactionsTotal,
+		ScanRejectionsTotal,
+		SessionExpiredTotal,
+		LoansOpen,
+		DevicesByStatus,
+		KioskLastSeenSeconds,
+		NotificationDeliveriesTotal,
+		ReservationsMadeTotal,
+		ReservationsCollectedTotal,
+		ReservationsExpiredTotal,
+		ReservationConflictsRefusedTotal,
+	)
 }
 
 // MetricsHandler serves /metrics in Prometheus text format using the
@@ -135,6 +179,33 @@ func AddSessionExpired(n int) {
 	if n > 0 {
 		SessionExpiredTotal.Add(float64(n))
 	}
+}
+
+// IncReservationMade records one reservation created.
+func IncReservationMade() {
+	ReservationsMadeTotal.Inc()
+}
+
+// IncReservationCollected records one reservation collected.
+func IncReservationCollected() {
+	ReservationsCollectedTotal.Inc()
+}
+
+// IncReservationExpired records one reservation expired.
+func IncReservationExpired() {
+	ReservationsExpiredTotal.Inc()
+}
+
+// AddReservationsExpired records n reservations expired (job bulk expiry).
+func AddReservationsExpired(n int) {
+	if n > 0 {
+		ReservationsExpiredTotal.Add(float64(n))
+	}
+}
+
+// IncReservationConflictRefused records one walk-up borrow refused due to reservation conflict.
+func IncReservationConflictRefused() {
+	ReservationConflictsRefusedTotal.Inc()
 }
 
 // NormalizeAction bounds the action label to borrow|return.

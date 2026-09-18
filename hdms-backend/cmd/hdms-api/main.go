@@ -21,6 +21,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/modules/notification"
+	"github.com/hito-hospital/hdms/internal/modules/reservations"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/config"
@@ -124,8 +125,13 @@ func run() error {
 		dispatcher.Stop(stopCtx)
 	}()
 
+	// Phase 6.4c: reservations is constructed before checkout so the scan
+	// machine can be told whether a device is claimed. The adapter, not
+	// checkout, owns the pre-window policy.
+	reservationsSvc := reservations.New(pool, auditSvc, clock.System{})
 	checkoutSvc := checkout.New(pool, clock.System{}, checkout.Deps{
 		Users: identitySvc, Devices: catalogSvc, Tokens: credentialsSvc, Loans: lendingSvc, Settings: settingsSvc,
+		Reservations: reservations.NewCheckoutAdapter(reservationsSvc, settingsSvc),
 	}, auditSvc, bus)
 	sweeper := checkout.NewSweeper(checkoutSvc, 0, logger)
 	sweeper.Start(ctx)
@@ -164,7 +170,7 @@ func run() error {
 	}
 
 	sseHub := events.NewSSEHub(pool, bus, logger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc, notificationSvc)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc, notificationSvc, reservationsSvc)
 
 	// actorOf scopes an idempotency key to the caller (2.5): a kiosk's key
 	// never collides with an admin's. httpx cannot import auth directly

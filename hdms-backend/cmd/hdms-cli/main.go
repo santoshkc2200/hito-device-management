@@ -24,6 +24,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/notification"
+	"github.com/hito-hospital/hdms/internal/modules/reservations"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
@@ -32,6 +33,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/i18n"
 	"github.com/hito-hospital/hdms/internal/platform/jobs"
 	"github.com/hito-hospital/hdms/internal/platform/seed"
+	"github.com/hito-hospital/hdms/internal/platform/settings"
 	"golang.org/x/term"
 	"golang.org/x/text/language"
 )
@@ -87,7 +89,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|reconcile|retention|overdue-scan|weekly-digest|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|reconcile|retention|overdue-scan|weekly-digest|directory-sync|reservation-expiry|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -117,6 +119,10 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 		return runOverdueScan(ctx, cfg, args)
 	case "weekly-digest":
 		return runWeeklyDigest(ctx, cfg, args)
+	case "directory-sync":
+		return runDirectorySync(ctx, cfg, args)
+	case "reservation-expiry":
+		return runReservationExpiry(ctx, cfg, args)
 	case "admin":
 		return runAdmin(ctx, cfg, args, cat)
 	case "import":
@@ -326,6 +332,122 @@ func runWeeklyDigest(ctx context.Context, cfg config.Config, args []string) erro
 	}
 	fmt.Printf("Weekly digest: %d overdue loan(s), %d admin(s) targeted, %d enqueued, %d skipped dedupe\n",
 		report.OverdueLoansCount, report.AdminsTargeted, report.DigestsEnqueued, report.SkippedDedupe)
+	return nil
+}
+
+// runDirectorySync implements 6.3b/6.3c: staff roster synchronization against LDAP / Active Directory.
+// Dry-run is the DEFAULT. Applying changes requires an explicit --apply flag.
+// Invoked by systemd timer deploy/systemd/hdms-directory-sync.timer; see docs/runbooks/directory-sync.md.
+func runDirectorySync(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("directory-sync", flag.ContinueOnError)
+	apply := fs.Bool("apply", false, "apply changes to the database (default is dry-run)")
+	dryRun := fs.Bool("dry-run", false, "report what would change without modifying data (default)")
+	maxChangeFraction := fs.Float64("max-change-fraction", 0.10, "fraction of roster threshold for mass-change safety refusal (default 0.10)")
+	gracePeriodDays := fs.Int("grace-period-days", 7, "grace period in days before leavers are suspended (default 7)")
+	issuer := fs.String("issuer", "ldap", "directory issuer identifier")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("usage: hdms-cli directory-sync [--apply] [--dry-run] [--max-change-fraction <0.10>] [--grace-period-days <7>] [--issuer <ldap>]")
+	}
+
+	isDryRun := !*apply || *dryRun
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	auditSvc := audit.New(pool)
+
+	ldapClient := identity.NewLDAPDirectoryClient(identity.LDAPConfig{
+		URL:          cfg.LDAPURL,
+		BindDN:       cfg.LDAPBindDN,
+		BindPassword: cfg.LDAPBindPassword,
+		BaseDN:       cfg.LDAPBaseDN,
+		UserFilter:   cfg.LDAPUserFilter,
+	})
+
+	opts := identity.DirectorySyncOptions{
+		Issuer:            *issuer,
+		DryRun:            isDryRun,
+		Apply:             *apply && !*dryRun,
+		MaxChangeFraction: *maxChangeFraction,
+		GracePeriod:       time.Duration(*gracePeriodDays) * 24 * time.Hour,
+		Actor:             "system:directory-sync",
+	}
+
+	report, err := jobs.RunDirectorySync(ctx, pool, auditSvc, ldapClient, time.Now().UTC(), opts, cfg.JobMetricsDir)
+	if err != nil {
+		if report.MassChangeRefused {
+			fmt.Printf("Directory sync REFUSED: %s\n", report.RefusalReason)
+			for _, c := range report.ProposedChanges {
+				fmt.Printf("  - [%s] %s (%s): %s\n", c.Kind, c.EmployeeNo, c.Subject, c.Reason)
+			}
+		}
+		return err
+	}
+
+	modeStr := "DRY-RUN"
+	if !report.DryRun {
+		modeStr = "APPLIED"
+	}
+
+	fmt.Printf("Directory sync (%s): %d directory entries, %d linked users, %d updated, %d reinstated, %d suspended (%d creds revoked, %d open loans escalated), %d grace period, %d unchanged\n",
+		modeStr, report.TotalDirectory, report.TotalLinked, report.Updated, report.Reinstated, report.Suspended,
+		report.CredentialsRevoked, report.OpenLoansEscalated, report.GracePeriod, report.Unchanged)
+
+	return nil
+}
+
+// runReservationExpiry implements 6.4e: automated expiry of no-show reservations past grace period.
+// Invoked by systemd timer deploy/systemd/hdms-reservation-expiry.timer; see docs/runbooks/reservation-expiry.md.
+func runReservationExpiry(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("reservation-expiry", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("usage: hdms-cli reservation-expiry (no arguments)")
+	}
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	auditSvc := audit.New(pool)
+	resSvc := reservations.New(pool, auditSvc, clock.System{})
+	settingsSvc := settings.New(pool, nil)
+
+	smtpTransport := notification.NewSMTPTransport(notification.SMTPConfig{
+		Host:         cfg.SMTPHost,
+		Port:         cfg.SMTPPort,
+		Username:     cfg.SMTPUsername,
+		Password:     cfg.SMTPPassword,
+		FromAddress:  cfg.SMTPFromAddress,
+		ReplyAddress: cfg.SMTPReplyAddress,
+	})
+
+	notifSvc := notification.New(pool, clock.System{}, notification.Config{
+		Transport:             smtpTransport,
+		QuietHours:            notification.DefaultQuietHoursConfig(),
+		HumanContact:          cfg.SMTPReplyAddress,
+		DefaultReturnLocation: "Room 101",
+		MaxAttempts:           3,
+		Logger:                slog.Default(),
+	})
+
+	report, err := jobs.RunReservationExpiry(ctx, pool, resSvc, settingsSvc, notifSvc, time.Now().UTC(), cfg.JobMetricsDir)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Reservation expiry: %d reservation(s) expired (grace: %dm), %d notification(s) enqueued, %d skipped dedupe\n",
+		report.ExpiredCount, report.GraceMinutes, report.NotifsEnqueued, report.SkippedDedupe)
 	return nil
 }
 

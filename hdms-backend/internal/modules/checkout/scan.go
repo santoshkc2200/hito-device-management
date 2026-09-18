@@ -158,6 +158,15 @@ func (s *Service) resolveInput(ctx context.Context, token string) (machine.Input
 			in.HolderUserID = holder.UserID
 			in.HolderBorrowedAt = holder.BorrowedAt
 		}
+		res, ok, err := s.reservationInForce(ctx, d.ID)
+		if err != nil {
+			return machine.Input{}, err
+		}
+		if ok {
+			in.ReservedForUserID = res.ForUserID
+			in.ReservationID = res.ID
+			in.ReservationStartAt = res.StartAt
+		}
 		return in, nil
 	default:
 		return machine.Input{Kind: machine.KindUnknown, TokenPreview: preview}, nil
@@ -188,7 +197,31 @@ func (s *Service) snapshotFor(ctx context.Context, session checkoutstore.ScanSes
 		snap.PendingDeviceHolderID = holder.UserID
 		snap.PendingDeviceBorrowedAt = holder.BorrowedAt
 	}
+	res, ok, err := s.reservationInForce(ctx, pd.ID)
+	if err != nil {
+		return machine.Snapshot{}, err
+	}
+	if ok {
+		snap.PendingDeviceReservedForUserID = res.ForUserID
+		snap.PendingDeviceReservationID = res.ID
+		snap.PendingDeviceReservationStartAt = res.StartAt
+	}
 	return snap, nil
+}
+
+// reservationInForce asks the reservations module whether deviceID is
+// claimed right now (Phase 6.4c). A nil Reservations dep — every
+// deployment and test predating 6.4 — means nothing is ever in force, so
+// the machine classifies exactly as it did before reservations existed.
+func (s *Service) reservationInForce(ctx context.Context, deviceID string) (ReservationInForce, bool, error) {
+	if s.deps.Reservations == nil {
+		return ReservationInForce{}, false, nil
+	}
+	res, ok, err := s.deps.Reservations.InForceFor(ctx, deviceID, s.clock.Now())
+	if err != nil {
+		return ReservationInForce{}, false, fmt.Errorf("checkout: reservation in force for device: %w", err)
+	}
+	return res, ok, nil
 }
 
 // openLoanViews returns the open loans to show for the session's

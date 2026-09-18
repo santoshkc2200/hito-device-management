@@ -61,6 +61,13 @@ export const loanStatusTone: Record<string, StatusTone> = {
   overdue: "warning",
 };
 
+export const reservationStatusTone: Record<string, StatusTone> = {
+  active: "primary",
+  collected: "success",
+  cancelled: "muted",
+  expired: "destructive",
+};
+
 export function LoanOriginBadge({
   origin,
   disputed,

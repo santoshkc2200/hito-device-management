@@ -96,6 +96,28 @@ describe("Hostile Props Safety Guard (All Kiosk Screens)", () => {
     assertSafeHumanRender(container);
   });
 
+  // Phase 6.4d: the reservation confirmation is a new branch through the
+  // same screen, so it gets the same hostile treatment as the others —
+  // long names and long device names are the usual breakers.
+  it("SuccessScreen renders safely for a collected reservation with hostile names and dates", () => {
+    const { container } = render(
+      <SuccessScreen
+        kind="reservation_collected"
+        device={
+          {
+            id: "dev-1",
+            assetTag: "ASSET-000000000000000000000000000000000000",
+            name: "移動式超音波診断装置 トロリー 第三放射線科 予約専用 ".repeat(4),
+          } as any
+        }
+        dueAt={"not-a-date-at-all"}
+        itemCount={-1}
+        onDone={vi.fn()}
+      />
+    );
+    assertSafeHumanRender(container);
+  });
+
   it("BlockedScreen renders safely with null message, unknown tone, and raw problem error", () => {
     const { container } = render(
       <BlockedScreen

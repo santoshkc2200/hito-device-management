@@ -1,14 +1,5 @@
 import type { OutcomeKind } from "@hdms/api-client";
-import {
-  CheckCircle2,
-  CornerDownLeft,
-  AlertCircle,
-  Clock,
-  UserCheck,
-  Users,
-  Copy,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertCircle, CalendarCheck, CheckCircle2, Clock, Copy, CornerDownLeft, UserCheck, Users, type LucideIcon } from "lucide-react";
 
 export type SoundId = "borrow" | "return" | "reject" | "accepted" | "none";
 
@@ -31,6 +22,22 @@ export const OUTCOME_FEEDBACK_MAP: Record<OutcomeKind, OutcomeFeedbackEntry> = {
     kind: "borrowed",
     word: "Borrowed",
     icon: CheckCircle2,
+    colorClasses: {
+      iconContainer: "bg-green-500/15 text-green-600 dark:text-green-400",
+      badge: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
+      text: "text-green-700 dark:text-green-300",
+    },
+    soundId: "borrow",
+    entranceClass: "animate-feedback-success",
+    durationMs: 4000,
+  },
+  // Phase 6.4d: a collected reservation is an ordinary loan, so it shares
+  // the borrow sound and success animation — only the word and the icon
+  // tell the reserver their booking is what just worked.
+  reservation_collected: {
+    kind: "reservation_collected",
+    word: "Collected",
+    icon: CalendarCheck,
     colorClasses: {
       iconContainer: "bg-green-500/15 text-green-600 dark:text-green-400",
       badge: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",

@@ -7,8 +7,8 @@ import {
 } from "./session-machine";
 
 describe("sessionMachine", () => {
-  it("has version 1.0.0", () => {
-    expect(sessionMachine.version).toBe("1.0.0");
+  it("has version 1.1.0", () => {
+    expect(sessionMachine.version).toBe("1.1.0");
   });
 
   it("defines all four states", () => {
@@ -21,13 +21,15 @@ describe("sessionMachine", () => {
     expect(Object.keys(sessionMachine.states).sort()).toEqual(states.sort());
   });
 
-  it("covers all 13 input classes in each state", () => {
+  it("covers all 15 input classes in each state", () => {
     const classes: InputClass[] = [
       "device_available",
       "device_on_loan_same_user",
       "device_on_loan_other_user",
       "device_unavailable",
       "device_duplicate",
+      "device_reserved_by_self",
+      "device_reserved_by_other",
       "user_active",
       "user_same",
       "user_suspended",

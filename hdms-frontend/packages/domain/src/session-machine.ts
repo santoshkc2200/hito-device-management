@@ -9,6 +9,8 @@ export type InputClass =
   | "device_on_loan_other_user"
   | "device_unavailable"
   | "device_duplicate"
+  | "device_reserved_by_self"
+  | "device_reserved_by_other"
   | "user_active"
   | "user_same"
   | "user_suspended"

@@ -129,6 +129,7 @@ var KioskDeniedOperations = map[string]struct{}{
 	"GET /v1/reports/by-origin":          {},
 	"GET /v1/reports/devices.csv":        {},
 	"GET /v1/reports/disputed":           {},
+	"GET /v1/reports/leaver-escalations": {},
 	"GET /v1/reports/loans.csv":          {},
 	"GET /v1/reports/operational-health": {},
 	"GET /v1/reports/summary":            {},

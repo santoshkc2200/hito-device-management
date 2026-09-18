@@ -10,29 +10,7 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT
-    id,
-    block_on_overdue,
-    session_idle_timeout_seconds,
-    kiosk_sound_enabled,
-    low_stock_threshold,
-    paper_backlog_hours,
-    sheet_width_mm,
-    sheet_height_mm,
-    label_columns,
-    label_rows,
-    margin_top_mm,
-    margin_left_mm,
-    gutter_x_mm,
-    gutter_y_mm,
-    label_width_mm,
-    label_height_mm,
-    hospital_name,
-    page_ref_format,
-    slip_rows_per_page,
-    slip_columns,
-    updated_at,
-    updated_by
+SELECT id, block_on_overdue, session_idle_timeout_seconds, kiosk_sound_enabled, low_stock_threshold, paper_backlog_hours, sheet_width_mm, sheet_height_mm, label_columns, label_rows, margin_top_mm, margin_left_mm, gutter_x_mm, gutter_y_mm, label_width_mm, label_height_mm, hospital_name, page_ref_format, slip_rows_per_page, slip_columns, updated_at, updated_by, reservation_pre_window_minutes, reservation_expiry_grace_minutes
 FROM settings
 WHERE id = 1
 `
@@ -63,6 +41,8 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.SlipColumns,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.ReservationPreWindowMinutes,
+		&i.ReservationExpiryGraceMinutes,
 	)
 	return i, err
 }
@@ -76,75 +56,57 @@ SET
     kiosk_sound_enabled = CASE WHEN $1::boolean THEN $4::boolean ELSE kiosk_sound_enabled END,
     low_stock_threshold = CASE WHEN $1::boolean THEN $5::int ELSE low_stock_threshold END,
     paper_backlog_hours = CASE WHEN $1::boolean THEN $6::int ELSE paper_backlog_hours END,
+    reservation_pre_window_minutes = CASE WHEN $1::boolean THEN $7::int ELSE reservation_pre_window_minutes END,
+    reservation_expiry_grace_minutes = CASE WHEN $1::boolean THEN $8::int ELSE reservation_expiry_grace_minutes END,
     -- Label template
-    sheet_width_mm = CASE WHEN $7::boolean THEN $8::double precision ELSE sheet_width_mm END,
-    sheet_height_mm = CASE WHEN $7::boolean THEN $9::double precision ELSE sheet_height_mm END,
-    label_columns = CASE WHEN $7::boolean THEN $10::int ELSE label_columns END,
-    label_rows = CASE WHEN $7::boolean THEN $11::int ELSE label_rows END,
-    margin_top_mm = CASE WHEN $7::boolean THEN $12::double precision ELSE margin_top_mm END,
-    margin_left_mm = CASE WHEN $7::boolean THEN $13::double precision ELSE margin_left_mm END,
-    gutter_x_mm = CASE WHEN $7::boolean THEN $14::double precision ELSE gutter_x_mm END,
-    gutter_y_mm = CASE WHEN $7::boolean THEN $15::double precision ELSE gutter_y_mm END,
-    label_width_mm = CASE WHEN $7::boolean THEN $16::double precision ELSE label_width_mm END,
-    label_height_mm = CASE WHEN $7::boolean THEN $17::double precision ELSE label_height_mm END,
+    sheet_width_mm = CASE WHEN $9::boolean THEN $10::double precision ELSE sheet_width_mm END,
+    sheet_height_mm = CASE WHEN $9::boolean THEN $11::double precision ELSE sheet_height_mm END,
+    label_columns = CASE WHEN $9::boolean THEN $12::int ELSE label_columns END,
+    label_rows = CASE WHEN $9::boolean THEN $13::int ELSE label_rows END,
+    margin_top_mm = CASE WHEN $9::boolean THEN $14::double precision ELSE margin_top_mm END,
+    margin_left_mm = CASE WHEN $9::boolean THEN $15::double precision ELSE margin_left_mm END,
+    gutter_x_mm = CASE WHEN $9::boolean THEN $16::double precision ELSE gutter_x_mm END,
+    gutter_y_mm = CASE WHEN $9::boolean THEN $17::double precision ELSE gutter_y_mm END,
+    label_width_mm = CASE WHEN $9::boolean THEN $18::double precision ELSE label_width_mm END,
+    label_height_mm = CASE WHEN $9::boolean THEN $19::double precision ELSE label_height_mm END,
     -- Slip template
-    hospital_name = CASE WHEN $18::boolean THEN $19::text ELSE hospital_name END,
-    page_ref_format = CASE WHEN $18::boolean THEN $20::text ELSE page_ref_format END,
-    slip_rows_per_page = CASE WHEN $18::boolean THEN $21::int ELSE slip_rows_per_page END,
-    slip_columns = CASE WHEN $18::boolean THEN $22::text[] ELSE slip_columns END,
+    hospital_name = CASE WHEN $20::boolean THEN $21::text ELSE hospital_name END,
+    page_ref_format = CASE WHEN $20::boolean THEN $22::text ELSE page_ref_format END,
+    slip_rows_per_page = CASE WHEN $20::boolean THEN $23::int ELSE slip_rows_per_page END,
+    slip_columns = CASE WHEN $20::boolean THEN $24::text[] ELSE slip_columns END,
     -- Audit metadata
     updated_at = now(),
-    updated_by = $23
+    updated_by = $25
 WHERE id = 1
-RETURNING
-    id,
-    block_on_overdue,
-    session_idle_timeout_seconds,
-    kiosk_sound_enabled,
-    low_stock_threshold,
-    paper_backlog_hours,
-    sheet_width_mm,
-    sheet_height_mm,
-    label_columns,
-    label_rows,
-    margin_top_mm,
-    margin_left_mm,
-    gutter_x_mm,
-    gutter_y_mm,
-    label_width_mm,
-    label_height_mm,
-    hospital_name,
-    page_ref_format,
-    slip_rows_per_page,
-    slip_columns,
-    updated_at,
-    updated_by
+RETURNING id, block_on_overdue, session_idle_timeout_seconds, kiosk_sound_enabled, low_stock_threshold, paper_backlog_hours, sheet_width_mm, sheet_height_mm, label_columns, label_rows, margin_top_mm, margin_left_mm, gutter_x_mm, gutter_y_mm, label_width_mm, label_height_mm, hospital_name, page_ref_format, slip_rows_per_page, slip_columns, updated_at, updated_by, reservation_pre_window_minutes, reservation_expiry_grace_minutes
 `
 
 type UpdateSettingsParams struct {
-	SetPolicy                 bool     `json:"set_policy"`
-	BlockOnOverdue            bool     `json:"block_on_overdue"`
-	SessionIdleTimeoutSeconds int32    `json:"session_idle_timeout_seconds"`
-	KioskSoundEnabled         bool     `json:"kiosk_sound_enabled"`
-	LowStockThreshold         int32    `json:"low_stock_threshold"`
-	PaperBacklogHours         int32    `json:"paper_backlog_hours"`
-	SetLabelTemplate          bool     `json:"set_label_template"`
-	SheetWidthMm              float64  `json:"sheet_width_mm"`
-	SheetHeightMm             float64  `json:"sheet_height_mm"`
-	LabelColumns              int32    `json:"label_columns"`
-	LabelRows                 int32    `json:"label_rows"`
-	MarginTopMm               float64  `json:"margin_top_mm"`
-	MarginLeftMm              float64  `json:"margin_left_mm"`
-	GutterXMm                 float64  `json:"gutter_x_mm"`
-	GutterYMm                 float64  `json:"gutter_y_mm"`
-	LabelWidthMm              float64  `json:"label_width_mm"`
-	LabelHeightMm             float64  `json:"label_height_mm"`
-	SetSlipTemplate           bool     `json:"set_slip_template"`
-	HospitalName              string   `json:"hospital_name"`
-	PageRefFormat             string   `json:"page_ref_format"`
-	SlipRowsPerPage           int32    `json:"slip_rows_per_page"`
-	SlipColumns               []string `json:"slip_columns"`
-	UpdatedBy                 string   `json:"updated_by"`
+	SetPolicy                     bool     `json:"set_policy"`
+	BlockOnOverdue                bool     `json:"block_on_overdue"`
+	SessionIdleTimeoutSeconds     int32    `json:"session_idle_timeout_seconds"`
+	KioskSoundEnabled             bool     `json:"kiosk_sound_enabled"`
+	LowStockThreshold             int32    `json:"low_stock_threshold"`
+	PaperBacklogHours             int32    `json:"paper_backlog_hours"`
+	ReservationPreWindowMinutes   int32    `json:"reservation_pre_window_minutes"`
+	ReservationExpiryGraceMinutes int32    `json:"reservation_expiry_grace_minutes"`
+	SetLabelTemplate              bool     `json:"set_label_template"`
+	SheetWidthMm                  float64  `json:"sheet_width_mm"`
+	SheetHeightMm                 float64  `json:"sheet_height_mm"`
+	LabelColumns                  int32    `json:"label_columns"`
+	LabelRows                     int32    `json:"label_rows"`
+	MarginTopMm                   float64  `json:"margin_top_mm"`
+	MarginLeftMm                  float64  `json:"margin_left_mm"`
+	GutterXMm                     float64  `json:"gutter_x_mm"`
+	GutterYMm                     float64  `json:"gutter_y_mm"`
+	LabelWidthMm                  float64  `json:"label_width_mm"`
+	LabelHeightMm                 float64  `json:"label_height_mm"`
+	SetSlipTemplate               bool     `json:"set_slip_template"`
+	HospitalName                  string   `json:"hospital_name"`
+	PageRefFormat                 string   `json:"page_ref_format"`
+	SlipRowsPerPage               int32    `json:"slip_rows_per_page"`
+	SlipColumns                   []string `json:"slip_columns"`
+	UpdatedBy                     string   `json:"updated_by"`
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) (Setting, error) {
@@ -155,6 +117,8 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.KioskSoundEnabled,
 		arg.LowStockThreshold,
 		arg.PaperBacklogHours,
+		arg.ReservationPreWindowMinutes,
+		arg.ReservationExpiryGraceMinutes,
 		arg.SetLabelTemplate,
 		arg.SheetWidthMm,
 		arg.SheetHeightMm,
@@ -197,6 +161,8 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		&i.SlipColumns,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.ReservationPreWindowMinutes,
+		&i.ReservationExpiryGraceMinutes,
 	)
 	return i, err
 }

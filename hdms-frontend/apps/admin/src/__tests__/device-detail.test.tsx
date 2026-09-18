@@ -230,4 +230,39 @@ describe("DeviceDetailPage — Phase 4.3a", () => {
       });
     });
   });
+
+  it("renders reservation history sub-list", async () => {
+    vi.spyOn(apiClient, "listDeviceReservations").mockResolvedValueOnce({
+      data: {
+        items: [
+          {
+            id: "res-101",
+            deviceId: "dev-100",
+            userId: "user-dr-smith",
+            deviceName: "Philips Vital Signs Monitor",
+            deviceAssetTag: "MONITOR-01",
+            userName: "Dr. Smith",
+            userEmployeeNo: "EMP-001",
+            status: "active",
+            startAt: "2026-09-25T09:00:00Z",
+            endAt: "2026-09-25T17:00:00Z",
+            createdBy: "admin:1",
+            createdSource: "admin",
+            createdAt: "2026-09-18T10:00:00Z",
+            updatedAt: "2026-09-18T10:00:00Z",
+          },
+        ],
+        nextCursor: undefined,
+      },
+      error: undefined,
+    } as any);
+
+    renderDeviceDetailPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("device-reservations-card")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Dr. Smith")).toBeInTheDocument();
+  });
 });

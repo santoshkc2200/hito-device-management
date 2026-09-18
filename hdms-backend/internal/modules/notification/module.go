@@ -380,6 +380,21 @@ func (s *Service) deliverOne(ctx context.Context, d notificationstore.DeliveryLo
 			Items:        items,
 			HumanContact: s.cfg.HumanContact,
 		})
+	case notificationapi.TemplateReservationExpired:
+		var payload map[string]any
+		_ = json.Unmarshal(d.Payload, &payload)
+		userName, _ := payload["userName"].(string)
+		deviceName, _ := payload["deviceName"].(string)
+		assetTag, _ := payload["deviceAssetTag"].(string)
+		startAt, _ := payload["startAt"].(string)
+		if userName == "" {
+			userName = "Staff Member"
+		}
+		subject = fmt.Sprintf("[HITO HOSPITAL] Reservation Expired: %s (%s)", deviceName, assetTag)
+		textBody = fmt.Sprintf("Hello %s,\n\nYour reservation for %s (%s) starting at %s has expired and been cancelled because the device was not collected within the grace period.\n\nIf you still need this equipment, please make a new reservation or visit the counter.\n\nContact: %s\n",
+			userName, deviceName, assetTag, startAt, s.cfg.HumanContact)
+		htmlBody = fmt.Sprintf("<p>Hello %s,</p><p>Your reservation for <strong>%s</strong> (%s) starting at %s has expired and been cancelled because the device was not collected within the grace period.</p><p>If you still need this equipment, please make a new reservation or visit the counter.</p><p>Contact: %s</p>",
+			userName, deviceName, assetTag, startAt, s.cfg.HumanContact)
 	default:
 		subject = fmt.Sprintf("[HITO HOSPITAL] Notification: %s", d.Template)
 		textBody = fmt.Sprintf("Notification for recipient %s (template: %s)", recipient, d.Template)

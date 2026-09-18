@@ -85,6 +85,20 @@ export function OfflineScreen({
               >
                 {t("offline.paperFallbackInstruction")}
               </p>
+              {/*
+                Phase 6.4d. The decided offline policy is that the kiosk
+                does NOT enforce reservations while offline — a conflict
+                cannot be adjudicated offline without lying to somebody
+                standing at the counter — and says so, rather than
+                silently letting a reserved device walk out. The paper
+                register is the designed overflow lane.
+              */}
+              <p
+                data-testid="offline-reservations-notice"
+                className="text-base text-foreground/80 leading-relaxed font-medium"
+              >
+                {t("offline.reservationsNotEnforced")}
+              </p>
             </div>
           </div>
         </div>

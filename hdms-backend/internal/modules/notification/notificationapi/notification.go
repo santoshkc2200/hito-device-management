@@ -52,6 +52,7 @@ const (
 	TemplateOverdueReminder    Template = "overdue_reminder"
 	TemplateWeeklyDigest       Template = "weekly_digest"
 	TemplateReturnConfirmation Template = "return_confirmation"
+	TemplateReservationExpired Template = "reservation_expired"
 )
 
 // Delivery represents one delivery record from the delivery_log table.

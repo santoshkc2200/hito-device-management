@@ -74,6 +74,13 @@ type Config struct {
 	SMTPFromAddress  string
 	SMTPReplyAddress string
 
+	// LDAP directory configuration (6.3b).
+	LDAPURL          string
+	LDAPBindDN       string
+	LDAPBindPassword string
+	LDAPBaseDN       string
+	LDAPUserFilter   string
+
 	OTLPEndpoint string // empty disables the exporter
 	LogLevel     string
 }
@@ -130,6 +137,13 @@ func Load() (Config, error) {
 	cfg.SMTPPassword = os.Getenv("HDMS_SMTP_PASSWORD")
 	cfg.SMTPFromAddress = getenvDefault("HDMS_SMTP_FROM_ADDRESS", "hdms@hospital.local")
 	cfg.SMTPReplyAddress = os.Getenv("HDMS_SMTP_REPLY_ADDRESS")
+
+	// 6.3b: LDAP directory configuration.
+	cfg.LDAPURL = os.Getenv("HDMS_LDAP_URL")
+	cfg.LDAPBindDN = os.Getenv("HDMS_LDAP_BIND_DN")
+	cfg.LDAPBindPassword = os.Getenv("HDMS_LDAP_BIND_PASSWORD")
+	cfg.LDAPBaseDN = os.Getenv("HDMS_LDAP_BASE_DN")
+	cfg.LDAPUserFilter = getenvDefault("HDMS_LDAP_USER_FILTER", "(objectClass=person)")
 
 	// Rate limiting: HDMS_RATE_LIMIT=off disables, on enables.
 	// Defaults to enabled in staging/production/test, and disabled in development.

@@ -17,6 +17,7 @@ import { loginRoute } from "./routes/login";
 import { notificationsRoute } from "./routes/notifications";
 import { registerRoute } from "./routes/register";
 import { reportsRoute } from "./routes/reports";
+import { reservationsRoute } from "./routes/reservations";
 import { rootRoute } from "./routes/root";
 import { settingsRoute } from "./routes/settings";
 import { userDetailRoute } from "./routes/users.$userId";
@@ -35,6 +36,7 @@ const routeTree = rootRoute.addChildren([
     registerRoute,
     loansRoute,
     loanDetailRoute,
+    reservationsRoute,
     disputedRoute,
     reportsRoute,
     auditRoute,

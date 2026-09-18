@@ -4,6 +4,7 @@ import { en } from "./en";
 
 export const catalogues: Catalogues<AdminMessages> = { ja, en };
 
+export { ja, en };
 export type { AdminMessages };
 
 export function useT() {

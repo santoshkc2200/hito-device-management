@@ -1204,6 +1204,148 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /devices/{id}/reservations:
+    get:
+      operationId: listDeviceReservations
+      summary: List reservation history for one device.
+      tags: [devices, reservations]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ReservationStatus"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /users/{id}/reservations:
+    get:
+      operationId: listUserReservations
+      summary: List reservation history for one user.
+      tags: [users, reservations]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ReservationStatus"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Reservations --------------------------------------------------------
+
+  /reservations:
+    get:
+      operationId: listReservations
+      summary: List reservations with optional filters and cursor pagination.
+      tags: [reservations]
+      parameters:
+        - name: deviceId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ReservationStatus"
+        - $ref: "#/components/parameters/CursorParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createReservation
+      summary: Create a new reservation for a device.
+      tags: [reservations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReservationRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reservations/{id}:
+    get:
+      operationId: getReservation
+      summary: Fetch one reservation by id.
+      tags: [reservations]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reservations/{id}/cancel:
+    post:
+      operationId: cancelReservation
+      summary: Cancel an active reservation.
+      tags: [reservations]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelReservationRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   # --- Dashboard & Events -------------------------------------------------
 
   /dashboard:
@@ -1756,6 +1898,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LoanList"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /reports/leaver-escalations:
+    get:
+      operationId: listLeaverEscalations
+      summary: Open equipment loans held by staff suspended during directory sync.
+      tags: [reports]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaverEscalationList"
         default:
           $ref: "#/components/responses/ProblemResponse"
 
@@ -3070,7 +3227,7 @@ components:
 
     OutcomeKind:
       type: string
-      enum: [device_pending, user_identified, borrowed, returned, rejected, duplicate, user_switched]
+      enum: [device_pending, user_identified, borrowed, returned, rejected, duplicate, user_switched, reservation_collected]
 
     MessageTone:
       type: string
@@ -3180,6 +3337,110 @@ components:
           items:
             $ref: "#/components/schemas/Loan"
         nextCursor: { type: string }
+
+    # --- Reservations -------------------------------------------------------
+
+    ReservationStatus:
+      type: string
+      enum: [active, collected, cancelled, expired]
+
+    Reservation:
+      type: object
+      required:
+        - id
+        - deviceId
+        - userId
+        - deviceName
+        - deviceAssetTag
+        - userName
+        - userEmployeeNo
+        - status
+        - startAt
+        - endAt
+        - createdBy
+        - createdSource
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: string }
+        deviceId: { type: string }
+        userId: { type: string }
+        deviceName: { type: string }
+        deviceAssetTag: { type: string }
+        userName: { type: string }
+        userEmployeeNo: { type: string }
+        userEmail: { type: string }
+        status:
+          $ref: "#/components/schemas/ReservationStatus"
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        createdSource: { type: string }
+        loanId: { type: string }
+        cancelledAt: { type: string, format: date-time }
+        cancelledBy: { type: string }
+        cancellationReason: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ReservationList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reservation"
+        nextCursor: { type: string }
+
+    CreateReservationRequest:
+      type: object
+      required: [deviceId, userId, startAt, endAt]
+      properties:
+        deviceId: { type: string }
+        userId: { type: string }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+
+    CancelReservationRequest:
+      type: object
+      properties:
+        reason: { type: string }
+
+    LeaverEscalationList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaverEscalation"
+
+    LeaverEscalation:
+      type: object
+      required:
+        - loanId
+        - deviceId
+        - deviceName
+        - deviceAssetTag
+        - userId
+        - borrowerName
+        - borrowerEmployeeNo
+        - departmentName
+        - borrowedAt
+      properties:
+        loanId: { type: string }
+        deviceId: { type: string }
+        deviceName: { type: string }
+        deviceAssetTag: { type: string }
+        userId: { type: string }
+        borrowerName: { type: string }
+        borrowerEmployeeNo: { type: string }
+        departmentId: { type: string }
+        departmentName: { type: string }
+        borrowedAt: { type: string, format: date-time }
+        dueAt: { type: string, format: date-time }
+        suspendedAt: { type: string, format: date-time }
 
     ForceReturnLoanRequest:
       type: object

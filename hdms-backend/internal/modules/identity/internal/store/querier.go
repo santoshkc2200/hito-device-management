@@ -12,10 +12,13 @@ import (
 
 type Querier interface {
 	CreateDepartment(ctx context.Context, arg CreateDepartmentParams) (Department, error)
+	CreateDirectoryLink(ctx context.Context, arg CreateDirectoryLinkParams) (UserDirectoryLink, error)
 	CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (ImportBatch, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteDepartment(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	GetDepartmentByID(ctx context.Context, id pgtype.UUID) (Department, error)
+	GetDirectoryLinkBySubject(ctx context.Context, arg GetDirectoryLinkBySubjectParams) (UserDirectoryLink, error)
+	GetDirectoryLinkByUserID(ctx context.Context, userID pgtype.UUID) (UserDirectoryLink, error)
 	GetImportBatch(ctx context.Context, id string) (ImportBatch, error)
 	// Used by bulk import, which resolves a department name from a CSV column
 	// without needing a separate "does it exist" round trip.
@@ -26,12 +29,18 @@ type Querier interface {
 	GetUserByEmployeeNo(ctx context.Context, lower string) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	ListDepartments(ctx context.Context) ([]Department, error)
+	ListDirectoryLinks(ctx context.Context, issuer string) ([]UserDirectoryLink, error)
+	ListDirectoryLinksForSuspension(ctx context.Context, arg ListDirectoryLinksForSuspensionParams) ([]UserDirectoryLink, error)
+	ListLeaverEscalations(ctx context.Context) ([]ListLeaverEscalationsRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	SetUserEmployeeNo(ctx context.Context, arg SetUserEmployeeNoParams) (User, error)
 	StreamUsersForExport(ctx context.Context, arg StreamUsersForExportParams) ([]StreamUsersForExportRow, error)
 	UpdateDepartment(ctx context.Context, arg UpdateDepartmentParams) (Department, error)
+	UpdateDirectoryLinkLastSeen(ctx context.Context, arg UpdateDirectoryLinkLastSeenParams) (UserDirectoryLink, error)
+	UpdateDirectoryLinkSyncState(ctx context.Context, arg UpdateDirectoryLinkSyncStateParams) (UserDirectoryLink, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) (User, error)
+	UpsertDirectoryLink(ctx context.Context, arg UpsertDirectoryLinkParams) (UserDirectoryLink, error)
 }
 
 var _ Querier = (*Queries)(nil)

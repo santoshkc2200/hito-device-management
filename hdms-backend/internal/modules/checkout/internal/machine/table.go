@@ -59,6 +59,18 @@ func baseArgs(snap Snapshot, in Input) map[string]any {
 	if !snap.PendingDeviceBorrowedAt.IsZero() {
 		args["pendingDeviceBorrowedAt"] = snap.PendingDeviceBorrowedAt
 	}
+	if in.ReservedForUserID != "" {
+		args["reservedForUserId"] = in.ReservedForUserID
+	}
+	if !in.ReservationStartAt.IsZero() {
+		args["reservationStartAt"] = in.ReservationStartAt
+	}
+	if snap.PendingDeviceReservedForUserID != "" {
+		args["pendingDeviceReservedForUserId"] = snap.PendingDeviceReservedForUserID
+	}
+	if !snap.PendingDeviceReservationStartAt.IsZero() {
+		args["pendingDeviceReservationStartAt"] = snap.PendingDeviceReservationStartAt
+	}
 	return args
 }
 
@@ -72,6 +84,30 @@ func static(action Action, next SessionState, clearPending bool, key MessageKey)
 		ClearPending: clearPending,
 		decide: func(snap Snapshot, in Input) Decision {
 			return Decision{Action: action, NextState: next, ClearPending: clearPending, MessageKey: key, MessageArgs: baseArgs(snap, in)}
+		},
+	}
+}
+
+// collectReservation is the (AwaitingDevice|Ready, ClassDeviceReservedBySelf)
+// rule: the reserver has scanned the device their own reservation is for.
+// It is an ordinary borrow — the only difference from any other borrow is
+// that the Decision names the reservation execute must mark collected in
+// the same transaction, so the two can never drift apart.
+func collectReservation(self SessionState) Rule {
+	_ = self
+	return Rule{
+		Action:       ActionBorrow,
+		Target:       Ready,
+		ClearPending: false,
+		decide: func(snap Snapshot, in Input) Decision {
+			return Decision{
+				Action:                ActionBorrow,
+				NextState:             Ready,
+				ClearPending:          false,
+				MessageKey:            MsgReservationCollected,
+				MessageArgs:           baseArgs(snap, in),
+				FulfillsReservationID: in.ReservationID,
+			}
 		},
 	}
 }
@@ -90,6 +126,25 @@ func resolvePendingAgainstUser() Rule {
 		ClearPending: true,
 		decide: func(snap Snapshot, in Input) Decision {
 			args := baseArgs(snap, in)
+			// Phase 6.4c. A pending device with a reservation in force is
+			// adjudicated here, where the scanner is finally known — but
+			// only when it is not already on loan, because custody
+			// outranks a reservation (classify.go says the same thing on
+			// the other path) and the holder returning it must never be
+			// refused.
+			if snap.PendingDeviceReservedForUserID != "" && snap.PendingDeviceHolderID == "" {
+				if snap.PendingDeviceReservedForUserID == in.UserID {
+					return Decision{
+						Action: ActionBorrow, NextState: Ready, ClearPending: true,
+						MessageKey: MsgReservationCollected, MessageArgs: args,
+						FulfillsReservationID: snap.PendingDeviceReservationID,
+					}
+				}
+				return Decision{
+					Action: ActionReject, NextState: Idle, ClearPending: true,
+					MessageKey: MsgDeviceReserved, MessageArgs: args,
+				}
+			}
 			switch ResolveAction(snap.PendingDeviceHolderID, in.UserID) {
 			case ActionBorrow:
 				return Decision{Action: ActionBorrow, NextState: Ready, ClearPending: true, MessageKey: MsgBorrowed, MessageArgs: args}
@@ -114,6 +169,10 @@ func liveUserRules(self SessionState) map[InputClass]Rule {
 		ClassDeviceOnLoanOtherUser: static(ActionReject, self, false, MsgDeviceHeldByOther),
 		ClassDeviceUnavailable:     static(ActionReject, self, false, MsgDeviceUnavailable),
 		ClassDeviceDuplicate:       static(ActionDuplicate, self, false, MsgDuplicate),
+		// Phase 6.4c: the reserver collects; anyone else is refused with
+		// the reason and the time, never a bare "unavailable".
+		ClassDeviceReservedBySelf:  collectReservation(self),
+		ClassDeviceReservedByOther: static(ActionReject, self, false, MsgDeviceReserved),
 		ClassUserActive:            static(ActionSwitchUser, AwaitingDevice, false, MsgUserIdentified),
 		ClassUserSame:              static(ActionNone, self, false, MsgUserIdentified),
 		ClassUserSuspended:         static(ActionReject, self, false, MsgUserSuspended),
@@ -145,7 +204,13 @@ var table = map[SessionState]map[InputClass]Rule{
 		ClassDeviceUnavailable:     static(ActionReject, Idle, false, MsgDeviceUnavailable),
 		// Unreachable: nothing is pending yet in idle to duplicate against.
 		ClassDeviceDuplicate: static(ActionDuplicate, Idle, false, MsgDuplicate),
-		ClassUserActive:      static(ActionSetUser, AwaitingDevice, false, MsgUserIdentified),
+		// Phase 6.4c: a reserved device is held exactly as an on-loan one
+		// is. Idle has no session user, so classify() can only ever reach
+		// the "by other" cell here; both are defined, identically, for
+		// table completeness.
+		ClassDeviceReservedBySelf:  static(ActionHoldDevice, AwaitingUser, false, MsgDevicePendingReserved),
+		ClassDeviceReservedByOther: static(ActionHoldDevice, AwaitingUser, false, MsgDevicePendingReserved),
+		ClassUserActive:            static(ActionSetUser, AwaitingDevice, false, MsgUserIdentified),
 		// Unreachable: idle has no session user to be "the same" as.
 		ClassUserSame:      static(ActionSetUser, AwaitingDevice, false, MsgUserIdentified),
 		ClassUserSuspended: static(ActionReject, Idle, false, MsgUserSuspended),
@@ -171,6 +236,10 @@ var table = map[SessionState]map[InputClass]Rule{
 		ClassDeviceUnavailable:     static(ActionReject, AwaitingUser, false, MsgDeviceUnavailable),
 		// The *same* device within 3s is ignored as a duplicate trigger.
 		ClassDeviceDuplicate: static(ActionDuplicate, AwaitingUser, false, MsgDuplicate),
+		// Phase 6.4c: replace, like every other device scan in this
+		// state; the reservation is adjudicated when the user is known.
+		ClassDeviceReservedBySelf:  static(ActionReplacePending, AwaitingUser, false, MsgDevicePendingReserved),
+		ClassDeviceReservedByOther: static(ActionReplacePending, AwaitingUser, false, MsgDevicePendingReserved),
 		// A user identified while a device is pending: whether that is a
 		// borrow, a return, or "held by someone else" depends on the
 		// pending device's custody, not on this cell alone —
