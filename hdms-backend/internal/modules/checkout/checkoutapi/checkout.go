@@ -259,7 +259,6 @@ type OperationalHealthStats struct {
 	RejectionReasons    []ScanRejectionReasonCount
 }
 
-
 // ─── Paper backfill (2.4b) ──────────────────────────────────────────────────
 //
 // One PaperRow is one line of the paper register: a device reference, a

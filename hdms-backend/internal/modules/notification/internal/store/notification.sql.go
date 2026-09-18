@@ -7,22 +7,537 @@ package notificationstore
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const ping = `-- name: Ping :one
-
-SELECT 1::int AS ok
+const findOverdueCandidateLoans = `-- name: FindOverdueCandidateLoans :many
+SELECT l.id, l.device_id, l.user_id, l.borrowed_at, l.due_at,
+       u.full_name AS borrower_name, u.email AS borrower_email,
+       d.asset_tag AS device_asset_tag, d.name AS device_name
+FROM loans l
+JOIN users u ON u.id = l.user_id
+JOIN devices d ON d.id = l.device_id
+WHERE l.status = 'open'
+  AND NOT l.disputed
+  AND l.due_at IS NOT NULL
+  AND l.due_at < $1
+ORDER BY l.due_at ASC
 `
 
-// Placeholder so sqlc has something to generate against. sqlc.yaml already
-// declared this directory before Phase 2 existed, but nothing had created
-// it yet — discovered while closing 2.0's lending/checkout query-directory
-// gap, which needs `sqlc generate` to succeed cleanly across every entry in
-// sqlc.yaml, not just the two this sub-phase otherwise owns. Notification
-// itself is Phase 6 scope.
-func (q *Queries) Ping(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, ping)
-	var ok int32
-	err := row.Scan(&ok)
-	return ok, err
+type FindOverdueCandidateLoansRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	DeviceID       pgtype.UUID        `json:"device_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	BorrowedAt     pgtype.Timestamptz `json:"borrowed_at"`
+	DueAt          pgtype.Timestamptz `json:"due_at"`
+	BorrowerName   string             `json:"borrower_name"`
+	BorrowerEmail  pgtype.Text        `json:"borrower_email"`
+	DeviceAssetTag string             `json:"device_asset_tag"`
+	DeviceName     string             `json:"device_name"`
+}
+
+func (q *Queries) FindOverdueCandidateLoans(ctx context.Context, dueAt pgtype.Timestamptz) ([]FindOverdueCandidateLoansRow, error) {
+	rows, err := q.db.Query(ctx, findOverdueCandidateLoans, dueAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindOverdueCandidateLoansRow
+	for rows.Next() {
+		var i FindOverdueCandidateLoansRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeviceID,
+			&i.UserID,
+			&i.BorrowedAt,
+			&i.DueAt,
+			&i.BorrowerName,
+			&i.BorrowerEmail,
+			&i.DeviceAssetTag,
+			&i.DeviceName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDelivery = `-- name: GetDelivery :one
+SELECT id, recipient, channel, template, dedupe_key, attempt_count, status, last_error, next_attempt_at, loan_id, user_id, escalation_step, payload, created_at, sent_at, updated_at FROM delivery_log WHERE id = $1
+`
+
+func (q *Queries) GetDelivery(ctx context.Context, id pgtype.UUID) (DeliveryLog, error) {
+	row := q.db.QueryRow(ctx, getDelivery, id)
+	var i DeliveryLog
+	err := row.Scan(
+		&i.ID,
+		&i.Recipient,
+		&i.Channel,
+		&i.Template,
+		&i.DedupeKey,
+		&i.AttemptCount,
+		&i.Status,
+		&i.LastError,
+		&i.NextAttemptAt,
+		&i.LoanID,
+		&i.UserID,
+		&i.EscalationStep,
+		&i.Payload,
+		&i.CreatedAt,
+		&i.SentAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getDeliveryByDedupeKey = `-- name: GetDeliveryByDedupeKey :one
+SELECT id, recipient, channel, template, dedupe_key, attempt_count, status, last_error, next_attempt_at, loan_id, user_id, escalation_step, payload, created_at, sent_at, updated_at FROM delivery_log WHERE dedupe_key = $1
+`
+
+func (q *Queries) GetDeliveryByDedupeKey(ctx context.Context, dedupeKey string) (DeliveryLog, error) {
+	row := q.db.QueryRow(ctx, getDeliveryByDedupeKey, dedupeKey)
+	var i DeliveryLog
+	err := row.Scan(
+		&i.ID,
+		&i.Recipient,
+		&i.Channel,
+		&i.Template,
+		&i.DedupeKey,
+		&i.AttemptCount,
+		&i.Status,
+		&i.LastError,
+		&i.NextAttemptAt,
+		&i.LoanID,
+		&i.UserID,
+		&i.EscalationStep,
+		&i.Payload,
+		&i.CreatedAt,
+		&i.SentAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getLoanForNotification = `-- name: GetLoanForNotification :one
+SELECT l.id, l.device_id, l.user_id, l.status, l.disputed, l.borrowed_at, l.due_at, l.returned_at,
+       u.full_name AS borrower_name, u.email AS borrower_email,
+       d.asset_tag AS device_asset_tag, d.name AS device_name
+FROM loans l
+JOIN users u ON u.id = l.user_id
+JOIN devices d ON d.id = l.device_id
+WHERE l.id = $1
+`
+
+type GetLoanForNotificationRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	DeviceID       pgtype.UUID        `json:"device_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	Status         LoanStatus         `json:"status"`
+	Disputed       bool               `json:"disputed"`
+	BorrowedAt     pgtype.Timestamptz `json:"borrowed_at"`
+	DueAt          pgtype.Timestamptz `json:"due_at"`
+	ReturnedAt     pgtype.Timestamptz `json:"returned_at"`
+	BorrowerName   string             `json:"borrower_name"`
+	BorrowerEmail  pgtype.Text        `json:"borrower_email"`
+	DeviceAssetTag string             `json:"device_asset_tag"`
+	DeviceName     string             `json:"device_name"`
+}
+
+func (q *Queries) GetLoanForNotification(ctx context.Context, id pgtype.UUID) (GetLoanForNotificationRow, error) {
+	row := q.db.QueryRow(ctx, getLoanForNotification, id)
+	var i GetLoanForNotificationRow
+	err := row.Scan(
+		&i.ID,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Status,
+		&i.Disputed,
+		&i.BorrowedAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.BorrowerName,
+		&i.BorrowerEmail,
+		&i.DeviceAssetTag,
+		&i.DeviceName,
+	)
+	return i, err
+}
+
+const getPreferences = `-- name: GetPreferences :one
+SELECT user_id, channel, opted_out, updated_at, updated_by
+FROM notification_preferences
+WHERE user_id = $1
+`
+
+func (q *Queries) GetPreferences(ctx context.Context, userID pgtype.UUID) (NotificationPreference, error) {
+	row := q.db.QueryRow(ctx, getPreferences, userID)
+	var i NotificationPreference
+	err := row.Scan(
+		&i.UserID,
+		&i.Channel,
+		&i.OptedOut,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
+const hasOverdueEscalation = `-- name: HasOverdueEscalation :one
+SELECT EXISTS (
+    SELECT 1 FROM overdue_escalations
+    WHERE loan_id = $1 AND escalation_step = $2
+) AS has_escalation
+`
+
+type HasOverdueEscalationParams struct {
+	LoanID         pgtype.UUID `json:"loan_id"`
+	EscalationStep int32       `json:"escalation_step"`
+}
+
+func (q *Queries) HasOverdueEscalation(ctx context.Context, arg HasOverdueEscalationParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasOverdueEscalation, arg.LoanID, arg.EscalationStep)
+	var has_escalation bool
+	err := row.Scan(&has_escalation)
+	return has_escalation, err
+}
+
+const insertDelivery = `-- name: InsertDelivery :one
+
+INSERT INTO delivery_log (
+    id, recipient, channel, template, dedupe_key, attempt_count,
+    status, last_error, next_attempt_at, loan_id, user_id,
+    escalation_step, payload, created_at, sent_at, updated_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6,
+    $7, $8, $9, $10, $11,
+    $12, $13, $14, $15, $16
+)
+RETURNING id, recipient, channel, template, dedupe_key, attempt_count, status, last_error, next_attempt_at, loan_id, user_id, escalation_step, payload, created_at, sent_at, updated_at
+`
+
+type InsertDeliveryParams struct {
+	ID             pgtype.UUID        `json:"id"`
+	Recipient      string             `json:"recipient"`
+	Channel        string             `json:"channel"`
+	Template       string             `json:"template"`
+	DedupeKey      string             `json:"dedupe_key"`
+	AttemptCount   int32              `json:"attempt_count"`
+	Status         string             `json:"status"`
+	LastError      pgtype.Text        `json:"last_error"`
+	NextAttemptAt  pgtype.Timestamptz `json:"next_attempt_at"`
+	LoanID         pgtype.UUID        `json:"loan_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	EscalationStep pgtype.Int4        `json:"escalation_step"`
+	Payload        []byte             `json:"payload"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Queries for the notification module (delivery_log, preferences, overdue_escalations)
+func (q *Queries) InsertDelivery(ctx context.Context, arg InsertDeliveryParams) (DeliveryLog, error) {
+	row := q.db.QueryRow(ctx, insertDelivery,
+		arg.ID,
+		arg.Recipient,
+		arg.Channel,
+		arg.Template,
+		arg.DedupeKey,
+		arg.AttemptCount,
+		arg.Status,
+		arg.LastError,
+		arg.NextAttemptAt,
+		arg.LoanID,
+		arg.UserID,
+		arg.EscalationStep,
+		arg.Payload,
+		arg.CreatedAt,
+		arg.SentAt,
+		arg.UpdatedAt,
+	)
+	var i DeliveryLog
+	err := row.Scan(
+		&i.ID,
+		&i.Recipient,
+		&i.Channel,
+		&i.Template,
+		&i.DedupeKey,
+		&i.AttemptCount,
+		&i.Status,
+		&i.LastError,
+		&i.NextAttemptAt,
+		&i.LoanID,
+		&i.UserID,
+		&i.EscalationStep,
+		&i.Payload,
+		&i.CreatedAt,
+		&i.SentAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listDeliveries = `-- name: ListDeliveries :many
+SELECT id, recipient, channel, template, dedupe_key, attempt_count, status, last_error, next_attempt_at, loan_id, user_id, escalation_step, payload, created_at, sent_at, updated_at FROM delivery_log
+WHERE ($1::text IS NULL OR status = $1)
+ORDER BY created_at DESC
+LIMIT $3::int OFFSET $2::int
+`
+
+type ListDeliveriesParams struct {
+	Status pgtype.Text `json:"status"`
+	Offset int32       `json:"offset"`
+	Limit  int32       `json:"limit"`
+}
+
+func (q *Queries) ListDeliveries(ctx context.Context, arg ListDeliveriesParams) ([]DeliveryLog, error) {
+	rows, err := q.db.Query(ctx, listDeliveries, arg.Status, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeliveryLog
+	for rows.Next() {
+		var i DeliveryLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.Recipient,
+			&i.Channel,
+			&i.Template,
+			&i.DedupeKey,
+			&i.AttemptCount,
+			&i.Status,
+			&i.LastError,
+			&i.NextAttemptAt,
+			&i.LoanID,
+			&i.UserID,
+			&i.EscalationStep,
+			&i.Payload,
+			&i.CreatedAt,
+			&i.SentAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingDeliveries = `-- name: ListPendingDeliveries :many
+SELECT id, recipient, channel, template, dedupe_key, attempt_count, status, last_error, next_attempt_at, loan_id, user_id, escalation_step, payload, created_at, sent_at, updated_at FROM delivery_log
+WHERE status IN ('pending', 'queued_quiet_hours')
+  AND next_attempt_at <= $1
+ORDER BY next_attempt_at ASC
+LIMIT $2
+`
+
+type ListPendingDeliveriesParams struct {
+	NextAttemptAt pgtype.Timestamptz `json:"next_attempt_at"`
+	Limit         int32              `json:"limit"`
+}
+
+func (q *Queries) ListPendingDeliveries(ctx context.Context, arg ListPendingDeliveriesParams) ([]DeliveryLog, error) {
+	rows, err := q.db.Query(ctx, listPendingDeliveries, arg.NextAttemptAt, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeliveryLog
+	for rows.Next() {
+		var i DeliveryLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.Recipient,
+			&i.Channel,
+			&i.Template,
+			&i.DedupeKey,
+			&i.AttemptCount,
+			&i.Status,
+			&i.LastError,
+			&i.NextAttemptAt,
+			&i.LoanID,
+			&i.UserID,
+			&i.EscalationStep,
+			&i.Payload,
+			&i.CreatedAt,
+			&i.SentAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listQuarantinedDeliveries = `-- name: ListQuarantinedDeliveries :many
+SELECT id, recipient, channel, template, dedupe_key, attempt_count, status, last_error, next_attempt_at, loan_id, user_id, escalation_step, payload, created_at, sent_at, updated_at FROM delivery_log
+WHERE status = 'quarantined'
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListQuarantinedDeliveries(ctx context.Context) ([]DeliveryLog, error) {
+	rows, err := q.db.Query(ctx, listQuarantinedDeliveries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeliveryLog
+	for rows.Next() {
+		var i DeliveryLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.Recipient,
+			&i.Channel,
+			&i.Template,
+			&i.DedupeKey,
+			&i.AttemptCount,
+			&i.Status,
+			&i.LastError,
+			&i.NextAttemptAt,
+			&i.LoanID,
+			&i.UserID,
+			&i.EscalationStep,
+			&i.Payload,
+			&i.CreatedAt,
+			&i.SentAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const recordOverdueEscalation = `-- name: RecordOverdueEscalation :one
+INSERT INTO overdue_escalations (
+    loan_id, escalation_step, published_at
+) VALUES (
+    $1, $2, $3
+)
+ON CONFLICT (loan_id, escalation_step) DO NOTHING
+RETURNING loan_id, escalation_step, published_at
+`
+
+type RecordOverdueEscalationParams struct {
+	LoanID         pgtype.UUID        `json:"loan_id"`
+	EscalationStep int32              `json:"escalation_step"`
+	PublishedAt    pgtype.Timestamptz `json:"published_at"`
+}
+
+func (q *Queries) RecordOverdueEscalation(ctx context.Context, arg RecordOverdueEscalationParams) (OverdueEscalation, error) {
+	row := q.db.QueryRow(ctx, recordOverdueEscalation, arg.LoanID, arg.EscalationStep, arg.PublishedAt)
+	var i OverdueEscalation
+	err := row.Scan(&i.LoanID, &i.EscalationStep, &i.PublishedAt)
+	return i, err
+}
+
+const updateDeliveryStatus = `-- name: UpdateDeliveryStatus :one
+UPDATE delivery_log
+SET status = $2,
+    attempt_count = $3,
+    last_error = $4,
+    next_attempt_at = $5,
+    sent_at = $6,
+    updated_at = $7
+WHERE id = $1
+RETURNING id, recipient, channel, template, dedupe_key, attempt_count, status, last_error, next_attempt_at, loan_id, user_id, escalation_step, payload, created_at, sent_at, updated_at
+`
+
+type UpdateDeliveryStatusParams struct {
+	ID            pgtype.UUID        `json:"id"`
+	Status        string             `json:"status"`
+	AttemptCount  int32              `json:"attempt_count"`
+	LastError     pgtype.Text        `json:"last_error"`
+	NextAttemptAt pgtype.Timestamptz `json:"next_attempt_at"`
+	SentAt        pgtype.Timestamptz `json:"sent_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpdateDeliveryStatus(ctx context.Context, arg UpdateDeliveryStatusParams) (DeliveryLog, error) {
+	row := q.db.QueryRow(ctx, updateDeliveryStatus,
+		arg.ID,
+		arg.Status,
+		arg.AttemptCount,
+		arg.LastError,
+		arg.NextAttemptAt,
+		arg.SentAt,
+		arg.UpdatedAt,
+	)
+	var i DeliveryLog
+	err := row.Scan(
+		&i.ID,
+		&i.Recipient,
+		&i.Channel,
+		&i.Template,
+		&i.DedupeKey,
+		&i.AttemptCount,
+		&i.Status,
+		&i.LastError,
+		&i.NextAttemptAt,
+		&i.LoanID,
+		&i.UserID,
+		&i.EscalationStep,
+		&i.Payload,
+		&i.CreatedAt,
+		&i.SentAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertPreferences = `-- name: UpsertPreferences :one
+INSERT INTO notification_preferences (
+    user_id, channel, opted_out, updated_at, updated_by
+) VALUES (
+    $1, $2, $3, $4, $5
+)
+ON CONFLICT (user_id) DO UPDATE
+SET channel = EXCLUDED.channel,
+    opted_out = EXCLUDED.opted_out,
+    updated_at = EXCLUDED.updated_at,
+    updated_by = EXCLUDED.updated_by
+RETURNING user_id, channel, opted_out, updated_at, updated_by
+`
+
+type UpsertPreferencesParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	Channel   string             `json:"channel"`
+	OptedOut  bool               `json:"opted_out"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy string             `json:"updated_by"`
+}
+
+func (q *Queries) UpsertPreferences(ctx context.Context, arg UpsertPreferencesParams) (NotificationPreference, error) {
+	row := q.db.QueryRow(ctx, upsertPreferences,
+		arg.UserID,
+		arg.Channel,
+		arg.OptedOut,
+		arg.UpdatedAt,
+		arg.UpdatedBy,
+	)
+	var i NotificationPreference
+	err := row.Scan(
+		&i.UserID,
+		&i.Channel,
+		&i.OptedOut,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
 }

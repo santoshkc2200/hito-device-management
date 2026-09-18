@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #333; }
+.card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; background-color: #f8fafc; margin: 16px 0; }
+.label { font-weight: 600; color: #475569; }
+.footer { margin-top: 24px; font-size: 0.875rem; color: #64748b; }
+</style>
+</head>
+<body>
+<p>Hello Nurse Alice Smith,</p>
+<p>This is a reminder from Hito Hospital Equipment Management that the following device borrowed under your account is overdue:</p>
+<div class="card">
+  <p><span class="label">Device:</span> iPad Air 5th Gen</p>
+  <p><span class="label">Asset Tag:</span> HD-DEV-001042</p>
+  <p><span class="label">Borrowed:</span> 2026-09-10 09:00 JST</p>
+  <p><span class="label">Due Date:</span> 2026-09-15 17:00 JST</p>
+  <p><span class="label">Overdue:</span> 3 day(s)</p>
+</div>
+<p>Please return this device as soon as possible to: <strong>Ward 4 Equipment Counter (Building B, 2F)</strong></p>
+<p>If you have already returned this device, or if this record appears in error, please contact: <strong>Equipment Counter, Ext. 4100 (counter@hospital.local)</strong></p>
+<div class="footer">
+  <p>Thank you for helping us keep equipment available for clinical care.</p>
+</div>
+</body>
+</html>

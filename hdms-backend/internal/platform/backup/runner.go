@@ -130,10 +130,10 @@ func Run(ctx context.Context, q db.DBTX, databaseURL, dir string, key []byte, no
 	}
 	finished := time.Now().UTC()
 	detail := map[string]any{
-		"path":    filepath.Base(path),
-		"bytes":   fi.Size(),
-		"kept":    len(kept),
-		"pruned":  deleted,
+		"path":     filepath.Base(path),
+		"bytes":    fi.Size(),
+		"kept":     len(kept),
+		"pruned":   deleted,
 		"n_pruned": len(deleted),
 	}
 	if err := RecordJobRun(ctx, q, "backup", started, finished, "success", detail); err != nil {

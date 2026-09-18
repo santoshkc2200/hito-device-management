@@ -16,7 +16,6 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 )
 
-
 func TestStreamingCSVExports(t *testing.T) {
 	h := newTestHarness(t)
 	ctx := context.Background()

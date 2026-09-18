@@ -404,3 +404,68 @@ func TestMigration0020_JobRuns(t *testing.T) {
 		t.Fatalf("expected job_runs to exist after up to latest")
 	}
 }
+
+// TestMigration0021_Notifications proves 6.2b:
+// 1. Tables delivery_log, notification_preferences, and overdue_escalations exist after Up.
+// 2. Rolling back to 20 drops them cleanly.
+// 3. Up applies cleanly again.
+func TestMigration0021_Notifications(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	connStr := pool.Config().ConnConfig.ConnString()
+
+	sqlDB, err := sql.Open("pgx", connStr)
+	if err != nil {
+		t.Fatalf("open stdlib sql.DB: %v", err)
+	}
+	defer sqlDB.Close()
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatalf("set dialect: %v", err)
+	}
+
+	for _, table := range []string{"delivery_log", "notification_preferences", "overdue_escalations"} {
+		var exists bool
+		if err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`, table,
+		).Scan(&exists); err != nil {
+			t.Fatalf("check %s exists: %v", table, err)
+		}
+		if !exists {
+			t.Fatalf("expected table %s to exist after migration 0021", table)
+		}
+	}
+
+	// Down to 20
+	if err := goose.DownToContext(ctx, sqlDB, ".", 20); err != nil {
+		t.Fatalf("goose down to 20: %v", err)
+	}
+	for _, table := range []string{"delivery_log", "notification_preferences", "overdue_escalations"} {
+		var exists bool
+		if err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`, table,
+		).Scan(&exists); err != nil {
+			t.Fatalf("check %s after down to 20: %v", table, err)
+		}
+		if exists {
+			t.Fatalf("expected table %s to be dropped after down to 20", table)
+		}
+	}
+
+	// Up to latest
+	if err := goose.UpContext(ctx, sqlDB, "."); err != nil {
+		t.Fatalf("goose up to latest: %v", err)
+	}
+	for _, table := range []string{"delivery_log", "notification_preferences", "overdue_escalations"} {
+		var exists bool
+		if err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`, table,
+		).Scan(&exists); err != nil {
+			t.Fatalf("check %s after up to latest: %v", table, err)
+		}
+		if !exists {
+			t.Fatalf("expected table %s to exist after up to latest", table)
+		}
+	}
+}

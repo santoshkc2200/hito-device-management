@@ -1,14 +1,16 @@
 import {
   archiveUser,
   getUser,
+  getUserNotificationPreferences,
   listCredentialsBySubject,
   listDepartments,
   listUserLoans,
   suspendUser,
+  updateUserNotificationPreferences,
 } from "@hdms/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Edit3, History, Laptop, ShieldAlert, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Bell, Edit3, History, Laptop, ShieldAlert, User as UserIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CredentialsPanel } from "@/components/credentials-panel";
@@ -16,6 +18,7 @@ import { ErrorState, LoadingState } from "@/components/states";
 import { StatusBadge, labelize, userStatusTone } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -524,7 +527,7 @@ export function UserDetailPage() {
           </div>
         </div>
 
-        {/* Right Column: Credentials Panel */}
+        {/* Right Column: Credentials Panel & Notification Preferences */}
         <div className="flex flex-col gap-6">
           <div className="rounded-lg border border-border bg-card p-6">
             <CredentialsPanel
@@ -538,6 +541,10 @@ export function UserDetailPage() {
               }}
             />
           </div>
+
+          <RoleGate minRole="admin">
+            <NotificationPreferencesCard userId={user.id} />
+          </RoleGate>
         </div>
       </div>
 
@@ -584,6 +591,122 @@ export function UserDetailPage() {
         onConfirm={(reason) => archiveMutation.mutate(reason)}
         isPending={archiveMutation.isPending}
       />
+    </div>
+  );
+}
+
+function NotificationPreferencesCard({ userId }: { userId: string }) {
+  const t = useT();
+  const queryClient = useQueryClient();
+
+  const prefQuery = useQuery({
+    queryKey: ["users", userId, "notification-preferences"],
+    queryFn: async () => {
+      const { data, error } = await getUserNotificationPreferences({
+        path: { id: userId },
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [optedOut, setOptedOut] = useState<boolean | null>(null);
+
+  const currentOptedOut = optedOut !== null ? optedOut : (prefQuery.data?.optedOut ?? false);
+
+  const updateMutation = useMutation({
+    mutationFn: async (newOptedOut: boolean) => {
+      const { data, error } = await updateUserNotificationPreferences({
+        path: { id: userId },
+        body: {
+          channel: "email",
+          optedOut: newOptedOut,
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["users", userId, "notification-preferences"], data);
+      setOptedOut(null);
+      toast.success(t("notificationPreferences.savedSuccess"));
+    },
+    onError: (err: any) => {
+      toast.error(err?.detail || err?.title || t("notificationPreferences.saveFailed"));
+    },
+  });
+
+  const isDirty = optedOut !== null && optedOut !== (prefQuery.data?.optedOut ?? false);
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-6">
+      <div className="flex items-center gap-2">
+        <Bell className="size-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">
+          {t("notificationPreferences.title")}
+        </h2>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {t("notificationPreferences.description")}
+      </p>
+
+      <div className="mt-4 space-y-4">
+        <div>
+          <span className="text-xs font-medium text-muted-foreground uppercase">
+            {t("notificationPreferences.channelLabel")}
+          </span>
+          <p className="text-sm font-medium text-foreground mt-0.5">
+            {t("notificationPreferences.channelEmail")}
+          </p>
+        </div>
+
+        <div className="flex items-start space-x-3 pt-2">
+          <Checkbox
+            id="optOut"
+            checked={currentOptedOut}
+            onCheckedChange={(checked) => setOptedOut(checked === true)}
+            disabled={prefQuery.isLoading || updateMutation.isPending}
+          />
+          <div className="grid gap-1.5 leading-none">
+            <label
+              htmlFor="optOut"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              {t("notificationPreferences.optOutLabel")}
+            </label>
+            <p className="text-xs text-muted-foreground">
+              {t("notificationPreferences.optOutHelp")}
+            </p>
+          </div>
+        </div>
+
+        {prefQuery.data?.updatedBy && (
+          <div className="pt-2 text-xs text-muted-foreground border-t border-border/50">
+            <p>
+              {t("notificationPreferences.updatedBy", { name: prefQuery.data.updatedBy })}
+            </p>
+            {prefQuery.data.updatedAt && (
+              <p className="mt-0.5">
+                {t("notificationPreferences.updatedAt", {
+                  date: new Date(prefQuery.data.updatedAt).toLocaleString(),
+                })}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="pt-2">
+          <Button
+            size="sm"
+            onClick={() => updateMutation.mutate(currentOptedOut)}
+            disabled={!isDirty || updateMutation.isPending}
+          >
+            {updateMutation.isPending
+              ? t("notificationPreferences.saving")
+              : t("notificationPreferences.save")}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

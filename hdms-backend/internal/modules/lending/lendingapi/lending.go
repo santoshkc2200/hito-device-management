@@ -380,4 +380,3 @@ type Service interface {
 	// StreamLoansForExport returns all loans matching filters with joined device and user information for streaming CSV.
 	StreamLoansForExport(ctx context.Context, params ListLoansParams) ([]ExportLoanRow, error)
 }
-

@@ -1,7 +1,7 @@
-import { type OverdueLoanSummary, forceReturnLoan } from "@hdms/api-client";
+import { type OverdueLoanSummary, forceReturnLoan, remindLoan } from "@hdms/api-client";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Clock, Copy, CornerDownLeft, ExternalLink } from "lucide-react";
+import { Bell, CheckCircle2, Clock, CornerDownLeft, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -75,23 +75,39 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
     },
   });
 
-  const handleCopyReminder = async (loan: OverdueLoanSummary) => {
-    const formattedDue = formatDate(loan.dueAt);
-    const message = t("dashboard.overdue.reminderMessage", {
-      user: loan.userFullName,
-      device: loan.deviceName,
-      assetTag: loan.assetTag,
-      dueAt: formattedDue,
-    });
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(message);
+  const [remindingId, setRemindingId] = useState<string | null>(null);
+
+  const remindMutation = useMutation({
+    mutationFn: async (loanId: string) => {
+      setRemindingId(loanId);
+      const { data, error, response } = await remindLoan({
+        path: { id: loanId },
+      });
+      if (error) {
+        throw { ...error, status: response?.status };
       }
-      toast.success(t("dashboard.overdue.reminderCopied"));
-    } catch {
-      toast.error(t("dashboard.overdue.reminderCopyFailed"));
-    }
-  };
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.outcome === "sent") {
+        toast.success(t("dashboard.overdue.remindSuccess"));
+      } else if (data?.outcome === "queued_quiet_hours") {
+        toast.info(t("dashboard.overdue.remindQueuedQuietHours"));
+      } else if (data?.outcome === "refused") {
+        toast.warning(t("dashboard.overdue.remindRefused", { reason: data.reason || "" }));
+      }
+    },
+    onError: (err: any) => {
+      if (err?.status === 429) {
+        toast.error(t("dashboard.overdue.remindRateLimited"));
+      } else {
+        toast.error(err?.detail || err?.title || t("dashboard.overdue.remindFailed"));
+      }
+    },
+    onSettled: () => {
+      setRemindingId(null);
+    },
+  });
 
   return (
     <Card className="h-full flex flex-col">
@@ -198,11 +214,14 @@ export function OverdueLoansTable({ loans = [] }: OverdueLoansTableProps) {
                           variant="ghost"
                           size="sm"
                           className="h-7 px-2 text-xs"
-                          onClick={() => handleCopyReminder(loan)}
+                          onClick={() => remindMutation.mutate(loan.loanId)}
+                          disabled={remindingId === loan.loanId}
                           title={t("dashboard.overdue.remindTooltip")}
                         >
-                          <Copy className="size-3.5 mr-1" />
-                          {t("dashboard.overdue.remindButton")}
+                          <Bell className={`size-3.5 mr-1 ${remindingId === loan.loanId ? "animate-pulse" : ""}`} />
+                          {remindingId === loan.loanId
+                            ? t("dashboard.overdue.remindSending")
+                            : t("dashboard.overdue.remindButton")}
                         </Button>
                         <RoleGate minRole="technician">
                           <Button

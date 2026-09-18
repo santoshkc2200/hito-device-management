@@ -11,7 +11,6 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/settings"
 )
 
-
 // checkout defines its own dependency interfaces, satisfied by
 // identityapi, catalogapi, credentialsapi and lendingapi rather than
 // copied from them (docs/phases/phase-2/2.3a-checkout-foundations.md).
@@ -77,4 +76,3 @@ type Deps struct {
 	Loans    Loans
 	Settings SettingsReader
 }
-

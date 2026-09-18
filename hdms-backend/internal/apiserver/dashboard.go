@@ -190,4 +190,3 @@ func (s *Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, dashboard)
 }
-

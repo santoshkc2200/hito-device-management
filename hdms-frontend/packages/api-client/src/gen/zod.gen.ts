@@ -1004,6 +1004,49 @@ export const zStaffLoanList = z.object({
     nextCursor: z.string().optional()
 });
 
+export const zQuarantinedDelivery = z.object({
+    id: z.uuid(),
+    recipient: z.string(),
+    channel: z.string(),
+    template: z.string(),
+    attemptCount: z.int(),
+    status: z.string(),
+    lastError: z.string().optional(),
+    nextAttemptAt: z.iso.datetime().optional(),
+    loanId: z.uuid().optional(),
+    userId: z.uuid().optional(),
+    escalationStep: z.int().optional(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime()
+});
+
+export const zQuarantinedDeliveryList = z.object({
+    items: z.array(zQuarantinedDelivery)
+});
+
+export const zNotificationPreferences = z.object({
+    userId: z.uuid(),
+    channel: z.enum(['email']),
+    optedOut: z.boolean(),
+    updatedAt: z.iso.datetime(),
+    updatedBy: z.string()
+});
+
+export const zUpdateNotificationPreferencesRequest = z.object({
+    channel: z.enum(['email']),
+    optedOut: z.boolean()
+});
+
+export const zRemindOutcome = z.object({
+    outcome: z.enum([
+        'sent',
+        'queued_quiet_hours',
+        'refused'
+    ]),
+    reason: z.string().optional(),
+    deliveryId: z.uuid().optional()
+});
+
 export const zIdParam = z.string();
 
 export const zCursorParam = z.string();
@@ -1213,6 +1256,26 @@ export const zResetStaffPasswordPath = z.object({
  * Temporary password generated. Shown once to the administrator.
  */
 export const zResetStaffPasswordResponse = zStaffPasswordResetResponse;
+
+export const zGetUserNotificationPreferencesPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetUserNotificationPreferencesResponse = zNotificationPreferences;
+
+export const zUpdateUserNotificationPreferencesBody = zUpdateNotificationPreferencesRequest;
+
+export const zUpdateUserNotificationPreferencesPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateUserNotificationPreferencesResponse = zNotificationPreferences;
 
 /**
  * OK.
@@ -1497,6 +1560,15 @@ export const zWriteOffLoanPath = z.object({
  * OK.
  */
 export const zWriteOffLoanResponse = zLoan;
+
+export const zRemindLoanPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zRemindLoanResponse = zRemindOutcome;
 
 export const zListDeviceLoansPath = z.object({
     id: z.string()
@@ -1836,6 +1908,15 @@ export const zExportAuditCsvQuery = z.object({
  * CSV stream.
  */
 export const zExportAuditCsvResponse = z.string();
+
+export const zListQuarantinedDeliveriesQuery = z.object({
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListQuarantinedDeliveriesResponse = zQuarantinedDeliveryList;
 
 export const zPreviewUserImportBody = z.string();
 

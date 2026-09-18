@@ -1071,6 +1071,45 @@ export type StaffLoanList = {
     nextCursor?: string;
 };
 
+export type QuarantinedDelivery = {
+    id: string;
+    recipient: string;
+    channel: string;
+    template: string;
+    attemptCount: number;
+    status: string;
+    lastError?: string;
+    nextAttemptAt?: string;
+    loanId?: string;
+    userId?: string;
+    escalationStep?: number;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type QuarantinedDeliveryList = {
+    items: Array<QuarantinedDelivery>;
+};
+
+export type NotificationPreferences = {
+    userId: string;
+    channel: 'email';
+    optedOut: boolean;
+    updatedAt: string;
+    updatedBy: string;
+};
+
+export type UpdateNotificationPreferencesRequest = {
+    channel: 'email';
+    optedOut: boolean;
+};
+
+export type RemindOutcome = {
+    outcome: 'sent' | 'queued_quiet_hours' | 'refused';
+    reason?: string;
+    deliveryId?: string;
+};
+
 export type IdParam = string;
 
 export type CursorParam = string;
@@ -1653,6 +1692,60 @@ export type ResetStaffPasswordResponses = {
 };
 
 export type ResetStaffPasswordResponse = ResetStaffPasswordResponses[keyof ResetStaffPasswordResponses];
+
+export type GetUserNotificationPreferencesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/notification-preferences';
+};
+
+export type GetUserNotificationPreferencesErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetUserNotificationPreferencesError = GetUserNotificationPreferencesErrors[keyof GetUserNotificationPreferencesErrors];
+
+export type GetUserNotificationPreferencesResponses = {
+    /**
+     * OK.
+     */
+    200: NotificationPreferences;
+};
+
+export type GetUserNotificationPreferencesResponse = GetUserNotificationPreferencesResponses[keyof GetUserNotificationPreferencesResponses];
+
+export type UpdateUserNotificationPreferencesData = {
+    body: UpdateNotificationPreferencesRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/notification-preferences';
+};
+
+export type UpdateUserNotificationPreferencesErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateUserNotificationPreferencesError = UpdateUserNotificationPreferencesErrors[keyof UpdateUserNotificationPreferencesErrors];
+
+export type UpdateUserNotificationPreferencesResponses = {
+    /**
+     * OK.
+     */
+    200: NotificationPreferences;
+};
+
+export type UpdateUserNotificationPreferencesResponse = UpdateUserNotificationPreferencesResponses[keyof UpdateUserNotificationPreferencesResponses];
 
 export type ListDepartmentsData = {
     body?: never;
@@ -2465,6 +2558,33 @@ export type WriteOffLoanResponses = {
 };
 
 export type WriteOffLoanResponse = WriteOffLoanResponses[keyof WriteOffLoanResponses];
+
+export type RemindLoanData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/loans/{id}/remind';
+};
+
+export type RemindLoanErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RemindLoanError = RemindLoanErrors[keyof RemindLoanErrors];
+
+export type RemindLoanResponses = {
+    /**
+     * OK.
+     */
+    200: RemindOutcome;
+};
+
+export type RemindLoanResponse = RemindLoanResponses[keyof RemindLoanResponses];
 
 export type ListDeviceLoansData = {
     body?: never;
@@ -3422,6 +3542,33 @@ export type ExportAuditCsvResponses = {
 };
 
 export type ExportAuditCsvResponse = ExportAuditCsvResponses[keyof ExportAuditCsvResponses];
+
+export type ListQuarantinedDeliveriesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+    };
+    url: '/notifications/quarantined';
+};
+
+export type ListQuarantinedDeliveriesErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListQuarantinedDeliveriesError = ListQuarantinedDeliveriesErrors[keyof ListQuarantinedDeliveriesErrors];
+
+export type ListQuarantinedDeliveriesResponses = {
+    /**
+     * OK.
+     */
+    200: QuarantinedDeliveryList;
+};
+
+export type ListQuarantinedDeliveriesResponse = ListQuarantinedDeliveriesResponses[keyof ListQuarantinedDeliveriesResponses];
 
 export type PreviewUserImportData = {
     body: string;

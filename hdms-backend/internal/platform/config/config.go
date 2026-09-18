@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -64,6 +65,15 @@ type Config struct {
 	// disables the textfile write — job_runs remains the source of truth.
 	JobMetricsDir string
 
+	// SMTP relay configuration (6.2c). Password comes from environment only
+	// and must never be committed or logged.
+	SMTPHost         string
+	SMTPPort         int
+	SMTPUsername     string
+	SMTPPassword     string
+	SMTPFromAddress  string
+	SMTPReplyAddress string
+
 	OTLPEndpoint string // empty disables the exporter
 	LogLevel     string
 }
@@ -112,14 +122,24 @@ func Load() (Config, error) {
 	cfg.EntraAllowedDomains = splitAndTrim(os.Getenv("HDMS_ENTRA_ALLOWED_EMAIL_DOMAINS"))
 	cfg.StaffSessionTTL = getenvDurationDefault("HDMS_STAFF_SESSION_TTL", 12*time.Hour, &errs)
 
+	// 6.2c: SMTP relay configuration for overdue reminders and digests.
+	// Local development defaults to the MailHog / Mailpit catcher at localhost:1025.
+	cfg.SMTPHost = getenvDefault("HDMS_SMTP_HOST", "localhost")
+	cfg.SMTPPort = getenvIntDefault("HDMS_SMTP_PORT", 1025, &errs)
+	cfg.SMTPUsername = os.Getenv("HDMS_SMTP_USERNAME")
+	cfg.SMTPPassword = os.Getenv("HDMS_SMTP_PASSWORD")
+	cfg.SMTPFromAddress = getenvDefault("HDMS_SMTP_FROM_ADDRESS", "hdms@hospital.local")
+	cfg.SMTPReplyAddress = os.Getenv("HDMS_SMTP_REPLY_ADDRESS")
+
 	// Rate limiting: HDMS_RATE_LIMIT=off disables, on enables.
 	// Defaults to enabled in staging/production/test, and disabled in development.
 	rateLimitEnv := strings.ToLower(strings.TrimSpace(os.Getenv("HDMS_RATE_LIMIT")))
-	if rateLimitEnv == "off" {
+	switch rateLimitEnv {
+	case "off":
 		cfg.RateLimitEnabled = false
-	} else if rateLimitEnv == "on" {
+	case "on":
 		cfg.RateLimitEnabled = true
-	} else {
+	default:
 		cfg.RateLimitEnabled = (cfg.Env != "development")
 	}
 
@@ -202,6 +222,18 @@ func validate(cfg Config, errs *[]error) {
 	if len(cfg.TOTPSecretEncKey) == 0 {
 		*errs = append(*errs, errors.New("HDMS_TOTP_ENC_KEY: missing required environment variable; provide a base64-encoded 32-byte key generated with 'openssl rand -base64 32'"))
 	}
+
+	// 6. SMTP relay configuration in production (6.2c). Local development defaults
+	// (localhost:1025, hdms@hospital.local) must never reach production.
+	if cfg.SMTPHost == "" || cfg.SMTPHost == "localhost" || cfg.SMTPHost == "127.0.0.1" {
+		*errs = append(*errs, fmt.Errorf("HDMS_SMTP_HOST: production cannot use development/localhost default (got %q); configure hospital SMTP relay host", cfg.SMTPHost))
+	}
+	if cfg.SMTPPort <= 0 || cfg.SMTPPort == 1025 {
+		*errs = append(*errs, fmt.Errorf("HDMS_SMTP_PORT: production cannot use development port 1025 or invalid port (got %d); configure hospital SMTP relay port (typically 25, 465, or 587)", cfg.SMTPPort))
+	}
+	if cfg.SMTPFromAddress == "" || strings.Contains(cfg.SMTPFromAddress, "localhost") || strings.HasSuffix(cfg.SMTPFromAddress, ".local") {
+		*errs = append(*errs, fmt.Errorf("HDMS_SMTP_FROM_ADDRESS: production cannot use development default (got %q); configure valid hospital sender address", cfg.SMTPFromAddress))
+	}
 }
 
 // LogEffective logs the active configuration to the provided logger with all
@@ -232,6 +264,12 @@ func (c Config) LogEffective(logger *slog.Logger) {
 		slog.String("backup_enc_key", "[REDACTED]"),
 		slog.String("retention_mode", c.RetentionMode),
 		slog.String("job_metrics_dir", c.JobMetricsDir),
+		slog.String("smtp_host", c.SMTPHost),
+		slog.Int("smtp_port", c.SMTPPort),
+		slog.String("smtp_username", c.SMTPUsername),
+		slog.String("smtp_password", redactSecret(c.SMTPPassword)),
+		slog.String("smtp_from_address", c.SMTPFromAddress),
+		slog.String("smtp_reply_address", c.SMTPReplyAddress),
 		slog.String("otlp_endpoint", c.OTLPEndpoint),
 		slog.String("log_level", c.LogLevel),
 	)
@@ -354,4 +392,17 @@ func getenvDurationDefault(key string, def time.Duration, errs *[]error) time.Du
 		return def
 	}
 	return d
+}
+
+func getenvIntDefault(key string, def int, errs *[]error) int {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil {
+		*errs = append(*errs, fmt.Errorf("%s: invalid integer %q: %w", key, v, err))
+		return def
+	}
+	return n
 }

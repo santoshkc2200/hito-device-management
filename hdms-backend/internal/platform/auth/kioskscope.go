@@ -119,7 +119,11 @@ var KioskDeniedOperations = map[string]struct{}{
 	"GET /v1/loans/{id}":                      {},
 	"POST /v1/loans/{id}/correct-attribution": {},
 	"POST /v1/loans/{id}/force-return":        {},
+	"POST /v1/loans/{id}/remind":              {},
 	"POST /v1/loans/{id}/write-off":           {},
+
+	// Notifications
+	"GET /v1/notifications/quarantined": {},
 
 	// Reports
 	"GET /v1/reports/by-origin":          {},
@@ -148,16 +152,18 @@ var KioskDeniedOperations = map[string]struct{}{
 	"POST /v1/staff/me/profile":             {},
 
 	// Users
-	"GET /v1/users":                            {},
-	"POST /v1/users":                           {},
-	"GET /v1/users/check-employee-no":          {},
-	"POST /v1/users/register-with-card":        {},
-	"GET /v1/users/{id}":                       {},
-	"PATCH /v1/users/{id}":                     {},
-	"POST /v1/users/{id}/archive":              {},
-	"GET /v1/users/{id}/loans":                 {},
-	"POST /v1/users/{id}/staff-password-reset": {},
-	"POST /v1/users/{id}/suspend":              {},
+	"GET /v1/users":                               {},
+	"POST /v1/users":                              {},
+	"GET /v1/users/check-employee-no":             {},
+	"POST /v1/users/register-with-card":           {},
+	"GET /v1/users/{id}":                          {},
+	"PATCH /v1/users/{id}":                        {},
+	"POST /v1/users/{id}/archive":                 {},
+	"GET /v1/users/{id}/loans":                    {},
+	"GET /v1/users/{id}/notification-preferences": {},
+	"PUT /v1/users/{id}/notification-preferences": {},
+	"POST /v1/users/{id}/staff-password-reset":    {},
+	"POST /v1/users/{id}/suspend":                 {},
 }
 
 // KioskMayCall reports whether a concrete request (method + request path,

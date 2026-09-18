@@ -14,6 +14,7 @@ import { labelsRoute } from "./routes/labels";
 import { loanDetailRoute } from "./routes/loans.$loanId";
 import { loansRoute } from "./routes/loans";
 import { loginRoute } from "./routes/login";
+import { notificationsRoute } from "./routes/notifications";
 import { registerRoute } from "./routes/register";
 import { reportsRoute } from "./routes/reports";
 import { rootRoute } from "./routes/root";
@@ -37,6 +38,7 @@ const routeTree = rootRoute.addChildren([
     disputedRoute,
     reportsRoute,
     auditRoute,
+    notificationsRoute,
     settingsRoute,
     credentialsRoute,
     labelsRoute,

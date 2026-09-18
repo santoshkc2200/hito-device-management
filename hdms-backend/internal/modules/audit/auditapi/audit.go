@@ -60,4 +60,3 @@ type Service interface {
 	List(ctx context.Context, params ListParams) ([]Entry, error)
 	StreamForExport(ctx context.Context, params ListParams) ([]Entry, error)
 }
-

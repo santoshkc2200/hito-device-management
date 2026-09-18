@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #333; }
+.card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; background-color: #f8fafc; margin: 16px 0; }
+.label { font-weight: 600; color: #475569; }
+.footer { margin-top: 24px; font-size: 0.875rem; color: #64748b; }
+</style>
+</head>
+<body>
+<p>Hello Nurse Alice Smith,</p>
+<p>Thank you for returning the following device to Hito Hospital Equipment Management:</p>
+<div class="card">
+  <p><span class="label">Device:</span> iPad Air 5th Gen</p>
+  <p><span class="label">Asset Tag:</span> HD-DEV-001042</p>
+  <p><span class="label">Returned At:</span> 2026-09-18 14:30 JST</p>
+</div>
+<p>The custody record has been closed successfully.</p>
+<div class="footer">
+  <p>If you have any questions, please contact: <strong>Equipment Counter, Ext. 4100 (counter@hospital.local)</strong></p>
+</div>
+</body>
+</html>

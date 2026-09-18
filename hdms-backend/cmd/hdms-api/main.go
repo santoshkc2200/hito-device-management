@@ -20,6 +20,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/lending"
+	"github.com/hito-hospital/hdms/internal/modules/notification"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/config"
@@ -80,8 +81,7 @@ func run() error {
 	}
 
 	// Module composition root — the one place in the codebase that knows
-	// every module exists (docs/02-architecture.md). notification is
-	// still a Phase 6 stub and is not constructed here.
+	// every module exists (docs/02-architecture.md).
 	auditSvc := audit.New(pool)
 	identitySvc := identity.New(pool, auditSvc)
 	catalogSvc := catalog.New(pool, auditSvc)
@@ -90,15 +90,32 @@ func run() error {
 	staffAuthSvc := staffauth.New(pool, cfg.AdminSessionTTL)
 	lendingSvc := lending.New(pool, auditSvc, clock.System{})
 	settingsSvc := settings.New(pool, auditSvc)
+	smtpTransport := notification.NewSMTPTransport(notification.SMTPConfig{
+		Host:         cfg.SMTPHost,
+		Port:         cfg.SMTPPort,
+		Username:     cfg.SMTPUsername,
+		Password:     cfg.SMTPPassword,
+		FromAddress:  cfg.SMTPFromAddress,
+		ReplyAddress: cfg.SMTPReplyAddress,
+	})
+	notificationSvc := notification.New(pool, clock.System{}, notification.Config{
+		Transport:    smtpTransport,
+		QuietHours:   notification.DefaultQuietHoursConfig(),
+		HumanContact: cfg.SMTPReplyAddress,
+		Logger:       logger,
+	})
 
-	// Event bus and outbox dispatcher (2.2): audit is the only subscriber
-	// until 2.6 adds the SSE hub. checkout is the only publisher until
-	// credentials/identity's own call sites are wired in a later phase.
+	// Event bus and outbox dispatcher (2.2): audit and notification subscribe.
 	bus := events.NewBus(logger)
 	auditSvc.Subscribe(bus)
+	notificationSvc.Subscribe(bus)
 	dispatcher := events.NewDispatcher(pool, bus, logger, events.DefaultPollInterval)
 	dispatcher.AddSweep(func(ctx context.Context) error {
 		return httpx.SweepExpiredIdempotencyKeys(ctx, pool)
+	})
+	dispatcher.AddSweep(func(ctx context.Context) error {
+		_, err := notificationSvc.ProcessPendingDeliveries(ctx, 50)
+		return err
 	})
 	dispatcher.Start(ctx)
 	defer func() {
@@ -147,7 +164,7 @@ func run() error {
 	}
 
 	sseHub := events.NewSSEHub(pool, bus, logger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc, notificationSvc)
 
 	// actorOf scopes an idempotency key to the caller (2.5): a kiosk's key
 	// never collides with an admin's. httpx cannot import auth directly

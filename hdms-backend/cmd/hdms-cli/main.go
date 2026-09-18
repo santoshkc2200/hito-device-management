@@ -10,6 +10,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,8 +23,10 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/checkout"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
+	"github.com/hito-hospital/hdms/internal/modules/notification"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/backup"
+	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/i18n"
@@ -84,7 +87,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|reconcile|retention|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|reconcile|retention|overdue-scan|weekly-digest|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -110,6 +113,10 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 		return runReconcile(ctx, cfg, args)
 	case "retention":
 		return runRetention(ctx, cfg, args)
+	case "overdue-scan":
+		return runOverdueScan(ctx, cfg, args)
+	case "weekly-digest":
+		return runWeeklyDigest(ctx, cfg, args)
 	case "admin":
 		return runAdmin(ctx, cfg, args, cat)
 	case "import":
@@ -248,6 +255,77 @@ func runRetention(ctx context.Context, cfg config.Config, args []string) error {
 	fmt.Printf("Retention (%s): %d closed-loan, %d user, %d scan-event, %d audit candidates; anonymised %d loan(s) + %d user(s), deleted %d scan event(s), %d audit event(s)\n",
 		summary.Mode, summary.LoanCandidates, summary.UserCandidates, summary.ScanEventCandidates, summary.AuditCandidates,
 		summary.LoansAnonymised, summary.UsersAnonymised, summary.ScanEventsDeleted, summary.AuditEventsDeleted)
+	return nil
+}
+
+// runOverdueScan implements 6.2a: hourly overdue loan detection, outbox event emission,
+// escalation deduplication, and job_runs reporting. Invoked by systemd timer
+// deploy/systemd/hdms-overdue-scan.timer; see docs/runbooks/overdue-scan.md.
+func runOverdueScan(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("overdue-scan", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("usage: hdms-cli overdue-scan (no arguments)")
+	}
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	report, err := jobs.RunOverdueScan(ctx, pool, time.Now().UTC(), cfg.JobMetricsDir)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Overdue scan: %d overdue loan(s) checked, %d event(s) published, %d skipped dedupe\n",
+		report.OverdueCount, report.EventsPublished, report.SkippedDedupe)
+	return nil
+}
+
+// runWeeklyDigest implements 6.2c: weekly admin summary digest of overdue equipment.
+// Invoked by systemd timer deploy/systemd/hdms-weekly-digest.timer; see docs/runbooks/weekly-digest.md.
+func runWeeklyDigest(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("weekly-digest", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("usage: hdms-cli weekly-digest (no arguments)")
+	}
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	smtpTransport := notification.NewSMTPTransport(notification.SMTPConfig{
+		Host:         cfg.SMTPHost,
+		Port:         cfg.SMTPPort,
+		Username:     cfg.SMTPUsername,
+		Password:     cfg.SMTPPassword,
+		FromAddress:  cfg.SMTPFromAddress,
+		ReplyAddress: cfg.SMTPReplyAddress,
+	})
+
+	notifSvc := notification.New(pool, clock.System{}, notification.Config{
+		Transport:             smtpTransport,
+		QuietHours:            notification.DefaultQuietHoursConfig(),
+		HumanContact:          cfg.SMTPReplyAddress,
+		DefaultReturnLocation: "Room 101",
+		MaxAttempts:           3,
+		Logger:                slog.Default(),
+	})
+
+	report, err := jobs.RunWeeklyDigest(ctx, pool, notifSvc, time.Now().UTC(), cfg.JobMetricsDir)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Weekly digest: %d overdue loan(s), %d admin(s) targeted, %d enqueued, %d skipped dedupe\n",
+		report.OverdueLoansCount, report.AdminsTargeted, report.DigestsEnqueued, report.SkippedDedupe)
 	return nil
 }
 

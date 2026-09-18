@@ -164,9 +164,10 @@ func SeedRealisticScaleDataset(ctx context.Context, pool *db.Pool) error {
 			evID := uuid.New().String()
 			actor := fmt.Sprintf("admin:staff-%03d", idx%10)
 			action := "device.status_changed"
-			if idx%3 == 0 {
+			switch idx % 3 {
+			case 0:
 				action = "loan.opened"
-			} else if idx%3 == 1 {
+			case 1:
 				action = "loan.returned"
 			}
 			subject := fmt.Sprintf("device:TAG-SCALE-%05d", (idx%500)+1)

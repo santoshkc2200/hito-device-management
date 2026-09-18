@@ -614,6 +614,25 @@ type CredentialEvent struct {
 	Payload      []byte             `json:"payload"`
 }
 
+type DeliveryLog struct {
+	ID             pgtype.UUID        `json:"id"`
+	Recipient      string             `json:"recipient"`
+	Channel        string             `json:"channel"`
+	Template       string             `json:"template"`
+	DedupeKey      string             `json:"dedupe_key"`
+	AttemptCount   int32              `json:"attempt_count"`
+	Status         string             `json:"status"`
+	LastError      pgtype.Text        `json:"last_error"`
+	NextAttemptAt  pgtype.Timestamptz `json:"next_attempt_at"`
+	LoanID         pgtype.UUID        `json:"loan_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	EscalationStep pgtype.Int4        `json:"escalation_step"`
+	Payload        []byte             `json:"payload"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Department struct {
 	ID        pgtype.UUID        `json:"id"`
 	Name      string             `json:"name"`
@@ -667,6 +686,15 @@ type ImportBatch struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type JobRun struct {
+	ID         int64              `json:"id"`
+	Job        string             `json:"job"`
+	StartedAt  pgtype.Timestamptz `json:"started_at"`
+	FinishedAt pgtype.Timestamptz `json:"finished_at"`
+	Outcome    string             `json:"outcome"`
+	Detail     []byte             `json:"detail"`
+}
+
 type Kiosk struct {
 	ID                   pgtype.UUID        `json:"id"`
 	Name                 string             `json:"name"`
@@ -707,6 +735,14 @@ type Loan struct {
 	Disputed      bool                `json:"disputed"`
 }
 
+type NotificationPreference struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	Channel   string             `json:"channel"`
+	OptedOut  bool               `json:"opted_out"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy string             `json:"updated_by"`
+}
+
 type OauthLoginState struct {
 	StateHash   []byte             `json:"state_hash"`
 	VerifierEnc []byte             `json:"verifier_enc"`
@@ -726,6 +762,12 @@ type Outbox struct {
 	NextAttemptAt pgtype.Timestamptz `json:"next_attempt_at"`
 	LastError     pgtype.Text        `json:"last_error"`
 	FailedAt      pgtype.Timestamptz `json:"failed_at"`
+}
+
+type OverdueEscalation struct {
+	LoanID         pgtype.UUID        `json:"loan_id"`
+	EscalationStep int32              `json:"escalation_step"`
+	PublishedAt    pgtype.Timestamptz `json:"published_at"`
 }
 
 type ScanEvent struct {

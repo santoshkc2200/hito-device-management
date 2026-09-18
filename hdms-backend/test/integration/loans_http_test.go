@@ -424,5 +424,3 @@ func TestLoanOverridesAuditE15(t *testing.T) {
 		t.Fatalf("did not find loan.attribution_corrected in audit events")
 	}
 }
-
-

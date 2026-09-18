@@ -98,6 +98,7 @@ func TestWithMetricsAccessRestrictsMetricsToAllowlist(t *testing.T) {
 		t.Fatalf("spoofed XFF /metrics status = %d, want 404", rec.Code)
 	}
 }
+
 // TestWithMetricsObservesRouteAndStatus ensures the middleware records the
 // bounded route and the response status on the histogram.
 func TestWithMetricsObservesRouteAndStatus(t *testing.T) {

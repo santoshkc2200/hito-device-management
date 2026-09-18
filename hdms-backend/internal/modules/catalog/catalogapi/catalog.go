@@ -184,4 +184,3 @@ type Service interface {
 	// StreamDevicesForExport returns devices matching filters with category names for streaming CSV.
 	StreamDevicesForExport(ctx context.Context, params ListDevicesParams) ([]ExportDeviceRow, error)
 }
-

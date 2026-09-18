@@ -216,11 +216,10 @@ describe("LoansPage — Phase 4.8a/c", () => {
     expect(rows[2]).toHaveTextContent("iPad Air 5th Gen");
   });
 
-  it("remind button copies formatted reminder message to clipboard", async () => {
-    const writeTextMock = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: { writeText: writeTextMock },
-    });
+  it("remind button sends reminder via remindLoan API", async () => {
+    const remindSpy = vi.spyOn(apiClient, "remindLoan").mockResolvedValue({
+      data: { outcome: "sent" },
+    } as any);
 
     renderLoansPage();
 
@@ -231,12 +230,9 @@ describe("LoansPage — Phase 4.8a/c", () => {
     fireEvent.click(screen.getByTestId("remind-btn-loan-1"));
 
     await waitFor(() => {
-      expect(writeTextMock).toHaveBeenCalledWith(
-        expect.stringContaining("Dr. Alice Walker"),
-      );
+      expect(remindSpy).toHaveBeenCalledWith({
+        path: { id: "loan-1" },
+      });
     });
-    expect(writeTextMock).toHaveBeenCalledWith(
-      expect.stringContaining("LAPTOP-01"),
-    );
   });
 });

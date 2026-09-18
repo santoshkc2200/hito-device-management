@@ -1,0 +1,13 @@
+[Unit]
+Description=HDMS weekly admin summary digest (6.2c)
+Documentation=file:///opt/hdms/docs/runbooks/weekly-digest.md
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=hdms
+Group=hdms
+EnvironmentFile=/etc/hdms/hdms.env
+ExecStart=/opt/hdms/bin/hdms-cli weekly-digest
+SyslogIdentifier=hdms-weekly-digest

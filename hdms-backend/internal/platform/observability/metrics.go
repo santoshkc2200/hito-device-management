@@ -87,10 +87,19 @@ var (
 		},
 		[]string{"kiosk"},
 	)
+
+	// NotificationDeliveriesTotal counts notification deliveries by channel, template and status.
+	NotificationDeliveriesTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hdms_notification_deliveries_total",
+			Help: "Notification delivery attempts by channel, template and status.",
+		},
+		[]string{"channel", "template", "status"},
+	)
 )
 
 func init() {
-	prometheus.MustRegister(TransactionsTotal, ScanRejectionsTotal, SessionExpiredTotal, LoansOpen, DevicesByStatus, KioskLastSeenSeconds)
+	prometheus.MustRegister(TransactionsTotal, ScanRejectionsTotal, SessionExpiredTotal, LoansOpen, DevicesByStatus, KioskLastSeenSeconds, NotificationDeliveriesTotal)
 }
 
 // MetricsHandler serves /metrics in Prometheus text format using the
@@ -114,6 +123,11 @@ func IncScanRejection(reason string) {
 // IncSessionExpired records one session closed as expired.
 func IncSessionExpired() {
 	SessionExpiredTotal.Inc()
+}
+
+// IncNotificationDelivery records one notification delivery attempt by channel, template and status.
+func IncNotificationDelivery(channel, template, status string) {
+	NotificationDeliveriesTotal.WithLabelValues(channel, template, status).Inc()
 }
 
 // AddSessionExpired records n sessions closed as expired (sweeper bulk reap).

@@ -22,6 +22,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/lending"
+	"github.com/hito-hospital/hdms/internal/modules/notification"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/events"
@@ -58,7 +59,15 @@ func newTestHarnessWithRateLimiting(t *testing.T) *testHarness {
 
 	sseHub := events.NewSSEHub(pool, bus, discardLogger)
 	staffAuthSvc := staffauth.New(pool, time.Hour)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil)
+	notifSvc := notification.New(pool, clock.System{}, notification.Config{
+		Transport:             notification.NewMemoryTransport(),
+		QuietHours:            notification.DefaultQuietHoursConfig(),
+		HumanContact:          "support@example.com",
+		DefaultReturnLocation: "Room 101",
+		MaxAttempts:           3,
+		Logger:                discardLogger,
+	})
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc)
 	mux := http.NewServeMux()
 
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")

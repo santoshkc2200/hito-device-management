@@ -17,7 +17,6 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 )
 
-
 // TestSettingsGetAndUpdate tests fetching and updating policy and templates.
 func TestSettingsGetAndUpdate(t *testing.T) {
 	h := newTestHarness(t)
@@ -217,7 +216,6 @@ func TestPolicyChangeTakesEffectOnNextCheckoutWithoutRestart(t *testing.T) {
 		t.Fatalf("issue dev2 cred: %v", err)
 	}
 
-
 	// 2. Open an overdue loan for the user (using RecordHistorical with past due_at / borrowed_at)
 	yesterday := time.Now().Add(-24 * time.Hour)
 	pastDue := time.Now().Add(-2 * time.Hour)
@@ -298,7 +296,6 @@ func TestPolicyChangeTakesEffectOnNextCheckoutWithoutRestart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("set dev2 available: %v", err)
 	}
-
 
 	// 4. Enable blockOnOverdue via PATCH /v1/settings
 	updateReq := gen.UpdateSettingsRequest{

@@ -1,0 +1,13 @@
+[Unit]
+Description=HDMS overdue equipment scan (6.2a)
+Documentation=file:///opt/hdms/docs/runbooks/overdue-scan.md
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=hdms
+Group=hdms
+EnvironmentFile=/etc/hdms/hdms.env
+ExecStart=/opt/hdms/bin/hdms-cli overdue-scan
+SyslogIdentifier=hdms-overdue-scan

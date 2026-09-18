@@ -503,4 +503,3 @@ func (s *Service) StreamDevicesForExport(ctx context.Context, params catalogapi.
 	}
 	return result, nil
 }
-
