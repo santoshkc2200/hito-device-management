@@ -28,6 +28,138 @@ var KioskAllowedOperations = map[string]struct{}{
 	"GET /v1/readyz":                     {},
 }
 
+// KioskDeniedOperations is the explicit classification of every OpenAPI
+// operation that a kiosk bearer token may NOT call. Every operation in the
+// OpenAPI contract must appear in either KioskAllowedOperations or
+// KioskDeniedOperations; unclassified operations fail the test suite.
+var KioskDeniedOperations = map[string]struct{}{
+	// Admin auth
+	"POST /v1/auth/login":          {},
+	"POST /v1/auth/logout":         {},
+	"GET /v1/auth/me":              {},
+	"PATCH /v1/auth/me/locale":     {},
+	"POST /v1/auth/password":       {},
+	"POST /v1/auth/recovery-codes": {},
+	"POST /v1/auth/totp/confirm":   {},
+	"POST /v1/auth/totp/reenrol":   {},
+
+	// Admin accounts
+	"GET /v1/admins":                      {},
+	"POST /v1/admins":                     {},
+	"GET /v1/admins/{id}":                 {},
+	"PATCH /v1/admins/{id}":               {},
+	"POST /v1/admins/{id}/reset-password": {},
+	"POST /v1/admins/{id}/reset-totp":     {},
+	"POST /v1/admins/{id}/unlock":         {},
+
+	// Audit
+	"GET /v1/audit":     {},
+	"GET /v1/audit.csv": {},
+
+	// Backfill
+	"POST /v1/backfill":           {},
+	"GET /v1/backfill/last-entry": {},
+	"POST /v1/backfill/preview":   {},
+
+	// Categories
+	"GET /v1/categories":        {},
+	"POST /v1/categories":       {},
+	"PATCH /v1/categories/{id}": {},
+
+	// Credentials
+	"GET /v1/credentials":               {},
+	"POST /v1/credentials":              {},
+	"POST /v1/credentials/blank-batch":  {},
+	"GET /v1/credentials/resolve":       {},
+	"GET /v1/credentials/unbound-count": {},
+	"POST /v1/credentials/{id}/bind":    {},
+	"GET /v1/credentials/{id}/history":  {},
+	"POST /v1/credentials/{id}/reissue": {},
+	"POST /v1/credentials/{id}/reprint": {},
+	"POST /v1/credentials/{id}/reveal":  {},
+	"POST /v1/credentials/{id}/revoke":  {},
+
+	// Dashboard & Events
+	"GET /v1/dashboard":     {},
+	"GET /v1/events/stream": {},
+
+	// Departments
+	"GET /v1/departments":         {},
+	"POST /v1/departments":        {},
+	"DELETE /v1/departments/{id}": {},
+	"PATCH /v1/departments/{id}":  {},
+
+	// Devices
+	"GET /v1/devices":              {},
+	"POST /v1/devices":             {},
+	"GET /v1/devices/{id}":         {},
+	"PATCH /v1/devices/{id}":       {},
+	"GET /v1/devices/{id}/loans":   {},
+	"POST /v1/devices/{id}/status": {},
+
+	// Imports
+	"POST /v1/imports/devices":         {},
+	"POST /v1/imports/devices/preview": {},
+	"POST /v1/imports/users":           {},
+	"POST /v1/imports/users/preview":   {},
+
+	// Kiosks management
+	"GET /v1/kiosks":                    {},
+	"POST /v1/kiosks":                   {},
+	"POST /v1/kiosks/pair":              {},
+	"GET /v1/kiosks/{id}":               {},
+	"PATCH /v1/kiosks/{id}":             {},
+	"POST /v1/kiosks/{id}/disable":      {},
+	"POST /v1/kiosks/{id}/enable":       {},
+	"POST /v1/kiosks/{id}/pairing-code": {},
+	"POST /v1/kiosks/{id}/rotate-token": {},
+
+	// Loans
+	"GET /v1/loans":                           {},
+	"GET /v1/loans/{id}":                      {},
+	"POST /v1/loans/{id}/correct-attribution": {},
+	"POST /v1/loans/{id}/force-return":        {},
+	"POST /v1/loans/{id}/write-off":           {},
+
+	// Reports
+	"GET /v1/reports/by-origin":          {},
+	"GET /v1/reports/devices.csv":        {},
+	"GET /v1/reports/disputed":           {},
+	"GET /v1/reports/loans.csv":          {},
+	"GET /v1/reports/operational-health": {},
+	"GET /v1/reports/summary":            {},
+	"GET /v1/reports/users.csv":          {},
+
+	// Settings
+	"GET /v1/settings":   {},
+	"PATCH /v1/settings": {},
+
+	// Staff
+	"GET /v1/staff/auth/microsoft/callback": {},
+	"GET /v1/staff/auth/microsoft/start":    {},
+	"POST /v1/staff/auth/logout":            {},
+	"POST /v1/staff/auth/password":          {},
+	"GET /v1/staff/devices":                 {},
+	"GET /v1/staff/devices/{id}":            {},
+	"GET /v1/staff/me":                      {},
+	"GET /v1/staff/me/credential":           {},
+	"GET /v1/staff/me/loans":                {},
+	"POST /v1/staff/me/password":            {},
+	"POST /v1/staff/me/profile":             {},
+
+	// Users
+	"GET /v1/users":                            {},
+	"POST /v1/users":                           {},
+	"GET /v1/users/check-employee-no":          {},
+	"POST /v1/users/register-with-card":        {},
+	"GET /v1/users/{id}":                       {},
+	"PATCH /v1/users/{id}":                     {},
+	"POST /v1/users/{id}/archive":              {},
+	"GET /v1/users/{id}/loans":                 {},
+	"POST /v1/users/{id}/staff-password-reset": {},
+	"POST /v1/users/{id}/suspend":              {},
+}
+
 // KioskMayCall reports whether a concrete request (method + request path,
 // e.g. "POST", "/v1/sessions/0192.../scan") matches an operation in
 // KioskAllowedOperations. Path templates compare segment by segment,

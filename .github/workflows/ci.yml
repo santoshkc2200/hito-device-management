@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
         env:
           POSTGRES_USER: hdms
           POSTGRES_PASSWORD: hdms
@@ -114,12 +114,52 @@ jobs:
       - run: pnpm -r test
       - run: pnpm -r build
 
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: hdms-backend/go.sum
+
+      - name: Install govulncheck and gosec
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+      - name: govulncheck
+        working-directory: hdms-backend
+        run: govulncheck ./...
+
+      # G115 (integer conversion overflow) is excluded rule-wide: every hit is a
+      # bounded conversion behind a domain validator. Every other rule is enforced;
+      # the individual accepted cases carry an inline `#nosec <rule> -- <reason>`
+      # and are listed in docs/phases/phase-5/security-findings-register.md.
+      - name: gosec
+        working-directory: hdms-backend
+        run: gosec -exclude-generated -exclude=G115 ./...
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: hdms-frontend/pnpm-lock.yaml
+
+      - name: pnpm audit
+        working-directory: hdms-frontend
+        run: pnpm audit --audit-level=high
+
   e2e:
     name: e2e
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
         env:
           POSTGRES_USER: hdms
           POSTGRES_PASSWORD: hdms

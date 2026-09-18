@@ -20,6 +20,7 @@ func SessionCookie(token string, ttlSeconds int) *http.Cookie {
 
 // CSRFCookie is readable by the app, which echoes it back in X-CSRF-Token.
 func CSRFCookie(token string, ttlSeconds int) *http.Cookie {
+	// #nosec G124 -- double-submit CSRF cookie: the SPA must read it to echo it back in X-CSRF-Token. The session cookie stays HttpOnly.
 	return &http.Cookie{
 		Name: CSRFCookieName, Value: token, Path: "/",
 		HttpOnly: false, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: ttlSeconds,
@@ -31,5 +32,6 @@ func ExpiredSessionCookie() *http.Cookie {
 }
 
 func ExpiredCSRFCookie() *http.Cookie {
+	// #nosec G124 -- clearing the double-submit CSRF cookie; it was never HttpOnly by design.
 	return &http.Cookie{Name: CSRFCookieName, Value: "", Path: "/", HttpOnly: false, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: -1}
 }

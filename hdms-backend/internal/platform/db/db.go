@@ -60,6 +60,33 @@ func (p *Pool) HealthCheck(ctx context.Context) error {
 	return p.Ping(ctx)
 }
 
+// VerifyProductionPrivileges asserts that the connected database role
+// does not possess UPDATE privilege on audit_events (INV-8). In production,
+// the application must connect as a restricted role (hdms_app) rather than the
+// table owner, guaranteeing the audit trail remains append-only at the database
+// level.
+func (p *Pool) VerifyProductionPrivileges(ctx context.Context) error {
+	return VerifyPrivileges(ctx, p.Pool)
+}
+
+// VerifyPrivileges checks that the role executing on dbtx does not possess
+// UPDATE privileges on audit_events.
+func VerifyPrivileges(ctx context.Context, dbtx DBTX) error {
+	var currentUser string
+	var hasUpdate bool
+
+	err := dbtx.QueryRow(ctx, "SELECT current_user, has_table_privilege(current_user, 'audit_events', 'UPDATE')").Scan(&currentUser, &hasUpdate)
+	if err != nil {
+		return fmt.Errorf("db: verify audit_events privileges: %w", err)
+	}
+
+	if hasUpdate {
+		return fmt.Errorf("db: production connection role %q has UPDATE privilege on audit_events; production application must connect as restricted append-only role 'hdms_app' (INV-8)", currentUser)
+	}
+
+	return nil
+}
+
 // DBTX is the subset of pgx that sqlc-generated code depends on. Both
 // *pgxpool.Pool and pgx.Tx satisfy it, so generated module stores never need
 // to know which one they were handed.

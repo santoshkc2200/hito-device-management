@@ -48,12 +48,12 @@ func TestPoolHealthCheck(t *testing.T) {
 }
 
 // TestMigration0012_AdminRoles proves:
-// 1. Rolling back to 0011 restores the old admin_role enum ('superadmin', 'admin', 'operator').
-// 2. Rows created with old values survive 0012 migration with proper mappings:
-//    superadmin -> admin, admin -> admin, operator -> technician.
-// 3. New rows without explicit role default to 'viewer'.
-// 4. Rolling back 0012 reverts roles cleanly (admin -> admin, technician -> operator, viewer -> operator).
-// 5. Up migration applies cleanly again.
+//  1. Rolling back to 0011 restores the old admin_role enum ('superadmin', 'admin', 'operator').
+//  2. Rows created with old values survive 0012 migration with proper mappings:
+//     superadmin -> admin, admin -> admin, operator -> technician.
+//  3. New rows without explicit role default to 'viewer'.
+//  4. Rolling back 0012 reverts roles cleanly (admin -> admin, technician -> operator, viewer -> operator).
+//  5. Up migration applies cleanly again.
 func TestMigration0012_AdminRoles(t *testing.T) {
 	pool := testdb.New(t)
 	ctx := context.Background()
@@ -241,5 +241,86 @@ func TestMigration0014_ListIndexes(t *testing.T) {
 		if !checkIndexExists(idx) {
 			t.Errorf("expected index %s to exist after migrating up to latest", idx)
 		}
+	}
+}
+
+// TestMigration0019_AuditAppendOnly proves that:
+// 1. Migration 0019 grants INSERT/SELECT on audit_events to hdms_app, but no UPDATE.
+// 2. Rolling back to 18 cleanly revokes all privileges from hdms_app on all tables and schema.
+// 3. Migrating back up to 19 restores INSERT/SELECT without UPDATE.
+// 4. Multiple Up/Down cycles execute cleanly against real PostgreSQL.
+func TestMigration0019_AuditAppendOnly(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	connStr := pool.Config().ConnConfig.ConnString()
+
+	sqlDB, err := sql.Open("pgx", connStr)
+	if err != nil {
+		t.Fatalf("open sql.DB: %v", err)
+	}
+	defer sqlDB.Close()
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatalf("set dialect: %v", err)
+	}
+
+	checkPrivileges := func() (canSelect, canInsert, canUpdate bool) {
+		err := sqlDB.QueryRowContext(ctx, `
+			SELECT
+				has_table_privilege('hdms_app', 'audit_events', 'SELECT'),
+				has_table_privilege('hdms_app', 'audit_events', 'INSERT'),
+				has_table_privilege('hdms_app', 'audit_events', 'UPDATE')
+		`).Scan(&canSelect, &canInsert, &canUpdate)
+		if err != nil {
+			t.Fatalf("check privileges: %v", err)
+		}
+		return canSelect, canInsert, canUpdate
+	}
+
+	// 0. Ensure role has append-only permissions initially
+	canSelect, canInsert, canUpdate := checkPrivileges()
+	if !canSelect || !canInsert || canUpdate {
+		t.Fatalf("initial privileges: select=%v insert=%v update=%v, want true, true, false", canSelect, canInsert, canUpdate)
+	}
+
+	// 1. Roll back to 18
+	if err := goose.DownToContext(ctx, sqlDB, ".", 18); err != nil {
+		t.Fatalf("goose down to 18: %v", err)
+	}
+
+	canSelect, canInsert, canUpdate = checkPrivileges()
+	if canSelect || canInsert || canUpdate {
+		t.Errorf("expected all privileges revoked after rollback to 18; got select=%v insert=%v update=%v", canSelect, canInsert, canUpdate)
+	}
+
+	// 2. Migrate up to 19
+	if err := goose.UpToContext(ctx, sqlDB, ".", 19); err != nil {
+		t.Fatalf("goose up to 19: %v", err)
+	}
+
+	canSelect, canInsert, canUpdate = checkPrivileges()
+	if !canSelect || !canInsert || canUpdate {
+		t.Errorf("expected append-only privileges after up to 19; got select=%v insert=%v update=%v", canSelect, canInsert, canUpdate)
+	}
+
+	// 3. Roll back again to 18
+	if err := goose.DownToContext(ctx, sqlDB, ".", 18); err != nil {
+		t.Fatalf("goose down to 18 (second time): %v", err)
+	}
+
+	canSelect, canInsert, canUpdate = checkPrivileges()
+	if canSelect || canInsert || canUpdate {
+		t.Errorf("expected all privileges revoked after second rollback to 18; got select=%v insert=%v update=%v", canSelect, canInsert, canUpdate)
+	}
+
+	// 4. Re-apply to latest
+	if err := goose.UpContext(ctx, sqlDB, "."); err != nil {
+		t.Fatalf("goose up to latest: %v", err)
+	}
+
+	canSelect, canInsert, canUpdate = checkPrivileges()
+	if !canSelect || !canInsert || canUpdate {
+		t.Errorf("expected append-only privileges after up to latest; got select=%v insert=%v update=%v", canSelect, canInsert, canUpdate)
 	}
 }

@@ -130,6 +130,42 @@ func TestKioskScopeCoversEntireSpec(t *testing.T) {
 	}
 }
 
+// TestEveryOperationHasAKioskScopeClassification asserts that every
+// operation in the embedded OpenAPI contract is explicitly classified as
+// either allowed or denied for kiosk tokens. A new endpoint must be
+// deliberately classified rather than silently landing in deny-by-default.
+func TestEveryOperationHasAKioskScopeClassification(t *testing.T) {
+	ops := specOperations(t)
+	specOps := make(map[string]bool)
+
+	for _, entry := range ops {
+		method, template, _ := strings.Cut(entry.op, " ")
+		opKey := method + " /v1" + template
+		specOps[opKey] = true
+
+		_, allowed := auth.KioskAllowedOperations[opKey]
+		_, denied := auth.KioskDeniedOperations[opKey]
+
+		if !allowed && !denied {
+			t.Errorf("operation %s is unclassified: must appear in either KioskAllowedOperations or KioskDeniedOperations", opKey)
+		}
+		if allowed && denied {
+			t.Errorf("operation %s is ambiguous: appears in BOTH KioskAllowedOperations and KioskDeniedOperations", opKey)
+		}
+	}
+
+	for op := range auth.KioskAllowedOperations {
+		if !specOps[op] {
+			t.Errorf("KioskAllowedOperations contains %q which does not exist in the OpenAPI spec", op)
+		}
+	}
+	for op := range auth.KioskDeniedOperations {
+		if !specOps[op] {
+			t.Errorf("KioskDeniedOperations contains %q which does not exist in the OpenAPI spec", op)
+		}
+	}
+}
+
 // TestINV11_KioskCannotCreateUser — the requirement's first named case:
 // a valid kiosk token may never create users.
 func TestINV11_KioskCannotCreateUser(t *testing.T) {
@@ -139,7 +175,16 @@ func TestINV11_KioskCannotCreateUser(t *testing.T) {
 	}
 }
 
-// TestINV11_KioskCannotListUsers — the requirement's second named case:
+// TestINV11_KioskCannotModifyUser — the requirement's second named case:
+// a valid kiosk token may never modify a user row.
+func TestINV11_KioskCannotModifyUser(t *testing.T) {
+	h := newTestHarness(t)
+	if status := kioskRequest(t, h, http.MethodPatch, "/v1/users/01923e5c-0000-7000-8000-000000000000", kioskTokenFor(t, h)); status != http.StatusForbidden {
+		t.Fatalf("kiosk PATCH /v1/users/{id} status = %d, want 403 (FR-45, INV-11)", status)
+	}
+}
+
+// TestINV11_KioskCannotListUsers — the requirement's third named case:
 // a valid kiosk token may never enumerate users.
 func TestINV11_KioskCannotListUsers(t *testing.T) {
 	h := newTestHarness(t)

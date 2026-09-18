@@ -161,9 +161,11 @@ func runImport(ctx context.Context, cfg config.Config, args []string, cat *i18n.
 		return fmt.Errorf("--file is required")
 	}
 
-	f, err := os.Open(*file)
+	cleanPath := filepath.Clean(*file)
+	// #nosec G703 -- operator-supplied --file path on a local CLI; the operator already has the shell's file access.
+	f, err := os.Open(cleanPath)
 	if err != nil {
-		return fmt.Errorf("open %s: %w", *file, err)
+		return fmt.Errorf("open %s: %w", cleanPath, err)
 	}
 	defer func() { _ = f.Close() }()
 
@@ -470,15 +472,17 @@ func runExport(args []string, cat *i18n.Catalogue) error {
 	exportFile := func(filename string, data []byte) error {
 		var outPath string
 		if *out != "" {
-			outPath = *out
+			outPath = filepath.Clean(*out)
 		} else {
-			outPath = filepath.Join(getDomainDir(), filename)
+			outPath = filepath.Clean(filepath.Join(getDomainDir(), filename))
 		}
 
-		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+		// #nosec G703 -- operator-supplied --out path on a local CLI; not reachable over HTTP.
+		if err := os.MkdirAll(filepath.Dir(outPath), 0750); err != nil {
 			return fmt.Errorf("create parent directory: %w", err)
 		}
-		if err := os.WriteFile(outPath, data, 0644); err != nil {
+		// #nosec G703 -- operator-supplied --out path on a local CLI; not reachable over HTTP.
+		if err := os.WriteFile(outPath, data, 0600); err != nil {
 			return fmt.Errorf("write %s: %w", outPath, err)
 		}
 		fmt.Println(cat.T("Exported %s", outPath))

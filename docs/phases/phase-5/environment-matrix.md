@@ -10,7 +10,7 @@ Derived directly from the codebase (`internal/platform/config/config.go`, `inter
 |---|---|---|---|---|---|---|
 | `HDMS_ENV` | No | `development` (or unset) | `staging` | `production` | Container / Host environment (`compose.yaml` or systemd) | Activates fail-closed safety validations when set to `production`. |
 | `HDMS_HTTP_ADDR` | No | `:8443` | `:8443` | `:8443` | Container environment | Internal listener port. Terminated by Caddy on host port 8443. |
-| `HDMS_DATABASE_URL` | **Yes** | `postgres://hdms:hdms@localhost:5442/hdms?sslmode=disable` | `postgres://hdms_staging:<staging_pw>@db:5432/hdms_staging?sslmode=disable` | `postgres://hdms_prod:<prod_pw>@<prod-db>:5432/hdms_prod?sslmode=verify-full` | Hospital IT Vault / KMS (injected as env secret) | Connection string containing DB credentials. Redacted in startup logs (`xxxxx`). Staging points to dedicated `hdms_staging` DB. |
+| `HDMS_DATABASE_URL` | **Yes** | `postgres://hdms:hdms@localhost:5442/hdms?sslmode=disable` | `postgres://hdms_staging:<staging_pw>@db:5432/hdms_staging?sslmode=disable` | `postgres://hdms_app:<prod_pw>@<prod-db>:5432/hdms_prod?sslmode=verify-full` | Hospital IT Vault / KMS (injected as env secret) | Connection string containing DB credentials. Redacted in startup logs (`xxxxx`). In production, the application connects as `hdms_app` (restricted role with append-only privileges on `audit_events`, INV-8); migrations are executed as the database owner. Startup checks enforce that the runtime role does not hold `UPDATE` privileges on `audit_events`. |
 | `HDMS_TLS_CERT_FILE` | No | `certs/localhost.pem` | `certs/localhost.pem` (or staging CA cert) | `/etc/ssl/certs/hdms.hospital.crt` (path to CA-issued cert) | Hospital Internal CA / IT PKI infrastructure | Refuses to start in production if unset, points to `localhost.pem`, or contains `localhost`. |
 | `HDMS_TLS_KEY_FILE` | **Yes** | `certs/localhost-key.pem` | `certs/localhost-key.pem` (or staging CA key) | `/etc/ssl/private/hdms.hospital.key` | Hospital Internal CA / IT PKI (file permissions 0600 root/hdms) | Refuses to start in production if unset, points to `localhost-key.pem`, or contains `localhost`. |
 | `HDMS_TLS_ENABLED` | No | Unset (enabled) | Unset (enabled) | Unset or `true` | Container environment | Refuses to start in production if explicitly set to `false` or `off`. |
@@ -51,9 +51,13 @@ Derived directly from the codebase (`internal/platform/config/config.go`, `inter
 - Under 5.0b, these decisions are loaded and validated in `internal/platform/config/config.go` (`RateLimitEnabled` and `CORSAllowedOrigins`) and passed cleanly into HTTP middleware, preventing any production configuration bypass.
 
 ### 3. Fail-Closed Production Refusals
-When `HDMS_ENV=production`, `config.Load()` immediately halts startup if:
+When `HDMS_ENV=production`, startup immediately halts if:
 1. `HDMS_TOKEN_PEPPER` equals `dev-only-pepper-change-me` (from `.env.example`).
 2. `HDMS_RATE_LIMIT` is set to `"off"`.
 3. `HDMS_TLS_ENABLED` is set to `"false"` or `"off"`, or `HDMS_TLS_CERT_FILE` / `HDMS_TLS_KEY_FILE` are empty or reference dev localhost certificates (`certs/localhost.pem`, `certs/localhost-key.pem`).
 4. `HDMS_CORS_ALLOWED_ORIGINS` contains `*` (wildcard) or unencrypted/localhost domains (`localhost`, `127.0.0.1`, `http://`).
 5. `HDMS_CREDENTIAL_ENC_KEY` or `HDMS_TOTP_ENC_KEY` are unset or not 32 bytes.
+6. The connected database role holds `UPDATE` privilege on `audit_events` (enforced via startup query `has_table_privilege(current_user, 'audit_events', 'UPDATE')` — production application runtime must connect as `hdms_app` to preserve the append-only audit trail, INV-8).
+
+Granting `hdms_app` login rights and pointing the application at it is a one-time
+operator step — see [the production database roles runbook](../../runbooks/production-database-roles.md).

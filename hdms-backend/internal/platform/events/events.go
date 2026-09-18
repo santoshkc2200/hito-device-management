@@ -31,7 +31,7 @@ const (
 	TopicLoanClosed          Topic = "loan.closed"
 	TopicLoanOverdue         Topic = "loan.overdue"
 	TopicDeviceStatusChanged Topic = "device.status_changed"
-	TopicCredentialRevoked   Topic = "credential.revoked"
+	TopicCredentialRevoked   Topic = "credential.revoked" // #nosec G101 -- event topic name, not hardcoded credentials
 	TopicUserRegistered      Topic = "user.registered"
 )
 

@@ -73,6 +73,12 @@ func run() error {
 	}
 	defer pool.Close()
 
+	if cfg.Env == "production" {
+		if err := pool.VerifyProductionPrivileges(ctx); err != nil {
+			return err
+		}
+	}
+
 	// Module composition root — the one place in the codebase that knows
 	// every module exists (docs/02-architecture.md). notification is
 	// still a Phase 6 stub and is not constructed here.
