@@ -30,22 +30,12 @@ things shape the whole breakdown:
 | [5.5](5.5-observability.md) | Domain metrics, Prometheus/Grafana, alerts, logs, nightly jobs | 5.5 | 5.3a | 5 d |
 | [5.4](5.4-backup-and-recovery.md) | Nightly encrypted backup, monitoring, **timed restore drill ★** | 5.4 | 5.3a, 5.0c | 3 d |
 | [5.1](5.1-offline-resilience.md) | IndexedDB queue, queueability policy, replay, offline UI ★ | 5.1 | 5.0b | 4.25 d |
-| [5.6](5.6-performance.md) | Load test on the real stack, 24 h soak, `EXPLAIN` review, bundle budgets | 5.6 | 5.3a, 5.5a | 3 d |
-| [5.7](5.7-documentation-and-training.md) | Fourteen runbooks, counter card, admin guide, training | 5.7 | 5.3–5.5 | 4 d |
-| [5.8](5.8-pilot.md) | Readiness gate, two weeks live, reconciliation, report, **go/no-go ★** | 5.8 | all above | ~7 d over 2 wk |
 
-≈ 28.5 developer-days of build, then a 2-week pilot that consumes about 7 more.
+≈ 21.5 developer-days of build. 5.6 (performance), 5.7 (documentation/training)
+and 5.8 (pilot) are removed from this index for now — not scheduled.
 
-**The parent's "~2 weeks plus a 2-week pilot" does not hold for one person.** It
-holds for two or three working the tracks below. Solo, the build is ~6 weeks and
-the pilot adds two, so say so now rather than in week three. The honest cut list,
-in order, if the pilot date is fixed: WAL archiving ([5.4d](5.4-backup-and-recovery.md),
-if a 24-hour RPO is acceptable — the paper register is the backstop), the
-administrator guide's completeness ([5.7c](5.7-documentation-and-training.md)),
-and the `EXPLAIN` review ([5.6c](5.6-performance.md)), which has five times the
-measured headroom it needs. **Never cut** the offline queue, the restore drill,
-the alert triggering or the runbooks — each of those is the thing that turns a
-bad day into a bad week.
+**Never cut** the offline queue, the restore drill, the alert triggering or the
+runbooks — each of those is the thing that turns a bad day into a bad week.
 
 ## Ordering
 
@@ -58,27 +48,20 @@ bad day into a bad week.
                              │
                              ├─ 5.5a metrics ─ 5.5b dashboards ─ 5.5c alerts ─ 5.5d logs ─ 5.5e nightly jobs
                              │        │                                │
-                             ├─ 5.4a backup ─ 5.4b monitoring ─ 5.4c restore drill ★ ─ 5.4d WAL/pepper
-                             │
-                             └─ 5.6a load ─ 5.6b soak (24 h) ─ 5.6c EXPLAIN ─ 5.6d budgets
+                             └─ 5.4a backup ─ 5.4b monitoring ─ 5.4c restore drill ★ ─ 5.4d WAL/pepper
 
 5.0b ─ 5.1a queue ─ 5.1b policy ─ 5.1c replay ─ 5.1d UI ─ 5.1e outage drill ★   (parallel, client-only)
-
-  all ─ 5.7a runbooks ─ 5.7b counter card ─ 5.7c admin guide ─ 5.7d training ─ 5.8a readiness ★
-                                                                                     └─ 5.8b wk1 ─ 5.8c wk2 ─ 5.8d go/no-go ★
 ```
 
 Two tracks that barely touch:
 
-- **Operations track (critical path)** — 5.0 → 5.2 → 5.3 → 5.5 → 5.4 → 5.6. All
+- **Operations track (critical path)** — 5.0 → 5.2 → 5.3 → 5.5 → 5.4. All
   backend and host work, all of it needing the host from 5.0a, and strictly
   ordered: there is nothing to monitor before there is somewhere deployed, and
   nothing to restore before there is something backing up.
 - **Kiosk track** — 5.1, start to finish, touching no server code. It can run from
   day one alongside the operations track and is the obvious split if there are two
   people.
-
-Then 5.7 collects what the two tracks wrote, and 5.8 is the whole team.
 
 **5.3 is the phase's real gate.** Backups, monitoring, the soak and the pilot all
 need a deployed host, and 5.3 needs Q6. If Q6 is still unanswered when Phase 4
@@ -94,14 +77,6 @@ closes, the phase starts with a blocker rather than a task — which is why it i
 - **The order is re-sequenced, not the content.** 5.2 and 5.3 come before 5.4 and
   5.5, and 5.1 runs in parallel throughout. The parent's numbering is a table of
   contents; this is a build order.
-- **5.7 is a collection unit, not a writing sprint.** The deploy, rollback,
-  restore, reconciliation and retention runbooks are written by the sub-phases
-  that build their subjects, in the same commit. Its 4-day estimate depends on
-  that; if the pages are all left to the end, it is closer to eight.
-- **The runbook count is fourteen, not ten.** The parent says "all ten runbooks";
-  [09](../../09-security-privacy-ops.md) lists fourteen, chosen from what will
-  actually happen. The fourteen are canonical and the table in
-  [5.7a](5.7-documentation-and-training.md) tracks them.
 - **Retention ships in report-only mode.** Q7 (which data-protection rules apply)
   is unanswered. The job is built to the documented default but deletes nothing
   until the answer is in writing — an unrecoverable deletion applied under a

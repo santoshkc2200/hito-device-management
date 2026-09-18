@@ -35,14 +35,15 @@ not pretend otherwise:
 | [6.3](6.3-directory-integration.md) | OIDC admin login, roster sync, leaver suspension, optional auto-registration | 6.3 | 6.0, 6.1 if both | 8 d | Roster maintenance becomes the complaint |
 | [6.4](6.4-reservations.md) | `reserved` state, future windows, kiosk conflict handling, no-show expiry | 6.4 | 6.0, 6.6 & 6.9a if planned | 10 d | Contention is measured, not assumed |
 | [6.5](6.5-maintenance-lifecycle.md) | Service schedules, service history, condition trend, warranty, retirement | 6.5 | 6.0 | 6 d | Devices start failing in service |
-| [6.6](6.6-multi-location.md) | Locations, homing, kiosk binding, transfers, scoped dashboards | 6.6 | 6.0 | 5 d | A second ward or site is committed to |
-| [6.7](6.7-consumables.md) | New `inventory` module: quantity-tracked stock, issue without return | 6.7 | 6.0 | 8 d | Cables and batteries are being tracked on paper anyway |
-| [6.8](6.8-analytics.md) | Utilisation, loss/damage rates, turnaround, procurement evidence | 6.8 | 6.0, 6.6 if planned | 5 d | Someone asks a question the reports cannot answer |
 | [6.9](6.9-second-language.md) | String extraction (**not done**), catalogue, kiosk toggle, translation | 6.9 | 6.0 | 4 d | A second language is actually needed on the counter |
 
-≈ 57 developer-days if every item were built, which is exactly the outcome the
-parent plan tells you to resist. The realistic first year is 6.0 + 6.1, then one
-or two of 6.2/6.3 on evidence — about three weeks of work, not eleven.
+6.6 (multi-location), 6.7 (consumables) and 6.8 (analytics) are removed from
+this index for now — not scheduled.
+
+≈ 39 developer-days if every remaining item were built, which is exactly the
+outcome the parent plan tells you to resist. The realistic first year is 6.0 +
+6.1, then one or two of 6.2/6.3 on evidence — about three weeks of work, not
+eleven.
 
 ## Ordering
 
