@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "states": {
     "awaiting_device": {
       "on": {
@@ -20,6 +20,16 @@
         },
         "device_on_loan_same_user": {
           "action": "return",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_reserved_by_other": {
+          "action": "reject",
+          "target": "awaiting_device",
+          "clearsPending": false
+        },
+        "device_reserved_by_self": {
+          "action": "borrow",
           "target": "ready",
           "clearsPending": false
         },
@@ -93,6 +103,16 @@
           "clearsPending": false
         },
         "device_on_loan_same_user": {
+          "action": "replace_pending",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_reserved_by_other": {
+          "action": "replace_pending",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_reserved_by_self": {
           "action": "replace_pending",
           "target": "awaiting_user",
           "clearsPending": false
@@ -171,6 +191,16 @@
           "target": "awaiting_user",
           "clearsPending": false
         },
+        "device_reserved_by_other": {
+          "action": "hold_device",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
+        "device_reserved_by_self": {
+          "action": "hold_device",
+          "target": "awaiting_user",
+          "clearsPending": false
+        },
         "device_unavailable": {
           "action": "reject",
           "target": "idle",
@@ -237,6 +267,16 @@
         },
         "device_on_loan_same_user": {
           "action": "return",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_reserved_by_other": {
+          "action": "reject",
+          "target": "ready",
+          "clearsPending": false
+        },
+        "device_reserved_by_self": {
+          "action": "borrow",
           "target": "ready",
           "clearsPending": false
         },

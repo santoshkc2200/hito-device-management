@@ -369,4 +369,39 @@ describe("4.4c User Detail Page", () => {
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
+
+  it("renders reservation history sub-list", async () => {
+    vi.spyOn(apiClient, "listUserReservations").mockResolvedValueOnce({
+      data: {
+        items: [
+          {
+            id: "res-user-1",
+            deviceId: "dev-ultra",
+            userId: "user-1",
+            deviceName: "Ultrasound Probe",
+            deviceAssetTag: "US-01",
+            userName: "Dr. Taro Yamada",
+            userEmployeeNo: "HH-1001",
+            status: "active",
+            startAt: "2026-09-25T09:00:00Z",
+            endAt: "2026-09-25T17:00:00Z",
+            createdBy: "admin:1",
+            createdSource: "admin",
+            createdAt: "2026-09-18T10:00:00Z",
+            updatedAt: "2026-09-18T10:00:00Z",
+          },
+        ],
+        nextCursor: undefined,
+      },
+      error: undefined,
+    } as any);
+
+    renderUserDetailPage("admin");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("user-reservations-card")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Ultrasound Probe")).toBeInTheDocument();
+  });
 });

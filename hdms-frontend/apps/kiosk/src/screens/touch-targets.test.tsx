@@ -126,6 +126,23 @@ describe("Touch Target Audit (WCAG 2.2 / iPad Kiosk Sizing)", () => {
     expect(scanAnother?.className).toContain("min-h-16");
   });
 
+  it("SuccessScreen satisfies touch-target requirements when collecting a reservation", () => {
+    const { container } = render(
+      <SuccessScreen
+        kind="reservation_collected"
+        onDone={vi.fn()}
+        onScanAnother={vi.fn()}
+        onToggleCamera={vi.fn()}
+        onOpenDiagnostics={vi.fn()}
+      />
+    );
+
+    checkInteractiveElementsTouchTargets(container);
+
+    const doneButton = container.querySelector('[data-testid="done-success-button"]');
+    expect(doneButton?.className).toContain("min-h-16");
+  });
+
   it("BlockedScreen satisfies touch-target requirements (OK >= 64px)", () => {
     const { container } = render(
       <BlockedScreen

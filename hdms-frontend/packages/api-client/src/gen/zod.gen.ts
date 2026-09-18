@@ -477,7 +477,8 @@ export const zOutcomeKind = z.enum([
     'returned',
     'rejected',
     'duplicate',
-    'user_switched'
+    'user_switched',
+    'reservation_collected'
 ]);
 
 export const zMessageTone = z.enum([
@@ -566,6 +567,70 @@ export const zLoan = z.object({
 export const zLoanList = z.object({
     items: z.array(zLoan),
     nextCursor: z.string().optional()
+});
+
+export const zReservationStatus = z.enum([
+    'active',
+    'collected',
+    'cancelled',
+    'expired'
+]);
+
+export const zReservation = z.object({
+    id: z.string(),
+    deviceId: z.string(),
+    userId: z.string(),
+    deviceName: z.string(),
+    deviceAssetTag: z.string(),
+    userName: z.string(),
+    userEmployeeNo: z.string(),
+    userEmail: z.string().optional(),
+    status: zReservationStatus,
+    startAt: z.iso.datetime(),
+    endAt: z.iso.datetime(),
+    createdBy: z.string(),
+    createdSource: z.string(),
+    loanId: z.string().optional(),
+    cancelledAt: z.iso.datetime().optional(),
+    cancelledBy: z.string().optional(),
+    cancellationReason: z.string().optional(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime()
+});
+
+export const zReservationList = z.object({
+    items: z.array(zReservation),
+    nextCursor: z.string().optional()
+});
+
+export const zCreateReservationRequest = z.object({
+    deviceId: z.string(),
+    userId: z.string(),
+    startAt: z.iso.datetime(),
+    endAt: z.iso.datetime()
+});
+
+export const zCancelReservationRequest = z.object({
+    reason: z.string().optional()
+});
+
+export const zLeaverEscalation = z.object({
+    loanId: z.string(),
+    deviceId: z.string(),
+    deviceName: z.string(),
+    deviceAssetTag: z.string(),
+    userId: z.string(),
+    borrowerName: z.string(),
+    borrowerEmployeeNo: z.string(),
+    departmentId: z.string().optional(),
+    departmentName: z.string(),
+    borrowedAt: z.iso.datetime(),
+    dueAt: z.iso.datetime().optional(),
+    suspendedAt: z.iso.datetime().optional()
+});
+
+export const zLeaverEscalationList = z.object({
+    items: z.array(zLeaverEscalation)
 });
 
 export const zForceReturnLoanRequest = z.object({
@@ -1598,6 +1663,76 @@ export const zListUserLoansQuery = z.object({
  */
 export const zListUserLoansResponse = zLoanList;
 
+export const zListDeviceReservationsPath = z.object({
+    id: z.string()
+});
+
+export const zListDeviceReservationsQuery = z.object({
+    status: zReservationStatus.optional(),
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListDeviceReservationsResponse = zReservationList;
+
+export const zListUserReservationsPath = z.object({
+    id: z.string()
+});
+
+export const zListUserReservationsQuery = z.object({
+    status: zReservationStatus.optional(),
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListUserReservationsResponse = zReservationList;
+
+export const zListReservationsQuery = z.object({
+    deviceId: z.string().optional(),
+    userId: z.string().optional(),
+    status: zReservationStatus.optional(),
+    cursor: z.string().optional(),
+    limit: z.int().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListReservationsResponse = zReservationList;
+
+export const zCreateReservationBody = zCreateReservationRequest;
+
+/**
+ * Created.
+ */
+export const zCreateReservationResponse = zReservation;
+
+export const zGetReservationPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetReservationResponse = zReservation;
+
+export const zCancelReservationBody = zCancelReservationRequest;
+
+export const zCancelReservationPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zCancelReservationResponse = zReservation;
+
 /**
  * OK.
  */
@@ -1842,6 +1977,11 @@ export const zListDisputedLoansQuery = z.object({
  * OK.
  */
 export const zListDisputedLoansResponse = zLoanList;
+
+/**
+ * OK.
+ */
+export const zListLeaverEscalationsResponse = zLeaverEscalationList;
 
 export const zExportLoansCsvQuery = z.object({
     status: zLoanStatus.optional(),

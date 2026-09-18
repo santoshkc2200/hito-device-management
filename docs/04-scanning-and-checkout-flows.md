@@ -44,6 +44,7 @@ multi-item borrowing, with one machine.
 | Device | `available` | Hold as `pendingDevice` | `awaiting_user` |
 | Device | `on_loan` | Hold as `pendingDevice`, note the holder | `awaiting_user` |
 | Device | `maintenance` / `retired` / `lost` | Reject, show reason, no state change | `idle` |
+| Device | reserved, window or pre-window in force | Hold as `pendingDevice`, note the reservation | `awaiting_user` |
 | User | `active` | Set `user`, load their open loans | `awaiting_device` |
 | User | `suspended` | Reject: "Borrowing suspended — see the equipment desk" | `idle` |
 | Unbound card | blank stock, not yet issued | Reject, **point to the paper register**, direct them to the administrator | `idle` |
@@ -57,6 +58,8 @@ multi-item borrowing, with one machine.
 | User | active **and** pending device is `available` | **BORROW** | `ready` |
 | User | active **and** pending device is on loan **to this user** | **RETURN** | `ready` |
 | User | active **and** pending device is on loan **to someone else** | Reject: "Held by Dr. Karki since 14 Aug. Please see the desk." Clear pending. | `idle` |
+| User | active **and** pending device is reserved **for this user** | **COLLECT** — an ordinary borrow; the reservation is marked collected | `ready` |
+| User | active **and** pending device is reserved **for someone else** | Reject: "Reserved for Dr. X from 14:00." Clear pending. | `idle` |
 | User | suspended | Reject; clear pending | `idle` |
 | Device | a *different* device | Replace `pendingDevice` with the new one (assume mis-scan / changed mind) | `awaiting_user` |
 | Device | the *same* device within 3 s | Ignore as duplicate trigger | `awaiting_user` |
@@ -71,11 +74,42 @@ multi-item borrowing, with one machine.
 | Device | on loan **to the session user** | **RETURN** | `ready` |
 | Device | on loan **to someone else** | Reject with the holder's name; session continues | unchanged |
 | Device | `maintenance` / `retired` / `lost` | Reject with reason; session continues | unchanged |
+| Device | reserved **for the session user**, window or pre-window in force | **COLLECT** — an ordinary borrow; the reservation is marked collected | `ready` |
+| Device | reserved **for someone else**, window or pre-window in force | Reject: "Reserved for Dr. X from 14:00"; session continues | unchanged |
+| Device | reserved, window **not** in force and no pre-window entered | Unchanged — an ordinary walk-up borrow | `ready` |
 | Device | same device within 3 s | Ignore as duplicate trigger | unchanged |
 | User | the *same* user | Ignore | unchanged |
 | User | a *different* active user | Close the current session, open a new one with that user | `awaiting_device` |
 | Tap "Done" | — | Close | `completed` → `idle` |
 | Timeout | 25 s after last activity | Close | `expired` → `idle` |
+
+### Reservations (Phase 6.4)
+
+Three rules keep the rows above consistent with the rest of this machine.
+
+**"In force" is decided before the machine sees the scan.** A reservation
+counts only when the clock is inside its window, or inside the configurable
+pre-window during which a device stops being walk-up borrowable shortly
+before the window opens (`reservation_pre_window_minutes`, default 30). A
+reservation whose window is still ahead is not passed to the machine at all,
+so the device classifies exactly as it did before reservations existed.
+
+**Custody outranks a reservation.** An open loan is settled first: a
+borrower whose loan overruns into someone else's window is not at fault and
+must never be refused their own return.
+
+**Offline, reservations are not enforced — and the kiosk says so.** A
+reservation conflict cannot be adjudicated offline without telling somebody
+standing at the counter something false, and [5.1](phases/phase-5/5.1-offline-resilience.md)
+only queues what the server can still adjudicate correctly later. So while
+offline the kiosk does not check reservations, states that plainly on the
+offline screen, and points at the paper register — the designed overflow
+lane — for the administrator to sort out any collision.
+
+**The refusal always names the reason and the time.** "Reserved for Dr. X
+from 14:00", never a bare "unavailable" — a borrower who is told no still
+needs to know what to do next. The server decides; the kiosk only renders
+what it is told.
 
 ### Unregistered people
 
@@ -292,6 +326,8 @@ Phase 2 must cover every cell. Written as a table-driven Go test over
 | device maintenance | reject | reject | reject | reject |
 | device retired/lost | reject | reject | reject | reject |
 | device same as pending, <3 s | dup | dup | dup | dup |
+| device reserved → session user | hold | replace pending | collect (borrow) | collect (borrow) |
+| device reserved → other user | hold | replace pending | reject | reject |
 | user active | set user | resolve pending | switch user | switch user |
 | user suspended | reject | reject | reject | reject |
 | user archived | reject | reject | reject | reject |

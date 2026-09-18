@@ -122,6 +122,20 @@ func (s *Service) renderMessage(ctx context.Context, decision machine.Decision, 
 		}
 	}
 
+	// Phase 6.4c: the reservation refusal must name the reserver and the
+	// time — "Reserved for Dr. X from 14:00", never a bare "unavailable"
+	// — so the reserver's id is resolved to a name here, exactly as a
+	// holder's is above. Without this the template's {{with}} drops the
+	// clause and the borrower is told no with no reason and no time.
+	if id := firstString(args, "reservedForUserId", "pendingDeviceReservedForUserId"); id != "" {
+		if u, err := s.deps.Users.LookupUser(ctx, id); err == nil {
+			args["reservedForName"] = u.FullName
+		}
+	}
+	if t := firstTime(args, "reservationStartAt", "pendingDeviceReservationStartAt"); !t.IsZero() {
+		args["reservationStartAtText"] = t.Format(displayTimeLayout)
+	}
+
 	// Timestamps arrive as time.Time and leave as display strings — and
 	// leave entirely if there is none, so a template's {{with}} can drop
 	// the clause rather than render a formatted zero time.

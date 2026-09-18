@@ -402,6 +402,50 @@ func (ns NullLoanStatus) Value() (driver.Value, error) {
 	return string(ns.LoanStatus), nil
 }
 
+type ReservationStatus string
+
+const (
+	ReservationStatusActive    ReservationStatus = "active"
+	ReservationStatusCollected ReservationStatus = "collected"
+	ReservationStatusCancelled ReservationStatus = "cancelled"
+	ReservationStatusExpired   ReservationStatus = "expired"
+)
+
+func (e *ReservationStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ReservationStatus(s)
+	case string:
+		*e = ReservationStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ReservationStatus: %T", src)
+	}
+	return nil
+}
+
+type NullReservationStatus struct {
+	ReservationStatus ReservationStatus `json:"reservation_status"`
+	Valid             bool              `json:"valid"` // Valid is true if ReservationStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullReservationStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ReservationStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ReservationStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullReservationStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ReservationStatus), nil
+}
+
 type SessionState string
 
 const (
@@ -770,6 +814,23 @@ type OverdueEscalation struct {
 	PublishedAt    pgtype.Timestamptz `json:"published_at"`
 }
 
+type Reservation struct {
+	ID                 pgtype.UUID        `json:"id"`
+	DeviceID           pgtype.UUID        `json:"device_id"`
+	UserID             pgtype.UUID        `json:"user_id"`
+	Status             ReservationStatus  `json:"status"`
+	StartAt            pgtype.Timestamptz `json:"start_at"`
+	EndAt              pgtype.Timestamptz `json:"end_at"`
+	CreatedBy          string             `json:"created_by"`
+	CreatedSource      string             `json:"created_source"`
+	LoanID             pgtype.UUID        `json:"loan_id"`
+	CancelledAt        pgtype.Timestamptz `json:"cancelled_at"`
+	CancelledBy        pgtype.Text        `json:"cancelled_by"`
+	CancellationReason pgtype.Text        `json:"cancellation_reason"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type ScanEvent struct {
 	ID           pgtype.UUID        `json:"id"`
 	SessionID    pgtype.UUID        `json:"session_id"`
@@ -798,28 +859,30 @@ type ScanSession struct {
 }
 
 type Setting struct {
-	ID                        int32              `json:"id"`
-	BlockOnOverdue            bool               `json:"block_on_overdue"`
-	SessionIdleTimeoutSeconds int32              `json:"session_idle_timeout_seconds"`
-	KioskSoundEnabled         bool               `json:"kiosk_sound_enabled"`
-	LowStockThreshold         int32              `json:"low_stock_threshold"`
-	PaperBacklogHours         int32              `json:"paper_backlog_hours"`
-	SheetWidthMm              float64            `json:"sheet_width_mm"`
-	SheetHeightMm             float64            `json:"sheet_height_mm"`
-	LabelColumns              int32              `json:"label_columns"`
-	LabelRows                 int32              `json:"label_rows"`
-	MarginTopMm               float64            `json:"margin_top_mm"`
-	MarginLeftMm              float64            `json:"margin_left_mm"`
-	GutterXMm                 float64            `json:"gutter_x_mm"`
-	GutterYMm                 float64            `json:"gutter_y_mm"`
-	LabelWidthMm              float64            `json:"label_width_mm"`
-	LabelHeightMm             float64            `json:"label_height_mm"`
-	HospitalName              string             `json:"hospital_name"`
-	PageRefFormat             string             `json:"page_ref_format"`
-	SlipRowsPerPage           int32              `json:"slip_rows_per_page"`
-	SlipColumns               []string           `json:"slip_columns"`
-	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
-	UpdatedBy                 string             `json:"updated_by"`
+	ID                            int32              `json:"id"`
+	BlockOnOverdue                bool               `json:"block_on_overdue"`
+	SessionIdleTimeoutSeconds     int32              `json:"session_idle_timeout_seconds"`
+	KioskSoundEnabled             bool               `json:"kiosk_sound_enabled"`
+	LowStockThreshold             int32              `json:"low_stock_threshold"`
+	PaperBacklogHours             int32              `json:"paper_backlog_hours"`
+	SheetWidthMm                  float64            `json:"sheet_width_mm"`
+	SheetHeightMm                 float64            `json:"sheet_height_mm"`
+	LabelColumns                  int32              `json:"label_columns"`
+	LabelRows                     int32              `json:"label_rows"`
+	MarginTopMm                   float64            `json:"margin_top_mm"`
+	MarginLeftMm                  float64            `json:"margin_left_mm"`
+	GutterXMm                     float64            `json:"gutter_x_mm"`
+	GutterYMm                     float64            `json:"gutter_y_mm"`
+	LabelWidthMm                  float64            `json:"label_width_mm"`
+	LabelHeightMm                 float64            `json:"label_height_mm"`
+	HospitalName                  string             `json:"hospital_name"`
+	PageRefFormat                 string             `json:"page_ref_format"`
+	SlipRowsPerPage               int32              `json:"slip_rows_per_page"`
+	SlipColumns                   []string           `json:"slip_columns"`
+	UpdatedAt                     pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy                     string             `json:"updated_by"`
+	ReservationPreWindowMinutes   int32              `json:"reservation_pre_window_minutes"`
+	ReservationExpiryGraceMinutes int32              `json:"reservation_expiry_grace_minutes"`
 }
 
 type StaffAccount struct {
@@ -870,4 +933,15 @@ type User struct {
 	RegisteredBy  string             `json:"registered_by"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 	ImportBatchID pgtype.Text        `json:"import_batch_id"`
+}
+
+type UserDirectoryLink struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              pgtype.UUID        `json:"user_id"`
+	Issuer              string             `json:"issuer"`
+	Subject             string             `json:"subject"`
+	LastSeenInDirectory pgtype.Timestamptz `json:"last_seen_in_directory"`
+	SyncState           string             `json:"sync_state"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 }

@@ -288,6 +288,46 @@
     ]
   },
   {
+    "name": "matrix: idle + device_reserved_by_self",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_reserved_by_self",
+        "kind": "device",
+        "deviceId": "dev-reserved-self",
+        "deviceStatus": "available",
+        "reservedForUserId": "user-session-1",
+        "reservationId": "res-self-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: idle + device_reserved_by_other",
+    "initialState": "idle",
+    "inputs": [
+      {
+        "class": "device_reserved_by_other",
+        "kind": "device",
+        "deviceId": "dev-reserved-other",
+        "deviceStatus": "available",
+        "reservedForUserId": "user-other-2",
+        "reservationId": "res-other-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "hold_device",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
     "name": "matrix: idle + user_active",
     "initialState": "idle",
     "inputs": [
@@ -517,6 +557,48 @@
     "expected": [
       {
         "action": "duplicate",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + device_reserved_by_self",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "device_reserved_by_self",
+        "kind": "device",
+        "deviceId": "dev-reserved-self",
+        "deviceStatus": "available",
+        "pendingDeviceId": "dev-pending-1",
+        "reservedForUserId": "user-session-1",
+        "reservationId": "res-self-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "replace_pending",
+        "state": "awaiting_user"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_user + device_reserved_by_other",
+    "initialState": "awaiting_user",
+    "inputs": [
+      {
+        "class": "device_reserved_by_other",
+        "kind": "device",
+        "deviceId": "dev-reserved-other",
+        "deviceStatus": "available",
+        "pendingDeviceId": "dev-pending-1",
+        "reservedForUserId": "user-other-2",
+        "reservationId": "res-other-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "replace_pending",
         "state": "awaiting_user"
       }
     ]
@@ -845,6 +927,46 @@
     ]
   },
   {
+    "name": "matrix: awaiting_device + device_reserved_by_self",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "device_reserved_by_self",
+        "kind": "device",
+        "deviceId": "dev-reserved-self",
+        "deviceStatus": "available",
+        "reservedForUserId": "user-session-1",
+        "reservationId": "res-self-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: awaiting_device + device_reserved_by_other",
+    "initialState": "awaiting_device",
+    "inputs": [
+      {
+        "class": "device_reserved_by_other",
+        "kind": "device",
+        "deviceId": "dev-reserved-other",
+        "deviceStatus": "available",
+        "reservedForUserId": "user-other-2",
+        "reservationId": "res-other-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
+        "state": "awaiting_device"
+      }
+    ]
+  },
+  {
     "name": "matrix: awaiting_device + user_active",
     "initialState": "awaiting_device",
     "inputs": [
@@ -1069,6 +1191,46 @@
     "expected": [
       {
         "action": "duplicate",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + device_reserved_by_self",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "device_reserved_by_self",
+        "kind": "device",
+        "deviceId": "dev-reserved-self",
+        "deviceStatus": "available",
+        "reservedForUserId": "user-session-1",
+        "reservationId": "res-self-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "borrow",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "name": "matrix: ready + device_reserved_by_other",
+    "initialState": "ready",
+    "inputs": [
+      {
+        "class": "device_reserved_by_other",
+        "kind": "device",
+        "deviceId": "dev-reserved-other",
+        "deviceStatus": "available",
+        "reservedForUserId": "user-other-2",
+        "reservationId": "res-other-1"
+      }
+    ],
+    "expected": [
+      {
+        "action": "reject",
         "state": "ready"
       }
     ]

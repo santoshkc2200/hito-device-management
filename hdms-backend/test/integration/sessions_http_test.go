@@ -130,7 +130,7 @@ func TestHTTPSessionsWorkflow(t *testing.T) {
 	if err := json.Unmarshal(data, &sess); err != nil {
 		t.Fatalf("Unmarshal session: %v", err)
 	}
-	if sess.KioskId != kioskID || sess.State != gen.Idle {
+	if sess.KioskId != kioskID || sess.State != gen.SessionStateIdle {
 		t.Fatalf("Unexpected session: %+v", sess)
 	}
 

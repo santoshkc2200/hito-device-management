@@ -38,20 +38,29 @@ const (
 	ClassDeviceOnLoanOtherUser InputClass = "device_on_loan_other_user"
 	ClassDeviceUnavailable     InputClass = "device_unavailable" // maintenance | retired | lost
 	ClassDeviceDuplicate       InputClass = "device_duplicate"   // same token as the last scan, < 3s
-	ClassUserActive            InputClass = "user_active"
-	ClassUserSame              InputClass = "user_same"
-	ClassUserSuspended         InputClass = "user_suspended"
-	ClassUserArchived          InputClass = "user_archived"
-	ClassUnbound               InputClass = "unbound"
-	ClassUnknown               InputClass = "unknown"
-	ClassRevoked               InputClass = "revoked"
-	ClassTimeout               InputClass = "timeout"
+	// Phase 6.4c: a device with a reservation in force — inside its
+	// window, or inside the pre-window that stops it being walk-up
+	// borrowable just before the window opens. Split by who is scanning,
+	// because that is the whole question: the reserver collecting is a
+	// borrow, anyone else is a refusal that must name the reason and the
+	// time. A reservation not yet in force produces neither class.
+	ClassDeviceReservedBySelf  InputClass = "device_reserved_by_self"
+	ClassDeviceReservedByOther InputClass = "device_reserved_by_other"
+
+	ClassUserActive    InputClass = "user_active"
+	ClassUserSame      InputClass = "user_same"
+	ClassUserSuspended InputClass = "user_suspended"
+	ClassUserArchived  InputClass = "user_archived"
+	ClassUnbound       InputClass = "unbound"
+	ClassUnknown       InputClass = "unknown"
+	ClassRevoked       InputClass = "revoked"
+	ClassTimeout       InputClass = "timeout"
 )
 
 func (c InputClass) String() string { return string(c) }
 
 // Version is bumped whenever the machine table definition or timeouts change.
-const Version = "1.0.0"
+const Version = "1.1.0"
 
 // Timeout constants (docs/04 Timeouts table) for the machine and kiosk countdown timers.
 // IdleTimeoutMs is not part of that table (idle has no on-screen countdown);
@@ -82,6 +91,7 @@ func TimeoutFor(state SessionState) time.Duration {
 var allClasses = []InputClass{
 	ClassDeviceAvailable, ClassDeviceOnLoanSameUser, ClassDeviceOnLoanOtherUser,
 	ClassDeviceUnavailable, ClassDeviceDuplicate,
+	ClassDeviceReservedBySelf, ClassDeviceReservedByOther,
 	ClassUserActive, ClassUserSame, ClassUserSuspended, ClassUserArchived,
 	ClassUnbound, ClassUnknown, ClassRevoked, ClassTimeout,
 }
@@ -159,7 +169,13 @@ const (
 	MsgReturned               MessageKey = "returned"
 	MsgDeviceHeldByOther      MessageKey = "device_held_by_other"
 	MsgDuplicate              MessageKey = "duplicate"
-	MsgExpired                MessageKey = "expired"
+	// Phase 6.4c. MsgDeviceReserved is the refusal a walk-up borrower
+	// sees and must always name the reserver and the window start —
+	// "Reserved for Dr. X from 14:00", never a bare "unavailable".
+	MsgDevicePendingReserved MessageKey = "device_pending_reserved"
+	MsgDeviceReserved        MessageKey = "device_reserved"
+	MsgReservationCollected  MessageKey = "reservation_collected"
+	MsgExpired               MessageKey = "expired"
 )
 
 // AllMessageKeys is every MessageKey the table can produce — the single
@@ -171,4 +187,5 @@ var AllMessageKeys = []MessageKey{
 	MsgUserIdentified, MsgUserSuspended, MsgUserArchived,
 	MsgUnbound, MsgUnknown, MsgRevoked,
 	MsgBorrowed, MsgReturned, MsgDeviceHeldByOther, MsgDuplicate, MsgExpired,
+	MsgDevicePendingReserved, MsgDeviceReserved, MsgReservationCollected,
 }

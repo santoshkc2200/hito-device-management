@@ -5,17 +5,18 @@ import {
   listCredentialsBySubject,
   listDepartments,
   listUserLoans,
+  listUserReservations,
   suspendUser,
   updateUserNotificationPreferences,
 } from "@hdms/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Bell, Edit3, History, Laptop, ShieldAlert, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Bell, CalendarClock, Edit3, History, Laptop, ShieldAlert, User as UserIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CredentialsPanel } from "@/components/credentials-panel";
 import { ErrorState, LoadingState } from "@/components/states";
-import { StatusBadge, labelize, userStatusTone } from "@/components/status-badge";
+import { StatusBadge, labelize, reservationStatusTone, userStatusTone } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -177,6 +178,21 @@ export function UserDetailPage() {
 
   const loans = useMemo(() => loansData?.items ?? [], [loansData]);
   const activeLoans = useMemo(() => loans.filter((l) => l.status === "open"), [loans]);
+
+  const {
+    data: reservationsData,
+    isLoading: isReservationsLoading,
+  } = useQuery({
+    queryKey: ["users", userId, "reservations"],
+    queryFn: async () => {
+      const { data, error } = await listUserReservations({ path: { id: userId } });
+      if (error) throw error;
+      return data;
+    },
+    enabled: Boolean(userId),
+  });
+
+  const reservations = useMemo(() => reservationsData?.items ?? [], [reservationsData]);
 
   // Query user credentials to know if "no card issued" badge should show in header
   const { data: credentialsData } = useQuery({
@@ -517,6 +533,71 @@ export function UserDetailPage() {
                           >
                             {t("userDetail.view")}
                           </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Reservation History Card */}
+          <div className="rounded-lg border border-border bg-card p-6" data-testid="user-reservations-card">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarClock className="size-4 text-primary" />
+                <h2 className="text-base font-semibold text-foreground">{t("userDetail.reservationsHeading")}</h2>
+              </div>
+              <span className="text-xs text-muted-foreground">{t("userDetail.totalReservationsCount", { count: reservations.length })}</span>
+            </div>
+
+            {isReservationsLoading && (
+              <div className="mt-4">
+                <LoadingState message={t("userDetail.loadingReservations")} />
+              </div>
+            )}
+
+            {!isReservationsLoading && reservations.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                {t("userDetail.noReservations")}
+              </p>
+            )}
+
+            {!isReservationsLoading && reservations.length > 0 && (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-border text-xs text-muted-foreground uppercase">
+                    <tr>
+                      <th className="pb-2 font-medium">{t("userDetail.colReservedDevice")}</th>
+                      <th className="pb-2 font-medium">{t("userDetail.colReservationStatus")}</th>
+                      <th className="pb-2 font-medium">{t("userDetail.colReservedWindow")}</th>
+                      <th className="pb-2 font-medium">{t("userDetail.colReservationCreated")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {reservations.map((res) => (
+                      <tr key={res.id} className="hover:bg-muted/50">
+                        <td className="py-2.5 font-identifier text-xs">
+                          <Link
+                            to="/devices/$deviceId"
+                            params={{ deviceId: res.deviceId }}
+                            className="hover:underline font-semibold"
+                          >
+                            {res.deviceName || res.deviceId}
+                          </Link>
+                        </td>
+                        <td className="py-2.5">
+                          <StatusBadge
+                            label={labelize(res.status)}
+                            tone={reservationStatusTone[res.status] ?? "muted"}
+                          />
+                        </td>
+                        <td className="py-2.5 text-xs text-muted-foreground">
+                          {new Date(res.startAt).toLocaleString()} — {new Date(res.endAt).toLocaleString()}
+                        </td>
+                        <td className="py-2.5 text-xs text-muted-foreground">
+                          {new Date(res.createdAt).toLocaleDateString()}
                         </td>
                       </tr>
                     ))}

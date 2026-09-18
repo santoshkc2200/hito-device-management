@@ -34,6 +34,24 @@ type Input struct {
 	// name (kept from the design doc), it compares against the session's
 	// last scan generally, not specifically against pendingDevice.
 	SameAsPendingWithin3s bool
+
+	// ReservedForUserID is the user a live reservation on this device
+	// belongs to, "" when no reservation is in force for this scan
+	// (Phase 6.4c). "In force" is resolved by the caller, not here: it
+	// means the clock is inside the reservation window, or inside the
+	// configurable pre-window that stops a device being walk-up
+	// borrowable shortly before its window opens. A reservation whose
+	// window is wholly in the future — "outside it", in 04's matrix —
+	// arrives as "" and the scan classifies exactly as it did before
+	// reservations existed.
+	ReservedForUserID string
+
+	// ReservationID is that reservation's id, carried so a collection can
+	// mark it collected without execute re-querying, and
+	// ReservationStartAt is when its window opens — the "from 14:00" half
+	// of the refusal. Both zero when ReservedForUserID is "".
+	ReservationID      string
+	ReservationStartAt time.Time
 }
 
 // Snapshot is the session as it stands before this scan is applied.
@@ -56,6 +74,17 @@ type Snapshot struct {
 	// when the pending device is not on loan. Same reason as
 	// Input.HolderBorrowedAt: the reject message needs it and 2.3c has it.
 	PendingDeviceBorrowedAt time.Time
+
+	// PendingDeviceReservedForUserID, PendingDeviceReservationID and
+	// PendingDeviceReservationStartAt are Input's reservation fields for
+	// the already-pending device (Phase 6.4c). A device scanned at a
+	// kiosk with no user yet is held, not refused — exactly as an on-loan
+	// device is — so the reservation judgement, like the custody one,
+	// happens when the user is finally identified. All three are zero
+	// when no reservation is in force for the pending device.
+	PendingDeviceReservedForUserID  string
+	PendingDeviceReservationID      string
+	PendingDeviceReservationStartAt time.Time
 }
 
 // Decision is Decide's total output for one (state, snapshot, input)
@@ -69,4 +98,14 @@ type Decision struct {
 	ClearPending bool
 	MessageKey   MessageKey
 	MessageArgs  map[string]any
+
+	// FulfillsReservationID is set only on the borrow that collects a
+	// reservation (Phase 6.4c), and names the reservation execute must
+	// mark collected in the same transaction as the loan it opens. It is
+	// carried on the Decision rather than re-derived downstream because
+	// execute may not re-inspect Input to change course — if execution
+	// needs a new fact, the fact belongs in the Decision that produced
+	// the Action. The loan itself is an ordinary loan: from the moment it
+	// opens, custody behaves exactly as it does for a walk-up borrow.
+	FulfillsReservationID string
 }

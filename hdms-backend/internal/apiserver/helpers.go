@@ -11,6 +11,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
+	"github.com/hito-hospital/hdms/internal/modules/reservations/reservationsapi"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
@@ -151,6 +152,18 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		httpx.WriteProblem(w, r, httpx.NewProblem("session-conflict", "Concurrent modification of session", http.StatusConflict))
 	case errors.Is(err, checkoutapi.ErrInvalidTokenFormat):
 		httpx.WriteProblem(w, r, httpx.NewProblem("invalid-token-format", "Invalid token format or checksum", http.StatusBadRequest))
+
+	// Reservations module errors
+	case errors.Is(err, reservationsapi.ErrReservationNotFound):
+		httpx.WriteProblem(w, r, httpx.NewProblem("reservation-not-found", "Reservation not found", http.StatusNotFound))
+	case errors.Is(err, reservationsapi.ErrReservationConflict):
+		p := httpx.NewProblem("reservation-conflict", "Device already reserved for overlapping interval", http.StatusConflict)
+		p.Detail = "This device is already reserved for an overlapping time interval."
+		httpx.WriteProblem(w, r, p)
+	case errors.Is(err, reservationsapi.ErrReservationNotActive):
+		httpx.WriteProblem(w, r, httpx.NewProblem("reservation-not-active", "Reservation is not active", http.StatusConflict))
+	case errors.Is(err, reservationsapi.ErrInvalidReservationWindow):
+		writeValidationFailed(w, r, "start time must be before end time", []string{"startAt", "endAt"})
 	case errors.Is(err, checkoutapi.ErrHistoricalTimeInFuture):
 		writeValidationFailed(w, r, "historical timestamps cannot be in the future", nil)
 	case errors.Is(err, checkoutapi.ErrPaperRefRequired):

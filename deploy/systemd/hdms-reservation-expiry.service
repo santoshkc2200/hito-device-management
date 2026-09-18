@@ -1,0 +1,13 @@
+[Unit]
+Description=HDMS reservation expiry job (6.4e)
+Documentation=file:///opt/hdms/docs/runbooks/reservation-expiry.md
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=hdms
+Group=hdms
+EnvironmentFile=/etc/hdms/hdms.env
+ExecStart=/opt/hdms/bin/hdms-cli reservation-expiry
+SyslogIdentifier=hdms-reservation-expiry

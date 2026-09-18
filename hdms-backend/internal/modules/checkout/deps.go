@@ -60,6 +60,37 @@ type Loans interface {
 	CountOpenByDevice(ctx context.Context, deviceID string) (int, error)
 }
 
+// ReservationLookup is the subset of the reservations module checkout
+// needs (Phase 6.4c). Deliberately two methods: whether a reservation is
+// in force for a device right now, and marking one collected when its
+// reserver walks up and takes the device.
+//
+// "In force" is answered by the reservations module, not here, because
+// the pre-window is its policy (settings.reservation_pre_window_minutes)
+// and the machine must stay a pure function over facts it is handed. A
+// reservation whose window has not opened, and whose pre-window has not
+// been entered, is reported as not in force — so an unreserved scan and a
+// scan of a device reserved for later are indistinguishable to the
+// machine, which is exactly what keeps the walk-up path unchanged.
+type ReservationLookup interface {
+	// InForceFor returns the reservation currently in force for deviceID,
+	// or ok=false when there is none. It never returns an error for
+	// "nothing reserved" — that is the common case, not a failure.
+	InForceFor(ctx context.Context, deviceID string, at time.Time) (res ReservationInForce, ok bool, err error)
+	// MarkCollected closes the reservation out against the loan that was
+	// just opened from it.
+	MarkCollected(ctx context.Context, reservationID, loanID string) error
+}
+
+// ReservationInForce is the flat view of a live reservation the machine
+// needs: who it is for, which reservation it is, and when its window
+// opens — the "from 14:00" the refusal must name.
+type ReservationInForce struct {
+	ID        string
+	ForUserID string
+	StartAt   time.Time
+}
+
 // SettingsReader is the subset of settings.Service checkout needs.
 type SettingsReader interface {
 	GetSettings(ctx context.Context) (settings.Settings, error)
@@ -75,4 +106,10 @@ type Deps struct {
 	Tokens   TokenResolver
 	Loans    Loans
 	Settings SettingsReader
+
+	// Reservations may be nil, and is nil in every test and deployment
+	// predating Phase 6.4. A nil Reservations means no reservation is ever
+	// in force, which is precisely the pre-6.4 behaviour — so the walk-up
+	// path is unchanged by construction, not merely by test.
+	Reservations ReservationLookup
 }

@@ -92,3 +92,38 @@ func TestNormalizeRejectionReasonBoundsCardinality(t *testing.T) {
 		t.Fatalf("NormalizeRejectionReason(something-new) = %q, want other", got)
 	}
 }
+
+// TestReservationsMetricsIncrements tests the four reservation metric counters.
+func TestReservationsMetricsIncrements(t *testing.T) {
+	// 1. ReservationsMadeTotal
+	beforeMade := testutil.ToFloat64(observability.ReservationsMadeTotal)
+	observability.IncReservationMade()
+	if after := testutil.ToFloat64(observability.ReservationsMadeTotal); after-beforeMade != 1 {
+		t.Fatalf("ReservationsMade delta = %v, want 1", after-beforeMade)
+	}
+
+	// 2. ReservationsCollectedTotal
+	beforeColl := testutil.ToFloat64(observability.ReservationsCollectedTotal)
+	observability.IncReservationCollected()
+	if after := testutil.ToFloat64(observability.ReservationsCollectedTotal); after-beforeColl != 1 {
+		t.Fatalf("ReservationsCollected delta = %v, want 1", after-beforeColl)
+	}
+
+	// 3. ReservationsExpiredTotal (Inc + Add)
+	beforeExp := testutil.ToFloat64(observability.ReservationsExpiredTotal)
+	observability.IncReservationExpired()
+	if after := testutil.ToFloat64(observability.ReservationsExpiredTotal); after-beforeExp != 1 {
+		t.Fatalf("ReservationsExpired delta = %v, want 1", after-beforeExp)
+	}
+	observability.AddReservationsExpired(3)
+	if after := testutil.ToFloat64(observability.ReservationsExpiredTotal); after-beforeExp != 4 {
+		t.Fatalf("ReservationsExpired after Add(3) delta = %v, want 4", after-beforeExp)
+	}
+
+	// 4. ReservationConflictsRefusedTotal
+	beforeConf := testutil.ToFloat64(observability.ReservationConflictsRefusedTotal)
+	observability.IncReservationConflictRefused()
+	if after := testutil.ToFloat64(observability.ReservationConflictsRefusedTotal); after-beforeConf != 1 {
+		t.Fatalf("ReservationConflictsRefused delta = %v, want 1", after-beforeConf)
+	}
+}

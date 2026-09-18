@@ -119,6 +119,15 @@ type ScenarioInput struct {
 	PendingDeviceID       string `json:"pendingDeviceId,omitempty"`
 	PendingDeviceStatus   string `json:"pendingDeviceStatus,omitempty"`
 	PendingDeviceHolderID string `json:"pendingDeviceHolderId,omitempty"`
+
+	// Reservation fields (Phase 6.4c). ReservedForUserID is set only when
+	// a reservation is actually in force for this scan; it is what splits
+	// the reserver collecting from a walk-up borrower being refused.
+	ReservedForUserID              string     `json:"reservedForUserId,omitempty"`
+	ReservationID                  string     `json:"reservationId,omitempty"`
+	ReservationStartAt             *time.Time `json:"reservationStartAt,omitempty"`
+	PendingDeviceReservedForUserID string     `json:"pendingDeviceReservedForUserId,omitempty"`
+	PendingDeviceReservationID     string     `json:"pendingDeviceReservationId,omitempty"`
 }
 
 // ScenarioExpected is the expected result after an input step.
@@ -316,6 +325,12 @@ func scenarioInputFor(class InputClass) ScenarioInput {
 		return ScenarioInput{Class: class, Kind: KindDevice, DeviceID: "dev-maint", DeviceStatus: "maintenance"}
 	case ClassDeviceDuplicate:
 		return ScenarioInput{Class: class, Kind: KindDevice, DeviceID: "dev-dup", DeviceStatus: "available", SameAsPendingWithin3s: true}
+	case ClassDeviceReservedBySelf:
+		// Reserved for the session user themselves — the collection path.
+		return ScenarioInput{Class: class, Kind: KindDevice, DeviceID: "dev-reserved-self", DeviceStatus: "available", ReservedForUserID: "user-session-1", ReservationID: "res-self-1"}
+	case ClassDeviceReservedByOther:
+		// Reserved for somebody else — the walk-up refusal.
+		return ScenarioInput{Class: class, Kind: KindDevice, DeviceID: "dev-reserved-other", DeviceStatus: "available", ReservedForUserID: "user-other-2", ReservationID: "res-other-1"}
 	case ClassUserActive:
 		return ScenarioInput{Class: class, Kind: KindUser, UserID: "user-switched-2", UserStatus: "active"}
 	case ClassUserSame:

@@ -51,9 +51,14 @@ var RequiredRoles = map[string]string{
 	"GET /v1/reports/by-origin":          "viewer",
 	"GET /v1/reports/operational-health": "viewer",
 	"GET /v1/reports/disputed":           "viewer",
+	"GET /v1/reports/leaver-escalations": "viewer",
 	"GET /v1/reports/loans.csv":          "viewer",
 	"GET /v1/reports/devices.csv":        "viewer",
 	"GET /v1/reports/users.csv":          "viewer",
+	"GET /v1/reservations":              "viewer",
+	"GET /v1/reservations/{id}":         "viewer",
+	"GET /v1/devices/{id}/reservations": "viewer",
+	"GET /v1/users/{id}/reservations":   "viewer",
 
 	// --- Technician / Device Operations --------------------------------------
 	"POST /v1/devices":                  "technician",
@@ -64,6 +69,8 @@ var RequiredRoles = map[string]string{
 	"POST /v1/credentials/{id}/reprint": "technician",
 	"POST /v1/loans/{id}/force-return":  "technician",
 	"POST /v1/loans/{id}/remind":        "technician",
+	"POST /v1/reservations":             "technician",
+	"POST /v1/reservations/{id}/cancel": "technician",
 
 	// --- Admin-Only: Users & Registration ------------------------------------
 	"GET /v1/users":                               "admin",

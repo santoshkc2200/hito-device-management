@@ -4,6 +4,7 @@ import { Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   Bell,
   Boxes,
+  CalendarClock,
   FileCheck2,
   FileSpreadsheet,
   FileText,
@@ -70,6 +71,7 @@ export function AppShell() {
           { to: "/devices", label: t("nav.devices"), icon: Boxes },
           { to: "/users", label: t("nav.users"), icon: UsersIcon },
           { to: "/loans", label: t("nav.loans"), icon: FileCheck2 },
+          { to: "/reservations", label: t("nav.reservations"), icon: CalendarClock },
         ],
       },
       {

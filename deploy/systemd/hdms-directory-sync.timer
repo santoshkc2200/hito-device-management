@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HDMS directory roster sync daily (6.3b/6.3c)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=hdms-directory-sync.service
+
+[Install]
+WantedBy=timers.target

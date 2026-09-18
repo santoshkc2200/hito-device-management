@@ -17,6 +17,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/modules/notification/notificationapi"
+	"github.com/hito-hospital/hdms/internal/modules/reservations/reservationsapi"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/events"
@@ -41,6 +42,7 @@ type Server struct {
 	staffAuth            *staffauth.Service
 	staffOIDC            *staffauth.OIDC
 	notification         notificationapi.Service
+	reservations         reservationsapi.Service
 	importMu             sync.Mutex
 	userImportPreviews   map[string]*userImportPreviewCacheItem
 	deviceImportPreviews map[string]*deviceImportPreviewCacheItem
@@ -54,6 +56,7 @@ func New(
 	auditSvc *audit.Service, settingsSvc *settings.Service, sseHub *events.SSEHub,
 	staffAuthSvc *staffauth.Service, staffOIDC *staffauth.OIDC,
 	notificationSvc notificationapi.Service,
+	reservationsSvc reservationsapi.Service,
 ) *Server {
 	return &Server{
 		pool:                 pool,
@@ -69,6 +72,7 @@ func New(
 		staffAuth:            staffAuthSvc,
 		staffOIDC:            staffOIDC,
 		notification:         notificationSvc,
+		reservations:         reservationsSvc,
 		userImportPreviews:   make(map[string]*userImportPreviewCacheItem),
 		deviceImportPreviews: make(map[string]*deviceImportPreviewCacheItem),
 	}

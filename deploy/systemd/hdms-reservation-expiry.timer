@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HDMS reservation expiry every 5 minutes (6.4e)
+
+[Timer]
+OnCalendar=*:0/5
+Persistent=true
+RandomizedDelaySec=30
+Unit=hdms-reservation-expiry.service
+
+[Install]
+WantedBy=timers.target

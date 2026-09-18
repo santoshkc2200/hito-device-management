@@ -29,6 +29,47 @@ func (q *Queries) CreateDepartment(ctx context.Context, arg CreateDepartmentPara
 	return i, err
 }
 
+const createDirectoryLink = `-- name: CreateDirectoryLink :one
+INSERT INTO user_directory_links (
+    id, user_id, issuer, subject, last_seen_in_directory, sync_state
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+RETURNING id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+`
+
+type CreateDirectoryLinkParams struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              pgtype.UUID        `json:"user_id"`
+	Issuer              string             `json:"issuer"`
+	Subject             string             `json:"subject"`
+	LastSeenInDirectory pgtype.Timestamptz `json:"last_seen_in_directory"`
+	SyncState           string             `json:"sync_state"`
+}
+
+func (q *Queries) CreateDirectoryLink(ctx context.Context, arg CreateDirectoryLinkParams) (UserDirectoryLink, error) {
+	row := q.db.QueryRow(ctx, createDirectoryLink,
+		arg.ID,
+		arg.UserID,
+		arg.Issuer,
+		arg.Subject,
+		arg.LastSeenInDirectory,
+		arg.SyncState,
+	)
+	var i UserDirectoryLink
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.LastSeenInDirectory,
+		&i.SyncState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createImportBatch = `-- name: CreateImportBatch :one
 INSERT INTO import_batches (id, kind, actor, filename, total_rows, created_count, updated_count, skipped_count, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -144,6 +185,55 @@ func (q *Queries) GetDepartmentByID(ctx context.Context, id pgtype.UUID) (Depart
 	row := q.db.QueryRow(ctx, getDepartmentByID, id)
 	var i Department
 	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
+}
+
+const getDirectoryLinkBySubject = `-- name: GetDirectoryLinkBySubject :one
+SELECT id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+FROM user_directory_links
+WHERE issuer = $1 AND subject = $2
+`
+
+type GetDirectoryLinkBySubjectParams struct {
+	Issuer  string `json:"issuer"`
+	Subject string `json:"subject"`
+}
+
+func (q *Queries) GetDirectoryLinkBySubject(ctx context.Context, arg GetDirectoryLinkBySubjectParams) (UserDirectoryLink, error) {
+	row := q.db.QueryRow(ctx, getDirectoryLinkBySubject, arg.Issuer, arg.Subject)
+	var i UserDirectoryLink
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.LastSeenInDirectory,
+		&i.SyncState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getDirectoryLinkByUserID = `-- name: GetDirectoryLinkByUserID :one
+SELECT id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+FROM user_directory_links
+WHERE user_id = $1
+`
+
+func (q *Queries) GetDirectoryLinkByUserID(ctx context.Context, userID pgtype.UUID) (UserDirectoryLink, error) {
+	row := q.db.QueryRow(ctx, getDirectoryLinkByUserID, userID)
+	var i UserDirectoryLink
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.LastSeenInDirectory,
+		&i.SyncState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -281,6 +371,156 @@ func (q *Queries) ListDepartments(ctx context.Context) ([]Department, error) {
 	for rows.Next() {
 		var i Department
 		if err := rows.Scan(&i.ID, &i.Name, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDirectoryLinks = `-- name: ListDirectoryLinks :many
+SELECT id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+FROM user_directory_links
+WHERE issuer = $1
+ORDER BY id
+`
+
+func (q *Queries) ListDirectoryLinks(ctx context.Context, issuer string) ([]UserDirectoryLink, error) {
+	rows, err := q.db.Query(ctx, listDirectoryLinks, issuer)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserDirectoryLink
+	for rows.Next() {
+		var i UserDirectoryLink
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Issuer,
+			&i.Subject,
+			&i.LastSeenInDirectory,
+			&i.SyncState,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDirectoryLinksForSuspension = `-- name: ListDirectoryLinksForSuspension :many
+SELECT id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+FROM user_directory_links
+WHERE issuer = $1
+  AND sync_state <> 'suspended'
+  AND last_seen_in_directory < $2
+ORDER BY last_seen_in_directory ASC
+`
+
+type ListDirectoryLinksForSuspensionParams struct {
+	Issuer              string             `json:"issuer"`
+	LastSeenInDirectory pgtype.Timestamptz `json:"last_seen_in_directory"`
+}
+
+func (q *Queries) ListDirectoryLinksForSuspension(ctx context.Context, arg ListDirectoryLinksForSuspensionParams) ([]UserDirectoryLink, error) {
+	rows, err := q.db.Query(ctx, listDirectoryLinksForSuspension, arg.Issuer, arg.LastSeenInDirectory)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserDirectoryLink
+	for rows.Next() {
+		var i UserDirectoryLink
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Issuer,
+			&i.Subject,
+			&i.LastSeenInDirectory,
+			&i.SyncState,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLeaverEscalations = `-- name: ListLeaverEscalations :many
+SELECT l.id AS loan_id,
+       l.device_id,
+       d.name AS device_name,
+       d.asset_tag AS device_asset_tag,
+       u.id AS user_id,
+       u.full_name AS borrower_name,
+       u.employee_no AS borrower_employee_no,
+       dept.id AS department_id,
+       COALESCE(dept.name, '') AS department_name,
+       l.borrowed_at,
+       l.due_at,
+       u.updated_at AS suspended_at
+FROM loans l
+JOIN users u ON u.id = l.user_id
+JOIN user_directory_links udl ON udl.user_id = u.id
+JOIN devices d ON d.id = l.device_id
+LEFT JOIN departments dept ON dept.id = u.department_id
+WHERE l.status = 'open'
+  AND u.status = 'suspended'
+ORDER BY l.borrowed_at ASC
+`
+
+type ListLeaverEscalationsRow struct {
+	LoanID             pgtype.UUID        `json:"loan_id"`
+	DeviceID           pgtype.UUID        `json:"device_id"`
+	DeviceName         string             `json:"device_name"`
+	DeviceAssetTag     string             `json:"device_asset_tag"`
+	UserID             pgtype.UUID        `json:"user_id"`
+	BorrowerName       string             `json:"borrower_name"`
+	BorrowerEmployeeNo string             `json:"borrower_employee_no"`
+	DepartmentID       pgtype.UUID        `json:"department_id"`
+	DepartmentName     string             `json:"department_name"`
+	BorrowedAt         pgtype.Timestamptz `json:"borrowed_at"`
+	DueAt              pgtype.Timestamptz `json:"due_at"`
+	SuspendedAt        pgtype.Timestamptz `json:"suspended_at"`
+}
+
+func (q *Queries) ListLeaverEscalations(ctx context.Context) ([]ListLeaverEscalationsRow, error) {
+	rows, err := q.db.Query(ctx, listLeaverEscalations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLeaverEscalationsRow
+	for rows.Next() {
+		var i ListLeaverEscalationsRow
+		if err := rows.Scan(
+			&i.LoanID,
+			&i.DeviceID,
+			&i.DeviceName,
+			&i.DeviceAssetTag,
+			&i.UserID,
+			&i.BorrowerName,
+			&i.BorrowerEmployeeNo,
+			&i.DepartmentID,
+			&i.DepartmentName,
+			&i.BorrowedAt,
+			&i.DueAt,
+			&i.SuspendedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -523,6 +763,66 @@ func (q *Queries) UpdateDepartment(ctx context.Context, arg UpdateDepartmentPara
 	return i, err
 }
 
+const updateDirectoryLinkLastSeen = `-- name: UpdateDirectoryLinkLastSeen :one
+UPDATE user_directory_links
+SET last_seen_in_directory = $2,
+    sync_state = $3,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+`
+
+type UpdateDirectoryLinkLastSeenParams struct {
+	ID                  pgtype.UUID        `json:"id"`
+	LastSeenInDirectory pgtype.Timestamptz `json:"last_seen_in_directory"`
+	SyncState           string             `json:"sync_state"`
+}
+
+func (q *Queries) UpdateDirectoryLinkLastSeen(ctx context.Context, arg UpdateDirectoryLinkLastSeenParams) (UserDirectoryLink, error) {
+	row := q.db.QueryRow(ctx, updateDirectoryLinkLastSeen, arg.ID, arg.LastSeenInDirectory, arg.SyncState)
+	var i UserDirectoryLink
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.LastSeenInDirectory,
+		&i.SyncState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateDirectoryLinkSyncState = `-- name: UpdateDirectoryLinkSyncState :one
+UPDATE user_directory_links
+SET sync_state = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+`
+
+type UpdateDirectoryLinkSyncStateParams struct {
+	ID        pgtype.UUID `json:"id"`
+	SyncState string      `json:"sync_state"`
+}
+
+func (q *Queries) UpdateDirectoryLinkSyncState(ctx context.Context, arg UpdateDirectoryLinkSyncStateParams) (UserDirectoryLink, error) {
+	row := q.db.QueryRow(ctx, updateDirectoryLinkSyncState, arg.ID, arg.SyncState)
+	var i UserDirectoryLink
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.LastSeenInDirectory,
+		&i.SyncState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET full_name = $2, department_id = $3, email = $4, phone = $5, notes = $6, updated_at = now()
@@ -593,6 +893,51 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 		&i.RegisteredBy,
 		&i.UpdatedAt,
 		&i.ImportBatchID,
+	)
+	return i, err
+}
+
+const upsertDirectoryLink = `-- name: UpsertDirectoryLink :one
+INSERT INTO user_directory_links (
+    id, user_id, issuer, subject, last_seen_in_directory, sync_state
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+ON CONFLICT (issuer, subject) DO UPDATE
+SET last_seen_in_directory = EXCLUDED.last_seen_in_directory,
+    sync_state = EXCLUDED.sync_state,
+    updated_at = now()
+RETURNING id, user_id, issuer, subject, last_seen_in_directory, sync_state, created_at, updated_at
+`
+
+type UpsertDirectoryLinkParams struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              pgtype.UUID        `json:"user_id"`
+	Issuer              string             `json:"issuer"`
+	Subject             string             `json:"subject"`
+	LastSeenInDirectory pgtype.Timestamptz `json:"last_seen_in_directory"`
+	SyncState           string             `json:"sync_state"`
+}
+
+func (q *Queries) UpsertDirectoryLink(ctx context.Context, arg UpsertDirectoryLinkParams) (UserDirectoryLink, error) {
+	row := q.db.QueryRow(ctx, upsertDirectoryLink,
+		arg.ID,
+		arg.UserID,
+		arg.Issuer,
+		arg.Subject,
+		arg.LastSeenInDirectory,
+		arg.SyncState,
+	)
+	var i UserDirectoryLink
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.LastSeenInDirectory,
+		&i.SyncState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

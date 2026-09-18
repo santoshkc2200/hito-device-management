@@ -510,7 +510,7 @@ export type Session = {
     expiresAt: string;
 };
 
-export type OutcomeKind = 'device_pending' | 'user_identified' | 'borrowed' | 'returned' | 'rejected' | 'duplicate' | 'user_switched';
+export type OutcomeKind = 'device_pending' | 'user_identified' | 'borrowed' | 'returned' | 'rejected' | 'duplicate' | 'user_switched' | 'reservation_collected';
 
 export type MessageTone = 'success' | 'info' | 'warning' | 'error';
 
@@ -580,6 +580,65 @@ export type Loan = {
 export type LoanList = {
     items: Array<Loan>;
     nextCursor?: string;
+};
+
+export type ReservationStatus = 'active' | 'collected' | 'cancelled' | 'expired';
+
+export type Reservation = {
+    id: string;
+    deviceId: string;
+    userId: string;
+    deviceName: string;
+    deviceAssetTag: string;
+    userName: string;
+    userEmployeeNo: string;
+    userEmail?: string;
+    status: ReservationStatus;
+    startAt: string;
+    endAt: string;
+    createdBy: string;
+    createdSource: string;
+    loanId?: string;
+    cancelledAt?: string;
+    cancelledBy?: string;
+    cancellationReason?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type ReservationList = {
+    items: Array<Reservation>;
+    nextCursor?: string;
+};
+
+export type CreateReservationRequest = {
+    deviceId: string;
+    userId: string;
+    startAt: string;
+    endAt: string;
+};
+
+export type CancelReservationRequest = {
+    reason?: string;
+};
+
+export type LeaverEscalationList = {
+    items: Array<LeaverEscalation>;
+};
+
+export type LeaverEscalation = {
+    loanId: string;
+    deviceId: string;
+    deviceName: string;
+    deviceAssetTag: string;
+    userId: string;
+    borrowerName: string;
+    borrowerEmployeeNo: string;
+    departmentId?: string;
+    departmentName: string;
+    borrowedAt: string;
+    dueAt?: string;
+    suspendedAt?: string;
 };
 
 export type ForceReturnLoanRequest = {
@@ -2646,6 +2705,178 @@ export type ListUserLoansResponses = {
 
 export type ListUserLoansResponse = ListUserLoansResponses[keyof ListUserLoansResponses];
 
+export type ListDeviceReservationsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        status?: ReservationStatus;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/devices/{id}/reservations';
+};
+
+export type ListDeviceReservationsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListDeviceReservationsError = ListDeviceReservationsErrors[keyof ListDeviceReservationsErrors];
+
+export type ListDeviceReservationsResponses = {
+    /**
+     * OK.
+     */
+    200: ReservationList;
+};
+
+export type ListDeviceReservationsResponse = ListDeviceReservationsResponses[keyof ListDeviceReservationsResponses];
+
+export type ListUserReservationsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        status?: ReservationStatus;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/users/{id}/reservations';
+};
+
+export type ListUserReservationsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListUserReservationsError = ListUserReservationsErrors[keyof ListUserReservationsErrors];
+
+export type ListUserReservationsResponses = {
+    /**
+     * OK.
+     */
+    200: ReservationList;
+};
+
+export type ListUserReservationsResponse = ListUserReservationsResponses[keyof ListUserReservationsResponses];
+
+export type ListReservationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        deviceId?: string;
+        userId?: string;
+        status?: ReservationStatus;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/reservations';
+};
+
+export type ListReservationsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListReservationsError = ListReservationsErrors[keyof ListReservationsErrors];
+
+export type ListReservationsResponses = {
+    /**
+     * OK.
+     */
+    200: ReservationList;
+};
+
+export type ListReservationsResponse = ListReservationsResponses[keyof ListReservationsResponses];
+
+export type CreateReservationData = {
+    body: CreateReservationRequest;
+    path?: never;
+    query?: never;
+    url: '/reservations';
+};
+
+export type CreateReservationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateReservationError = CreateReservationErrors[keyof CreateReservationErrors];
+
+export type CreateReservationResponses = {
+    /**
+     * Created.
+     */
+    201: Reservation;
+};
+
+export type CreateReservationResponse = CreateReservationResponses[keyof CreateReservationResponses];
+
+export type GetReservationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/reservations/{id}';
+};
+
+export type GetReservationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetReservationError = GetReservationErrors[keyof GetReservationErrors];
+
+export type GetReservationResponses = {
+    /**
+     * OK.
+     */
+    200: Reservation;
+};
+
+export type GetReservationResponse = GetReservationResponses[keyof GetReservationResponses];
+
+export type CancelReservationData = {
+    body?: CancelReservationRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/reservations/{id}/cancel';
+};
+
+export type CancelReservationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CancelReservationError = CancelReservationErrors[keyof CancelReservationErrors];
+
+export type CancelReservationResponses = {
+    /**
+     * OK.
+     */
+    200: Reservation;
+};
+
+export type CancelReservationResponse = CancelReservationResponses[keyof CancelReservationResponses];
+
 export type GetDashboardData = {
     body?: never;
     path?: never;
@@ -3382,6 +3613,31 @@ export type ListDisputedLoansResponses = {
 };
 
 export type ListDisputedLoansResponse = ListDisputedLoansResponses[keyof ListDisputedLoansResponses];
+
+export type ListLeaverEscalationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/reports/leaver-escalations';
+};
+
+export type ListLeaverEscalationsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListLeaverEscalationsError = ListLeaverEscalationsErrors[keyof ListLeaverEscalationsErrors];
+
+export type ListLeaverEscalationsResponses = {
+    /**
+     * OK.
+     */
+    200: LeaverEscalationList;
+};
+
+export type ListLeaverEscalationsResponse = ListLeaverEscalationsResponses[keyof ListLeaverEscalationsResponses];
 
 export type ExportLoansCsvData = {
     body?: never;

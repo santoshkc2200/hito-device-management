@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CheckCircle2, CornerDownLeft, Laptop, PackageCheck } from "lucide-react";
+import { CalendarCheck, CheckCircle2, CornerDownLeft, Laptop, PackageCheck } from "lucide-react";
 import type { SessionDevice, OutcomeKind } from "@hdms/api-client";
 import { useLocale } from "@hdms/i18n";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,11 @@ export function SuccessScreen({
   const t = useTranslator();
   const { locale } = useLocale();
   const isReturn = kind === "returned";
+  // Phase 6.4d: a reserver collecting their own device gets a distinct
+  // confirmation, so the journey reads as "your booking worked" rather
+  // than as an ordinary borrow that happened to be allowed. The loan
+  // behind it is an ordinary loan — only the wording differs.
+  const isCollected = kind === "reservation_collected";
   const dueLine = formatHumanDueDate(dueAt, undefined, locale);
 
   // Auto-dismiss after 4 seconds (4000 ms)
@@ -56,8 +61,16 @@ export function SuccessScreen({
   // is that responses stay code-only and the client renders the copy; the
   // server's English title would otherwise sit inside an otherwise Japanese
   // screen. `kind` carries everything this screen needs to choose its wording.
-  const title = isReturn ? t("success.returnTitle") : t("success.borrowTitle");
-  const detail = isReturn ? t("success.returnDetail") : t("success.borrowDetail");
+  const title = isReturn
+    ? t("success.returnTitle")
+    : isCollected
+      ? t("success.collectedTitle")
+      : t("success.borrowTitle");
+  const detail = isReturn
+    ? t("success.returnDetail")
+    : isCollected
+      ? t("success.collectedDetail")
+      : t("success.borrowDetail");
 
   return (
     <ScreenFrame
@@ -86,6 +99,8 @@ export function SuccessScreen({
           >
             {isReturn ? (
               <CornerDownLeft className="size-16 stroke-[2.5]" aria-hidden="true" />
+            ) : isCollected ? (
+              <CalendarCheck className="size-16 stroke-[2.5]" aria-hidden="true" />
             ) : (
               <CheckCircle2 className="size-16 stroke-[2.5]" aria-hidden="true" />
             )}
@@ -101,7 +116,11 @@ export function SuccessScreen({
                   : "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
               }`}
             >
-              {isReturn ? t("success.returnBadge") : t("success.borrowBadge")}
+              {isReturn
+                ? t("success.returnBadge")
+                : isCollected
+                  ? t("success.collectedBadge")
+                  : t("success.borrowBadge")}
             </span>
 
             {itemCount > 1 && (

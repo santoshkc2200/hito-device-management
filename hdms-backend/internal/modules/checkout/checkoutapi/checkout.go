@@ -112,6 +112,12 @@ const (
 	OutcomeRejected       OutcomeKind = "rejected"
 	OutcomeDuplicate      OutcomeKind = "duplicate"
 	OutcomeUserSwitched   OutcomeKind = "user_switched"
+	// OutcomeReservationCollected is a borrow that closed out a
+	// reservation (Phase 6.4d). The loan it opens is an ordinary loan —
+	// this kind exists so the kiosk can give the reserver a confirmation
+	// that reads like their booking worked, rather than one that reads
+	// like the machine barely allowed it.
+	OutcomeReservationCollected OutcomeKind = "reservation_collected"
 )
 
 // Outcome is what just happened, per-kind payload folded into one struct

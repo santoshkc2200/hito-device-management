@@ -491,4 +491,24 @@ var (
 		MaxLimit:      MaxLimit,
 		StrictFilters: true,
 	}
+
+	// ReservationsSpec defines the listing contract for /v1/reservations.
+	ReservationsSpec = ResourceSpec{
+		Name: "reservations",
+		SortColumns: map[string]bool{
+			"start_at": true,
+		},
+		DefaultSort:  "start_at",
+		DefaultOrder: OrderDesc,
+		AllowedFilters: map[string]bool{
+			"status":    true,
+			"deviceId":  true,
+			"device_id": true,
+			"userId":    true,
+			"user_id":   true,
+		},
+		StrictFilters: false,
+		DefaultLimit:  DefaultLimit,
+		MaxLimit:      MaxLimit,
+	}
 )

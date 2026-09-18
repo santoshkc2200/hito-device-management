@@ -125,6 +125,8 @@ func TestScenariosReplayThroughGoMachine(t *testing.T) {
 					snap.PendingDeviceID = in.PendingDeviceID
 					snap.PendingDeviceStatus = in.PendingDeviceStatus
 					snap.PendingDeviceHolderID = in.PendingDeviceHolderID
+					snap.PendingDeviceReservedForUserID = in.PendingDeviceReservedForUserID
+					snap.PendingDeviceReservationID = in.PendingDeviceReservationID
 				}
 
 				machineInput := Input{
@@ -136,6 +138,11 @@ func TestScenariosReplayThroughGoMachine(t *testing.T) {
 					UserStatus:            in.UserStatus,
 					TokenPreview:          in.TokenPreview,
 					SameAsPendingWithin3s: in.SameAsPendingWithin3s,
+					ReservedForUserID:     in.ReservedForUserID,
+					ReservationID:         in.ReservationID,
+				}
+				if in.ReservationStartAt != nil {
+					machineInput.ReservationStartAt = *in.ReservationStartAt
 				}
 				if in.RevokedAt != nil {
 					machineInput.RevokedAt = *in.RevokedAt
@@ -158,10 +165,14 @@ func TestScenariosReplayThroughGoMachine(t *testing.T) {
 					snap.PendingDeviceID = ""
 					snap.PendingDeviceStatus = ""
 					snap.PendingDeviceHolderID = ""
+					snap.PendingDeviceReservedForUserID = ""
+					snap.PendingDeviceReservationID = ""
 				} else if decision.Action == ActionHoldDevice || decision.Action == ActionReplacePending {
 					snap.PendingDeviceID = in.DeviceID
 					snap.PendingDeviceStatus = in.DeviceStatus
 					snap.PendingDeviceHolderID = in.HolderUserID
+					snap.PendingDeviceReservedForUserID = in.ReservedForUserID
+					snap.PendingDeviceReservationID = in.ReservationID
 				}
 
 				if decision.Action == ActionSetUser || decision.Action == ActionSwitchUser {

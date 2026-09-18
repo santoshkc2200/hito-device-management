@@ -277,7 +277,7 @@ describe("Kiosk Machine Lifecycle & Resilience", () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     logMachineStartup();
     expect(infoSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[HDMS Kiosk] Machine definition version: 1.0.0")
+      expect.stringContaining("[HDMS Kiosk] Machine definition version: 1.1.0")
     );
     infoSpy.mockRestore();
   });
