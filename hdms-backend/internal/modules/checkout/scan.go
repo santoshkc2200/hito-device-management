@@ -14,6 +14,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/db"
+	"github.com/hito-hospital/hdms/internal/platform/observability"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/hito-hospital/hdms/internal/platform/tokens"
 	"github.com/jackc/pgx/v5"
@@ -103,6 +104,8 @@ func (s *Service) Scan(ctx context.Context, params checkoutapi.ScanParams) (chec
 		return checkoutapi.ScanResult{}, txErr
 	}
 	if expired {
+		// The expiry close committed above, so this expiry really happened.
+		observability.IncSessionExpired()
 		return checkoutapi.ScanResult{}, checkoutapi.ErrSessionExpired
 	}
 

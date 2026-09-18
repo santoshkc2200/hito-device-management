@@ -7,6 +7,7 @@ import (
 	"time"
 
 	checkoutstore "github.com/hito-hospital/hdms/internal/modules/checkout/internal/store"
+	"github.com/hito-hospital/hdms/internal/platform/observability"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 )
 
@@ -19,9 +20,14 @@ import (
 // catalog write — there is nothing in lending or catalog to undo.
 func (s *Service) ExpireAbandonedSessions(ctx context.Context) error {
 	q := checkoutstore.New(s.pool.Pool)
-	if _, err := q.ExpireSessions(ctx, pgtypeconv.Timestamptz(s.clock.Now())); err != nil {
+	expired, err := q.ExpireSessions(ctx, pgtypeconv.Timestamptz(s.clock.Now()))
+	if err != nil {
 		return fmt.Errorf("checkout: expire abandoned sessions: %w", err)
 	}
+	// 5.5a: the sweeper owns the count for the rows it reaps. Inline expiry
+	// paths (Scan, GetSession) only count sessions they close themselves, so
+	// a session is never counted twice.
+	observability.AddSessionExpired(len(expired))
 	return nil
 }
 

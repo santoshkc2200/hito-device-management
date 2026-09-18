@@ -42,6 +42,13 @@ type Config struct {
 	RateLimitEnabled   bool
 	CORSAllowedOrigins []string
 
+	// MetricsAllowCIDRs restricts /metrics to the monitoring host (5.5a).
+	// HDMS_METRICS_ALLOW_CIDRS is a comma-separated list of CIDRs (plain IPs
+	// accepted as /32 or /128); it defaults to localhost only. Caddy never
+	// routes /metrics at all — this is the second, in-app gate for direct
+	// scrapes of the API port.
+	MetricsAllowCIDRs []string
+
 	BackupDir    string // 5.4a: nightly backup target (HDMS_BACKUP_DIR, default /var/backups/hdms)
 	BackupEncKey []byte // 5.4a: 32 raw bytes, AES-256-GCM key for backup encryption (HDMS_BACKUP_ENC_KEY); nil when unconfigured — the backup command fails closed, the API does not require it to boot
 
@@ -108,6 +115,14 @@ func Load() (Config, error) {
 		}
 	} else {
 		cfg.CORSAllowedOrigins = nil
+	}
+
+	// /metrics allowlist (5.5a): localhost-only unless the operator names the
+	// monitoring host's network explicitly.
+	if metricsEnv := os.Getenv("HDMS_METRICS_ALLOW_CIDRS"); metricsEnv != "" {
+		cfg.MetricsAllowCIDRs = splitAndTrim(metricsEnv)
+	} else {
+		cfg.MetricsAllowCIDRs = []string{"127.0.0.1/32", "::1/128"}
 	}
 
 	validate(cfg, &errs)
@@ -191,6 +206,7 @@ func (c Config) LogEffective(logger *slog.Logger) {
 		slog.Duration("staff_session_ttl", c.StaffSessionTTL),
 		slog.Bool("rate_limit_enabled", c.RateLimitEnabled),
 		slog.Any("cors_allowed_origins", c.CORSAllowedOrigins),
+		slog.Any("metrics_allow_cidrs", c.MetricsAllowCIDRs),
 		slog.String("backup_dir", c.BackupDir),
 		slog.String("backup_enc_key", "[REDACTED]"),
 		slog.String("otlp_endpoint", c.OTLPEndpoint),

@@ -118,6 +118,16 @@ func run() error {
 		sweeper.Stop(stopCtx)
 	}()
 
+	// 5.5a: periodic DB gauge collector (loans open, devices by status,
+	// kiosk last-seen). Interval is documented on observability.Collector.
+	collector := observability.NewCollector(pool, clock.System{}, logger)
+	collector.Start(ctx)
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		collector.Stop(stopCtx)
+	}()
+
 	var staffOIDCSvc *staffauth.OIDC
 	if cfg.EntraTenantID == "" {
 		logger.Info("microsoft sign-in is disabled: no tenant ID configured")
@@ -160,8 +170,18 @@ func run() error {
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
 	mux.Handle("GET /metrics", observability.MetricsHandler())
 
+	// 5.5a: /metrics is scrape-only from the monitoring host (Caddy never
+	// routes it — see deploy/production/Caddyfile). Fail fast on a bad
+	// allowlist rather than silently exposing or hiding the endpoint.
+	metricsAllow, err := httpx.ParseMetricsAllowCIDRs(cfg.MetricsAllowCIDRs)
+	if err != nil {
+		return err
+	}
+
 	handler := httpx.Chain(
 		httpx.WithRequestID,
+		httpx.WithMetricsAccess(metricsAllow),
+		httpx.WithMetrics,
 		httpx.WithSecurityHeaders(),
 		httpx.WithLogging(logger),
 		httpx.WithRecovery(logger),

@@ -12,6 +12,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/events"
+	"github.com/hito-hospital/hdms/internal/platform/observability"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5"
 )
@@ -94,6 +95,9 @@ func (s *Service) ReturnLoan(ctx context.Context, sessionID, loanID, actor strin
 		}
 		resultSession = newRow
 		outcome = checkoutapi.Outcome{Kind: checkoutapi.OutcomeReturned, LoanID: closed.ID, Device: &checkoutapi.DeviceView{ID: device.ID, AssetTag: device.AssetTag, Name: device.Name}}
+		// Tap-to-return is a kiosk return with source manual (no scan_events
+		// row exists for it, so insertScanEvent cannot count it).
+		observability.ObserveTransaction("return", "manual", "success")
 		return nil
 	})
 	if txErr != nil {

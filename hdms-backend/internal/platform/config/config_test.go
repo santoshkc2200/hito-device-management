@@ -150,6 +150,35 @@ func TestConfigLoad_ProductionValid(t *testing.T) {
 	}
 }
 
+// TestMetricsAllowCIDRsDefaultsToLocalhost pins the 5.5a default: /metrics
+// is scrape-only from localhost unless the operator names the monitoring
+// host's network explicitly.
+func TestMetricsAllowCIDRsDefaultsToLocalhost(t *testing.T) {
+	env := validProductionEnv()
+	for k, v := range env {
+		t.Setenv(k, v)
+	}
+	t.Setenv("HDMS_METRICS_ALLOW_CIDRS", "")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	joined := strings.Join(cfg.MetricsAllowCIDRs, ",")
+	if !strings.Contains(joined, "127.0.0.1/32") || !strings.Contains(joined, "::1/128") {
+		t.Fatalf("MetricsAllowCIDRs default = %q, want localhost-only", cfg.MetricsAllowCIDRs)
+	}
+
+	t.Setenv("HDMS_METRICS_ALLOW_CIDRS", "10.0.0.0/24, 192.168.1.10")
+	cfg, err = config.Load()
+	if err != nil {
+		t.Fatalf("config.Load with custom allowlist: %v", err)
+	}
+	if len(cfg.MetricsAllowCIDRs) != 2 {
+		t.Fatalf("MetricsAllowCIDRs = %q, want 2 entries", cfg.MetricsAllowCIDRs)
+	}
+}
+
 // TestProductionConfigLogsNoSecretValues satisfies the 5.0b spec requirement
 // named productionConfigLogsNoSecretValues asserting that no secret value
 // appears in the startup log output.

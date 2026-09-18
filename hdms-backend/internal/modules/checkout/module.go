@@ -20,6 +20,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/events"
+	"github.com/hito-hospital/hdms/internal/platform/observability"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5"
 )
@@ -137,6 +138,7 @@ func (s *Service) GetSession(ctx context.Context, id string) (checkoutapi.Sessio
 	}
 
 	var row checkoutstore.ScanSession
+	expiredInline := false
 	txErr := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
 		q := checkoutstore.New(db.Conn(ctx, s.pool))
 		current, err := q.GetSessionForUpdate(ctx, sid)
@@ -161,6 +163,7 @@ func (s *Service) GetSession(ctx context.Context, id string) (checkoutapi.Sessio
 			return fmt.Errorf("checkout: expire session: %w", err)
 		}
 		row = closed
+		expiredInline = true
 		return nil
 	})
 	if txErr != nil {
@@ -169,6 +172,12 @@ func (s *Service) GetSession(ctx context.Context, id string) (checkoutapi.Sessio
 
 	switch {
 	case row.State == checkoutstore.SessionStateExpired:
+		// Only the inline close counts here: a session the sweeper already
+		// reaped was counted by the sweeper, and merely observing it must
+		// not count it again.
+		if expiredInline {
+			observability.IncSessionExpired()
+		}
 		return checkoutapi.Session{}, checkoutapi.ErrSessionExpired
 	case row.ClosedAt.Valid:
 		return checkoutapi.Session{}, checkoutapi.ErrSessionClosed

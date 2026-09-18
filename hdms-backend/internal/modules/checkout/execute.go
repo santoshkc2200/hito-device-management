@@ -14,6 +14,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/events"
+	"github.com/hito-hospital/hdms/internal/platform/observability"
 	"github.com/hito-hospital/hdms/internal/platform/pgtypeconv"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -91,6 +92,7 @@ func (s *Service) executeBorrow(
 						if err := s.insertScanEvent(ctx, q, session.ID, params, in, "rejected", "user_blocked_overdue"); err != nil {
 							return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
 						}
+						observability.ObserveTransaction("borrow", params.Source, "rejected")
 						msg := checkoutapi.Message{
 							Title:  "Borrowing blocked",
 							Detail: "You have overdue items that must be returned before borrowing new equipment.",
@@ -164,6 +166,7 @@ func (s *Service) executeBorrow(
 	if err := s.insertScanEvent(ctx, q, session.ID, params, in, "accepted", ""); err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
 	}
+	observability.ObserveTransaction("borrow", params.Source, "success")
 
 	outcome := checkoutapi.Outcome{
 		Kind: checkoutapi.OutcomeBorrowed, LoanID: loan.ID,
@@ -200,6 +203,7 @@ func (s *Service) executeConcurrentBorrowLoss(
 	if err := s.insertScanEvent(ctx, q, session.ID, params, in, "rejected", "device_already_on_loan"); err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
 	}
+	observability.ObserveTransaction("borrow", params.Source, "rejected")
 	msg := s.renderMessage(ctx, reject, map[string]any{"borrowedAt": existing.BorrowedAt})
 	return checkoutapi.Outcome{Kind: checkoutapi.OutcomeRejected}, msg, newSession, nil
 }
@@ -243,6 +247,7 @@ func (s *Service) executeReturn(
 	if err := s.insertScanEvent(ctx, q, session.ID, params, in, "accepted", ""); err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
 	}
+	observability.ObserveTransaction("return", params.Source, "success")
 
 	outcome := checkoutapi.Outcome{Kind: checkoutapi.OutcomeReturned, LoanID: loan.ID, Device: &checkoutapi.DeviceView{ID: device.ID, AssetTag: device.AssetTag, Name: device.Name}}
 	msg := s.renderMessage(ctx, decision, nil)
@@ -357,6 +362,7 @@ func (s *Service) executeExpire(ctx context.Context, q *checkoutstore.Queries, s
 	if err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: expire session: %w", err)
 	}
+	observability.IncSessionExpired()
 	return checkoutapi.Outcome{Kind: checkoutapi.OutcomeRejected}, messages.Render(machine.MsgExpired, nil), newRow, nil
 }
 
@@ -426,6 +432,12 @@ func (s *Service) insertScanEvent(ctx context.Context, q *checkoutstore.Queries,
 	})
 	if err != nil {
 		return fmt.Errorf("checkout: insert scan event: %w", err)
+	}
+	// 5.5a: every rejected or duplicate scan counts, at the point the event
+	// is written (after the write succeeds, so a rolled-back transaction
+	// never inflates the counter — only the rare commit failure can).
+	if result == "rejected" || result == "duplicate" {
+		observability.IncScanRejection(reason)
 	}
 	return nil
 }
