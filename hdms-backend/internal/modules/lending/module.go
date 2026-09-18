@@ -848,7 +848,6 @@ func (s *Service) GetReportSummaryStats(ctx context.Context, from, to time.Time)
 		})
 	}
 
-
 	return lendingapi.ReportSummaryStats{
 		TotalLoans:       totalLoans,
 		OpenLoans:        openLoans,
@@ -1041,4 +1040,3 @@ func (s *Service) StreamLoansForExport(ctx context.Context, params lendingapi.Li
 	}
 	return result, nil
 }
-

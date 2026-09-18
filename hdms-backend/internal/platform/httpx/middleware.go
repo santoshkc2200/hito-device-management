@@ -167,6 +167,7 @@ var (
 	kioskScanLimiters sync.Map // kiosk scan class map[string]*rate.Limiter
 	adminReadLimiters sync.Map // admin reads class map[string]*rate.Limiter
 	exportLimiters    sync.Map // exports class map[string]*rate.Limiter
+	remindLimiters    sync.Map // manual loan reminder class map[string]*rate.Limiter
 	generalLimiters   sync.Map // general class map[string]*rate.Limiter
 )
 
@@ -192,6 +193,11 @@ const (
 	// Exports class (strict): heavy CSV database streaming reports.
 	exportRateLimit = 6.0 / 60.0 // 6 exports per minute (1 per 10s)
 	exportBurst     = 5
+
+	// Manual loan reminder class (strict per loan): 1 reminder per loan per minute sustained, burst of 1.
+	// Prevents an administrator repeatedly clicking [Remind] on the same loan.
+	remindRateLimit = 1.0 / 60.0
+	remindBurst     = 1
 
 	// General fallback.
 	generalRateLimit = 10.0
@@ -242,6 +248,21 @@ func WithRateLimiting(enabled bool) Middleware {
 				if !allow(&exportLimiters, key, exportRateLimit, exportBurst) {
 					w.Header().Set("Retry-After", "60")
 					WriteProblem(w, r, NewProblem("rate-limited", "Too many export requests", http.StatusTooManyRequests))
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// 3b. Manual loan reminder class (6.2e: rate-limited per loan)
+			if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/loans/") && strings.HasSuffix(r.URL.Path, "/remind") {
+				loanID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/loans/"), "/remind")
+				remindKey := "loan_remind:" + loanID
+				if !allow(&remindLimiters, remindKey, remindRateLimit, remindBurst) {
+					w.Header().Set("Retry-After", "60")
+					prob := NewProblem("rate-limited", "Reminder rate limit exceeded", http.StatusTooManyRequests)
+					prob.Detail = "A reminder for this loan was sent recently. Please wait before sending another."
+					WriteProblem(w, r, prob)
 					return
 				}
 				next.ServeHTTP(w, r)
@@ -311,6 +332,10 @@ func ResetRateLimiters() {
 	})
 	exportLimiters.Range(func(key, value any) bool {
 		exportLimiters.Delete(key)
+		return true
+	})
+	remindLimiters.Range(func(key, value any) bool {
+		remindLimiters.Delete(key)
 		return true
 	})
 	generalLimiters.Range(func(key, value any) bool {

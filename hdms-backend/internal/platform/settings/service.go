@@ -40,10 +40,10 @@ type LabelTemplateSettings struct {
 }
 
 type SlipTemplateSettings struct {
-	HospitalName    string   `json:"hospitalName"`
-	PageRefFormat   string   `json:"pageRefFormat"`
-	RowsPerPage     int      `json:"rowsPerPage"`
-	Columns         []string `json:"columns"`
+	HospitalName  string   `json:"hospitalName"`
+	PageRefFormat string   `json:"pageRefFormat"`
+	RowsPerPage   int      `json:"rowsPerPage"`
+	Columns       []string `json:"columns"`
 }
 
 type Settings struct {

@@ -142,7 +142,8 @@ Filled in as items are scheduled, not before.
 
 | File | Sub-phase | Claimed |
 |---|---|---|
-| _(next free: `0019`)_ | — | — |
+| `0021_notifications.sql` | 6.2 | 2026-09-18 |
+| _(next free: `0022`)_ | — | — |
 
 ## Gaps in the tree this breakdown found
 

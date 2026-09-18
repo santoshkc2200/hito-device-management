@@ -16,7 +16,6 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/tokens"
 	"github.com/hito-hospital/hdms/test/fixtures"
-
 )
 
 func TestReportsAPI(t *testing.T) {
@@ -200,7 +199,6 @@ func TestReportsAPI(t *testing.T) {
 		ScannedAt: tNow,
 		Actor:     "kiosk:" + kioskID,
 	})
-
 
 	resp = h.get(t, "/v1/reports/operational-health?from="+fromStr+"&to="+toStr)
 	if resp.StatusCode != http.StatusOK {

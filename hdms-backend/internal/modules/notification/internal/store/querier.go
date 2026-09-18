@@ -6,16 +6,25 @@ package notificationstore
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
-	// Placeholder so sqlc has something to generate against. sqlc.yaml already
-	// declared this directory before Phase 2 existed, but nothing had created
-	// it yet — discovered while closing 2.0's lending/checkout query-directory
-	// gap, which needs `sqlc generate` to succeed cleanly across every entry in
-	// sqlc.yaml, not just the two this sub-phase otherwise owns. Notification
-	// itself is Phase 6 scope.
-	Ping(ctx context.Context) (int32, error)
+	FindOverdueCandidateLoans(ctx context.Context, dueAt pgtype.Timestamptz) ([]FindOverdueCandidateLoansRow, error)
+	GetDelivery(ctx context.Context, id pgtype.UUID) (DeliveryLog, error)
+	GetDeliveryByDedupeKey(ctx context.Context, dedupeKey string) (DeliveryLog, error)
+	GetLoanForNotification(ctx context.Context, id pgtype.UUID) (GetLoanForNotificationRow, error)
+	GetPreferences(ctx context.Context, userID pgtype.UUID) (NotificationPreference, error)
+	HasOverdueEscalation(ctx context.Context, arg HasOverdueEscalationParams) (bool, error)
+	// Queries for the notification module (delivery_log, preferences, overdue_escalations)
+	InsertDelivery(ctx context.Context, arg InsertDeliveryParams) (DeliveryLog, error)
+	ListDeliveries(ctx context.Context, arg ListDeliveriesParams) ([]DeliveryLog, error)
+	ListPendingDeliveries(ctx context.Context, arg ListPendingDeliveriesParams) ([]DeliveryLog, error)
+	ListQuarantinedDeliveries(ctx context.Context) ([]DeliveryLog, error)
+	RecordOverdueEscalation(ctx context.Context, arg RecordOverdueEscalationParams) (OverdueEscalation, error)
+	UpdateDeliveryStatus(ctx context.Context, arg UpdateDeliveryStatusParams) (DeliveryLog, error)
+	UpsertPreferences(ctx context.Context, arg UpsertPreferencesParams) (NotificationPreference, error)
 }
 
 var _ Querier = (*Queries)(nil)

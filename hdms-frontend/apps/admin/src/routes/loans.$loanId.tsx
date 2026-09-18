@@ -7,6 +7,7 @@ import {
   getUser,
   listAuditEvents,
   listUsers,
+  remindLoan,
   writeOffLoan,
 } from "@hdms/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,8 +15,8 @@ import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
   ArrowLeft,
+  Bell,
   Clock,
-  Copy,
   CornerDownLeft,
   FileText,
   History,
@@ -234,28 +235,34 @@ export function LoanDetailPage() {
     },
   });
 
-  const handleCopyReminder = async () => {
-    if (!loan) return;
-    const userName = borrower?.fullName || t("loans.reminderUserFallback");
-    const devName = device?.name || t("loans.reminderDeviceFallback");
-    const assetTag = device?.assetTag || "";
-    const formattedDue = formatDate(loan.dueAt);
-
-    const message = t("loans.reminderMessage", {
-      user: userName,
-      device: devName,
-      assetTag,
-      dueAt: formattedDue,
-    });
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(message);
+  const remindMutation = useMutation({
+    mutationFn: async () => {
+      if (!loan) return;
+      const { data, error, response } = await remindLoan({
+        path: { id: loan.id },
+      });
+      if (error) {
+        throw { ...error, status: response?.status };
       }
-      toast.success(t("loans.reminderCopied"));
-    } catch {
-      toast.error(t("loans.reminderCopyFailed"));
-    }
-  };
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.outcome === "sent") {
+        toast.success(t("loanDetail.remindSuccess"));
+      } else if (data?.outcome === "queued_quiet_hours") {
+        toast.info(t("loanDetail.remindQueuedQuietHours"));
+      } else if (data?.outcome === "refused") {
+        toast.warning(t("loanDetail.remindRefused", { reason: data.reason || "" }));
+      }
+    },
+    onError: (err: any) => {
+      if (err?.status === 429) {
+        toast.error(t("loanDetail.remindRateLimited"));
+      } else {
+        toast.error(err?.detail || err?.title || t("loanDetail.remindFailed"));
+      }
+    },
+  });
 
   if (loanLoading) {
     return <LoadingState message={t("loanDetail.loadingLoan")} />;
@@ -312,12 +319,13 @@ export function LoanDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleCopyReminder}
+              onClick={() => remindMutation.mutate()}
+              disabled={remindMutation.isPending}
               title={t("loanDetail.remindTooltip")}
               data-testid="remind-button"
             >
-              <Copy className="size-3.5 mr-1.5" />
-              {t("loanDetail.remind")}
+              <Bell className={`size-3.5 mr-1.5 ${remindMutation.isPending ? "animate-pulse" : ""}`} />
+              {remindMutation.isPending ? t("loanDetail.remindSending") : t("loanDetail.remind")}
             </Button>
           )}
 

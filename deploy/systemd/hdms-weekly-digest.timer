@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HDMS weekly admin summary digest Monday morning (6.2c)
+
+[Timer]
+OnCalendar=Mon 08:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=hdms-weekly-digest.service
+
+[Install]
+WantedBy=timers.target

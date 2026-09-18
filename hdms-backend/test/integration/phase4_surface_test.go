@@ -31,7 +31,6 @@ func phase4Stubs() []phase4Stub {
 	return []phase4Stub{}
 }
 
-
 // TestPhase4SurfaceIsRouted is the check the one-pass contract needs: a 404
 // here would mean an operation exists in the spec and in the generated
 // interface but never reached a route, which no compiler catches and which

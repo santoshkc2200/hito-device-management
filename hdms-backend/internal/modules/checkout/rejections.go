@@ -87,4 +87,3 @@ func (s *Service) GetOperationalHealth(ctx context.Context, from, to time.Time) 
 		RejectionReasons:    rejectionReasons,
 	}, nil
 }
-

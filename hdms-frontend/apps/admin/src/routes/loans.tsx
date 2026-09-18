@@ -8,6 +8,7 @@ import {
   listDevices,
   listLoans,
   listUsers,
+  remindLoan,
   writeOffLoan,
 } from "@hdms/api-client";
 import { createColumnHelper } from "@tanstack/react-table";
@@ -15,7 +16,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
-  Copy,
+  Bell,
   CornerDownLeft,
   ExternalLink,
   FileCheck2,
@@ -278,29 +279,39 @@ export function LoansPage() {
     },
   });
 
-  const handleCopyReminder = async (loan: Loan) => {
-    const user = userMap.get(loan.userId);
-    const device = deviceMap.get(loan.deviceId);
-    const formattedDue = formatDate(loan.dueAt);
-    const userName = user?.fullName || t("loans.reminderUserFallback");
-    const devName = device?.name || t("loans.reminderDeviceFallback");
-    const assetTag = device?.assetTag || "";
+  const [remindingId, setRemindingId] = useState<string | null>(null);
 
-    const message = t("loans.reminderMessage", {
-      user: userName,
-      device: devName,
-      assetTag,
-      dueAt: formattedDue,
-    });
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(message);
+  const remindMutation = useMutation({
+    mutationFn: async (loanId: string) => {
+      setRemindingId(loanId);
+      const { data, error, response } = await remindLoan({
+        path: { id: loanId },
+      });
+      if (error) {
+        throw { ...error, status: response?.status };
       }
-      toast.success(t("loans.reminderCopied"));
-    } catch {
-      toast.error(t("loans.reminderCopyFailed"));
-    }
-  };
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.outcome === "sent") {
+        toast.success(t("loans.remindSuccess"));
+      } else if (data?.outcome === "queued_quiet_hours") {
+        toast.info(t("loans.remindQueuedQuietHours"));
+      } else if (data?.outcome === "refused") {
+        toast.warning(t("loans.remindRefused", { reason: data.reason || "" }));
+      }
+    },
+    onError: (err: any) => {
+      if (err?.status === 429) {
+        toast.error(t("loans.remindRateLimited"));
+      } else {
+        toast.error(err?.detail || err?.title || t("loans.remindFailed"));
+      }
+    },
+    onSettled: () => {
+      setRemindingId(null);
+    },
+  });
 
   // Filter and sort items
   const filteredLoans = useMemo(() => {
@@ -469,12 +480,13 @@ export function LoansPage() {
                   variant="ghost"
                   size="sm"
                   className="h-8 px-2 text-xs"
-                  onClick={() => handleCopyReminder(loan)}
+                  onClick={() => remindMutation.mutate(loan.id)}
+                  disabled={remindingId === loan.id}
                   title={t("loans.remindTooltip")}
                   data-testid={`remind-btn-${loan.id}`}
                 >
-                  <Copy className="size-3.5 mr-1" />
-                  {t("loans.remind")}
+                  <Bell className={`size-3.5 mr-1 ${remindingId === loan.id ? "animate-pulse" : ""}`} />
+                  {remindingId === loan.id ? t("loans.remindSending") : t("loans.remind")}
                 </Button>
               )}
               <DropdownMenu>

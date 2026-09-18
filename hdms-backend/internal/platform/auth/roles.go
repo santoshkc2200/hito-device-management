@@ -63,19 +63,22 @@ var RequiredRoles = map[string]string{
 	"POST /v1/imports/devices":          "technician",
 	"POST /v1/credentials/{id}/reprint": "technician",
 	"POST /v1/loans/{id}/force-return":  "technician",
+	"POST /v1/loans/{id}/remind":        "technician",
 
 	// --- Admin-Only: Users & Registration ------------------------------------
-	"GET /v1/users":                            "admin",
-	"POST /v1/users":                           "admin",
-	"POST /v1/users/register-with-card":        "admin",
-	"GET /v1/users/{id}":                       "admin",
-	"PATCH /v1/users/{id}":                     "admin",
-	"POST /v1/users/{id}/suspend":              "admin",
-	"POST /v1/users/{id}/staff-password-reset": "admin",
-	"POST /v1/users/{id}/archive":              "admin",
-	"GET /v1/users/check-employee-no":          "admin",
-	"POST /v1/imports/users/preview":           "admin",
-	"POST /v1/imports/users":                   "admin",
+	"GET /v1/users":                               "admin",
+	"POST /v1/users":                              "admin",
+	"POST /v1/users/register-with-card":           "admin",
+	"GET /v1/users/{id}":                          "admin",
+	"PATCH /v1/users/{id}":                        "admin",
+	"POST /v1/users/{id}/suspend":                 "admin",
+	"POST /v1/users/{id}/staff-password-reset":    "admin",
+	"GET /v1/users/{id}/notification-preferences": "admin",
+	"PUT /v1/users/{id}/notification-preferences": "admin",
+	"POST /v1/users/{id}/archive":                 "admin",
+	"GET /v1/users/check-employee-no":             "admin",
+	"POST /v1/imports/users/preview":              "admin",
+	"POST /v1/imports/users":                      "admin",
 
 	// --- Admin-Only: Categories & Policies -----------------------------------
 	"POST /v1/categories":       "admin",
@@ -102,9 +105,10 @@ var RequiredRoles = map[string]string{
 	"POST /v1/loans/{id}/write-off":           "admin",
 	"POST /v1/loans/{id}/correct-attribution": "admin",
 
-	// --- Admin-Only: Audit Log -----------------------------------------------
-	"GET /v1/audit":     "admin",
-	"GET /v1/audit.csv": "admin",
+	// --- Admin-Only: Audit & Notifications ------------------------------------
+	"GET /v1/audit":                     "admin",
+	"GET /v1/audit.csv":                 "admin",
+	"GET /v1/notifications/quarantined": "admin",
 
 	// --- Admin-Only: Settings & Kiosks ---------------------------------------
 	"GET /v1/settings":                  "admin",

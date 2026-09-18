@@ -204,7 +204,9 @@ describe("Phase 4.7 — Dashboard", () => {
     it("sorts overdue loans worst-first and provides Remind and Force Return actions", async () => {
       const user = userEvent.setup();
       const queryClient = createTestQueryClient();
-      const clipboardWriteSpy = vi.spyOn(navigator.clipboard, "writeText");
+      const remindLoanSpy = vi.spyOn(apiClient, "remindLoan").mockResolvedValue({
+        data: { outcome: "sent" },
+      } as any);
 
       vi.spyOn(apiClient, "forceReturnLoan").mockResolvedValue({
         data: {} as any,
@@ -234,12 +236,9 @@ describe("Phase 4.7 — Dashboard", () => {
       const remindButtons = screen.getAllByRole("button", { name: new RegExp(ja.dashboard.overdue.remindButton, "i") });
       await user.click(remindButtons[0]);
 
-      expect(clipboardWriteSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Dr. Robert Smith")
-      );
-      expect(clipboardWriteSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Infusion Pump B")
-      );
+      expect(remindLoanSpy).toHaveBeenCalledWith({
+        path: { id: "loan-2" },
+      });
 
       // Click Force Return on row 1
       const forceReturnButtons = screen.getAllByRole("button", { name: new RegExp(ja.dashboard.overdue.forceReturnButton, "i") });

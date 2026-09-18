@@ -26,6 +26,9 @@ func validProductionEnv() map[string]string {
 		"HDMS_TOTP_ENC_KEY":         key32,
 		"HDMS_RATE_LIMIT":           "on",
 		"HDMS_CORS_ALLOWED_ORIGINS": "https://hdms.hospital.local",
+		"HDMS_SMTP_HOST":            "smtp.prod.hospital",
+		"HDMS_SMTP_PORT":            "587",
+		"HDMS_SMTP_FROM_ADDRESS":    "hdms@hospital.org",
 	}
 }
 
@@ -100,6 +103,27 @@ func TestConfigLoad_ProductionRefusals(t *testing.T) {
 				delete(env, "HDMS_TOTP_ENC_KEY")
 			},
 			wantVar: "HDMS_TOTP_ENC_KEY",
+		},
+		{
+			name: "refuses default localhost smtp host in production",
+			modifyEnv: func(env map[string]string) {
+				env["HDMS_SMTP_HOST"] = "localhost"
+			},
+			wantVar: "HDMS_SMTP_HOST",
+		},
+		{
+			name: "refuses dev catcher port 1025 in production",
+			modifyEnv: func(env map[string]string) {
+				env["HDMS_SMTP_PORT"] = "1025"
+			},
+			wantVar: "HDMS_SMTP_PORT",
+		},
+		{
+			name: "refuses default localhost from address in production",
+			modifyEnv: func(env map[string]string) {
+				env["HDMS_SMTP_FROM_ADDRESS"] = "hdms@hospital.local"
+			},
+			wantVar: "HDMS_SMTP_FROM_ADDRESS",
 		},
 	}
 
@@ -196,6 +220,7 @@ func productionConfigLogsNoSecretValues(t *testing.T) {
 		secretCredKeyRaw = "super_secret_credential_enc_key"
 		secretTotpKeyRaw = "super_secret_totp_secret_enc_key"
 		secretEntraKey   = "super_secret_entra_client_secret_456"
+		secretSMTPPass   = "super_secret_smtp_password_999"
 	)
 
 	cfg := config.Config{
@@ -217,6 +242,10 @@ func productionConfigLogsNoSecretValues(t *testing.T) {
 		StaffSessionTTL:     12 * time.Hour,
 		RateLimitEnabled:    true,
 		CORSAllowedOrigins:  []string{"https://hdms.hospital.local"},
+		SMTPHost:            "smtp.prod.hospital",
+		SMTPPort:            587,
+		SMTPPassword:        secretSMTPPass,
+		SMTPFromAddress:     "hdms@hospital.org",
 		OTLPEndpoint:        "http://collector:4318",
 		LogLevel:            "info",
 	}
@@ -233,6 +262,7 @@ func productionConfigLogsNoSecretValues(t *testing.T) {
 		{"credential encryption key", secretCredKeyRaw},
 		{"TOTP encryption key", secretTotpKeyRaw},
 		{"Entra client secret", secretEntraKey},
+		{"SMTP password", secretSMTPPass},
 	}
 
 	for _, s := range secrets {

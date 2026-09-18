@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HDMS overdue equipment scan hourly (6.2a)
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=60
+Unit=hdms-overdue-scan.service
+
+[Install]
+WantedBy=timers.target

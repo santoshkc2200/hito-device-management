@@ -452,6 +452,44 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /users/{id}/notification-preferences:
+    get:
+      operationId: getUserNotificationPreferences
+      summary: Get per-user notification preferences and opt-out status (Phase 6.2d).
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    put:
+      operationId: updateUserNotificationPreferences
+      summary: Update per-user notification channel preferences and opt-out status (Phase 6.2d).
+      tags: [users]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNotificationPreferencesRequest"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /departments:
     get:
       operationId: listDepartments
@@ -1108,6 +1146,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Loan"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /loans/{id}/remind:
+    post:
+      operationId: remindLoan
+      summary: Send or queue an overdue reminder to the borrower (Phase 6.2e).
+      tags: [loans]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemindOutcome"
         default:
           $ref: "#/components/responses/ProblemResponse"
 
@@ -1859,6 +1914,25 @@ paths:
             text/csv:
               schema:
                 type: string
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  # --- Notifications (6.2b) -------------------------------------------------
+
+  /notifications/quarantined:
+    get:
+      operationId: listQuarantinedDeliveries
+      summary: List quarantined notification deliveries that exhausted retries (Phase 6.2b).
+      tags: [notifications]
+      parameters:
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuarantinedDeliveryList"
         default:
           $ref: "#/components/responses/ProblemResponse"
 
@@ -3812,6 +3886,58 @@ components:
           items:
             $ref: "#/components/schemas/StaffLoan"
         nextCursor: {type: string}
+
+    QuarantinedDelivery:
+      type: object
+      required: [id, recipient, channel, template, attemptCount, status, createdAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        recipient: {type: string}
+        channel: {type: string}
+        template: {type: string}
+        attemptCount: {type: integer}
+        status: {type: string}
+        lastError: {type: string}
+        nextAttemptAt: {type: string, format: date-time}
+        loanId: {type: string, format: uuid}
+        userId: {type: string, format: uuid}
+        escalationStep: {type: integer}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+
+    QuarantinedDeliveryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuarantinedDelivery"
+
+    NotificationPreferences:
+      type: object
+      required: [userId, channel, optedOut, updatedAt, updatedBy]
+      properties:
+        userId: {type: string, format: uuid}
+        channel: {type: string, enum: [email]}
+        optedOut: {type: boolean}
+        updatedAt: {type: string, format: date-time}
+        updatedBy: {type: string}
+
+    UpdateNotificationPreferencesRequest:
+      type: object
+      required: [channel, optedOut]
+      properties:
+        channel: {type: string, enum: [email]}
+        optedOut: {type: boolean}
+
+    RemindOutcome:
+      type: object
+      required: [outcome]
+      properties:
+        outcome: {type: string, enum: [sent, queued_quiet_hours, refused]}
+        reason: {type: string}
+        deliveryId: {type: string, format: uuid}
 
   parameters:
     IDParam:

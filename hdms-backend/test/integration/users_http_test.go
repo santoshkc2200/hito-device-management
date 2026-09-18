@@ -379,4 +379,3 @@ func TestHTTPRegisterWithCardDuplicateEmployeeNoRace(t *testing.T) {
 	}
 	raceResp.Body.Close()
 }
-

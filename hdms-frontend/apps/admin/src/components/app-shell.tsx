@@ -2,6 +2,7 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import {
+  Bell,
   Boxes,
   FileCheck2,
   FileSpreadsheet,
@@ -76,6 +77,7 @@ export function AppShell() {
         items: [
           { to: "/reports", label: t("nav.reports"), icon: FileText },
           { to: "/audit", label: t("nav.audit"), icon: ShieldAlert, minRole: "admin" },
+          { to: "/notifications", label: t("nav.notifications"), icon: Bell, minRole: "admin" },
         ],
       },
       {
