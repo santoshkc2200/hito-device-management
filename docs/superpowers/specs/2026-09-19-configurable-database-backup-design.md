@@ -280,7 +280,7 @@ Two new tables:
 ```sql
 -- migrations/0024_backup_destinations.sql
 CREATE TABLE backup_destinations (
-  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                 uuid PRIMARY KEY,
   name               text NOT NULL,
   kind               text NOT NULL CHECK (kind IN ('path','rclone')),
   target             text NOT NULL,
@@ -298,7 +298,7 @@ CREATE UNIQUE INDEX backup_destinations_target_key ON backup_destinations (kind,
 
 -- migrations/0025_backup_requests.sql
 CREATE TABLE backup_requests (
-  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id             uuid PRIMARY KEY,
   kind           text NOT NULL CHECK (kind IN ('run','test')),
   destination_id uuid REFERENCES backup_destinations(id) ON DELETE CASCADE,
   requested_by   text NOT NULL,
@@ -311,6 +311,10 @@ CREATE TABLE backup_requests (
 CREATE INDEX backup_requests_pending ON backup_requests (requested_at)
   WHERE started_at IS NULL;
 ```
+
+Both tables follow the house convention: `uuid PRIMARY KEY` with no database
+default, identifiers minted in Go by `ids.NewUUID()`, and `GRANT SELECT, INSERT,
+UPDATE, DELETE ... TO hdms_app` in the migration.
 
 `initialized_at` records that `restic init --copy-chunker-params` has run against
 that repository, so a destination is initialised once and not probed for
@@ -455,8 +459,13 @@ in the root-owned environment file and is not editable from the console.
 the remote exists and accepts a write, which a syntactic check cannot.
 
 **Secrets.** `HDMS_BACKUP_ENC_KEY` becomes the restic repository password for every
-repository, passed by `RESTIC_PASSWORD_FILE` or stdin, never as a command-line
-argument where it would appear in the host process list. It remains in the
+repository, passed in the subprocess environment as `RESTIC_PASSWORD`. Never as a
+command-line argument: `/proc/<pid>/cmdline` is world-readable, so an argv secret
+is visible to every user on the host, while `/proc/<pid>/environ` is readable only
+by the process owner and root. The environment is used rather than
+`RESTIC_PASSWORD_FILE` because `backup --stdin` already occupies stdin with the
+dump, and a temporary password file would put the key on disk with a lifetime to
+manage. It remains in the
 root-owned environment file and in the hospital password manager, current and
 previous, and never beside the backups. No new secret is introduced and no cloud
 credential enters the HDMS database.
