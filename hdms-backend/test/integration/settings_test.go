@@ -41,6 +41,9 @@ func TestSettingsGetAndUpdate(t *testing.T) {
 	if st.Policy.PaperBacklogHours != 48 {
 		t.Errorf("default paperBacklogHours = %d, want 48", st.Policy.PaperBacklogHours)
 	}
+	if st.BookingPolicy.AdvanceDays != 90 || st.BookingPolicy.MaxDurationDays != 30 || st.BookingPolicy.ReturnBufferMinutes != 60 {
+		t.Errorf("default booking policy = %+v", st.BookingPolicy)
+	}
 	if st.LabelTemplate.SheetWidthMm != 210 || st.LabelTemplate.SheetHeightMm != 297 {
 		t.Errorf("default sheet size = %vx%v, want 210x297", st.LabelTemplate.SheetWidthMm, st.LabelTemplate.SheetHeightMm)
 	}
@@ -89,6 +92,9 @@ func TestSettingsGetAndUpdate(t *testing.T) {
 
 	if !updated.Policy.BlockOnOverdue || updated.Policy.SessionIdleTimeoutSeconds != 60 || updated.Policy.LowStockThreshold != 15 {
 		t.Errorf("updated policy mismatch: %+v", updated.Policy)
+	}
+	if updated.BookingPolicy != st.BookingPolicy {
+		t.Errorf("updating another settings section changed booking policy: %+v", updated.BookingPolicy)
 	}
 	if updated.LabelTemplate.Columns != 4 || updated.LabelTemplate.Rows != 10 {
 		t.Errorf("updated label template mismatch: %+v", updated.LabelTemplate)

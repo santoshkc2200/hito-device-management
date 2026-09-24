@@ -1,5 +1,5 @@
 import { getStaffDevices } from "@hdms/api-client";
-import { formatTime, useLocale } from "@hdms/i18n";
+import { formatDate, formatTime, useLocale } from "@hdms/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -94,10 +94,7 @@ export function DevicesPage() {
                   {device.availability === "in_use" && device.expectedBackAt && (
                     <div className="text-xs text-muted-foreground">
                       {t("devices.expectedBackAt", {
-                        time: formatTime(
-                          locale,
-                          device.expectedBackAt,
-                        ),
+                        time: `${formatDate(locale, device.expectedBackAt)} ${formatTime(locale, device.expectedBackAt)}`,
                       })}
                     </div>
                   )}

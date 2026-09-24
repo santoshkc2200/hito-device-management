@@ -49,6 +49,14 @@ const policyFormSchema = z.object({
 
 type PolicyFormValues = z.infer<typeof policyFormSchema>;
 
+const bookingPolicySchema = z.object({
+  advanceDays: z.number().int().min(1, "validation.bookingDaysRange").max(365, "validation.bookingDaysRange"),
+  maxDurationDays: z.number().int().min(1, "validation.bookingDaysRange").max(365, "validation.bookingDaysRange"),
+  returnBufferMinutes: z.number().int().min(0, "validation.bookingBufferRange").max(1440, "validation.bookingBufferRange"),
+});
+
+type BookingPolicyFormValues = z.infer<typeof bookingPolicySchema>;
+
 const categoryFormSchema = z.object({
   name: z.string().min(1, "validation.nameRequired"),
   defaultLoanPeriodDays: z.number().int().min(0).optional(),
@@ -111,6 +119,11 @@ export function PolicyPanel() {
     },
   });
 
+  const bookingForm = useForm<BookingPolicyFormValues>({
+    resolver: useLocalizedResolver(bookingPolicySchema),
+    defaultValues: { advanceDays: 90, maxDurationDays: 30, returnBufferMinutes: 60 },
+  });
+
   useEffect(() => {
     if (settingsData?.policy) {
       reset({
@@ -122,6 +135,10 @@ export function PolicyPanel() {
       });
     }
   }, [settingsData, reset]);
+
+  useEffect(() => {
+    if (settingsData?.bookingPolicy) bookingForm.reset(settingsData.bookingPolicy);
+  }, [settingsData, bookingForm.reset]);
 
   // 4. Update Policy Mutation
   const updatePolicyMutation = useMutation({
@@ -140,6 +157,21 @@ export function PolicyPanel() {
     },
     onError: (err: any) => {
       toast.error(err?.detail || err?.title || t("policyPanel.policyUpdateFailed"));
+    },
+  });
+
+  const updateBookingPolicyMutation = useMutation({
+    mutationFn: async (values: BookingPolicyFormValues) => {
+      const res = await updateSettings({ body: { bookingPolicy: values } });
+      if (res.error) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["settings"], data);
+      toast.success(t("policyPanel.bookingPolicyUpdated"));
+    },
+    onError: (err: any) => {
+      toast.error(err?.detail || err?.title || t("policyPanel.bookingPolicyUpdateFailed"));
     },
   });
 
@@ -449,6 +481,41 @@ export function PolicyPanel() {
                 >
                   <Save className="size-4" />
                   {updatePolicyMutation.isPending ? t("policyPanel.savingPolicy") : t("policyPanel.savePolicySettings")}
+                </Button>
+              </div>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("policyPanel.bookingPolicyTitle")}</CardTitle>
+          <CardDescription>{t("policyPanel.bookingPolicyDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={bookingForm.handleSubmit((v) => updateBookingPolicyMutation.mutate(v))} className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-3">
+              {([
+                ["advanceDays", "bookingAdvanceDaysLabel", 1, 365],
+                ["maxDurationDays", "bookingMaxDurationDaysLabel", 1, 365],
+                ["returnBufferMinutes", "bookingReturnBufferMinutesLabel", 0, 1440],
+              ] as const).map(([name, label, min, max]) => (
+                <div key={name} className="space-y-2">
+                  <label htmlFor={name} className="text-sm font-medium">{t(`policyPanel.${label}`)}</label>
+                  <Input id={name} type="number" min={min} max={max} disabled={!isAdmin}
+                    {...bookingForm.register(name, { valueAsNumber: true })} />
+                  {bookingForm.formState.errors[name] && (
+                    <p className="text-xs text-destructive">{bookingForm.formState.errors[name]?.message}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            {isAdmin && (
+              <div className="flex justify-end border-t pt-4">
+                <Button type="submit" disabled={updateBookingPolicyMutation.isPending || !bookingForm.formState.isDirty} className="gap-2">
+                  <Save className="size-4" />
+                  {updateBookingPolicyMutation.isPending ? t("policyPanel.savingPolicy") : t("policyPanel.saveBookingPolicy")}
                 </Button>
               </div>
             )}

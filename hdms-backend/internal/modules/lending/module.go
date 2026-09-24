@@ -85,6 +85,11 @@ func (s *Service) OpenLoan(ctx context.Context, deviceID, userID string, dueAt *
 
 	var loan lendingapi.Loan
 	txErr := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		// Staff booking takes this lock before checking for an open loan.
+		// Serialize a new loan with that check and reservation creation.
+		if _, err := db.Conn(ctx, s.pool).Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`, did); err != nil {
+			return err
+		}
 		q := lendingstore.New(db.Conn(ctx, s.pool))
 		row, err := q.OpenLoan(ctx, lendingstore.OpenLoanParams{
 			ID:            pgtypeconv.NewUUID(),

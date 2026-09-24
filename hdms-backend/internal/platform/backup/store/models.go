@@ -900,6 +900,9 @@ type Setting struct {
 	UpdatedBy                     string             `json:"updated_by"`
 	ReservationPreWindowMinutes   int32              `json:"reservation_pre_window_minutes"`
 	ReservationExpiryGraceMinutes int32              `json:"reservation_expiry_grace_minutes"`
+	BookingAdvanceDays            int32              `json:"booking_advance_days"`
+	BookingMaxDurationDays        int32              `json:"booking_max_duration_days"`
+	BookingReturnBufferMinutes    int32              `json:"booking_return_buffer_minutes"`
 }
 
 type StaffAccount struct {

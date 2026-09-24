@@ -3,6 +3,7 @@ package apiserver
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
@@ -12,6 +13,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
+	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 )
 
@@ -151,15 +153,28 @@ func (s *Server) GetStaffMeLoans(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) GetStaffMeReservations(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetStaffMeReservations(w http.ResponseWriter, r *http.Request, _ gen.GetStaffMeReservationsParams) {
 	account, ok := staffauth.AccountFromContext(r.Context())
 	if !ok {
 		s.writeServiceError(w, r, auth.ErrSessionInvalid)
 		return
 	}
+	lp, err := listing.Parse(r, listing.ReservationsSpec)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	var cursorStartAt *time.Time
+	var cursorID *string
+	if lp.Cursor != nil {
+		cursorStartAt, _ = lp.Cursor.TimeVal()
+		if lp.Cursor.ID != "" {
+			cursorID = &lp.Cursor.ID
+		}
+	}
 
 	statusActive := reservationsapi.StatusActive
-	res, err := s.reservations.ListUserReservations(r.Context(), account.UserID, &statusActive, nil, nil, 100)
+	res, err := s.reservations.ListUserReservations(r.Context(), account.UserID, &statusActive, cursorStartAt, cursorID, 100)
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
@@ -167,21 +182,29 @@ func (s *Server) GetStaffMeReservations(w http.ResponseWriter, r *http.Request) 
 
 	items := make([]gen.StaffReservation, 0, len(res.Items))
 	for _, rsv := range res.Items {
-		resID, _ := uuid.Parse(rsv.ID)
-		devID, _ := uuid.Parse(rsv.DeviceID)
-		items = append(items, gen.StaffReservation{
-			Id:             resID,
-			DeviceId:       devID,
-			DeviceAssetTag: rsv.DeviceAssetTag,
-			DeviceName:     rsv.DeviceName,
-			StartAt:        rsv.StartAt,
-			EndAt:          rsv.EndAt,
-			Status:         gen.ReservationStatus(rsv.Status),
-		})
+		items = append(items, staffReservationView(rsv))
 	}
 
 	writeJSON(w, http.StatusOK, gen.StaffReservationList{
-		Items: items,
+		Items:      items,
+		NextCursor: res.NextCursor,
+	})
+}
+
+func (s *Server) GetStaffBookingPolicy(w http.ResponseWriter, r *http.Request) {
+	if _, ok := staffauth.AccountFromContext(r.Context()); !ok {
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
+		return
+	}
+	st, err := s.settings.GetSettings(r.Context())
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gen.BookingPolicySettings{
+		AdvanceDays:         st.BookingPolicy.AdvanceDays,
+		MaxDurationDays:     st.BookingPolicy.MaxDurationDays,
+		ReturnBufferMinutes: st.BookingPolicy.ReturnBufferMinutes,
 	})
 }
 

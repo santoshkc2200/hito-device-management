@@ -2,10 +2,13 @@ import {
   getStaffMeCredential,
   getStaffMeLoans,
   getStaffMeReservations,
+  cancelStaffReservation,
 } from "@hdms/api-client";
-import { formatDate, useLocale } from "@hdms/i18n";
-import { useQuery } from "@tanstack/react-query";
+import { formatDate, formatTime, useLocale } from "@hdms/i18n";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { MyQr } from "@/components/my-qr";
 import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
@@ -13,6 +16,22 @@ import { authenticatedRoute } from "./authenticated";
 export function HomePage() {
   const t = useT();
   const { locale } = useLocale();
+  const queryClient = useQueryClient();
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await cancelStaffReservation({ path: { id } });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setCancelTarget(null);
+      setCancelError(null);
+      queryClient.invalidateQueries({ queryKey: ["staff", "me", "reservations"] });
+    },
+    onError: () => setCancelError(t("booking.cancelFailed")),
+  });
 
   const credentialQuery = useQuery({
     queryKey: ["staff", "me", "credential"],
@@ -26,13 +45,15 @@ export function HomePage() {
     },
   });
 
-  const reservationsQuery = useQuery({
+  const reservationsQuery = useInfiniteQuery({
     queryKey: ["staff", "me", "reservations"],
-    queryFn: async () => {
-      const { data, error } = await getStaffMeReservations();
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const { data, error } = await getStaffMeReservations({ query: pageParam ? { cursor: pageParam } : {} });
       if (error) throw error;
       return data;
     },
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
   });
 
   const loansQuery = useQuery({
@@ -44,7 +65,7 @@ export function HomePage() {
     },
   });
 
-  const reservations = reservationsQuery.data?.items ?? [];
+  const reservations = reservationsQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [];
   const loans = loansQuery.data?.items ?? [];
 
   return (
@@ -85,10 +106,11 @@ export function HomePage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">{t("home.myReservations")}</h2>
+        {cancelError && <p role="alert" className="text-sm text-destructive">{cancelError}</p>}
 
         {reservationsQuery.isLoading ? (
           <p className="text-sm text-muted-foreground">{t("loading")}</p>
-        ) : reservationsQuery.isError ? (
+        ) : reservationsQuery.isError && reservations.length === 0 ? (
           <p role="alert" className="text-sm text-destructive">
             {t("home.loadError")}
           </p>
@@ -111,17 +133,55 @@ export function HomePage() {
                   <tr key={reservation.id} className="hover:bg-muted/30">
                     <td className="max-w-[140px] px-3 py-2.5 font-medium break-words">
                       {reservation.deviceName}
+                      {cancelTarget === reservation.id ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={cancelMutation.isPending}
+                            onClick={() => cancelMutation.mutate(reservation.id)}
+                          >
+                            {t("booking.confirmCancel")}
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={cancelMutation.isPending} onClick={() => setCancelTarget(null)}>
+                            {t("booking.keepReservation")}
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="mt-2 block text-xs font-medium text-destructive underline underline-offset-2"
+                          disabled={cancelMutation.isPending}
+                          onClick={() => { setCancelError(null); setCancelTarget(reservation.id); }}
+                        >
+                          {t("booking.cancel")}
+                        </button>
+                      )}
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                    <td className="px-2 py-2.5 text-muted-foreground">
                       {formatDate(locale, reservation.startAt)}
+                      <span className="block">{formatTime(locale, reservation.startAt)}</span>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                    <td className="px-2 py-2.5 text-muted-foreground">
                       {formatDate(locale, reservation.endAt)}
+                      <span className="block">{formatTime(locale, reservation.endAt)}</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {reservationsQuery.isFetchNextPageError && (
+              <p role="alert" className="border-t px-3 pt-3 text-sm text-destructive">
+                {t("home.loadMoreFailed")}
+              </p>
+            )}
+            {reservationsQuery.hasNextPage && (
+              <div className="border-t p-3 text-center">
+                <Button variant="outline" disabled={reservationsQuery.isFetchingNextPage} onClick={() => reservationsQuery.fetchNextPage()}>
+                  {reservationsQuery.isFetchingNextPage ? t("loading") : t("home.loadMoreReservations")}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </section>

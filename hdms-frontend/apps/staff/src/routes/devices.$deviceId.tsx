@@ -1,8 +1,9 @@
 import { getStaffDevice } from "@hdms/api-client";
-import { formatTime, useLocale } from "@hdms/i18n";
+import { formatDate, formatTime, useLocale } from "@hdms/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
 import { AvailabilityPill } from "@/components/device-availability";
+import { ReservationForm } from "@/components/reservation-form";
 import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
@@ -58,10 +59,7 @@ export function DeviceDetailPage() {
             {device.availability === "in_use" && device.expectedBackAt && (
               <p className="text-sm text-muted-foreground">
                 {t("devices.expectedBackAt", {
-                  time: formatTime(
-                    locale,
-                    device.expectedBackAt,
-                  ),
+                  time: `${formatDate(locale, device.expectedBackAt)} ${formatTime(locale, device.expectedBackAt)}`,
                 })}
               </p>
             )}
@@ -102,6 +100,7 @@ export function DeviceDetailPage() {
               </div>
             </dl>
           </div>
+          <ReservationForm device={device} />
         </div>
       )}
     </div>

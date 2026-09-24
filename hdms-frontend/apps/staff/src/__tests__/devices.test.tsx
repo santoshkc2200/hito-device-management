@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,14 +20,27 @@ const defaultMe: StaffMe = {
   signInMethods: ["password"],
 };
 
+function upcomingHospitalWindow() {
+  const start = new Date(Date.now() + 24 * 60 * 60_000);
+  const end = new Date(start.getTime() + 60 * 60_000);
+  const local = (date: Date) => new Date(date.getTime() + 9 * 60 * 60_000).toISOString().slice(0, 16);
+  const startInput = local(start);
+  const endInput = local(end);
+  return { startInput, endInput,
+    startISO: new Date(`${startInput}:00+09:00`).toISOString(),
+    endISO: new Date(`${endInput}:00+09:00`).toISOString() };
+}
+
 function renderDevices({
   items,
   error,
   initialPath = "/devices",
+  bookingPolicy = { advanceDays: 90, maxDurationDays: 30, returnBufferMinutes: 60 },
 }: {
   items?: Partial<StaffDevice>[];
   error?: unknown;
   initialPath?: string;
+  bookingPolicy?: { advanceDays: number; maxDurationDays: number; returnBufferMinutes: number };
 } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -38,6 +51,10 @@ function renderDevices({
   queryClient.setQueryData(currentStaffQueryKey, defaultMe);
   vi.spyOn(apiClient, "getStaffMe").mockResolvedValue({
     data: defaultMe,
+    error: undefined,
+  } as any);
+  vi.spyOn(apiClient, "getStaffBookingPolicy").mockResolvedValue({
+    data: bookingPolicy,
     error: undefined,
   } as any);
 
@@ -158,5 +175,72 @@ describe("staff devices", () => {
     renderDevices({ initialPath: "/devices/d1" });
 
     expect(await screen.findByText(/you need a connection to see devices/i)).toBeInTheDocument();
+  });
+
+  it("books a device for the signed-in staff member and refreshes their reservations", async () => {
+	const window = upcomingHospitalWindow();
+    vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
+      data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "available" },
+      error: undefined,
+    } as any);
+    const create = vi.spyOn(apiClient, "createStaffReservation").mockResolvedValue({
+      data: { id: "r1", deviceId: "d1", deviceAssetTag: "AT-1", deviceName: "Projector", status: "active", startAt: "2030-01-01T10:00:00Z", endAt: "2030-01-01T11:00:00Z" },
+      error: undefined,
+    } as any);
+    const { queryClient } = renderDevices({ initialPath: "/devices/d1" });
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    fireEvent.change(await screen.findByLabelText("Start time"), { target: { value: window.startInput } });
+    fireEvent.change(screen.getByLabelText("End time"), { target: { value: window.endInput } });
+    await userEvent.click(screen.getByRole("button", { name: "Reserve device" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith({ body: {
+      deviceId: "d1",
+      startAt: window.startISO,
+      endAt: window.endISO,
+    } }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Reservation created");
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["staff", "me", "reservations"] });
+  });
+
+  it("shows the current admin booking policy on the device form", async () => {
+    vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
+      data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "in_use", expectedBackAt: new Date(Date.now() + 2 * 60 * 60_000).toISOString() },
+      error: undefined,
+    } as any);
+    renderDevices({ initialPath: "/devices/d1", bookingPolicy: { advanceDays: 7, maxDurationDays: 2, returnBufferMinutes: 15 } });
+    expect(await screen.findByText("Start within 7 days; reserve for up to 2 days.")).toBeInTheDocument();
+    expect(screen.getByText(/15 minutes after its expected return/)).toBeInTheDocument();
+  });
+
+  it("keeps the form open and explains a booking conflict", async () => {
+	const window = upcomingHospitalWindow();
+    vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
+      data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "available" },
+      error: undefined,
+    } as any);
+    vi.spyOn(apiClient, "createStaffReservation").mockResolvedValue({
+      error: { type: "https://hdms.hospital/errors/reservation-conflict" },
+      data: undefined,
+    } as any);
+    renderDevices({ initialPath: "/devices/d1" });
+
+    fireEvent.change(await screen.findByLabelText("Start time"), { target: { value: window.startInput } });
+    fireEvent.change(screen.getByLabelText("End time"), { target: { value: window.endInput } });
+    await userEvent.click(screen.getByRole("button", { name: "Reserve device" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("already reserved");
+    expect(screen.getByLabelText("Start time")).toHaveValue(window.startInput);
+  });
+
+  it("does not offer booking for an unavailable device", async () => {
+    vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
+      data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "unavailable" },
+      error: undefined,
+    } as any);
+    renderDevices({ initialPath: "/devices/d1" });
+
+    expect(await screen.findByRole("heading", { name: "Projector" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reserve device" })).not.toBeInTheDocument();
   });
 });
