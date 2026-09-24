@@ -404,4 +404,34 @@ describe("4.4c User Detail Page", () => {
 
     expect(screen.getByText("Ultrasound Probe")).toBeInTheDocument();
   });
+
+  it("lets an admin issue a staff login password and shows it once", async () => {
+    const reset = vi.spyOn(apiClient, "resetStaffPassword").mockResolvedValue({
+      data: { temporaryPassword: "Tmp9Pass8Word7Xy" },
+      error: undefined,
+    } as any);
+    const user = userEvent.setup();
+
+    renderUserDetailPage("admin");
+
+    await user.click(await screen.findByRole("button", { name: ja.userDetail.staffPassword }));
+    expect(reset).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: ja.userDetail.staffPasswordConfirm }));
+
+    expect(await screen.findByText("Tmp9Pass8Word7Xy")).toBeInTheDocument();
+    expect(reset).toHaveBeenCalledWith({ path: { id: "user-1" } });
+
+    await user.click(screen.getByRole("button", { name: ja.userDetail.staffPasswordDone }));
+    await waitFor(() => {
+      expect(screen.queryByText("Tmp9Pass8Word7Xy")).not.toBeInTheDocument();
+    });
+  });
+
+  it("hides the staff login action from technicians", async () => {
+    renderUserDetailPage("technician");
+
+    expect(await screen.findByRole("button", { name: ja.userDetail.edit })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: ja.userDetail.staffPassword })).not.toBeInTheDocument();
+  });
 });
