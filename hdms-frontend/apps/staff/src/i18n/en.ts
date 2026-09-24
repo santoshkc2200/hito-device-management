@@ -41,6 +41,7 @@ export const en = {
     borrowedAt: "Borrowed",
     dueAt: "Due",
     loadError: "Failed to load",
+    noCredential: "You don't have a card yet. Ask an administrator for a card.",
   },
   devices: {
     title: "Devices",

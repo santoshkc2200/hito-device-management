@@ -43,6 +43,7 @@ export const ja: StaffCatalogue = {
     borrowedAt: "持出日時",
     dueAt: "返却期限",
     loadError: "読み込みに失敗しました",
+    noCredential: "カードがまだ発行されていません。管理者に発行を依頼してください。",
   },
   devices: {
     title: "機器一覧",
