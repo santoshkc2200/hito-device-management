@@ -160,10 +160,13 @@ it in the hospital's password manager and document the location in the runbook.
 
 | What | How | Frequency | Retention |
 |---|---|---|---|
-| Database | `pg_dump -Fc`, gzipped, encrypted | Nightly 02:00 | 30 daily, 12 monthly |
-| WAL archive | Continuous archiving (optional, if RPO must beat 24 h) | Continuous | 7 days |
+| Database (local) | `pg_dump -Fc -Z0` into a restic repository under `HDMS_BACKUP_DIR` | Per the configured schedule (default nightly 02:00) | 30 daily, 12 monthly |
+| Database (offsite) | `restic copy` into each enabled destination: a mounted LAN path, or Google Drive / OneDrive via rclone | Same run as the local copy | Newest K snapshots per destination, K set per destination, default 2 |
+| WAL archive | Continuous archiving (optional, if RPO must beat the backup interval) | Continuous | 7 days |
 | Secrets (pepper, keys) | Manual, to the hospital password manager | On change | Current + previous |
 | Configuration | In git | On change | Forever |
+
+Offsite destinations transmit encrypted backup data outside the local host and, when cloud destinations (Google Drive, OneDrive) are configured, outside the hospital network. The restic repository password (`HDMS_BACKUP_ENC_KEY`) never leaves the host and is never transmitted to or stored on the remote storage targets. Cloud authentication tokens remain isolated in host rclone configuration (`sudo -u hdms rclone config`) and never enter the HDMS database. Enabling any cloud destination requires explicit written data-protection compliance sign-off from hospital administration and the Data Protection Officer (DPO) confirming lawful basis for encrypted cloud processing.
 
 **A restore drill is a Phase 5 exit criterion.** Restoring into a scratch
 database, verifying loan counts and a sample of credential resolutions, and

@@ -28,13 +28,28 @@ var (
 	cloneMu   sync.Mutex
 )
 
-// New returns a pool connected to a freshly cloned, fully migrated
-// database, and registers cleanup to drop it when t ends. The underlying
-// container is started at most once per test binary run and left alive for
-// the rest of the run — starting it per test is what makes testcontainers
-// slow enough that people stop running the suite (see the Phase 0 risk
-// register).
+// New returns a pool connected to a freshly cloned, fully migrated database,
+// and registers cleanup to drop it when t ends. The underlying container is
+// started at most once per test binary run and left alive for the rest of the
+// run — starting it per test is what makes testcontainers slow enough that
+// people stop running the suite (see the Phase 0 risk register).
 func New(t *testing.T) *db.Pool {
+	t.Helper()
+	pool, _ := newClone(t)
+	return pool
+}
+
+// NewWithDSN is New plus the DSN of the cloned database. A backup test needs
+// the DSN because pg_dump connects on its own rather than through the pool.
+func NewWithDSN(t *testing.T) (*db.Pool, string) {
+	t.Helper()
+	pool, name := newClone(t)
+	return pool, dsnFor(name)
+}
+
+// newClone does the work both entry points share and returns the clone's name
+// alongside its pool.
+func newClone(t *testing.T) (*db.Pool, string) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -59,7 +74,31 @@ func New(t *testing.T) *db.Pool {
 	}
 	t.Cleanup(pool.Close)
 
-	return pool
+	return pool, cloneName
+}
+
+// Scratch creates an empty database and returns its DSN, dropping it when t
+// ends. It is the restore target for a round-trip test: restoring into the
+// source database would prove nothing.
+func Scratch(t *testing.T) string {
+	t.Helper()
+	ctx := context.Background()
+
+	setupOnce.Do(func() { setupErr = setup(ctx) })
+	if setupErr != nil {
+		t.Fatalf("testdb: container setup: %v", setupErr)
+	}
+
+	name := nextCloneName() + "_scratch"
+	if err := createDatabase(ctx, name); err != nil {
+		t.Fatalf("testdb: create scratch database: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := dropDatabase(context.Background(), name); err != nil {
+			t.Logf("testdb: drop scratch %s: %v", name, err)
+		}
+	})
+	return dsnFor(name)
 }
 
 func setup(ctx context.Context) error {

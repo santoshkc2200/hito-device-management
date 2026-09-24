@@ -627,6 +627,22 @@ type AuditEvent struct {
 	RequestID pgtype.Text        `json:"request_id"`
 }
 
+type BackupDestination struct {
+	ID                pgtype.UUID        `json:"id"`
+	Name              string             `json:"name"`
+	Kind              string             `json:"kind"`
+	Target            string             `json:"target"`
+	Provider          string             `json:"provider"`
+	Enabled           bool               `json:"enabled"`
+	RetentionVersions int32              `json:"retention_versions"`
+	InitializedAt     pgtype.Timestamptz `json:"initialized_at"`
+	LastOkAt          pgtype.Timestamptz `json:"last_ok_at"`
+	LastError         pgtype.Text        `json:"last_error"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy         string             `json:"updated_by"`
+}
+
 type Credential struct {
 	ID            pgtype.UUID        `json:"id"`
 	SubjectType   SubjectType        `json:"subject_type"`

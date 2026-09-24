@@ -2,13 +2,14 @@
 // versions:
 //   sqlc v1.31.1
 
-package checkoutstore
+package backupstore
 
 import (
 	"database/sql/driver"
 	"fmt"
 	"net/netip"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -579,7 +580,7 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 }
 
 type AdminAccount struct {
-	ID                   pgtype.UUID        `json:"id"`
+	ID                   uuid.UUID          `json:"id"`
 	Email                string             `json:"email"`
 	FullName             string             `json:"full_name"`
 	PasswordHash         string             `json:"password_hash"`
@@ -599,16 +600,16 @@ type AdminAccount struct {
 }
 
 type AdminRecoveryCode struct {
-	ID        pgtype.UUID        `json:"id"`
-	AdminID   pgtype.UUID        `json:"admin_id"`
+	ID        uuid.UUID          `json:"id"`
+	AdminID   uuid.UUID          `json:"admin_id"`
 	CodeHash  string             `json:"code_hash"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
 type AdminSession struct {
-	ID               pgtype.UUID        `json:"id"`
-	AdminID          pgtype.UUID        `json:"admin_id"`
+	ID               uuid.UUID          `json:"id"`
+	AdminID          uuid.UUID          `json:"admin_id"`
 	SessionTokenHash []byte             `json:"session_token_hash"`
 	CsrfToken        string             `json:"csrf_token"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
@@ -617,7 +618,7 @@ type AdminSession struct {
 }
 
 type AuditEvent struct {
-	ID        pgtype.UUID        `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	At        pgtype.Timestamptz `json:"at"`
 	Actor     string             `json:"actor"`
 	ActorIp   *netip.Addr        `json:"actor_ip"`
@@ -628,7 +629,7 @@ type AuditEvent struct {
 }
 
 type BackupDestination struct {
-	ID                pgtype.UUID        `json:"id"`
+	ID                uuid.UUID          `json:"id"`
 	Name              string             `json:"name"`
 	Kind              string             `json:"kind"`
 	Target            string             `json:"target"`
@@ -644,7 +645,7 @@ type BackupDestination struct {
 }
 
 type Credential struct {
-	ID            pgtype.UUID        `json:"id"`
+	ID            uuid.UUID          `json:"id"`
 	SubjectType   SubjectType        `json:"subject_type"`
 	SubjectID     pgtype.UUID        `json:"subject_id"`
 	Kind          CredentialKind     `json:"kind"`
@@ -665,8 +666,8 @@ type Credential struct {
 }
 
 type CredentialEvent struct {
-	ID           pgtype.UUID        `json:"id"`
-	CredentialID pgtype.UUID        `json:"credential_id"`
+	ID           uuid.UUID          `json:"id"`
+	CredentialID uuid.UUID          `json:"credential_id"`
 	At           pgtype.Timestamptz `json:"at"`
 	Kind         string             `json:"kind"`
 	Actor        string             `json:"actor"`
@@ -675,7 +676,7 @@ type CredentialEvent struct {
 }
 
 type DeliveryLog struct {
-	ID             pgtype.UUID        `json:"id"`
+	ID             uuid.UUID          `json:"id"`
 	Recipient      string             `json:"recipient"`
 	Channel        string             `json:"channel"`
 	Template       string             `json:"template"`
@@ -694,16 +695,16 @@ type DeliveryLog struct {
 }
 
 type Department struct {
-	ID        pgtype.UUID        `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type Device struct {
-	ID           pgtype.UUID        `json:"id"`
+	ID           uuid.UUID          `json:"id"`
 	AssetTag     string             `json:"asset_tag"`
 	Name         string             `json:"name"`
-	CategoryID   pgtype.UUID        `json:"category_id"`
+	CategoryID   uuid.UUID          `json:"category_id"`
 	Manufacturer pgtype.Text        `json:"manufacturer"`
 	Model        pgtype.Text        `json:"model"`
 	SerialNo     pgtype.Text        `json:"serial_no"`
@@ -717,7 +718,7 @@ type Device struct {
 }
 
 type DeviceCategory struct {
-	ID                pgtype.UUID        `json:"id"`
+	ID                uuid.UUID          `json:"id"`
 	Name              string             `json:"name"`
 	DefaultLoanPeriod pgtype.Interval    `json:"default_loan_period"`
 	RequiresApproval  bool               `json:"requires_approval"`
@@ -756,7 +757,7 @@ type JobRun struct {
 }
 
 type Kiosk struct {
-	ID                   pgtype.UUID        `json:"id"`
+	ID                   uuid.UUID          `json:"id"`
 	Name                 string             `json:"name"`
 	Location             pgtype.Text        `json:"location"`
 	TokenHash            []byte             `json:"token_hash"`
@@ -770,9 +771,9 @@ type Kiosk struct {
 }
 
 type Loan struct {
-	ID            pgtype.UUID         `json:"id"`
-	DeviceID      pgtype.UUID         `json:"device_id"`
-	UserID        pgtype.UUID         `json:"user_id"`
+	ID            uuid.UUID           `json:"id"`
+	DeviceID      uuid.UUID           `json:"device_id"`
+	UserID        uuid.UUID           `json:"user_id"`
 	Status        LoanStatus          `json:"status"`
 	Origin        LoanOrigin          `json:"origin"`
 	BorrowedAt    pgtype.Timestamptz  `json:"borrowed_at"`
@@ -796,7 +797,7 @@ type Loan struct {
 }
 
 type NotificationPreference struct {
-	UserID    pgtype.UUID        `json:"user_id"`
+	UserID    uuid.UUID          `json:"user_id"`
 	Channel   string             `json:"channel"`
 	OptedOut  bool               `json:"opted_out"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
@@ -825,15 +826,15 @@ type Outbox struct {
 }
 
 type OverdueEscalation struct {
-	LoanID         pgtype.UUID        `json:"loan_id"`
+	LoanID         uuid.UUID          `json:"loan_id"`
 	EscalationStep int32              `json:"escalation_step"`
 	PublishedAt    pgtype.Timestamptz `json:"published_at"`
 }
 
 type Reservation struct {
-	ID                 pgtype.UUID        `json:"id"`
-	DeviceID           pgtype.UUID        `json:"device_id"`
-	UserID             pgtype.UUID        `json:"user_id"`
+	ID                 uuid.UUID          `json:"id"`
+	DeviceID           uuid.UUID          `json:"device_id"`
+	UserID             uuid.UUID          `json:"user_id"`
 	Status             ReservationStatus  `json:"status"`
 	StartAt            pgtype.Timestamptz `json:"start_at"`
 	EndAt              pgtype.Timestamptz `json:"end_at"`
@@ -848,8 +849,8 @@ type Reservation struct {
 }
 
 type ScanEvent struct {
-	ID           pgtype.UUID        `json:"id"`
-	SessionID    pgtype.UUID        `json:"session_id"`
+	ID           uuid.UUID          `json:"id"`
+	SessionID    uuid.UUID          `json:"session_id"`
 	At           pgtype.Timestamptz `json:"at"`
 	Source       string             `json:"source"`
 	TokenPreview string             `json:"token_preview"`
@@ -860,8 +861,8 @@ type ScanEvent struct {
 }
 
 type ScanSession struct {
-	ID            pgtype.UUID        `json:"id"`
-	KioskID       pgtype.UUID        `json:"kiosk_id"`
+	ID            uuid.UUID          `json:"id"`
+	KioskID       uuid.UUID          `json:"kiosk_id"`
 	State         SessionState       `json:"state"`
 	UserID        pgtype.UUID        `json:"user_id"`
 	PendingDevice pgtype.UUID        `json:"pending_device"`
@@ -902,8 +903,8 @@ type Setting struct {
 }
 
 type StaffAccount struct {
-	ID                 pgtype.UUID        `json:"id"`
-	UserID             pgtype.UUID        `json:"user_id"`
+	ID                 uuid.UUID          `json:"id"`
+	UserID             uuid.UUID          `json:"user_id"`
 	PasswordHash       pgtype.Text        `json:"password_hash"`
 	MustChangePassword bool               `json:"must_change_password"`
 	ProfileComplete    bool               `json:"profile_complete"`
@@ -917,8 +918,8 @@ type StaffAccount struct {
 }
 
 type StaffIdentity struct {
-	ID             pgtype.UUID        `json:"id"`
-	StaffAccountID pgtype.UUID        `json:"staff_account_id"`
+	ID             uuid.UUID          `json:"id"`
+	StaffAccountID uuid.UUID          `json:"staff_account_id"`
 	Provider       string             `json:"provider"`
 	Subject        string             `json:"subject"`
 	TenantID       string             `json:"tenant_id"`
@@ -927,8 +928,8 @@ type StaffIdentity struct {
 }
 
 type StaffSession struct {
-	ID               pgtype.UUID        `json:"id"`
-	StaffAccountID   pgtype.UUID        `json:"staff_account_id"`
+	ID               uuid.UUID          `json:"id"`
+	StaffAccountID   uuid.UUID          `json:"staff_account_id"`
 	SessionTokenHash []byte             `json:"session_token_hash"`
 	CsrfToken        string             `json:"csrf_token"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
@@ -937,7 +938,7 @@ type StaffSession struct {
 }
 
 type User struct {
-	ID            pgtype.UUID        `json:"id"`
+	ID            uuid.UUID          `json:"id"`
 	EmployeeNo    string             `json:"employee_no"`
 	FullName      string             `json:"full_name"`
 	DepartmentID  pgtype.UUID        `json:"department_id"`
@@ -952,8 +953,8 @@ type User struct {
 }
 
 type UserDirectoryLink struct {
-	ID                  pgtype.UUID        `json:"id"`
-	UserID              pgtype.UUID        `json:"user_id"`
+	ID                  uuid.UUID          `json:"id"`
+	UserID              uuid.UUID          `json:"user_id"`
 	Issuer              string             `json:"issuer"`
 	Subject             string             `json:"subject"`
 	LastSeenInDirectory pgtype.Timestamptz `json:"last_seen_in_directory"`
