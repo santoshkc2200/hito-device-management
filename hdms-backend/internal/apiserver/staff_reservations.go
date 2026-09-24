@@ -94,6 +94,7 @@ func (s *Server) CreateStaffReservation(w http.ResponseWriter, r *http.Request) 
 			EndAt:         body.EndAt,
 			CreatedBy:     "staff:" + account.UserID,
 			CreatedSource: "staff",
+			Buffer:        time.Duration(policy.ReturnBufferMinutes) * time.Minute,
 		})
 		return err
 	})
@@ -104,6 +105,10 @@ func (s *Server) CreateStaffReservation(w http.ResponseWriter, r *http.Request) 
 		}
 		if errors.Is(err, errStaffDeviceInUse) {
 			writeStaffBookingConflict(w, r, "device-in-use", fmt.Sprintf("Choose a start time at least %d minutes after the expected return.", policy.ReturnBufferMinutes))
+			return
+		}
+		if errors.Is(err, reservationsapi.ErrReservationTooClose) {
+			writeStaffBookingConflict(w, r, "reservation-too-close", fmt.Sprintf("Leave at least %d minutes between this and other reservations for the device.", policy.ReturnBufferMinutes))
 			return
 		}
 		s.writeServiceError(w, r, err)

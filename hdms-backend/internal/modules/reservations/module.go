@@ -75,6 +75,22 @@ func (s *Service) CreateReservation(ctx context.Context, params reservationsapi.
 		if err != nil {
 			return err
 		}
+		// Checked after the insert so a true overlap still reports
+		// ErrReservationConflict from the exclusion constraint.
+		if params.Buffer > 0 {
+			tooClose, err := q.HasReservationWithinBuffer(ctx, reservationsstore.HasReservationWithinBufferParams{
+				DeviceID:    devUUID,
+				ID:          createdID,
+				WindowStart: pgtypeconv.Timestamptz(params.StartAt.Add(-params.Buffer)),
+				WindowEnd:   pgtypeconv.Timestamptz(params.EndAt.Add(params.Buffer)),
+			})
+			if err != nil {
+				return err
+			}
+			if tooClose {
+				return reservationsapi.ErrReservationTooClose
+			}
+		}
 
 		row, err := q.GetReservation(ctx, createdID)
 		if err != nil {

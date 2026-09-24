@@ -437,6 +437,55 @@ func TestStaffBookingRejectsPastUnavailableAndOverlappingWindows(t *testing.T) {
 	}
 }
 
+func TestStaffBookingKeepsReturnGapFromOtherReservations(t *testing.T) {
+	env := newHTTPTestEnv(t)
+	device := env.SeedDevice(t, "AT-BOOK-GAP", "Back-to-back iPad")
+	now := time.Now().UTC().Truncate(time.Second)
+	// Seeded by an admin, which does not apply the staff booking policy.
+	seededStart, seededEnd := now.Add(3*time.Hour), now.Add(5*time.Hour)
+	resSvc := reservations.New(env.Pool, audit.New(env.Pool), clock.System{})
+	if _, err := resSvc.CreateReservation(t.Context(), reservationsapi.CreateParams{
+		DeviceID: device.ID, UserID: env.StaffUser.ID,
+		StartAt: seededStart, EndAt: seededEnd,
+		CreatedBy: "admin:test", CreatedSource: "admin",
+	}); err != nil {
+		t.Fatalf("seed neighbour: %v", err)
+	}
+	book := func(start, end time.Time) *httptest.ResponseRecorder {
+		body := fmt.Sprintf(`{"deviceId":%q,"startAt":%q,"endAt":%q}`,
+			device.ID, start.Format(time.RFC3339), end.Format(time.RFC3339))
+		return staffReservationRequest(t, env, body, true)
+	}
+
+	// The default policy leaves 60 minutes between reservations.
+	for name, window := range map[string][2]time.Time{
+		"starts too soon after": {seededEnd.Add(30 * time.Minute), seededEnd.Add(2 * time.Hour)},
+		"ends too close before": {now.Add(time.Hour), seededStart.Add(-30 * time.Minute)},
+	} {
+		rec := book(window[0], window[1])
+		if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "reservation-too-close") {
+			t.Fatalf("booking that %s = %d, want reservation-too-close: %s", name, rec.Code, rec.Body.String())
+		}
+	}
+	if overlap := book(seededStart.Add(-30*time.Minute), seededStart.Add(30*time.Minute)); !strings.Contains(overlap.Body.String(), "reservation-conflict") {
+		t.Fatalf("overlapping booking = %d, want reservation-conflict: %s", overlap.Code, overlap.Body.String())
+	}
+
+	if after := book(seededEnd.Add(time.Hour), seededEnd.Add(2*time.Hour)); after.Code != http.StatusCreated {
+		t.Fatalf("booking exactly one gap after = %d, want 201: %s", after.Code, after.Body.String())
+	}
+	if before := book(now.Add(time.Hour), seededStart.Add(-time.Hour)); before.Code != http.StatusCreated {
+		t.Fatalf("booking ending exactly one gap before = %d, want 201: %s", before.Code, before.Body.String())
+	}
+	var count int
+	if err := env.Pool.QueryRow(t.Context(), `SELECT count(*) FROM reservations WHERE device_id = $1`, device.ID).Scan(&count); err != nil {
+		t.Fatalf("count reservations: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("reservations for device = %d, want 3 (rejected bookings must not persist)", count)
+	}
+}
+
 func TestStaffBookingOnLoanStartsAfterExpectedReturnGap(t *testing.T) {
 	env := newHTTPTestEnv(t)
 	borrower := env.SeedUser(t, "E-BOOK-BORROWER", "Borrower", "book.borrower@hospital.example")

@@ -536,6 +536,38 @@ func (q *Queries) GetReservationForUpdate(ctx context.Context, id pgtype.UUID) (
 	return i, err
 }
 
+const hasReservationWithinBuffer = `-- name: HasReservationWithinBuffer :one
+SELECT EXISTS (
+    SELECT 1
+    FROM reservations
+    WHERE device_id = $1
+      AND id <> $2
+      AND status <> 'cancelled'
+      AND status <> 'expired'
+      AND tstzrange(start_at, end_at, '[)') && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+)
+`
+
+type HasReservationWithinBufferParams struct {
+	DeviceID    pgtype.UUID        `json:"device_id"`
+	ID          pgtype.UUID        `json:"id"`
+	WindowStart pgtype.Timestamptz `json:"window_start"`
+	WindowEnd   pgtype.Timestamptz `json:"window_end"`
+}
+
+// Live statuses match reservations_no_overlapping_device_window.
+func (q *Queries) HasReservationWithinBuffer(ctx context.Context, arg HasReservationWithinBufferParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasReservationWithinBuffer,
+		arg.DeviceID,
+		arg.ID,
+		arg.WindowStart,
+		arg.WindowEnd,
+	)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listReservations = `-- name: ListReservations :many
 SELECT
     r.id,

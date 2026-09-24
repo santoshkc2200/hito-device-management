@@ -19,6 +19,8 @@ type Querier interface {
 	FulfillReservation(ctx context.Context, arg FulfillReservationParams) (Reservation, error)
 	GetReservation(ctx context.Context, id pgtype.UUID) (GetReservationRow, error)
 	GetReservationForUpdate(ctx context.Context, id pgtype.UUID) (Reservation, error)
+	// Live statuses match reservations_no_overlapping_device_window.
+	HasReservationWithinBuffer(ctx context.Context, arg HasReservationWithinBufferParams) (bool, error)
 	ListReservations(ctx context.Context, arg ListReservationsParams) ([]ListReservationsRow, error)
 	ListReservationsByDevice(ctx context.Context, arg ListReservationsByDeviceParams) ([]ListReservationsByDeviceRow, error)
 	ListReservationsByUser(ctx context.Context, arg ListReservationsByUserParams) ([]ListReservationsByUserRow, error)

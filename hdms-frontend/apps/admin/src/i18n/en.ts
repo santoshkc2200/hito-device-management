@@ -1514,7 +1514,7 @@ export const en: AdminMessages = {
     bookingPolicyDescription: "Limits for reservations made in the staff app. Changes apply to new bookings.",
     bookingAdvanceDaysLabel: "How Far Ahead (Days)",
     bookingMaxDurationDaysLabel: "Maximum Duration (Days)",
-    bookingReturnBufferMinutesLabel: "After Expected Return (Minutes)",
+    bookingReturnBufferMinutesLabel: "Gap Before Next Use (Minutes)",
     saveBookingPolicy: "Save Booking Policy",
     bookingPolicyUpdated: "Booking policy updated",
     bookingPolicyUpdateFailed: "Failed to update booking policy",
