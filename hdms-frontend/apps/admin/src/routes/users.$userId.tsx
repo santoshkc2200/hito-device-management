@@ -6,12 +6,25 @@ import {
   listDepartments,
   listUserLoans,
   listUserReservations,
+  resetStaffPassword,
   suspendUser,
   updateUserNotificationPreferences,
 } from "@hdms/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Bell, CalendarClock, Edit3, History, Laptop, ShieldAlert, User as UserIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Bell,
+  CalendarClock,
+  Check,
+  Copy,
+  Edit3,
+  History,
+  KeyRound,
+  Laptop,
+  ShieldAlert,
+  User as UserIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CredentialsPanel } from "@/components/credentials-panel";
@@ -23,6 +36,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -92,6 +107,120 @@ function ReasonActionDialog({
   );
 }
 
+/**
+ * Sets a staff-app login password for a user. The backend creates the staff
+ * account when the user has none, so the same action covers first-time setup
+ * and resets. The generated password is shown exactly once and must be changed
+ * at first sign-in.
+ */
+function StaffPasswordDialog({
+  open,
+  onOpenChange,
+  userId,
+  fullName,
+  employeeNo,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userId: string;
+  fullName: string;
+  employeeNo: string;
+}) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await resetStaffPassword({ path: { id: userId } });
+      if (res.error) throw res.error;
+      return res.data.temporaryPassword;
+    },
+    onError: (err: any) => {
+      toast.error(err?.detail || err?.title || t("userDetail.staffPasswordFailed"));
+    },
+  });
+
+  const temporaryPassword = mutation.data;
+
+  const handleClose = () => {
+    // Drop the password from memory as soon as the dialog closes.
+    mutation.reset();
+    setCopied(false);
+    onOpenChange(false);
+  };
+
+  const handleCopy = async () => {
+    if (!temporaryPassword) return;
+    try {
+      await navigator.clipboard.writeText(temporaryPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      toast.error(t("userDetail.staffPasswordCopyFailed"));
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => (!o ? handleClose() : onOpenChange(true))}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("userDetail.staffPasswordTitle")}</DialogTitle>
+          <DialogDescription>
+            {temporaryPassword
+              ? t("userDetail.staffPasswordIssuedDescription", { fullName })
+              : t("userDetail.staffPasswordConfirmDescription", { fullName, employeeNo })}
+          </DialogDescription>
+        </DialogHeader>
+
+        {temporaryPassword && (
+          <div className="space-y-3">
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("userDetail.staffPasswordEmployeeNoLabel")}</span>
+              </div>
+              <p className="font-identifier text-sm font-semibold text-foreground">{employeeNo}</p>
+            </div>
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t("userDetail.staffPasswordTemporaryLabel")}</span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="flex cursor-pointer items-center gap-1 font-medium text-foreground hover:underline"
+                >
+                  {copied ? <Check className="size-3 text-green-600" /> : <Copy className="size-3" />}
+                  {t("userDetail.staffPasswordCopy")}
+                </button>
+              </div>
+              <p className="select-all break-all font-mono text-sm font-semibold tracking-wider text-foreground">
+                {temporaryPassword}
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">{t("userDetail.staffPasswordShownOnce")}</p>
+          </div>
+        )}
+
+        <DialogFooter className="mt-2">
+          {temporaryPassword ? (
+            <Button type="button" onClick={handleClose} className="w-full">
+              {t("userDetail.staffPasswordDone")}
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleClose} disabled={mutation.isPending}>
+                {t("userDetail.cancel")}
+              </Button>
+              <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+                {mutation.isPending ? t("userDetail.processing") : t("userDetail.staffPasswordConfirm")}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function formatProvenance(
   t: ReturnType<typeof useT>,
   registeredBy?: string,
@@ -133,6 +262,7 @@ export function UserDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [staffPasswordOpen, setStaffPasswordOpen] = useState(false);
 
   const {
     data: user,
@@ -316,6 +446,14 @@ export function UserDetailPage() {
               <Button size="sm" variant="outline" onClick={() => setSuspendOpen(true)}>
                 <ShieldAlert className="size-4" data-icon="inline-start" />
                 {t("userDetail.suspend")}
+              </Button>
+            </RoleGate>
+          )}
+          {user.status !== "archived" && (
+            <RoleGate minRole="admin">
+              <Button size="sm" variant="outline" onClick={() => setStaffPasswordOpen(true)}>
+                <KeyRound className="size-4" data-icon="inline-start" />
+                {t("userDetail.staffPassword")}
               </Button>
             </RoleGate>
           )}
@@ -671,6 +809,14 @@ export function UserDetailPage() {
         confirmVariant="destructive"
         onConfirm={(reason) => archiveMutation.mutate(reason)}
         isPending={archiveMutation.isPending}
+      />
+
+      <StaffPasswordDialog
+        open={staffPasswordOpen}
+        onOpenChange={setStaffPasswordOpen}
+        userId={user.id}
+        fullName={user.fullName}
+        employeeNo={user.employeeNo}
       />
     </div>
   );
