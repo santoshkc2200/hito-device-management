@@ -1008,6 +1008,21 @@ export type PolicySettings = {
     paperBacklogHours: number;
 };
 
+export type BookingPolicySettings = {
+    /**
+     * How many days ahead staff may start a booking. Default 90.
+     */
+    advanceDays: number;
+    /**
+     * Maximum staff booking duration. Default 30.
+     */
+    maxDurationDays: number;
+    /**
+     * Minimum time after an open loan's expected return. Default 60.
+     */
+    returnBufferMinutes: number;
+};
+
 export type LabelTemplateSettings = {
     sheetWidthMm: number;
     sheetHeightMm: number;
@@ -1033,6 +1048,7 @@ export type SlipTemplateSettings = {
 
 export type Settings = {
     policy: PolicySettings;
+    bookingPolicy: BookingPolicySettings;
     labelTemplate: LabelTemplateSettings;
     slipTemplate: SlipTemplateSettings;
     updatedAt: string;
@@ -1044,6 +1060,7 @@ export type Settings = {
  */
 export type UpdateSettingsRequest = {
     policy?: PolicySettings;
+    bookingPolicy?: BookingPolicySettings;
     labelTemplate?: LabelTemplateSettings;
     slipTemplate?: SlipTemplateSettings;
 };
@@ -1138,6 +1155,12 @@ export type StaffReservation = {
     startAt: string;
     endAt: string;
     status: ReservationStatus;
+};
+
+export type CreateStaffReservationRequest = {
+    deviceId: string;
+    startAt: string;
+    endAt: string;
 };
 
 export type StaffReservationList = {
@@ -4317,6 +4340,31 @@ export type GetStaffDeviceResponses = {
 
 export type GetStaffDeviceResponse = GetStaffDeviceResponses[keyof GetStaffDeviceResponses];
 
+export type GetStaffBookingPolicyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/booking-policy';
+};
+
+export type GetStaffBookingPolicyErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetStaffBookingPolicyError = GetStaffBookingPolicyErrors[keyof GetStaffBookingPolicyErrors];
+
+export type GetStaffBookingPolicyResponses = {
+    /**
+     * Booking policy.
+     */
+    200: BookingPolicySettings;
+};
+
+export type GetStaffBookingPolicyResponse = GetStaffBookingPolicyResponses[keyof GetStaffBookingPolicyResponses];
+
 export type GetStaffMeLoansData = {
     body?: never;
     path?: never;
@@ -4345,7 +4393,9 @@ export type GetStaffMeLoansResponse = GetStaffMeLoansResponses[keyof GetStaffMeL
 export type GetStaffMeReservationsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        cursor?: string;
+    };
     url: '/staff/me/reservations';
 };
 
@@ -4366,6 +4416,58 @@ export type GetStaffMeReservationsResponses = {
 };
 
 export type GetStaffMeReservationsResponse = GetStaffMeReservationsResponses[keyof GetStaffMeReservationsResponses];
+
+export type CreateStaffReservationData = {
+    body: CreateStaffReservationRequest;
+    path?: never;
+    query?: never;
+    url: '/staff/me/reservations';
+};
+
+export type CreateStaffReservationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateStaffReservationError = CreateStaffReservationErrors[keyof CreateStaffReservationErrors];
+
+export type CreateStaffReservationResponses = {
+    /**
+     * Reservation created.
+     */
+    201: StaffReservation;
+};
+
+export type CreateStaffReservationResponse = CreateStaffReservationResponses[keyof CreateStaffReservationResponses];
+
+export type CancelStaffReservationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/staff/me/reservations/{id}/cancel';
+};
+
+export type CancelStaffReservationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CancelStaffReservationError = CancelStaffReservationErrors[keyof CancelStaffReservationErrors];
+
+export type CancelStaffReservationResponses = {
+    /**
+     * Reservation cancelled.
+     */
+    200: StaffReservation;
+};
+
+export type CancelStaffReservationResponse = CancelStaffReservationResponses[keyof CancelStaffReservationResponses];
 
 export type GetStaffMeCredentialData = {
     body?: never;

@@ -90,12 +90,13 @@ var KioskDeniedOperations = map[string]struct{}{
 	"PATCH /v1/departments/{id}":  {},
 
 	// Devices
-	"GET /v1/devices":              {},
-	"POST /v1/devices":             {},
-	"GET /v1/devices/{id}":         {},
-	"PATCH /v1/devices/{id}":       {},
-	"GET /v1/devices/{id}/loans":   {},
-	"POST /v1/devices/{id}/status": {},
+	"GET /v1/devices":                   {},
+	"POST /v1/devices":                  {},
+	"GET /v1/devices/{id}":              {},
+	"PATCH /v1/devices/{id}":            {},
+	"GET /v1/devices/{id}/loans":        {},
+	"GET /v1/devices/{id}/reservations": {},
+	"POST /v1/devices/{id}/status":      {},
 
 	// Imports
 	"POST /v1/imports/devices":         {},
@@ -122,6 +123,12 @@ var KioskDeniedOperations = map[string]struct{}{
 	"POST /v1/loans/{id}/remind":              {},
 	"POST /v1/loans/{id}/write-off":           {},
 
+	// Reservations
+	"GET /v1/reservations":              {},
+	"POST /v1/reservations":             {},
+	"GET /v1/reservations/{id}":         {},
+	"POST /v1/reservations/{id}/cancel": {},
+
 	// Notifications
 	"GET /v1/notifications/quarantined": {},
 
@@ -140,17 +147,21 @@ var KioskDeniedOperations = map[string]struct{}{
 	"PATCH /v1/settings": {},
 
 	// Staff
-	"GET /v1/staff/auth/microsoft/callback": {},
-	"GET /v1/staff/auth/microsoft/start":    {},
-	"POST /v1/staff/auth/logout":            {},
-	"POST /v1/staff/auth/password":          {},
-	"GET /v1/staff/devices":                 {},
-	"GET /v1/staff/devices/{id}":            {},
-	"GET /v1/staff/me":                      {},
-	"GET /v1/staff/me/credential":           {},
-	"GET /v1/staff/me/loans":                {},
-	"POST /v1/staff/me/password":            {},
-	"POST /v1/staff/me/profile":             {},
+	"GET /v1/staff/auth/microsoft/callback":      {},
+	"GET /v1/staff/auth/microsoft/start":         {},
+	"POST /v1/staff/auth/logout":                 {},
+	"POST /v1/staff/auth/password":               {},
+	"GET /v1/staff/devices":                      {},
+	"GET /v1/staff/devices/{id}":                 {},
+	"GET /v1/staff/booking-policy":               {},
+	"GET /v1/staff/me":                           {},
+	"GET /v1/staff/me/credential":                {},
+	"GET /v1/staff/me/loans":                     {},
+	"GET /v1/staff/me/reservations":              {},
+	"POST /v1/staff/me/reservations":             {},
+	"POST /v1/staff/me/reservations/{id}/cancel": {},
+	"POST /v1/staff/me/password":                 {},
+	"POST /v1/staff/me/profile":                  {},
 
 	// Users
 	"GET /v1/users":                               {},
@@ -161,6 +172,7 @@ var KioskDeniedOperations = map[string]struct{}{
 	"PATCH /v1/users/{id}":                        {},
 	"POST /v1/users/{id}/archive":                 {},
 	"GET /v1/users/{id}/loans":                    {},
+	"GET /v1/users/{id}/reservations":             {},
 	"GET /v1/users/{id}/notification-preferences": {},
 	"PUT /v1/users/{id}/notification-preferences": {},
 	"POST /v1/users/{id}/staff-password-reset":    {},

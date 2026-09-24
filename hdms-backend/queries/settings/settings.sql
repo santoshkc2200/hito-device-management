@@ -6,8 +6,6 @@ SELECT
     kiosk_sound_enabled,
     low_stock_threshold,
     paper_backlog_hours,
-    reservation_pre_window_minutes,
-    reservation_expiry_grace_minutes,
     sheet_width_mm,
     sheet_height_mm,
     label_columns,
@@ -23,7 +21,12 @@ SELECT
     slip_rows_per_page,
     slip_columns,
     updated_at,
-    updated_by
+    updated_by,
+    reservation_pre_window_minutes,
+    reservation_expiry_grace_minutes,
+    booking_advance_days,
+    booking_max_duration_days,
+    booking_return_buffer_minutes
 FROM settings
 WHERE id = 1;
 
@@ -38,6 +41,10 @@ SET
     paper_backlog_hours = CASE WHEN @set_policy::boolean THEN @paper_backlog_hours::int ELSE paper_backlog_hours END,
     reservation_pre_window_minutes = CASE WHEN @set_policy::boolean THEN @reservation_pre_window_minutes::int ELSE reservation_pre_window_minutes END,
     reservation_expiry_grace_minutes = CASE WHEN @set_policy::boolean THEN @reservation_expiry_grace_minutes::int ELSE reservation_expiry_grace_minutes END,
+    -- Staff self-service booking policy
+    booking_advance_days = CASE WHEN @set_booking_policy::boolean THEN @booking_advance_days::int ELSE booking_advance_days END,
+    booking_max_duration_days = CASE WHEN @set_booking_policy::boolean THEN @booking_max_duration_days::int ELSE booking_max_duration_days END,
+    booking_return_buffer_minutes = CASE WHEN @set_booking_policy::boolean THEN @booking_return_buffer_minutes::int ELSE booking_return_buffer_minutes END,
     -- Label template
     sheet_width_mm = CASE WHEN @set_label_template::boolean THEN @sheet_width_mm::double precision ELSE sheet_width_mm END,
     sheet_height_mm = CASE WHEN @set_label_template::boolean THEN @sheet_height_mm::double precision ELSE sheet_height_mm END,
@@ -65,8 +72,6 @@ RETURNING
     kiosk_sound_enabled,
     low_stock_threshold,
     paper_backlog_hours,
-    reservation_pre_window_minutes,
-    reservation_expiry_grace_minutes,
     sheet_width_mm,
     sheet_height_mm,
     label_columns,
@@ -82,4 +87,9 @@ RETURNING
     slip_rows_per_page,
     slip_columns,
     updated_at,
-    updated_by;
+    updated_by,
+    reservation_pre_window_minutes,
+    reservation_expiry_grace_minutes,
+    booking_advance_days,
+    booking_max_duration_days,
+    booking_return_buffer_minutes;

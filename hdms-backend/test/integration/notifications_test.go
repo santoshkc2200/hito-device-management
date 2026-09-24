@@ -98,9 +98,13 @@ func TestOverdueScanIsIdempotentAcrossRuns(t *testing.T) {
 func TestALoanReturnedBetweenScansProducesNoEvent(t *testing.T) {
 	pool := testdb.New(t)
 	ctx := context.Background()
-	now := time.Date(2026, 9, 18, 14, 0, 0, 0, time.UTC)
 
 	loanID, _, _ := fixtures.OpenLoan(t, pool)
+	var borrowedAt time.Time
+	if err := pool.QueryRow(ctx, `SELECT borrowed_at FROM loans WHERE id = $1`, loanID).Scan(&borrowedAt); err != nil {
+		t.Fatalf("read borrowed_at: %v", err)
+	}
+	now := borrowedAt.Add(3 * time.Hour)
 	dueAt := now.Add(-2 * time.Hour)
 	if _, err := pool.Exec(ctx, `UPDATE loans SET due_at = $1 WHERE id = $2`, dueAt, loanID); err != nil {
 		t.Fatalf("set loan due_at: %v", err)

@@ -28,6 +28,12 @@ type PolicySettings struct {
 	ReservationExpiryGraceMinutes int  `json:"reservationExpiryGraceMinutes"`
 }
 
+type BookingPolicySettings struct {
+	AdvanceDays         int `json:"advanceDays"`
+	MaxDurationDays     int `json:"maxDurationDays"`
+	ReturnBufferMinutes int `json:"returnBufferMinutes"`
+}
+
 type LabelTemplateSettings struct {
 	SheetWidthMm  float64 `json:"sheetWidthMm"`
 	SheetHeightMm float64 `json:"sheetHeightMm"`
@@ -50,6 +56,7 @@ type SlipTemplateSettings struct {
 
 type Settings struct {
 	Policy        PolicySettings        `json:"policy"`
+	BookingPolicy BookingPolicySettings `json:"bookingPolicy"`
 	LabelTemplate LabelTemplateSettings `json:"labelTemplate"`
 	SlipTemplate  SlipTemplateSettings  `json:"slipTemplate"`
 	UpdatedAt     time.Time             `json:"updatedAt"`
@@ -58,6 +65,7 @@ type Settings struct {
 
 type UpdateSettingsParams struct {
 	Policy        *PolicySettings
+	BookingPolicy *BookingPolicySettings
 	LabelTemplate *LabelTemplateSettings
 	SlipTemplate  *SlipTemplateSettings
 }
@@ -110,6 +118,11 @@ func (s *Service) UpdateSettings(ctx context.Context, params UpdateSettingsParam
 			return Settings{}, err
 		}
 	}
+	if params.BookingPolicy != nil {
+		if err := validateBookingPolicy(*params.BookingPolicy); err != nil {
+			return Settings{}, err
+		}
+	}
 	if params.LabelTemplate != nil {
 		if err := validateLabelTemplate(*params.LabelTemplate); err != nil {
 			return Settings{}, err
@@ -139,6 +152,12 @@ func (s *Service) UpdateSettings(ctx context.Context, params UpdateSettingsParam
 		arg.PaperBacklogHours = int32(params.Policy.PaperBacklogHours)
 		arg.ReservationPreWindowMinutes = int32(params.Policy.ReservationPreWindowMinutes)
 		arg.ReservationExpiryGraceMinutes = int32(params.Policy.ReservationExpiryGraceMinutes)
+	}
+	if params.BookingPolicy != nil {
+		arg.SetBookingPolicy = true
+		arg.BookingAdvanceDays = int32(params.BookingPolicy.AdvanceDays)
+		arg.BookingMaxDurationDays = int32(params.BookingPolicy.MaxDurationDays)
+		arg.BookingReturnBufferMinutes = int32(params.BookingPolicy.ReturnBufferMinutes)
 	}
 
 	if params.LabelTemplate != nil {
@@ -221,6 +240,19 @@ func validatePolicy(p PolicySettings) error {
 	return nil
 }
 
+func validateBookingPolicy(p BookingPolicySettings) error {
+	if p.AdvanceDays < 1 || p.AdvanceDays > 365 {
+		return fmt.Errorf("%w: advanceDays must be between 1 and 365", ErrInvalidSettingValue)
+	}
+	if p.MaxDurationDays < 1 || p.MaxDurationDays > 365 {
+		return fmt.Errorf("%w: maxDurationDays must be between 1 and 365", ErrInvalidSettingValue)
+	}
+	if p.ReturnBufferMinutes < 0 || p.ReturnBufferMinutes > 1440 {
+		return fmt.Errorf("%w: returnBufferMinutes must be between 0 and 1440", ErrInvalidSettingValue)
+	}
+	return nil
+}
+
 func validateLabelTemplate(lt LabelTemplateSettings) error {
 	if lt.SheetWidthMm <= 0 {
 		return fmt.Errorf("%w: sheetWidthMm must be greater than 0", ErrInvalidSettingValue)
@@ -281,6 +313,11 @@ func mapSettingRow(row settingsstore.Setting) Settings {
 			PaperBacklogHours:             int(row.PaperBacklogHours),
 			ReservationPreWindowMinutes:   int(row.ReservationPreWindowMinutes),
 			ReservationExpiryGraceMinutes: int(row.ReservationExpiryGraceMinutes),
+		},
+		BookingPolicy: BookingPolicySettings{
+			AdvanceDays:         int(row.BookingAdvanceDays),
+			MaxDurationDays:     int(row.BookingMaxDurationDays),
+			ReturnBufferMinutes: int(row.BookingReturnBufferMinutes),
 		},
 		LabelTemplate: LabelTemplateSettings{
 			SheetWidthMm:  row.SheetWidthMm,

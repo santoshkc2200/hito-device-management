@@ -927,6 +927,12 @@ export const zPolicySettings = z.object({
     paperBacklogHours: z.int()
 });
 
+export const zBookingPolicySettings = z.object({
+    advanceDays: z.int().gte(1).lte(365),
+    maxDurationDays: z.int().gte(1).lte(365),
+    returnBufferMinutes: z.int().gte(0).lte(1440)
+});
+
 export const zLabelTemplateSettings = z.object({
     sheetWidthMm: z.number(),
     sheetHeightMm: z.number(),
@@ -949,6 +955,7 @@ export const zSlipTemplateSettings = z.object({
 
 export const zSettings = z.object({
     policy: zPolicySettings,
+    bookingPolicy: zBookingPolicySettings,
     labelTemplate: zLabelTemplateSettings,
     slipTemplate: zSlipTemplateSettings,
     updatedAt: z.iso.datetime(),
@@ -960,6 +967,7 @@ export const zSettings = z.object({
  */
 export const zUpdateSettingsRequest = z.object({
     policy: zPolicySettings.optional(),
+    bookingPolicy: zBookingPolicySettings.optional(),
     labelTemplate: zLabelTemplateSettings.optional(),
     slipTemplate: zSlipTemplateSettings.optional()
 });
@@ -1077,6 +1085,12 @@ export const zStaffReservation = z.object({
     startAt: z.iso.datetime(),
     endAt: z.iso.datetime(),
     status: zReservationStatus
+});
+
+export const zCreateStaffReservationRequest = z.object({
+    deviceId: z.uuid(),
+    startAt: z.iso.datetime(),
+    endAt: z.iso.datetime()
 });
 
 export const zStaffReservationList = z.object({
@@ -2212,14 +2226,39 @@ export const zGetStaffDevicePath = z.object({
 export const zGetStaffDeviceResponse = zStaffDevice;
 
 /**
+ * Booking policy.
+ */
+export const zGetStaffBookingPolicyResponse = zBookingPolicySettings;
+
+/**
  * Loans.
  */
 export const zGetStaffMeLoansResponse = zStaffLoanList;
+
+export const zGetStaffMeReservationsQuery = z.object({
+    cursor: z.string().optional()
+});
 
 /**
  * Reservations.
  */
 export const zGetStaffMeReservationsResponse = zStaffReservationList;
+
+export const zCreateStaffReservationBody = zCreateStaffReservationRequest;
+
+/**
+ * Reservation created.
+ */
+export const zCreateStaffReservationResponse = zStaffReservation;
+
+export const zCancelStaffReservationPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Reservation cancelled.
+ */
+export const zCancelStaffReservationResponse = zStaffReservation;
 
 /**
  * The active credential and plaintext token.

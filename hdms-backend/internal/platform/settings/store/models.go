@@ -627,6 +627,22 @@ type AuditEvent struct {
 	RequestID pgtype.Text        `json:"request_id"`
 }
 
+type BackupDestination struct {
+	ID                pgtype.UUID        `json:"id"`
+	Name              string             `json:"name"`
+	Kind              string             `json:"kind"`
+	Target            string             `json:"target"`
+	Provider          string             `json:"provider"`
+	Enabled           bool               `json:"enabled"`
+	RetentionVersions int32              `json:"retention_versions"`
+	InitializedAt     pgtype.Timestamptz `json:"initialized_at"`
+	LastOkAt          pgtype.Timestamptz `json:"last_ok_at"`
+	LastError         pgtype.Text        `json:"last_error"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy         string             `json:"updated_by"`
+}
+
 type Credential struct {
 	ID            pgtype.UUID        `json:"id"`
 	SubjectType   SubjectType        `json:"subject_type"`
@@ -883,6 +899,9 @@ type Setting struct {
 	UpdatedBy                     string             `json:"updated_by"`
 	ReservationPreWindowMinutes   int32              `json:"reservation_pre_window_minutes"`
 	ReservationExpiryGraceMinutes int32              `json:"reservation_expiry_grace_minutes"`
+	BookingAdvanceDays            int32              `json:"booking_advance_days"`
+	BookingMaxDurationDays        int32              `json:"booking_max_duration_days"`
+	BookingReturnBufferMinutes    int32              `json:"booking_return_buffer_minutes"`
 }
 
 type StaffAccount struct {

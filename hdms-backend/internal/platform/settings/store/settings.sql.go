@@ -10,7 +10,34 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT id, block_on_overdue, session_idle_timeout_seconds, kiosk_sound_enabled, low_stock_threshold, paper_backlog_hours, sheet_width_mm, sheet_height_mm, label_columns, label_rows, margin_top_mm, margin_left_mm, gutter_x_mm, gutter_y_mm, label_width_mm, label_height_mm, hospital_name, page_ref_format, slip_rows_per_page, slip_columns, updated_at, updated_by, reservation_pre_window_minutes, reservation_expiry_grace_minutes
+SELECT
+    id,
+    block_on_overdue,
+    session_idle_timeout_seconds,
+    kiosk_sound_enabled,
+    low_stock_threshold,
+    paper_backlog_hours,
+    sheet_width_mm,
+    sheet_height_mm,
+    label_columns,
+    label_rows,
+    margin_top_mm,
+    margin_left_mm,
+    gutter_x_mm,
+    gutter_y_mm,
+    label_width_mm,
+    label_height_mm,
+    hospital_name,
+    page_ref_format,
+    slip_rows_per_page,
+    slip_columns,
+    updated_at,
+    updated_by,
+    reservation_pre_window_minutes,
+    reservation_expiry_grace_minutes,
+    booking_advance_days,
+    booking_max_duration_days,
+    booking_return_buffer_minutes
 FROM settings
 WHERE id = 1
 `
@@ -43,6 +70,9 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.UpdatedBy,
 		&i.ReservationPreWindowMinutes,
 		&i.ReservationExpiryGraceMinutes,
+		&i.BookingAdvanceDays,
+		&i.BookingMaxDurationDays,
+		&i.BookingReturnBufferMinutes,
 	)
 	return i, err
 }
@@ -58,27 +88,58 @@ SET
     paper_backlog_hours = CASE WHEN $1::boolean THEN $6::int ELSE paper_backlog_hours END,
     reservation_pre_window_minutes = CASE WHEN $1::boolean THEN $7::int ELSE reservation_pre_window_minutes END,
     reservation_expiry_grace_minutes = CASE WHEN $1::boolean THEN $8::int ELSE reservation_expiry_grace_minutes END,
+    -- Staff self-service booking policy
+    booking_advance_days = CASE WHEN $9::boolean THEN $10::int ELSE booking_advance_days END,
+    booking_max_duration_days = CASE WHEN $9::boolean THEN $11::int ELSE booking_max_duration_days END,
+    booking_return_buffer_minutes = CASE WHEN $9::boolean THEN $12::int ELSE booking_return_buffer_minutes END,
     -- Label template
-    sheet_width_mm = CASE WHEN $9::boolean THEN $10::double precision ELSE sheet_width_mm END,
-    sheet_height_mm = CASE WHEN $9::boolean THEN $11::double precision ELSE sheet_height_mm END,
-    label_columns = CASE WHEN $9::boolean THEN $12::int ELSE label_columns END,
-    label_rows = CASE WHEN $9::boolean THEN $13::int ELSE label_rows END,
-    margin_top_mm = CASE WHEN $9::boolean THEN $14::double precision ELSE margin_top_mm END,
-    margin_left_mm = CASE WHEN $9::boolean THEN $15::double precision ELSE margin_left_mm END,
-    gutter_x_mm = CASE WHEN $9::boolean THEN $16::double precision ELSE gutter_x_mm END,
-    gutter_y_mm = CASE WHEN $9::boolean THEN $17::double precision ELSE gutter_y_mm END,
-    label_width_mm = CASE WHEN $9::boolean THEN $18::double precision ELSE label_width_mm END,
-    label_height_mm = CASE WHEN $9::boolean THEN $19::double precision ELSE label_height_mm END,
+    sheet_width_mm = CASE WHEN $13::boolean THEN $14::double precision ELSE sheet_width_mm END,
+    sheet_height_mm = CASE WHEN $13::boolean THEN $15::double precision ELSE sheet_height_mm END,
+    label_columns = CASE WHEN $13::boolean THEN $16::int ELSE label_columns END,
+    label_rows = CASE WHEN $13::boolean THEN $17::int ELSE label_rows END,
+    margin_top_mm = CASE WHEN $13::boolean THEN $18::double precision ELSE margin_top_mm END,
+    margin_left_mm = CASE WHEN $13::boolean THEN $19::double precision ELSE margin_left_mm END,
+    gutter_x_mm = CASE WHEN $13::boolean THEN $20::double precision ELSE gutter_x_mm END,
+    gutter_y_mm = CASE WHEN $13::boolean THEN $21::double precision ELSE gutter_y_mm END,
+    label_width_mm = CASE WHEN $13::boolean THEN $22::double precision ELSE label_width_mm END,
+    label_height_mm = CASE WHEN $13::boolean THEN $23::double precision ELSE label_height_mm END,
     -- Slip template
-    hospital_name = CASE WHEN $20::boolean THEN $21::text ELSE hospital_name END,
-    page_ref_format = CASE WHEN $20::boolean THEN $22::text ELSE page_ref_format END,
-    slip_rows_per_page = CASE WHEN $20::boolean THEN $23::int ELSE slip_rows_per_page END,
-    slip_columns = CASE WHEN $20::boolean THEN $24::text[] ELSE slip_columns END,
+    hospital_name = CASE WHEN $24::boolean THEN $25::text ELSE hospital_name END,
+    page_ref_format = CASE WHEN $24::boolean THEN $26::text ELSE page_ref_format END,
+    slip_rows_per_page = CASE WHEN $24::boolean THEN $27::int ELSE slip_rows_per_page END,
+    slip_columns = CASE WHEN $24::boolean THEN $28::text[] ELSE slip_columns END,
     -- Audit metadata
     updated_at = now(),
-    updated_by = $25
+    updated_by = $29
 WHERE id = 1
-RETURNING id, block_on_overdue, session_idle_timeout_seconds, kiosk_sound_enabled, low_stock_threshold, paper_backlog_hours, sheet_width_mm, sheet_height_mm, label_columns, label_rows, margin_top_mm, margin_left_mm, gutter_x_mm, gutter_y_mm, label_width_mm, label_height_mm, hospital_name, page_ref_format, slip_rows_per_page, slip_columns, updated_at, updated_by, reservation_pre_window_minutes, reservation_expiry_grace_minutes
+RETURNING
+    id,
+    block_on_overdue,
+    session_idle_timeout_seconds,
+    kiosk_sound_enabled,
+    low_stock_threshold,
+    paper_backlog_hours,
+    sheet_width_mm,
+    sheet_height_mm,
+    label_columns,
+    label_rows,
+    margin_top_mm,
+    margin_left_mm,
+    gutter_x_mm,
+    gutter_y_mm,
+    label_width_mm,
+    label_height_mm,
+    hospital_name,
+    page_ref_format,
+    slip_rows_per_page,
+    slip_columns,
+    updated_at,
+    updated_by,
+    reservation_pre_window_minutes,
+    reservation_expiry_grace_minutes,
+    booking_advance_days,
+    booking_max_duration_days,
+    booking_return_buffer_minutes
 `
 
 type UpdateSettingsParams struct {
@@ -90,6 +151,10 @@ type UpdateSettingsParams struct {
 	PaperBacklogHours             int32    `json:"paper_backlog_hours"`
 	ReservationPreWindowMinutes   int32    `json:"reservation_pre_window_minutes"`
 	ReservationExpiryGraceMinutes int32    `json:"reservation_expiry_grace_minutes"`
+	SetBookingPolicy              bool     `json:"set_booking_policy"`
+	BookingAdvanceDays            int32    `json:"booking_advance_days"`
+	BookingMaxDurationDays        int32    `json:"booking_max_duration_days"`
+	BookingReturnBufferMinutes    int32    `json:"booking_return_buffer_minutes"`
 	SetLabelTemplate              bool     `json:"set_label_template"`
 	SheetWidthMm                  float64  `json:"sheet_width_mm"`
 	SheetHeightMm                 float64  `json:"sheet_height_mm"`
@@ -119,6 +184,10 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.PaperBacklogHours,
 		arg.ReservationPreWindowMinutes,
 		arg.ReservationExpiryGraceMinutes,
+		arg.SetBookingPolicy,
+		arg.BookingAdvanceDays,
+		arg.BookingMaxDurationDays,
+		arg.BookingReturnBufferMinutes,
 		arg.SetLabelTemplate,
 		arg.SheetWidthMm,
 		arg.SheetHeightMm,
@@ -163,6 +232,9 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		&i.UpdatedBy,
 		&i.ReservationPreWindowMinutes,
 		&i.ReservationExpiryGraceMinutes,
+		&i.BookingAdvanceDays,
+		&i.BookingMaxDurationDays,
+		&i.BookingReturnBufferMinutes,
 	)
 	return i, err
 }

@@ -43,6 +43,7 @@ const mockSettings: apiClient.Settings = {
     lowStockThreshold: 10,
     paperBacklogHours: 48,
   },
+  bookingPolicy: { advanceDays: 90, maxDurationDays: 30, returnBufferMinutes: 60 },
   labelTemplate: {
     sheetWidthMm: 210,
     sheetHeightMm: 297,
@@ -151,6 +152,24 @@ describe("Settings Panels", () => {
   });
 
   describe("PolicyPanel", () => {
+    it("lets an admin save the staff booking limits", async () => {
+      const update = vi.spyOn(apiClient, "updateSettings").mockResolvedValue({ data: mockSettings, error: undefined, response: new Response() });
+      renderWithClient(<PolicyPanel />);
+      const user = userEvent.setup();
+      const advance = await screen.findByLabelText(ja.policyPanel.bookingAdvanceDaysLabel);
+      await user.clear(advance);
+      await user.type(advance, "14");
+      const duration = screen.getByLabelText(ja.policyPanel.bookingMaxDurationDaysLabel);
+      await user.clear(duration);
+      await user.type(duration, "2");
+      const buffer = screen.getByLabelText(ja.policyPanel.bookingReturnBufferMinutesLabel);
+      await user.clear(buffer);
+      await user.type(buffer, "45");
+      await user.click(screen.getByRole("button", { name: ja.policyPanel.saveBookingPolicy }));
+      await waitFor(() => expect(update).toHaveBeenCalledWith({ body: { bookingPolicy: {
+        advanceDays: 14, maxDurationDays: 2, returnBufferMinutes: 45,
+      } } }));
+    });
     it("renders categories and system policy form fields", async () => {
       renderWithClient(<PolicyPanel />);
 

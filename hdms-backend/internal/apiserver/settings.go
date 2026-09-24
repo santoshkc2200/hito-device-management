@@ -37,6 +37,13 @@ func (s *Server) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 			PaperBacklogHours:         p.PaperBacklogHours,
 		}
 	}
+	if body.BookingPolicy != nil {
+		params.BookingPolicy = &settings.BookingPolicySettings{
+			AdvanceDays:         body.BookingPolicy.AdvanceDays,
+			MaxDurationDays:     body.BookingPolicy.MaxDurationDays,
+			ReturnBufferMinutes: body.BookingPolicy.ReturnBufferMinutes,
+		}
+	}
 
 	if body.LabelTemplate != nil {
 		lt := body.LabelTemplate
@@ -81,6 +88,11 @@ func mapSettingsToGen(st settings.Settings) gen.Settings {
 			KioskSoundEnabled:         st.Policy.KioskSoundEnabled,
 			LowStockThreshold:         st.Policy.LowStockThreshold,
 			PaperBacklogHours:         st.Policy.PaperBacklogHours,
+		},
+		BookingPolicy: gen.BookingPolicySettings{
+			AdvanceDays:         st.BookingPolicy.AdvanceDays,
+			MaxDurationDays:     st.BookingPolicy.MaxDurationDays,
+			ReturnBufferMinutes: st.BookingPolicy.ReturnBufferMinutes,
 		},
 		LabelTemplate: gen.LabelTemplateSettings{
 			SheetWidthMm:  float32(st.LabelTemplate.SheetWidthMm),

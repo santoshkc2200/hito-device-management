@@ -2444,6 +2444,22 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /staff/booking-policy:
+    get:
+      operationId: getStaffBookingPolicy
+      summary: Current self-service booking limits for signed-in staff.
+      tags: [staff]
+      security:
+        - staffSession: []
+      responses:
+        "200":
+          description: Booking policy.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/BookingPolicySettings"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /staff/me/loans:
     get:
       operationId: getStaffMeLoans
@@ -2463,12 +2479,54 @@ paths:
       operationId: getStaffMeReservations
       summary: Active and upcoming reservations for the signed-in staff member.
       tags: [staff]
+      security:
+        - staffSession: []
+      parameters:
+        - $ref: "#/components/parameters/CursorParam"
       responses:
         "200":
           description: Reservations.
           content:
             application/json:
               schema: {$ref: "#/components/schemas/StaffReservationList"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+    post:
+      operationId: createStaffReservation
+      summary: Reserve a device for the signed-in staff member.
+      tags: [staff]
+      security:
+        - staffSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CreateStaffReservationRequest"}
+      responses:
+        "201":
+          description: Reservation created.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffReservation"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /staff/me/reservations/{id}/cancel:
+    post:
+      operationId: cancelStaffReservation
+      summary: Cancel the signed-in staff member's active reservation.
+      tags: [staff]
+      security:
+        - staffSession: []
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: Reservation cancelled.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffReservation"}
         default:
           $ref: "#/components/responses/ProblemResponse"
 
@@ -3991,6 +4049,26 @@ components:
           type: integer
           description: Hours since the last recorded paper page before the dashboard warns. Default 48.
 
+    BookingPolicySettings:
+      type: object
+      required: [advanceDays, maxDurationDays, returnBufferMinutes]
+      properties:
+        advanceDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: How many days ahead staff may start a booking. Default 90.
+        maxDurationDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: Maximum staff booking duration. Default 30.
+        returnBufferMinutes:
+          type: integer
+          minimum: 0
+          maximum: 1440
+          description: Minimum time after an open loan's expected return. Default 60.
+
     LabelTemplateSettings:
       type: object
       required: [sheetWidthMm, sheetHeightMm, columns, rows, marginTopMm, marginLeftMm, gutterXMm, gutterYMm, labelWidthMm, labelHeightMm]
@@ -4021,10 +4099,12 @@ components:
 
     Settings:
       type: object
-      required: [policy, labelTemplate, slipTemplate, updatedAt]
+      required: [policy, bookingPolicy, labelTemplate, slipTemplate, updatedAt]
       properties:
         policy:
           $ref: "#/components/schemas/PolicySettings"
+        bookingPolicy:
+          $ref: "#/components/schemas/BookingPolicySettings"
         labelTemplate:
           $ref: "#/components/schemas/LabelTemplateSettings"
         slipTemplate:
@@ -4038,6 +4118,8 @@ components:
       properties:
         policy:
           $ref: "#/components/schemas/PolicySettings"
+        bookingPolicy:
+          $ref: "#/components/schemas/BookingPolicySettings"
         labelTemplate:
           $ref: "#/components/schemas/LabelTemplateSettings"
         slipTemplate:
@@ -4173,6 +4255,14 @@ components:
         startAt: {type: string, format: date-time}
         endAt: {type: string, format: date-time}
         status: {$ref: "#/components/schemas/ReservationStatus"}
+
+    CreateStaffReservationRequest:
+      type: object
+      required: [deviceId, startAt, endAt]
+      properties:
+        deviceId: {type: string, format: uuid}
+        startAt: {type: string, format: date-time}
+        endAt: {type: string, format: date-time}
 
     StaffReservationList:
       type: object
@@ -4359,6 +4449,10 @@ components:
       type: apiKey
       in: cookie
       name: hdms_session
+    staffSession:
+      type: apiKey
+      in: cookie
+      name: hdms_staff_session
     serviceToken:
       type: http
       scheme: bearer
