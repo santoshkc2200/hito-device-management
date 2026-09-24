@@ -53,6 +53,19 @@ type Config struct {
 	BackupDir    string // 5.4a: nightly backup target (HDMS_BACKUP_DIR, default /var/backups/hdms)
 	BackupEncKey []byte // 5.4a: 32 raw bytes, AES-256-GCM key for backup encryption (HDMS_BACKUP_ENC_KEY); nil when unconfigured — the backup command fails closed, the API does not require it to boot
 
+	// BackupAllowedRoots limits where a path destination may point
+	// (HDMS_BACKUP_ALLOWED_ROOTS, colon-separated). Destination paths are
+	// administrator input; an empty list rejects every path destination.
+	BackupAllowedRoots []string
+
+	// ResticBinary names the restic executable (HDMS_RESTIC_BIN, default
+	// "restic"). Overridable so a pinned build can be used without PATH games.
+	ResticBinary string
+
+	// RcloneConfig optionally names the rclone configuration file (HDMS_RCLONE_CONFIG).
+	// Empty uses rclone's own default location.
+	RcloneConfig string
+
 	// RetentionMode gates the 5.5e retention job: "report" (default) only
 	// reports candidates and changes no domain rows; "enforce" anonymises
 	// and deletes per docs/09-security-privacy-ops.md. Report-only until
@@ -112,6 +125,9 @@ func Load() (Config, error) {
 	// file), never in the backup target itself.
 	cfg.BackupDir = getenvDefault("HDMS_BACKUP_DIR", "/var/backups/hdms")
 	cfg.BackupEncKey = getenvOptionalBase64Key32("HDMS_BACKUP_ENC_KEY", &errs)
+	cfg.BackupAllowedRoots = splitAndTrim(os.Getenv("HDMS_BACKUP_ALLOWED_ROOTS"), ":")
+	cfg.ResticBinary = getenvDefault("HDMS_RESTIC_BIN", "restic")
+	cfg.RcloneConfig = os.Getenv("HDMS_RCLONE_CONFIG")
 
 	// 5.5e: retention mode is explicit configuration defaulting to
 	// report-only. A misspelled value fails closed at startup.
@@ -126,7 +142,7 @@ func Load() (Config, error) {
 	cfg.EntraClientID = os.Getenv("HDMS_ENTRA_CLIENT_ID")
 	cfg.EntraClientSecret = os.Getenv("HDMS_ENTRA_CLIENT_SECRET")
 	cfg.EntraRedirectURL = getenvDefault("HDMS_ENTRA_REDIRECT_URL", "https://localhost:8443/v1/staff/auth/microsoft/callback")
-	cfg.EntraAllowedDomains = splitAndTrim(os.Getenv("HDMS_ENTRA_ALLOWED_EMAIL_DOMAINS"))
+	cfg.EntraAllowedDomains = splitAndTrim(os.Getenv("HDMS_ENTRA_ALLOWED_EMAIL_DOMAINS"), ",")
 	cfg.StaffSessionTTL = getenvDurationDefault("HDMS_STAFF_SESSION_TTL", 12*time.Hour, &errs)
 
 	// 6.2c: SMTP relay configuration for overdue reminders and digests.
@@ -162,7 +178,7 @@ func Load() (Config, error) {
 	// In production/staging, defaults to nil (same-origin behind reverse proxy).
 	corsEnv := os.Getenv("HDMS_CORS_ALLOWED_ORIGINS")
 	if corsEnv != "" {
-		cfg.CORSAllowedOrigins = splitAndTrim(corsEnv)
+		cfg.CORSAllowedOrigins = splitAndTrim(corsEnv, ",")
 	} else if cfg.Env == "development" || cfg.Env == "test" {
 		cfg.CORSAllowedOrigins = []string{
 			"https://localhost:5173",
@@ -175,7 +191,7 @@ func Load() (Config, error) {
 	// /metrics allowlist (5.5a): localhost-only unless the operator names the
 	// monitoring host's network explicitly.
 	if metricsEnv := os.Getenv("HDMS_METRICS_ALLOW_CIDRS"); metricsEnv != "" {
-		cfg.MetricsAllowCIDRs = splitAndTrim(metricsEnv)
+		cfg.MetricsAllowCIDRs = splitAndTrim(metricsEnv, ",")
 	} else {
 		cfg.MetricsAllowCIDRs = []string{"127.0.0.1/32", "::1/128"}
 	}
@@ -276,6 +292,9 @@ func (c Config) LogEffective(logger *slog.Logger) {
 		slog.Any("metrics_allow_cidrs", c.MetricsAllowCIDRs),
 		slog.String("backup_dir", c.BackupDir),
 		slog.String("backup_enc_key", "[REDACTED]"),
+		slog.String("backup_allowed_roots", strings.Join(c.BackupAllowedRoots, ":")),
+		slog.String("restic_binary", c.ResticBinary),
+		slog.String("rclone_config", c.RcloneConfig),
 		slog.String("retention_mode", c.RetentionMode),
 		slog.String("job_metrics_dir", c.JobMetricsDir),
 		slog.String("smtp_host", c.SMTPHost),
@@ -325,15 +344,13 @@ func parseRetentionModeEnv(errs *[]error) string {
 	}
 }
 
-func splitAndTrim(raw string) []string {
-	v := strings.TrimSpace(raw)
-	if v == "" {
-		return nil
-	}
+// splitAndTrim splits s on sep and drops empty entries, so a trailing or
+// doubled separator in an env var is not read as an empty path.
+func splitAndTrim(s, sep string) []string {
 	var out []string
-	for _, part := range strings.Split(v, ",") {
-		if t := strings.TrimSpace(part); t != "" {
-			out = append(out, t)
+	for _, part := range strings.Split(s, sep) {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
 		}
 	}
 	return out

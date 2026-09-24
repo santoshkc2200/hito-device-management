@@ -8,9 +8,11 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,7 +91,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|reconcile|retention|overdue-scan|weekly-digest|directory-sync|reservation-expiry|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|snapshots|verify|restore|reconcile|retention|overdue-scan|weekly-digest|directory-sync|reservation-expiry|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -111,6 +113,12 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 		return runSeed(ctx, cfg, args)
 	case "backup":
 		return runBackup(ctx, cfg, args)
+	case "snapshots":
+		return runSnapshots(ctx, cfg, args)
+	case "verify":
+		return runVerify(ctx, cfg, args)
+	case "restore":
+		return runRestore(ctx, cfg, args)
 	case "reconcile":
 		return runReconcile(ctx, cfg, args)
 	case "retention":
@@ -165,14 +173,32 @@ func runSeed(ctx context.Context, cfg config.Config, args []string) error {
 	return nil
 }
 
-// runBackup implements 5.4a: pg_dump -Fc → gzip → AES-256-GCM → file,
-// 30-daily + 12-monthly pruning, and a job_runs row. Idempotent and safe
-// to run twice or by hand mid-day — each run writes a uniquely-named file
-// under a dir lock. Invoked nightly at 02:00 by the systemd timer in
-// deploy/systemd/hdms-backup.timer; see docs/runbooks/nightly-backup.md.
+// resticFor builds the restic client. The repository password is
+// HDMS_BACKUP_ENC_KEY, base64-encoded so it is a printable password rather
+// than raw bytes, and it travels in the subprocess environment — never argv,
+// which is world-readable via /proc.
+func resticFor(cfg config.Config) (backup.Restic, error) {
+	if len(cfg.BackupEncKey) != 32 {
+		return backup.Restic{}, fmt.Errorf("HDMS_BACKUP_ENC_KEY: missing or invalid backup encryption key; provide a base64-encoded 32-byte key generated with 'openssl rand -base64 32' (stored separately from the backups, e.g. hospital password manager + root-only env file)")
+	}
+	var extraEnv []string
+	if cfg.RcloneConfig != "" {
+		extraEnv = append(extraEnv, "RCLONE_CONFIG="+cfg.RcloneConfig)
+	}
+	return backup.Restic{
+		Binary:   cfg.ResticBinary,
+		Password: base64.StdEncoding.EncodeToString(cfg.BackupEncKey),
+		ExtraEnv: extraEnv,
+	}, nil
+}
+
+// runBackup performs one backup: pg_dump -Fc -Z0 into the local restic
+// repository, a copy into every enabled destination, then retention per
+// repository. Destinations come from backup_destinations; the local copy is
+// always written. See docs/runbooks/nightly-backup.md.
 func runBackup(ctx context.Context, cfg config.Config, args []string) error {
 	fs := flag.NewFlagSet("backup", flag.ContinueOnError)
-	dirFlag := fs.String("dir", "", "backup target directory (default HDMS_BACKUP_DIR)")
+	dirFlag := fs.String("dir", "", "backup directory (default HDMS_BACKUP_DIR)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -180,11 +206,9 @@ func runBackup(ctx context.Context, cfg config.Config, args []string) error {
 	if dir == "" {
 		dir = cfg.BackupDir
 	}
-	if dir == "" {
-		dir = "/var/backups/hdms"
-	}
-	if len(cfg.BackupEncKey) != 32 {
-		return fmt.Errorf("HDMS_BACKUP_ENC_KEY: missing or invalid backup encryption key; provide a base64-encoded 32-byte key generated with 'openssl rand -base64 32' (stored separately from the backups, e.g. hospital password manager + root-only env file)")
+	r, err := resticFor(cfg)
+	if err != nil {
+		return err
 	}
 
 	pool, err := db.Open(ctx, cfg.DatabaseURL)
@@ -193,13 +217,174 @@ func runBackup(ctx context.Context, cfg config.Config, args []string) error {
 	}
 	defer pool.Close()
 
-	path, err := backup.Run(ctx, pool.Pool, cfg.DatabaseURL, dir, cfg.BackupEncKey, time.Now().UTC(), nil)
+	dests, err := backup.LoadEnabledDestinations(ctx, pool)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Backup written: %s\n", path)
+
+	rep, err := backup.RunBackup(ctx, backup.Options{
+		Pool:         pool,
+		DatabaseURL:  cfg.DatabaseURL,
+		BackupDir:    dir,
+		AllowedRoots: cfg.BackupAllowedRoots,
+		Restic:       r,
+		Destinations: dests,
+		MetricsDir:   cfg.JobMetricsDir,
+	}, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Backup %s: snapshot %s, %d byte(s) added, %d destination(s)\n",
+		rep.Outcome, rep.Snapshot, rep.AddedBytes, len(rep.Destinations))
+	for _, d := range rep.Destinations {
+		if d.Outcome != backup.OutcomeSuccess {
+			fmt.Printf("  %s: %s — %s\n", d.Name, d.Outcome, d.Error)
+		}
+	}
+	// A degraded run reached the local disk but not every offsite copy. Exit
+	// non-zero so a timer or an operator sees it as a problem.
+	if rep.Outcome != backup.OutcomeSuccess {
+		return fmt.Errorf("backup completed %s; see job_runs for per-destination detail", rep.Outcome)
+	}
 	return nil
 }
+
+// repoFor resolves --from to a repository: empty means the local host
+// repository, otherwise the named destination row.
+func repoFor(ctx context.Context, cfg config.Config, pool *db.Pool, name string) (backup.Repo, error) {
+	if strings.TrimSpace(name) == "" {
+		return backup.LocalRepo(cfg.BackupDir), nil
+	}
+	dests, err := backup.LoadAllDestinations(ctx, pool)
+	if err != nil {
+		return backup.Repo{}, err
+	}
+	for _, d := range dests {
+		if strings.EqualFold(d.Name, name) {
+			return d.Resolve(cfg.BackupAllowedRoots)
+		}
+	}
+	return backup.Repo{}, fmt.Errorf("no backup destination named %q", name)
+}
+
+func runSnapshots(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("snapshots", flag.ContinueOnError)
+	from := fs.String("from", "", "destination name (default: the local host repository)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	r, err := resticFor(cfg)
+	if err != nil {
+		return err
+	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	repo, err := repoFor(ctx, cfg, pool, *from)
+	if err != nil {
+		return err
+	}
+	snaps, err := r.Snapshots(ctx, repo)
+	if err != nil {
+		return err
+	}
+	for _, s := range snaps {
+		fmt.Printf("%s  %s\n", s.ID, s.Time.UTC().Format(time.RFC3339))
+	}
+	return nil
+}
+
+func runVerify(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("verify", flag.ContinueOnError)
+	from := fs.String("from", "", "destination name (default: the local host repository)")
+	subset := fs.Int("read-data-subset", 5, "percentage of data blobs to read (0 = metadata only)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	r, err := resticFor(cfg)
+	if err != nil {
+		return err
+	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	repo, err := repoFor(ctx, cfg, pool, *from)
+	if err != nil {
+		return err
+	}
+	if err := r.Check(ctx, repo, *subset); err != nil {
+		return err
+	}
+	fmt.Printf("Repository %s verified (%d%% of data read)\n", repo.Location, *subset)
+	return nil
+}
+
+// runRestore restores one snapshot into a database. It refuses to overwrite
+// the live database without --force: a restore drill targets a scratch
+// database, and a tool that makes overwriting production the easy path will
+// eventually do it.
+func runRestore(ctx context.Context, cfg config.Config, args []string) error {
+	fs := flag.NewFlagSet("restore", flag.ContinueOnError)
+	from := fs.String("from", "", "destination name (default: the local host repository)")
+	snapshot := fs.String("snapshot", "latest", "restic snapshot id, 'latest', or a legacy hdms-*.dump.gz.enc path")
+	into := fs.String("into", "", "target database URL (required)")
+	force := fs.Bool("force", false, "allow restoring over the live database named by HDMS_DATABASE_URL")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*into) == "" {
+		return fmt.Errorf("usage: hdms-cli restore --into <database-url> [--from <destination>] [--snapshot <id>]")
+	}
+	if *into == cfg.DatabaseURL && !*force {
+		return fmt.Errorf("refusing to restore over the live database; pass --force if that is genuinely intended")
+	}
+	if len(cfg.BackupEncKey) != 32 {
+		return fmt.Errorf("HDMS_BACKUP_ENC_KEY: missing or invalid backup encryption key")
+	}
+
+	if backup.IsLegacyBackupFile(*snapshot) {
+		if err := backup.RestoreLegacyFile(ctx, *snapshot, cfg.BackupEncKey, *into); err != nil {
+			return err
+		}
+		fmt.Printf("Restored legacy backup %s into %s\n", *snapshot, redactURL(*into))
+		return nil
+	}
+
+	r, err := resticFor(cfg)
+	if err != nil {
+		return err
+	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	repo, err := repoFor(ctx, cfg, pool, *from)
+	if err != nil {
+		return err
+	}
+	if err := backup.RestoreInto(ctx, r, repo, *snapshot, *into); err != nil {
+		return err
+	}
+	fmt.Printf("Restored snapshot %s from %s into %s\n", *snapshot, repo.Location, redactURL(*into))
+	return nil
+}
+
+func redactURL(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "[malformed database url]"
+	}
+	return u.Redacted()
+}
+
 
 // runReconcile implements 5.5e: nightly INV-3 assertion, report-only by
 // design — it names disagreeing devices and exits non-zero, it never
