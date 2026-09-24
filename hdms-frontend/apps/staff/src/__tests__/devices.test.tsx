@@ -233,6 +233,26 @@ describe("staff devices", () => {
     expect(screen.getByLabelText("Start time")).toHaveValue(window.startInput);
   });
 
+  it("explains the gap required between back-to-back reservations", async () => {
+    const window = upcomingHospitalWindow();
+    vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
+      data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "available" },
+      error: undefined,
+    } as any);
+    vi.spyOn(apiClient, "createStaffReservation").mockResolvedValue({
+      error: { type: "https://hdms.hospital/errors/reservation-too-close" },
+      data: undefined,
+    } as any);
+    renderDevices({ initialPath: "/devices/d1", bookingPolicy: { advanceDays: 90, maxDurationDays: 30, returnBufferMinutes: 45 } });
+
+    expect(await screen.findByText("Bookings need 45 minutes clear of other reservations for this device.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Start time"), { target: { value: window.startInput } });
+    fireEvent.change(screen.getByLabelText("End time"), { target: { value: window.endInput } });
+    await userEvent.click(screen.getByRole("button", { name: "Reserve device" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Leave at least 45 minutes between this and other reservations");
+  });
+
   it("does not offer booking for an unavailable device", async () => {
     vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
       data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "unavailable" },

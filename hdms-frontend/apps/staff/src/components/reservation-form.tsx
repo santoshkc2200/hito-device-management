@@ -66,6 +66,7 @@ export function ReservationForm({ device }: { device: StaffDevice }) {
         ? String(cause.type).split("/").pop()
         : cause instanceof Error ? cause.message : "";
       if (kind === "reservation-conflict") setError(t("booking.conflict"));
+      else if (kind === "reservation-too-close") setError(t("booking.tooClose", { minutes: policy?.returnBufferMinutes ?? 0 }));
       else if (kind === "device-in-use") setError(t("booking.tooEarly", { minutes: policy?.returnBufferMinutes ?? 0 }));
       else if (kind === "device-unavailable") setError(t("booking.unavailable"));
       else if (kind === "invalid-window" || kind === "validation-failed") setError(t("booking.invalidWindow", { advanceDays: policy?.advanceDays ?? 0, maxDurationDays: policy?.maxDurationDays ?? 0 }));
@@ -107,6 +108,9 @@ export function ReservationForm({ device }: { device: StaffDevice }) {
       )}
       <p className="mt-1 text-sm text-muted-foreground">{t("booking.timezoneNote")}</p>
       <p className="mt-1 text-sm text-muted-foreground">{t("booking.windowNote", { advanceDays: policy.advanceDays, maxDurationDays: policy.maxDurationDays })}</p>
+      {policy.returnBufferMinutes > 0 && (
+        <p className="mt-1 text-sm text-muted-foreground">{t("booking.gapNote", { minutes: policy.returnBufferMinutes })}</p>
+      )}
       <form onSubmit={submit} className="mt-4 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t("booking.startAt")}

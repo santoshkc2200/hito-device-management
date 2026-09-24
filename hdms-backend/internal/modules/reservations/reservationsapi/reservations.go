@@ -12,6 +12,7 @@ import (
 var (
 	ErrReservationNotFound      = errors.New("reservations: reservation not found")
 	ErrReservationConflict      = errors.New("reservations: device already reserved for overlapping interval")
+	ErrReservationTooClose      = errors.New("reservations: device reserved within the required gap")
 	ErrReservationNotActive     = errors.New("reservations: reservation is not active")
 	ErrInvalidReservationWindow = errors.New("reservations: start time must be before end time")
 )
@@ -54,6 +55,9 @@ type CreateParams struct {
 	EndAt         time.Time
 	CreatedBy     string
 	CreatedSource string
+	// Buffer is the minimum gap to any other live reservation on the same
+	// device. Zero only forbids overlap, which the database always enforces.
+	Buffer time.Duration
 }
 
 type CancelParams struct {

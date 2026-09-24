@@ -251,6 +251,18 @@ WHERE r.user_id = $1
 ORDER BY r.start_at DESC, r.id DESC
 LIMIT sqlc.arg('result_limit');
 
+-- name: HasReservationWithinBuffer :one
+-- Live statuses match reservations_no_overlapping_device_window.
+SELECT EXISTS (
+    SELECT 1
+    FROM reservations
+    WHERE device_id = @device_id
+      AND id <> @id
+      AND status <> 'cancelled'
+      AND status <> 'expired'
+      AND tstzrange(start_at, end_at, '[)') && tstzrange(@window_start::timestamptz, @window_end::timestamptz, '[)')
+);
+
 -- name: FindActiveOrUpcomingForDevice :one
 SELECT
     r.id,

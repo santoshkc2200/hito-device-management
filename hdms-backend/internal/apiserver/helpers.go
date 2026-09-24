@@ -160,6 +160,8 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		p := httpx.NewProblem("reservation-conflict", "Device already reserved for overlapping interval", http.StatusConflict)
 		p.Detail = "This device is already reserved for an overlapping time interval."
 		httpx.WriteProblem(w, r, p)
+	case errors.Is(err, reservationsapi.ErrReservationTooClose):
+		httpx.WriteProblem(w, r, httpx.NewProblem("reservation-too-close", "Device reserved too close to this interval", http.StatusConflict))
 	case errors.Is(err, reservationsapi.ErrReservationNotActive):
 		httpx.WriteProblem(w, r, httpx.NewProblem("reservation-not-active", "Reservation is not active", http.StatusConflict))
 	case errors.Is(err, reservationsapi.ErrInvalidReservationWindow):

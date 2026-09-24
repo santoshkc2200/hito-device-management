@@ -1018,7 +1018,7 @@ export type BookingPolicySettings = {
      */
     maxDurationDays: number;
     /**
-     * Minimum time after an open loan's expected return. Default 60.
+     * Minimum gap before a staff booking can start after an open loan's expected return, and between a staff booking and any other reservation on the same device. Default 60.
      */
     returnBufferMinutes: number;
 };

@@ -1517,7 +1517,7 @@ export const ja = {
     bookingPolicyDescription: "職員アプリからの新規予約に適用する制限です。",
     bookingAdvanceDaysLabel: "予約可能な先の日数",
     bookingMaxDurationDaysLabel: "予約の最長日数",
-    bookingReturnBufferMinutesLabel: "返却予定後の待機時間（分）",
+    bookingReturnBufferMinutesLabel: "次の利用までの間隔（分）",
     saveBookingPolicy: "予約ポリシーを保存",
     bookingPolicyUpdated: "予約ポリシーを更新しました",
     bookingPolicyUpdateFailed: "予約ポリシーを更新できませんでした",
