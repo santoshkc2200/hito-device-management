@@ -55,10 +55,10 @@ var RequiredRoles = map[string]string{
 	"GET /v1/reports/loans.csv":          "viewer",
 	"GET /v1/reports/devices.csv":        "viewer",
 	"GET /v1/reports/users.csv":          "viewer",
-	"GET /v1/reservations":              "viewer",
-	"GET /v1/reservations/{id}":         "viewer",
-	"GET /v1/devices/{id}/reservations": "viewer",
-	"GET /v1/users/{id}/reservations":   "viewer",
+	"GET /v1/reservations":               "viewer",
+	"GET /v1/reservations/{id}":          "viewer",
+	"GET /v1/devices/{id}/reservations":  "viewer",
+	"GET /v1/users/{id}/reservations":    "viewer",
 
 	// --- Technician / Device Operations --------------------------------------
 	"POST /v1/devices":                  "technician",

@@ -2458,6 +2458,20 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /staff/me/reservations:
+    get:
+      operationId: getStaffMeReservations
+      summary: Active and upcoming reservations for the signed-in staff member.
+      tags: [staff]
+      responses:
+        "200":
+          description: Reservations.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StaffReservationList"}
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /staff/me/credential:
     get:
       operationId: getStaffMeCredential
@@ -4146,6 +4160,28 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StaffLoan"
+        nextCursor: {type: string}
+
+    StaffReservation:
+      type: object
+      required: [id, deviceId, deviceAssetTag, deviceName, startAt, endAt, status]
+      properties:
+        id: {type: string, format: uuid}
+        deviceId: {type: string, format: uuid}
+        deviceAssetTag: {type: string}
+        deviceName: {type: string}
+        startAt: {type: string, format: date-time}
+        endAt: {type: string, format: date-time}
+        status: {$ref: "#/components/schemas/ReservationStatus"}
+
+    StaffReservationList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffReservation"
         nextCursor: {type: string}
 
     QuarantinedDelivery:

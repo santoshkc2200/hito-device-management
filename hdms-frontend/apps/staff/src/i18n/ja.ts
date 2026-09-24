@@ -37,6 +37,10 @@ export const ja: StaffCatalogue = {
   },
   home: {
     title: "ホーム",
+    myReservations: "予約中の機器",
+    noReservations: "予約中の機器はありません",
+    reservedFrom: "開始日時",
+    reservedUntil: "終了日時",
     myLoans: "利用中の機器",
     noLoans: "利用中の機器はありません",
     deviceName: "機器名",

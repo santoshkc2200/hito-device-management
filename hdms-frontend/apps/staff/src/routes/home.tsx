@@ -1,4 +1,8 @@
-import { getStaffMeCredential, getStaffMeLoans } from "@hdms/api-client";
+import {
+  getStaffMeCredential,
+  getStaffMeLoans,
+  getStaffMeReservations,
+} from "@hdms/api-client";
 import { formatDate, useLocale } from "@hdms/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
@@ -22,6 +26,15 @@ export function HomePage() {
     },
   });
 
+  const reservationsQuery = useQuery({
+    queryKey: ["staff", "me", "reservations"],
+    queryFn: async () => {
+      const { data, error } = await getStaffMeReservations();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const loansQuery = useQuery({
     queryKey: ["staff", "me", "loans"],
     queryFn: async () => {
@@ -31,6 +44,7 @@ export function HomePage() {
     },
   });
 
+  const reservations = reservationsQuery.data?.items ?? [];
   const loans = loansQuery.data?.items ?? [];
 
   return (
@@ -66,6 +80,49 @@ export function HomePage() {
           <p className="text-center text-sm text-muted-foreground">
             {t("home.noCredential")}
           </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">{t("home.myReservations")}</h2>
+
+        {reservationsQuery.isLoading ? (
+          <p className="text-sm text-muted-foreground">{t("loading")}</p>
+        ) : reservationsQuery.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {t("home.loadError")}
+          </p>
+        ) : reservations.length === 0 ? (
+          <p className="py-2 text-sm text-muted-foreground">
+            {t("home.noReservations")}
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b bg-muted/50 text-xs font-medium text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">{t("home.deviceName")}</th>
+                  <th className="px-3 py-2">{t("home.reservedFrom")}</th>
+                  <th className="px-3 py-2">{t("home.reservedUntil")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {reservations.map((reservation) => (
+                  <tr key={reservation.id} className="hover:bg-muted/30">
+                    <td className="max-w-[140px] px-3 py-2.5 font-medium break-words">
+                      {reservation.deviceName}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                      {formatDate(locale, reservation.startAt)}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                      {formatDate(locale, reservation.endAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

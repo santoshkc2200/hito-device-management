@@ -385,7 +385,6 @@ func redactURL(rawURL string) string {
 	return u.Redacted()
 }
 
-
 // runReconcile implements 5.5e: nightly INV-3 assertion, report-only by
 // design — it names disagreeing devices and exits non-zero, it never
 // mutates custody. Invoked nightly by the systemd timer in

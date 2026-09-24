@@ -8,6 +8,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
+	"github.com/hito-hospital/hdms/internal/modules/reservations/reservationsapi"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
@@ -147,6 +148,40 @@ func (s *Server) GetStaffMeLoans(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gen.StaffLoanList{
 		Items:      items,
 		NextCursor: strPtr(res.NextCursor),
+	})
+}
+
+func (s *Server) GetStaffMeReservations(w http.ResponseWriter, r *http.Request) {
+	account, ok := staffauth.AccountFromContext(r.Context())
+	if !ok {
+		s.writeServiceError(w, r, auth.ErrSessionInvalid)
+		return
+	}
+
+	statusActive := reservationsapi.StatusActive
+	res, err := s.reservations.ListUserReservations(r.Context(), account.UserID, &statusActive, nil, nil, 100)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	items := make([]gen.StaffReservation, 0, len(res.Items))
+	for _, rsv := range res.Items {
+		resID, _ := uuid.Parse(rsv.ID)
+		devID, _ := uuid.Parse(rsv.DeviceID)
+		items = append(items, gen.StaffReservation{
+			Id:             resID,
+			DeviceId:       devID,
+			DeviceAssetTag: rsv.DeviceAssetTag,
+			DeviceName:     rsv.DeviceName,
+			StartAt:        rsv.StartAt,
+			EndAt:          rsv.EndAt,
+			Status:         gen.ReservationStatus(rsv.Status),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, gen.StaffReservationList{
+		Items: items,
 	})
 }
 

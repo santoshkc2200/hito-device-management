@@ -35,6 +35,10 @@ export const en = {
   },
   home: {
     title: "Home",
+    myReservations: "My Reservations",
+    noReservations: "No active reservations",
+    reservedFrom: "From",
+    reservedUntil: "Until",
     myLoans: "Current Loans",
     noLoans: "No active loans",
     deviceName: "Device",

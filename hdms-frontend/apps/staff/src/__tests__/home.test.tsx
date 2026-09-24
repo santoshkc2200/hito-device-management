@@ -19,7 +19,10 @@ const defaultMe: StaffMe = {
   signInMethods: ["password"],
 };
 
-function renderHome(credentialError: unknown) {
+function renderHome(
+  credentialError: unknown,
+  reservationsResult?: { data?: any; error?: any } | Promise<any>,
+) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -39,6 +42,15 @@ function renderHome(credentialError: unknown) {
     data: undefined,
     error: credentialError,
   } as any);
+  if (reservationsResult instanceof Promise) {
+    vi.spyOn(apiClient, "getStaffMeReservations").mockReturnValue(
+      reservationsResult as any,
+    );
+  } else {
+    vi.spyOn(apiClient, "getStaffMeReservations").mockResolvedValue(
+      reservationsResult ?? ({ data: { items: [] }, error: undefined } as any),
+    );
+  }
 
   const testRouter = createStaffRouter(
     createMemoryHistory({ initialEntries: ["/"] }),
@@ -78,5 +90,40 @@ describe("staff home", () => {
     });
 
     expect(await screen.findByText(/failed to load/i)).toBeInTheDocument();
+  });
+
+  it("renders loading state while reservations are being fetched", async () => {
+    const neverResolves = new Promise(() => {});
+    renderHome(null, neverResolves);
+
+    expect((await screen.findAllByText(/loading/i)).length).toBeGreaterThan(0);
+  });
+
+  it("renders empty state when there are no reservations", async () => {
+    renderHome(null, { data: { items: [] }, error: undefined });
+
+    expect(await screen.findByText(/no active reservations/i)).toBeInTheDocument();
+  });
+
+  it("renders active reservations when present", async () => {
+    renderHome(null, {
+      data: {
+        items: [
+          {
+            id: "res-1",
+            deviceId: "dev-1",
+            deviceAssetTag: "AT-100",
+            deviceName: "Portable Ultrasound",
+            startAt: "2026-09-24T10:00:00Z",
+            endAt: "2026-09-24T12:00:00Z",
+            status: "active",
+          },
+        ],
+      },
+      error: undefined,
+    });
+
+    expect(await screen.findByText("Portable Ultrasound")).toBeInTheDocument();
+    expect(screen.queryByText(/no active reservations/i)).not.toBeInTheDocument();
   });
 });
