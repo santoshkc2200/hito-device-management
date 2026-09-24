@@ -1130,6 +1130,21 @@ export type StaffLoanList = {
     nextCursor?: string;
 };
 
+export type StaffReservation = {
+    id: string;
+    deviceId: string;
+    deviceAssetTag: string;
+    deviceName: string;
+    startAt: string;
+    endAt: string;
+    status: ReservationStatus;
+};
+
+export type StaffReservationList = {
+    items: Array<StaffReservation>;
+    nextCursor?: string;
+};
+
 export type QuarantinedDelivery = {
     id: string;
     recipient: string;
@@ -4326,6 +4341,31 @@ export type GetStaffMeLoansResponses = {
 };
 
 export type GetStaffMeLoansResponse = GetStaffMeLoansResponses[keyof GetStaffMeLoansResponses];
+
+export type GetStaffMeReservationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/staff/me/reservations';
+};
+
+export type GetStaffMeReservationsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetStaffMeReservationsError = GetStaffMeReservationsErrors[keyof GetStaffMeReservationsErrors];
+
+export type GetStaffMeReservationsResponses = {
+    /**
+     * Reservations.
+     */
+    200: StaffReservationList;
+};
+
+export type GetStaffMeReservationsResponse = GetStaffMeReservationsResponses[keyof GetStaffMeReservationsResponses];
 
 export type GetStaffMeCredentialData = {
     body?: never;

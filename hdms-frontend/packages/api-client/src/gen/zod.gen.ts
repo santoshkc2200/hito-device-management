@@ -1069,6 +1069,21 @@ export const zStaffLoanList = z.object({
     nextCursor: z.string().optional()
 });
 
+export const zStaffReservation = z.object({
+    id: z.uuid(),
+    deviceId: z.uuid(),
+    deviceAssetTag: z.string(),
+    deviceName: z.string(),
+    startAt: z.iso.datetime(),
+    endAt: z.iso.datetime(),
+    status: zReservationStatus
+});
+
+export const zStaffReservationList = z.object({
+    items: z.array(zStaffReservation),
+    nextCursor: z.string().optional()
+});
+
 export const zQuarantinedDelivery = z.object({
     id: z.uuid(),
     recipient: z.string(),
@@ -2200,6 +2215,11 @@ export const zGetStaffDeviceResponse = zStaffDevice;
  * Loans.
  */
 export const zGetStaffMeLoansResponse = zStaffLoanList;
+
+/**
+ * Reservations.
+ */
+export const zGetStaffMeReservationsResponse = zStaffReservationList;
 
 /**
  * The active credential and plaintext token.
