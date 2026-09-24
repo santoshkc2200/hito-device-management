@@ -14,6 +14,9 @@ export function HomePage() {
     queryKey: ["staff", "me", "credential"],
     queryFn: async () => {
       const { data, error } = await getStaffMeCredential();
+      // No active card yet (e.g. an account created with a password) is a
+      // normal state, not a failure: resolve to null so it isn't retried.
+      if (error?.type?.endsWith("/no-credential")) return null;
       if (error) throw error;
       return data;
     },
@@ -59,7 +62,11 @@ export function HomePage() {
           </p>
         ) : credentialQuery.data?.token ? (
           <MyQr token={credentialQuery.data.token} />
-        ) : null}
+        ) : (
+          <p className="text-center text-sm text-muted-foreground">
+            {t("home.noCredential")}
+          </p>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">
