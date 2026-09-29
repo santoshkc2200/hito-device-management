@@ -63,8 +63,9 @@ latestReturnAt = min(
 )
 ```
 
-- "Live" matches the overlap constraint: status not `cancelled` and not
-  `expired`, and `end_at > t`.
+- "Live" here means status `active` and `end_at > t`. A `collected`
+  reservation is already in its reserver's hands and nobody will come for
+  it, so it does not limit a new loan.
 - When the borrow collects a reservation, that reservation is excluded from
   "next"; the one after it still applies.
 - With no next reservation, only the maximum duration applies.
@@ -72,14 +73,20 @@ latestReturnAt = min(
 `checkout.ReservationLookup` gains one method:
 
 ```go
-// LatestReturnFor reports the latest expected return a loan of deviceID
-// opened at `from` may have, ignoring the reservation excludeID (the one
-// being collected, or "").
-LatestReturnFor(ctx context.Context, deviceID string, from time.Time, excludeID string) (time.Time, error)
+// ReturnWindowFor reports the return window for a loan of deviceID opened
+// at `from`. collectingID names the reservation being collected ("" for a
+// walk-up borrow); it is ignored when finding the next reservation, and
+// its end_at is reported so the borrow can default to it.
+ReturnWindowFor(ctx context.Context, deviceID string, from time.Time, collectingID string) (ReturnWindow, error)
+
+type ReturnWindow struct {
+    Latest         time.Time // latest allowed expected return
+    CollectedEndAt time.Time // zero unless collectingID was given
+}
 ```
 
-A new sqlc query returns the earliest live reservation for the device with
-`end_at > from`, excluding `excludeID`.
+A new sqlc query returns the start of the earliest `active` reservation for
+the device with `end_at > from`, excluding `collectingID`.
 
 ### Too-close refusal
 
@@ -109,7 +116,7 @@ fails because a policy value was unreadable.
    window check, the loan insert and a concurrent staff booking are
    serialized. The lock is re-entrant within the transaction, so `OpenLoan`
    taking it again is harmless.
-2. Compute `latestReturnAt` via `LatestReturnFor`.
+2. Compute the window via `ReturnWindowFor` (passing the reservation being collected, if any).
 3. Choose the default due date, first match wins:
    1. collecting a reservation: that reservation's `end_at`;
    2. the scan request's optional `preferredDueAt` (the borrower's last
@@ -124,28 +131,33 @@ collected outcomes in `ScanResult` gain `latestReturnAt` (date-time) next to
 the existing `dueAt`.
 
 This applies to every checkout source that goes through `executeBorrow`,
-including offline replay. Replayed borrows get the same clamped default and
-no picker.
+including scans replayed after an outage. Replayed borrows get the same
+clamped default and no picker.
 
 ### Changing the due date
 
-New endpoint, mirroring `POST /sessions/{id}/return-loan`:
+New endpoint, mirroring `POST /sessions/{id}/return-loan` (loan id in the
+body, so the route keeps one path parameter like its siblings):
 
 ```
-POST /sessions/{id}/loans/{loanId}/due-date
+POST /sessions/{id}/loan-due-date
 security: kioskToken
 headers: Idempotency-Key
-body: { "dueAt": "<date-time>" }
-200: ScanResult (session state and outcome, with updated dueAt and latestReturnAt)
+body: { "loanId": "<id>", "dueAt": "<date-time>" }
+200: { "loanId", "dueAt", "latestReturnAt", "sessionExpiresAt" }
 ```
+
+The response is deliberately not a `ScanResult`: changing a date is not a
+new transaction, and feeding a fresh outcome into the kiosk machine would
+replay the borrow's success feedback.
 
 In one transaction:
 
 1. Lock the session row; it must be open and have an identified user.
 2. Take the device advisory lock.
 3. The loan must be open and belong to the session's user.
-4. Recompute `latestReturnAt` from now, excluding the reservation this loan
-   fulfilled (if any).
+4. Recompute `latestReturnAt` from now. The reservation this loan collected
+   is already `collected`, so it is not "next".
 5. Validate `now < dueAt <= latestReturnAt`.
 6. Call new `lending.SetDueAt(ctx, loanID, dueAt, meta)`, which updates
    `due_at` and records audit event `loan.due_changed` with old and new
@@ -216,11 +228,17 @@ For outcome kinds `borrowed` and `reservation_collected`, the success screen
   due date the borrower chose in this session and sends it as
   `preferredDueAt` on the next device scan. It is cleared when the session
   ends.
+- A successful change is applied with a `LOAN_DUE_UPDATED` event that
+  re-enters `ready`, restarting its 25-second timer, and updates the
+  outcome and open-loan due dates in place.
+- The borrow-feedback sound is keyed by loan id rather than due date, so a
+  changed due date never replays it.
 
 ### Offline
 
-- A borrow queued offline shows a read-only line saying the default return
-  date will be set when the kiosk reconnects; no picker.
+- While offline the kiosk shows the paper-fallback screen, never a borrow
+  success screen, so there is no picker to disable. Replayed scans get the
+  server default (see Borrow).
 
 ### Copy
 
@@ -236,7 +254,6 @@ For outcome kinds `borrowed` and `reservation_collected`, the success screen
   selection.
 - Timer: 12 seconds for borrows, reset on touch; 4 seconds for returns.
 - `preferredDueAt` carried to the next scan and cleared at session end.
-- Offline queued borrow shows the read-only line.
 - Playwright e2e: device reserved tomorrow at 10:00 with a 60-minute buffer;
   borrowing it today offers nothing later than 09:00; changing the return
   updates the loan.
