@@ -130,6 +130,11 @@ type Outcome struct {
 	Device *DeviceView
 	DueAt  *time.Time
 
+	// LatestReturnAt is the latest expected return the borrower may choose
+	// for this loan (borrow and reservation_collected only; nil when no
+	// bound applies).
+	LatestReturnAt *time.Time
+
 	// NewSessionID is set only for OutcomeUserSwitched: the current
 	// session closed and this is the id of the one that replaced it.
 	NewSessionID string
@@ -176,6 +181,11 @@ type ScanParams struct {
 	Source    string // scanner | camera | manual
 	ScannedAt time.Time
 	Actor     string
+
+	// PreferredDueAt is the expected return the borrower chose for their
+	// previous device in this session. A borrow uses it as the default when
+	// it is still in the future, clamped to the device's return window.
+	PreferredDueAt *time.Time
 }
 
 // Service is the checkout module's public API.

@@ -11,7 +11,9 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
 	"github.com/hito-hospital/hdms/internal/modules/checkout"
+	"github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi"
 	"github.com/hito-hospital/hdms/internal/modules/credentials"
+	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
 	"github.com/hito-hospital/hdms/internal/modules/identity"
 	"github.com/hito-hospital/hdms/internal/modules/lending"
 	"github.com/hito-hospital/hdms/internal/modules/reservations"
@@ -138,5 +140,109 @@ func TestReservationInsideBufferPlusMinimumLoanIsInForce(t *testing.T) {
 	env.reserve(t, other, userID, now.Add(100*time.Minute), now.Add(3*time.Hour))
 	if _, ok, err := env.adapter.InForceFor(ctx, other, now); err != nil || ok {
 		t.Fatalf("InForceFor 100 minutes ahead = (%v, %v), want not in force", ok, err)
+	}
+}
+
+// borrowIn scans the user then the device in a fresh session and returns
+// the borrow result, with preferred sent on the device scan.
+func (e returnWindowEnv) borrowIn(t *testing.T, kioskID, userToken, deviceToken string, preferred *time.Time) (checkoutapi.Session, checkoutapi.ScanResult) {
+	t.Helper()
+	ctx := context.Background()
+	session := createSession(t, ctx, e.checkout, kioskID)
+	scan(t, ctx, e.checkout, session.ID, userToken)
+	r, err := e.checkout.Scan(ctx, checkoutapi.ScanParams{
+		SessionID: session.ID, Token: deviceToken, Source: "scanner", Actor: "kiosk:test", PreferredDueAt: preferred,
+	})
+	if err != nil {
+		t.Fatalf("Scan device: %v", err)
+	}
+	return session, r
+}
+
+func TestBorrowClampsTheDefaultBeforeTheNextReservation(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	deviceID := fixtures.AvailableDevice(t, env.pool)
+	userID := fixtures.User(t, env.pool)
+	_, deviceToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, deviceID)
+	_, userToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, userID)
+	start := time.Now().UTC().Add(5 * time.Hour).Truncate(time.Second)
+	env.reserve(t, deviceID, fixtures.User(t, env.pool), start, start.Add(time.Hour))
+
+	_, r := env.borrowIn(t, kioskID, userToken, deviceToken, nil)
+	if r.Outcome.Kind != checkoutapi.OutcomeBorrowed {
+		t.Fatalf("outcome = %q, want borrowed", r.Outcome.Kind)
+	}
+	want := start.Add(-time.Hour)
+	if r.Outcome.DueAt == nil || !r.Outcome.DueAt.Equal(want) {
+		t.Fatalf("DueAt = %v, want %v (24h default clamped to next start minus gap)", r.Outcome.DueAt, want)
+	}
+	if r.Outcome.LatestReturnAt == nil || !r.Outcome.LatestReturnAt.Equal(want) {
+		t.Fatalf("LatestReturnAt = %v, want %v", r.Outcome.LatestReturnAt, want)
+	}
+}
+
+func TestBorrowUsesPreferredDueAtClampedToTheWindow(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	userID := fixtures.User(t, env.pool)
+	_, userToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, userID)
+
+	free := fixtures.AvailableDevice(t, env.pool)
+	_, freeToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, free)
+	preferred := time.Now().UTC().Add(48 * time.Hour).Truncate(time.Minute)
+	_, r := env.borrowIn(t, kioskID, userToken, freeToken, &preferred)
+	if r.Outcome.DueAt == nil || !r.Outcome.DueAt.Equal(preferred) {
+		t.Fatalf("free device DueAt = %v, want preferred %v", r.Outcome.DueAt, preferred)
+	}
+
+	busy := fixtures.AvailableDevice(t, env.pool)
+	_, busyToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, busy)
+	start := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Second)
+	env.reserve(t, busy, fixtures.User(t, env.pool), start, start.Add(time.Hour))
+	_, r = env.borrowIn(t, kioskID, userToken, busyToken, &preferred)
+	if r.Outcome.Kind != checkoutapi.OutcomeBorrowed {
+		t.Fatalf("busy device outcome = %q, want borrowed (clamped, not refused)", r.Outcome.Kind)
+	}
+	if want := start.Add(-time.Hour); r.Outcome.DueAt == nil || !r.Outcome.DueAt.Equal(want) {
+		t.Fatalf("busy device DueAt = %v, want %v", r.Outcome.DueAt, want)
+	}
+}
+
+func TestWalkUpBorrowRefusedWhenTheNextReservationLeavesUnderThirtyMinutes(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	deviceID := fixtures.AvailableDevice(t, env.pool)
+	userID := fixtures.User(t, env.pool)
+	_, deviceToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, deviceID)
+	_, userToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, userID)
+	start := time.Now().UTC().Add(80 * time.Minute)
+	env.reserve(t, deviceID, fixtures.User(t, env.pool), start, start.Add(time.Hour))
+
+	_, r := env.borrowIn(t, kioskID, userToken, deviceToken, nil)
+	if r.Outcome.Kind != checkoutapi.OutcomeRejected {
+		t.Fatalf("outcome = %q, want rejected (80 min ahead < 60 min gap + 30 min)", r.Outcome.Kind)
+	}
+	if n, _ := env.lending.CountOpenByDevice(context.Background(), deviceID); n != 0 {
+		t.Fatalf("open loans for device = %d, want 0", n)
+	}
+}
+
+func TestCollectingAReservationDefaultsToItsEnd(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	deviceID := fixtures.AvailableDevice(t, env.pool)
+	userID := fixtures.User(t, env.pool)
+	_, deviceToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, deviceID)
+	_, userToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, userID)
+	now := time.Now().UTC().Truncate(time.Second)
+	mine := env.reserve(t, deviceID, userID, now.Add(10*time.Minute), now.Add(5*time.Hour))
+
+	_, r := env.borrowIn(t, kioskID, userToken, deviceToken, nil)
+	if r.Outcome.Kind != checkoutapi.OutcomeReservationCollected {
+		t.Fatalf("outcome = %q, want reservation_collected", r.Outcome.Kind)
+	}
+	if r.Outcome.DueAt == nil || !r.Outcome.DueAt.Equal(mine.EndAt) {
+		t.Fatalf("DueAt = %v, want reservation end %v", r.Outcome.DueAt, mine.EndAt)
 	}
 }

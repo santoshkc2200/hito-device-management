@@ -112,6 +112,13 @@ func (s *Service) executeBorrow(
 		}
 	}
 
+	// Hold the device lock before reading the return window, so a staff
+	// booking cannot commit between the window check and the loan insert.
+	// Taken outside the savepoint so a lost borrow race keeps it.
+	if err := db.LockDevice(ctx, s.pool, deviceID); err != nil {
+		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: lock device to borrow: %w", err)
+	}
+
 	conn := db.Conn(ctx, s.pool)
 
 	if _, err := conn.Exec(ctx, "SAVEPOINT borrow_attempt"); err != nil {
@@ -123,16 +130,22 @@ func (s *Service) executeBorrow(
 	if err != nil {
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: lookup device to borrow: %w", err)
 	}
-	var dueAt *time.Time
+	now := s.clock.Now()
+	var categoryDue *time.Time
 	if device.CategoryID != "" {
 		cat, err := s.deps.Devices.CategoryOf(ctx, device.CategoryID)
 		if err != nil {
 			return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, fmt.Errorf("checkout: category of device to borrow: %w", err)
 		}
-		dueAt = s.deps.Loans.DueDateFor(cat.DefaultLoanPeriod, s.clock.Now())
+		categoryDue = s.deps.Loans.DueDateFor(cat.DefaultLoanPeriod, now)
 	}
+	window, err := s.returnWindow(ctx, deviceID, decision.FulfillsReservationID, now)
+	if err != nil {
+		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
+	}
+	due := chooseDueAt(now, window, params.PreferredDueAt, categoryDue)
 
-	loan, err := s.deps.Loans.OpenLoan(ctx, deviceID, userID, dueAt, lendingapi.OpenMeta{
+	loan, err := s.deps.Loans.OpenLoan(ctx, deviceID, userID, &due, lendingapi.OpenMeta{
 		KioskID: pgtypeconv.UUIDString(session.KioskID), Actor: params.Actor, Source: params.Source,
 		ConditionOut: string(device.Condition),
 	})
@@ -191,6 +204,9 @@ func (s *Service) executeBorrow(
 	outcome := checkoutapi.Outcome{
 		Kind: kind, LoanID: loan.ID,
 		Device: &checkoutapi.DeviceView{ID: device.ID, AssetTag: device.AssetTag, Name: device.Name}, DueAt: loan.DueAt,
+	}
+	if !window.Latest.IsZero() {
+		outcome.LatestReturnAt = &window.Latest
 	}
 	extra := map[string]any{}
 	if loan.DueAt != nil {
