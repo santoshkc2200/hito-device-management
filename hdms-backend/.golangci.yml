@@ -132,6 +132,7 @@ linters:
             - "!**/cmd/**"
             - "!**/internal/apiserver/**"
             - "!**/internal/modules/checkout/**"
+            - "!**/internal/modules/reservations/checkoutadapter*.go"
           deny:
             - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout, desc: "checkout is the orchestrator; only cmd/hdms-api's composition root may import it"}
             - {pkg: github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi, desc: "checkout is the orchestrator; only cmd/hdms-api's composition root may import it"}

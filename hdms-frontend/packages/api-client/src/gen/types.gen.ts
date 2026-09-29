@@ -525,6 +525,10 @@ export type Outcome = {
     loanId?: string;
     device?: SessionDevice;
     dueAt?: string;
+    /**
+     * Latest expected return the borrower may choose (borrowed and reservation_collected only).
+     */
+    latestReturnAt?: string;
     newSessionId?: string;
 };
 
@@ -541,10 +545,26 @@ export type ScanRequest = {
     token: string;
     source: ScanSource;
     scannedAt?: string;
+    /**
+     * Expected return the borrower chose for their previous device in this session; used as the default when a borrow follows.
+     */
+    preferredDueAt?: string;
 };
 
 export type ReturnSessionLoanRequest = {
     loanId: string;
+};
+
+export type SetSessionLoanDueDateRequest = {
+    loanId: string;
+    dueAt: string;
+};
+
+export type SessionLoanDueDate = {
+    loanId: string;
+    dueAt: string;
+    latestReturnAt?: string;
+    sessionExpiresAt: string;
 };
 
 export type LoanStatus = 'open' | 'returned' | 'written_off';
@@ -2491,6 +2511,40 @@ export type ReturnSessionLoanResponses = {
 };
 
 export type ReturnSessionLoanResponse = ReturnSessionLoanResponses[keyof ReturnSessionLoanResponses];
+
+export type SetSessionLoanDueDateData = {
+    body: SetSessionLoanDueDateRequest;
+    headers?: {
+        /**
+         * Stores the response for 24 h and replays it verbatim on a retry with the same key (a different body gets `idempotency-mismatch`, 422). The kiosk derives its key as sha256(session_id | device_id | action | minute_bucket) — the minute bucket is what makes a deliberate re-borrow a minute later a new transaction rather than a replay. The admin console may send any stable per-action value or omit the header.
+         *
+         */
+        'Idempotency-Key'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/sessions/{id}/loan-due-date';
+};
+
+export type SetSessionLoanDueDateErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type SetSessionLoanDueDateError = SetSessionLoanDueDateErrors[keyof SetSessionLoanDueDateErrors];
+
+export type SetSessionLoanDueDateResponses = {
+    /**
+     * The loan's new expected return and its current return window.
+     */
+    200: SessionLoanDueDate;
+};
+
+export type SetSessionLoanDueDateResponse = SetSessionLoanDueDateResponses[keyof SetSessionLoanDueDateResponses];
 
 export type CloseSessionData = {
     body?: never;

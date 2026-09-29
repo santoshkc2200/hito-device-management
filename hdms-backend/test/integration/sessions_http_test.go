@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
@@ -177,6 +178,32 @@ func TestHTTPSessionsWorkflow(t *testing.T) {
 		t.Fatalf("OpenLoans length = %d, want 1", len(scanRes.OpenLoans))
 	}
 	loanID := scanRes.OpenLoans[0].Id
+
+	// 5b. Change the expected return, then try a date in the past.
+	if scanRes.Outcome.DueAt == nil {
+		t.Fatal("borrow outcome has no dueAt; every kiosk loan must carry one")
+	}
+	due := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Minute)
+	resp, data = postKiosk("/v1/sessions/"+sess.Id+"/loan-due-date", gen.SetSessionLoanDueDateRequest{
+		LoanId: loanID, DueAt: due,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("SetSessionLoanDueDate status = %d: %s", resp.StatusCode, string(data))
+	}
+	var dueRes gen.SessionLoanDueDate
+	if err := json.Unmarshal(data, &dueRes); err != nil {
+		t.Fatalf("Unmarshal due-date result: %v", err)
+	}
+	if dueRes.LoanId != loanID || !dueRes.DueAt.Equal(due) || dueRes.SessionExpiresAt.IsZero() {
+		t.Fatalf("due-date result = %+v, want loan %s due %v with a session expiry", dueRes, loanID, due)
+	}
+
+	resp, data = postKiosk("/v1/sessions/"+sess.Id+"/loan-due-date", gen.SetSessionLoanDueDateRequest{
+		LoanId: loanID, DueAt: time.Now().UTC().Add(-time.Hour),
+	})
+	if resp.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(string(data), "dueAt") {
+		t.Fatalf("past dueAt: status = %d body = %s, want 422 naming dueAt", resp.StatusCode, string(data))
+	}
 
 	// 6. Return loan directly
 	resp, data = postKiosk("/v1/sessions/"+sess.Id+"/return-loan", gen.ReturnSessionLoanRequest{

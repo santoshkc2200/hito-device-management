@@ -139,12 +139,13 @@ var RequiredRoles = map[string]string{
 	"POST /v1/admins/{id}/unlock":         "admin",
 
 	// --- Admin-Only / Kiosk Session lifecycle --------------------------------
-	"POST /v1/sessions":                  "admin",
-	"GET /v1/sessions/{id}":              "admin",
-	"DELETE /v1/sessions/{id}":           "admin",
-	"POST /v1/sessions/{id}/scan":        "admin",
-	"POST /v1/sessions/{id}/return-loan": "admin",
-	"POST /v1/sessions/{id}/close":       "admin",
+	"POST /v1/sessions":                    "admin",
+	"GET /v1/sessions/{id}":                "admin",
+	"DELETE /v1/sessions/{id}":             "admin",
+	"POST /v1/sessions/{id}/scan":          "admin",
+	"POST /v1/sessions/{id}/return-loan":   "admin",
+	"POST /v1/sessions/{id}/loan-due-date": "admin",
+	"POST /v1/sessions/{id}/close":         "admin",
 }
 
 // RequireRole returns the minimum required role for a given HTTP method and request path,
