@@ -4,6 +4,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -244,5 +245,82 @@ func TestCollectingAReservationDefaultsToItsEnd(t *testing.T) {
 	}
 	if r.Outcome.DueAt == nil || !r.Outcome.DueAt.Equal(mine.EndAt) {
 		t.Fatalf("DueAt = %v, want reservation end %v", r.Outcome.DueAt, mine.EndAt)
+	}
+}
+
+func TestSetLoanDueDateAcceptsUpToTheLatestAndRefusesBeyond(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	ctx := context.Background()
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	deviceID := fixtures.AvailableDevice(t, env.pool)
+	userID := fixtures.User(t, env.pool)
+	_, deviceToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, deviceID)
+	_, userToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, userID)
+	start := time.Now().UTC().Add(30 * time.Hour).Truncate(time.Second)
+	env.reserve(t, deviceID, fixtures.User(t, env.pool), start, start.Add(time.Hour))
+	session, r := env.borrowIn(t, kioskID, userToken, deviceToken, nil)
+	latest := start.Add(-time.Hour)
+
+	got, err := env.checkout.SetLoanDueDate(ctx, session.ID, r.Outcome.LoanID, latest, "kiosk:"+kioskID)
+	if err != nil {
+		t.Fatalf("SetLoanDueDate at exactly latest: %v", err)
+	}
+	if !got.DueAt.Equal(latest) || !got.LatestReturnAt.Equal(latest) {
+		t.Fatalf("result = %+v, want dueAt = latestReturnAt = %v", got, latest)
+	}
+	if !got.SessionExpiresAt.After(time.Now()) {
+		t.Fatalf("SessionExpiresAt = %v, want refreshed into the future", got.SessionExpiresAt)
+	}
+
+	_, err = env.checkout.SetLoanDueDate(ctx, session.ID, r.Outcome.LoanID, latest.Add(time.Minute), "kiosk:"+kioskID)
+	conflict, ok := errors.AsType[*checkoutapi.DueDateConflictError](err)
+	if !ok || !conflict.LatestReturnAt.Equal(latest) {
+		t.Fatalf("beyond latest err = %v, want DueDateConflictError{%v}", err, latest)
+	}
+
+	_, err = env.checkout.SetLoanDueDate(ctx, session.ID, r.Outcome.LoanID, time.Now().Add(-time.Minute), "kiosk:"+kioskID)
+	if !errors.Is(err, checkoutapi.ErrDueDateNotInFuture) {
+		t.Fatalf("past dueAt err = %v, want ErrDueDateNotInFuture", err)
+	}
+}
+
+func TestSetLoanDueDateSeesAReservationBookedAfterTheBorrow(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	ctx := context.Background()
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	deviceID := fixtures.AvailableDevice(t, env.pool)
+	userID := fixtures.User(t, env.pool)
+	_, deviceToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, deviceID)
+	_, userToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, userID)
+	session, r := env.borrowIn(t, kioskID, userToken, deviceToken, nil)
+
+	start := time.Now().UTC().Add(40 * time.Hour).Truncate(time.Second)
+	env.reserve(t, deviceID, fixtures.User(t, env.pool), start, start.Add(time.Hour))
+
+	_, err := env.checkout.SetLoanDueDate(ctx, session.ID, r.Outcome.LoanID, start.Add(2*time.Hour), "kiosk:"+kioskID)
+	conflict, ok := errors.AsType[*checkoutapi.DueDateConflictError](err)
+	if !ok || !conflict.LatestReturnAt.Equal(start.Add(-time.Hour)) {
+		t.Fatalf("err = %v, want conflict with latest %v", err, start.Add(-time.Hour))
+	}
+}
+
+func TestSetLoanDueDateRefusesAnotherUsersLoan(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	ctx := context.Background()
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	deviceID := fixtures.AvailableDevice(t, env.pool)
+	owner := fixtures.User(t, env.pool)
+	_, deviceToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, deviceID)
+	_, ownerToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, owner)
+	_, r := env.borrowIn(t, kioskID, ownerToken, deviceToken, nil)
+
+	other := fixtures.User(t, env.pool)
+	_, otherToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, other)
+	otherSession := createSession(t, ctx, env.checkout, kioskID)
+	scan(t, ctx, env.checkout, otherSession.ID, otherToken)
+
+	_, err := env.checkout.SetLoanDueDate(ctx, otherSession.ID, r.Outcome.LoanID, time.Now().Add(2*time.Hour), "kiosk:"+kioskID)
+	if !errors.Is(err, checkoutapi.ErrSessionConflict) {
+		t.Fatalf("err = %v, want ErrSessionConflict", err)
 	}
 }
