@@ -253,6 +253,29 @@ describe("staff devices", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Leave at least 45 minutes between this and other reservations");
   });
 
+  it("only offers return times after the start and explains an inverted window in the app language", async () => {
+    const window = upcomingHospitalWindow();
+    vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
+      data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "available" },
+      error: undefined,
+    } as any);
+    const create = vi.spyOn(apiClient, "createStaffReservation");
+    renderDevices({ initialPath: "/devices/d1", bookingPolicy: { advanceDays: 90, maxDurationDays: 2, returnBufferMinutes: 0 } });
+
+    fireEvent.change(await screen.findByLabelText("Start time"), { target: { value: window.startInput } });
+    const end = screen.getByLabelText("End time");
+    const startMs = new Date(`${window.startInput}:00+09:00`).getTime();
+    const local = (ms: number) => new Date(ms + 9 * 60 * 60_000).toISOString().slice(0, 16);
+    expect(end).toHaveAttribute("min", local(startMs + 60_000));
+    expect(end).toHaveAttribute("max", local(startMs + 2 * 24 * 60 * 60_000));
+
+    fireEvent.change(end, { target: { value: window.startInput } });
+    await userEvent.click(screen.getByRole("button", { name: "Reserve device" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("End time must be after the start time.");
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("does not offer booking for an unavailable device", async () => {
     vi.spyOn(apiClient, "getStaffDevice").mockResolvedValue({
       data: { id: "d1", assetTag: "AT-1", name: "Projector", availability: "unavailable" },
