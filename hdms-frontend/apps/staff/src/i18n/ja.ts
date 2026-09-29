@@ -87,6 +87,8 @@ export const ja: StaffCatalogue = {
     tooClose: "この機器の他の予約との間に{minutes}分以上の間隔を空けてください。",
     unavailable: "この機器は現在予約できません。",
     noExpectedReturn: "この機器を予約するには返却予定日時の設定が必要です。",
+    timesRequired: "開始日時と終了日時を両方指定してください。",
+    endBeforeStart: "終了日時は開始日時より後にしてください。",
     invalidWindow: "開始は{advanceDays}日以内の未来日時、予約期間は{maxDurationDays}日以内で指定してください。",
     failed: "予約できませんでした。接続を確認してもう一度お試しください。",
     cancel: "予約をキャンセル",

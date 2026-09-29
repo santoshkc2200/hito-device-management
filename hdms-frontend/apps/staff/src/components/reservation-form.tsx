@@ -16,6 +16,8 @@ function parseHospitalDateTime(value: string): Date {
   return new Date(`${value}:00+09:00`);
 }
 
+const DAY_MS = 24 * 60 * 60_000;
+
 export function ReservationForm({ device }: { device: StaffDevice }) {
   const t = useT();
   const queryClient = useQueryClient();
@@ -45,9 +47,11 @@ export function ReservationForm({ device }: { device: StaffDevice }) {
       if (!policy) throw new Error("policy-unavailable");
       const start = parseHospitalDateTime(startAt);
       const end = parseHospitalDateTime(endAt);
-      if (!startAt || !endAt || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) ||
-        start < earliest || end <= start || start.getTime() > Date.now() + policy.advanceDays * 24 * 60 * 60_000 ||
-        end.getTime() - start.getTime() > policy.maxDurationDays * 24 * 60 * 60_000) {
+      if (!startAt || !endAt) throw new Error("times-required");
+      if (end <= start) throw new Error("end-before-start");
+      if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) ||
+        start < earliest || start.getTime() > Date.now() + policy.advanceDays * DAY_MS ||
+        end.getTime() - start.getTime() > policy.maxDurationDays * DAY_MS) {
         throw new Error("invalid-window");
       }
       const result = await createStaffReservation({
@@ -69,6 +73,8 @@ export function ReservationForm({ device }: { device: StaffDevice }) {
       else if (kind === "reservation-too-close") setError(t("booking.tooClose", { minutes: policy?.returnBufferMinutes ?? 0 }));
       else if (kind === "device-in-use") setError(t("booking.tooEarly", { minutes: policy?.returnBufferMinutes ?? 0 }));
       else if (kind === "device-unavailable") setError(t("booking.unavailable"));
+      else if (kind === "times-required") setError(t("booking.timesRequired"));
+      else if (kind === "end-before-start") setError(t("booking.endBeforeStart"));
       else if (kind === "invalid-window" || kind === "validation-failed") setError(t("booking.invalidWindow", { advanceDays: policy?.advanceDays ?? 0, maxDurationDays: policy?.maxDurationDays ?? 0 }));
       else setError(t("booking.failed"));
     },
@@ -94,6 +100,8 @@ export function ReservationForm({ device }: { device: StaffDevice }) {
   if (policyQuery.isLoading) return <p className="text-sm text-muted-foreground">{t("loading")}</p>;
   if (!policy) return <p role="alert" className="text-sm text-destructive">{t("booking.policyLoadFailed")}</p>;
 
+  const start = startAt ? parseHospitalDateTime(startAt) : null;
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -111,14 +119,15 @@ export function ReservationForm({ device }: { device: StaffDevice }) {
       {policy.returnBufferMinutes > 0 && (
         <p className="mt-1 text-sm text-muted-foreground">{t("booking.gapNote", { minutes: policy.returnBufferMinutes })}</p>
       )}
-      <form onSubmit={submit} className="mt-4 flex flex-col gap-4">
+      {/* noValidate: the browser's own min/max/required messages ignore the app language; submit() reports them instead. */}
+      <form onSubmit={submit} noValidate className="mt-4 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t("booking.startAt")}
           <Input
             type="datetime-local"
             value={startAt}
             min={hospitalDateTime(earliest)}
-            max={hospitalDateTime(new Date(now.getTime() + policy.advanceDays * 24 * 60 * 60_000))}
+            max={hospitalDateTime(new Date(now.getTime() + policy.advanceDays * DAY_MS))}
             onChange={(event) => setStartAt(event.target.value)}
             required
           />
@@ -128,7 +137,8 @@ export function ReservationForm({ device }: { device: StaffDevice }) {
           <Input
             type="datetime-local"
             value={endAt}
-            min={startAt || hospitalDateTime(earliest)}
+            min={hospitalDateTime(new Date((start ?? earliest).getTime() + 60_000))}
+            max={start ? hospitalDateTime(new Date(start.getTime() + policy.maxDurationDays * DAY_MS)) : undefined}
             onChange={(event) => setEndAt(event.target.value)}
             required
           />

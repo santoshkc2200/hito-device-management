@@ -85,6 +85,8 @@ export const en = {
     tooClose: "Leave at least {minutes} minutes between this and other reservations for this device.",
     unavailable: "This device cannot be reserved right now.",
     noExpectedReturn: "This device needs an expected return time before it can be reserved.",
+    timesRequired: "Choose both a start and an end time.",
+    endBeforeStart: "End time must be after the start time.",
     invalidWindow: "Choose a future start within {advanceDays} days and a booking of up to {maxDurationDays} days.",
     failed: "Could not create reservation. Check your connection and try again.",
     cancel: "Cancel reservation",
