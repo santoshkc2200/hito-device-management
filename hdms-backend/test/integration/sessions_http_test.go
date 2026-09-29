@@ -160,10 +160,12 @@ func TestHTTPSessionsWorkflow(t *testing.T) {
 		t.Fatalf("Scan user did not identify Jane Doe: %+v", scanRes.Session.User)
 	}
 
-	// 5. Scan Device (Borrow)
+	// 5. Scan Device (Borrow), carrying the borrower's preferred return.
+	preferred := time.Now().UTC().Add(5 * time.Hour).Truncate(time.Minute)
 	resp, data = postKiosk("/v1/sessions/"+sess.Id+"/scan", gen.ScanRequest{
-		Token:  deviceCard.Token,
-		Source: gen.ScanSourceScanner,
+		Token:          deviceCard.Token,
+		Source:         gen.ScanSourceScanner,
+		PreferredDueAt: &preferred,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Scan device status = %d: %s", resp.StatusCode, string(data))
@@ -178,6 +180,9 @@ func TestHTTPSessionsWorkflow(t *testing.T) {
 		t.Fatalf("OpenLoans length = %d, want 1", len(scanRes.OpenLoans))
 	}
 	loanID := scanRes.OpenLoans[0].Id
+	if scanRes.Outcome.DueAt == nil || !scanRes.Outcome.DueAt.Equal(preferred) {
+		t.Fatalf("borrow dueAt = %v, want preferredDueAt %v", scanRes.Outcome.DueAt, preferred)
+	}
 
 	// 5b. Change the expected return, then try a date in the past.
 	if scanRes.Outcome.DueAt == nil {

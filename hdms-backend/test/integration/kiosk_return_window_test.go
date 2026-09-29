@@ -324,3 +324,31 @@ func TestSetLoanDueDateRefusesAnotherUsersLoan(t *testing.T) {
 		t.Fatalf("err = %v, want ErrSessionConflict", err)
 	}
 }
+
+func TestSetLoanDueDateAfterCollectingIgnoresTheCollectedReservation(t *testing.T) {
+	env := newReturnWindowEnv(t, clock.System{})
+	ctx := context.Background()
+	kioskID, _ := fixtures.Kiosk(t, env.pool)
+	deviceID := fixtures.AvailableDevice(t, env.pool)
+	userID := fixtures.User(t, env.pool)
+	_, deviceToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectDevice, deviceID)
+	_, userToken := fixtures.ActiveCredentialFor(t, env.pool, credentialsapi.SubjectUser, userID)
+	now := time.Now().UTC().Truncate(time.Second)
+	mine := env.reserve(t, deviceID, userID, now.Add(10*time.Minute), now.Add(5*time.Hour))
+
+	session, r := env.borrowIn(t, kioskID, userToken, deviceToken, nil)
+	if r.Outcome.Kind != checkoutapi.OutcomeReservationCollected {
+		t.Fatalf("outcome = %q, want reservation_collected", r.Outcome.Kind)
+	}
+
+	// The collected reservation's window is still in the future, but it is
+	// already in the reserver's hands, so it must not cap the new date.
+	want := mine.EndAt.Add(2 * time.Hour)
+	got, err := env.checkout.SetLoanDueDate(ctx, session.ID, r.Outcome.LoanID, want, "kiosk:"+kioskID)
+	if err != nil {
+		t.Fatalf("SetLoanDueDate after collecting: %v", err)
+	}
+	if !got.DueAt.Equal(want) {
+		t.Fatalf("DueAt = %v, want %v", got.DueAt, want)
+	}
+}
