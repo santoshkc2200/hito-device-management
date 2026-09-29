@@ -722,6 +722,20 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
       })
       .toBe(new Date(start.getTime() - 60 * 60 * 1000).getTime());
 
+    // The next device in the same session defaults to the borrower's choice.
+    const second: TestDevice = await api.seedDevice();
+    await page.getByTestId("scan-another-button").click();
+    await expect(page.getByTestId("awaiting-device-prompt")).toBeVisible({ timeout: 5_000 });
+    await simulateScan(page, second.token);
+    await expect(page.getByTestId("return-by-panel")).toBeVisible({ timeout: 5_000 });
+    await expect
+      .poll(async () => {
+        const loans = await api.getDeviceLoans(second.id);
+        const open = loans.find((l: any) => l.status === "open");
+        return open ? new Date(open.dueAt).getTime() : null;
+      })
+      .toBe(new Date(start.getTime() - 60 * 60 * 1000).getTime());
+
     const a11y = await new AxeBuilder({ page }).analyze();
     expect(a11y.violations).toEqual([]);
   });

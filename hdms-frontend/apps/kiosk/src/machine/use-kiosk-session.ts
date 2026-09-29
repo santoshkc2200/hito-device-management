@@ -19,7 +19,7 @@ import { getKioskConfig, getSessionId, clearSessionId } from "../lib/kiosk-confi
 import { parseProblem, type KioskProblem } from "../lib/problem";
 import { useScanRouter } from "../lib/scan";
 import { playFeedbackSound } from "../lib/audio";
-import { getOutcomeFeedback } from "../lib/feedback-config";
+import { getOutcomeFeedback, outcomeSoundKey } from "../lib/feedback-config";
 import { useConnectivity, onKioskReconnect, resetConnectivityForTesting } from "../lib/connectivity";
 import { resetScanSequence } from "../lib/api";
 
@@ -156,8 +156,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
       if (lastOutcome.kind === "duplicate") {
         return;
       }
-      // Keyed by loan so a changed return date never replays the borrow sound.
-      const outcomeKey = `outcome_${lastOutcome.kind}_${lastOutcome.loanId ?? lastOutcome.device?.id ?? ""}`;
+      const outcomeKey = outcomeSoundKey(lastOutcome);
       if (lastSoundOutcomeRef.current !== outcomeKey) {
         lastSoundOutcomeRef.current = outcomeKey;
         const fb = getOutcomeFeedback(lastOutcome.kind);
@@ -220,7 +219,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
         actor.send({ type: "SET_PROBLEM", problem });
       }
     },
-    [actor, kioskId, snapshot.context.sessionId, stopScanning]
+    [actor, kioskId, snapshot.context.sessionId, snapshot.context.preferredDueAt, stopScanning]
   );
 
   // Subscribe to ScanRouter events
