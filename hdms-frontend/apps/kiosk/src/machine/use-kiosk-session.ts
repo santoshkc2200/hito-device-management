@@ -13,6 +13,7 @@ import {
   executeResume,
   setupVisibilityReconciliation,
   type SessionMachineActor,
+  type SetDueDateResult,
 } from "./session-machine";
 import { getKioskConfig, getSessionId, clearSessionId } from "../lib/kiosk-config";
 import { parseProblem, type KioskProblem } from "../lib/problem";
@@ -134,10 +135,15 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const lastSoundOutcomeRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    if (
-      lastOutcome !== lastOutcomeRef.current ||
-      lastProblem !== lastProblemRef.current
-    ) {
+    const isNewOutcome =
+      lastOutcome !== lastOutcomeRef.current &&
+      !(
+        lastOutcome &&
+        lastOutcomeRef.current &&
+        lastOutcome.loanId === lastOutcomeRef.current.loanId &&
+        lastOutcome.kind === lastOutcomeRef.current.kind
+      );
+    if (isNewOutcome || lastProblem !== lastProblemRef.current) {
       lastOutcomeRef.current = lastOutcome;
       lastProblemRef.current = lastProblem;
       setIsOutcomeDismissed(false);
@@ -150,7 +156,8 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
       if (lastOutcome.kind === "duplicate") {
         return;
       }
-      const outcomeKey = `outcome_${lastOutcome.kind}_${lastOutcome.device?.id ?? ""}_${lastOutcome.dueAt ?? ""}`;
+      // Keyed by loan so a changed return date never replays the borrow sound.
+      const outcomeKey = `outcome_${lastOutcome.kind}_${lastOutcome.loanId ?? lastOutcome.device?.id ?? ""}`;
       if (lastSoundOutcomeRef.current !== outcomeKey) {
         lastSoundOutcomeRef.current = outcomeKey;
         const fb = getOutcomeFeedback(lastOutcome.kind);
@@ -193,6 +200,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
           kioskId,
           token,
           source,
+          preferredDueAt: snapshot.context.preferredDueAt,
         });
         setIsOutcomeDismissed(false);
         actor.send({ type: "APPLY_SCAN_RESULT", result });
@@ -310,6 +318,13 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     }
   }, [snapshot, snapshot.context.sessionId]);
 
+  const applyDueUpdate = React.useCallback(
+    (update: Extract<SetDueDateResult, { ok: true }>) => {
+      actor.send({ type: "LOAN_DUE_UPDATED", ...update });
+    },
+    [actor]
+  );
+
   const cameraEnabled = config?.enabledSources?.includes("camera") ?? true;
   const cameraSource = React.useMemo(
     () => (cameraEnabled ? new CameraSource() : null),
@@ -373,6 +388,8 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   return {
     state,
     context: snapshot.context,
+    sessionId: snapshot.context.sessionId,
+    applyDueUpdate,
     kioskName,
     scannerReady,
     scannerFresh,
