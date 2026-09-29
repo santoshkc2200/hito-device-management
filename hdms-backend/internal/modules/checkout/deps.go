@@ -52,6 +52,7 @@ type Loans interface {
 	OpenLoansFor(ctx context.Context, userID string) ([]lendingapi.Loan, error)
 	HolderOf(ctx context.Context, deviceID string) (lendingapi.Loan, error)
 	DueDateFor(period *time.Duration, borrowedAt time.Time) *time.Time
+	SetDueAt(ctx context.Context, loanID string, dueAt time.Time, meta lendingapi.DueChangeMeta) (lendingapi.Loan, error)
 
 	// The paper backfill (2.4b) writes history through these.
 	RecordHistorical(ctx context.Context, params lendingapi.RecordHistoricalParams) (lendingapi.Loan, error)

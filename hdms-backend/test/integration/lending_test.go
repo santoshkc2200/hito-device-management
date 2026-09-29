@@ -379,3 +379,40 @@ func TestListLoansCursorPaginationStable(t *testing.T) {
 		}
 	}
 }
+
+func TestSetDueAtChangesAnOpenLoanAndAuditsIt(t *testing.T) {
+	pool := testdb.New(t)
+	auditSvc := audit.New(pool)
+	svc := lending.New(pool, auditSvc, clock.System{})
+	ctx := context.Background()
+	deviceID := fixtures.AvailableDevice(t, pool)
+	userID := fixtures.User(t, pool)
+	first := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second)
+	loan, err := svc.OpenLoan(ctx, deviceID, userID, &first, lendingapi.OpenMeta{Actor: "kiosk:k1", Source: "scanner"})
+	if err != nil {
+		t.Fatalf("OpenLoan: %v", err)
+	}
+
+	next := first.Add(48 * time.Hour)
+	got, err := svc.SetDueAt(ctx, loan.ID, next, lendingapi.DueChangeMeta{KioskID: "", Actor: "kiosk:k1"})
+	if err != nil {
+		t.Fatalf("SetDueAt: %v", err)
+	}
+	if got.DueAt == nil || !got.DueAt.Equal(next) {
+		t.Fatalf("DueAt = %v, want %v", got.DueAt, next)
+	}
+	var n int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE action = 'loan.due_changed' AND subject = $1`, "loan:"+loan.ID).Scan(&n); err != nil {
+		t.Fatalf("count audit: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("loan.due_changed events = %d, want 1", n)
+	}
+
+	if _, err := svc.CloseLoan(ctx, loan.ID, lendingapi.CloseMeta{Actor: "kiosk:k1", Source: "scanner"}); err != nil {
+		t.Fatalf("CloseLoan: %v", err)
+	}
+	if _, err := svc.SetDueAt(ctx, loan.ID, next, lendingapi.DueChangeMeta{Actor: "kiosk:k1"}); !errors.Is(err, lendingapi.ErrLoanNotOpen) {
+		t.Fatalf("SetDueAt on closed loan err = %v, want ErrLoanNotOpen", err)
+	}
+}

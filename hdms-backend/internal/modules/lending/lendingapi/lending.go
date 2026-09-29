@@ -147,6 +147,12 @@ type CloseMeta struct {
 	ConditionIn string
 }
 
+// DueChangeMeta attributes a change of a loan's expected return.
+type DueChangeMeta struct {
+	KioskID string // "" when not changed at a kiosk
+	Actor   string // 'kiosk:<id>' | 'admin:<id>', required
+}
+
 // RecordHistoricalParams is the only path that accepts an explicit,
 // possibly past, borrowed_at — used by paper backfill (2.4b) and go-live
 // import. Every other write takes its timestamp from the clock.
@@ -328,6 +334,12 @@ type Service interface {
 	// written-off loan's custody window is deliberately not protected
 	// against a later re-borrow of the same device over the same period.
 	WriteOff(ctx context.Context, loanID, reason, actor string) (Loan, error)
+
+	// SetDueAt changes an open loan's expected return. ErrLoanNotFound when
+	// there is no such loan, ErrLoanNotOpen when it is already closed.
+	// Callers that must respect reservations validate the new date and hold
+	// db.LockDevice first; this method only records the change.
+	SetDueAt(ctx context.Context, loanID string, dueAt time.Time, meta DueChangeMeta) (Loan, error)
 
 	// CorrectAttribution reassigns a loan's custody to the correct borrower
 	// (4.8c). The original loan record is preserved intact with disputed=true

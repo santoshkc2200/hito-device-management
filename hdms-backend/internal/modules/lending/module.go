@@ -296,6 +296,40 @@ func (s *Service) WriteOff(ctx context.Context, loanID, reason, actor string) (l
 	return loan, nil
 }
 
+func (s *Service) SetDueAt(ctx context.Context, loanID string, dueAt time.Time, meta lendingapi.DueChangeMeta) (lendingapi.Loan, error) {
+	lid, err := pgtypeconv.UUID(loanID)
+	if err != nil {
+		return lendingapi.Loan{}, fmt.Errorf("lending: invalid loan id: %w", err)
+	}
+	var loan lendingapi.Loan
+	err = db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := lendingstore.New(db.Conn(ctx, s.pool))
+		prev, err := q.GetLoan(ctx, lid)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return lendingapi.ErrLoanNotFound
+			}
+			return err
+		}
+		row, err := q.SetLoanDueAt(ctx, lendingstore.SetLoanDueAtParams{ID: lid, DueAt: pgtypeconv.Timestamptz(dueAt)})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return lendingapi.ErrLoanNotOpen
+			}
+			return err
+		}
+		loan = toLoan(row)
+		return s.audit.Record(ctx, auditapi.Event{
+			Actor: meta.Actor, Action: "loan.due_changed", Subject: "loan:" + loan.ID,
+			Payload: map[string]any{"from": pgtypeconv.TimePtr(prev.DueAt), "to": dueAt, "kioskId": meta.KioskID},
+		})
+	})
+	if err != nil {
+		return lendingapi.Loan{}, err
+	}
+	return loan, nil
+}
+
 func (s *Service) CorrectAttribution(ctx context.Context, loanID, newUserID, reason, actor string) (lendingapi.Loan, error) {
 	lid, err := pgtypeconv.UUID(loanID)
 	if err != nil {
