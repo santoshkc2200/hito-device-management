@@ -11,6 +11,10 @@ import { ja } from "../apps/kiosk/src/i18n/ja";
 import { en } from "../apps/kiosk/src/i18n/en";
 import { simulateScan, typeKeypad } from "./helpers/scan";
 
+// A loan is open while its status is "open"; the API omits returnedAt for
+// open loans rather than sending null (see Loan in hdms-backend/api/openapi.yaml).
+const isOpenLoan = (l: { status?: string }) => l.status === "open";
+
 const catalogues = { ja, en } as const;
 
 for (const locale of ["en", "ja"] as const) {
@@ -50,7 +54,7 @@ for (const locale of ["en", "ja"] as const) {
       // Assert DB state: 1 active loan exists
       const loans = await api.getDeviceLoans(device.id);
       const activeLoan = loans.find(
-        (l: any) => l.returnedAt === null || l.status === "active" || l.status === "open"
+        isOpenLoan
       );
       expect(activeLoan).toBeDefined();
 
@@ -76,7 +80,7 @@ for (const locale of ["en", "ja"] as const) {
       // Assert DB state: loan is closed
       const loansAfter = await api.getDeviceLoans(device.id);
       const activeAfter = loansAfter.find(
-        (l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open")
+        isOpenLoan
       );
       expect(activeAfter).toBeUndefined();
 
@@ -118,7 +122,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: 1 active loan exists
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null || l.status === "active" || l.status === "open");
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeDefined();
 
     // Axe a11y audit
@@ -145,7 +149,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: 1 active loan exists
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null || l.status === "active" || l.status === "open");
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeDefined();
 
     // Axe a11y audit
@@ -174,7 +178,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: loan is closed
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open"));
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeUndefined();
 
     // Axe a11y audit
@@ -203,7 +207,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: loan is closed
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open"));
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeUndefined();
 
     // Axe a11y audit
@@ -234,7 +238,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state: loan still belongs to User A
     const loans = await api.getDeviceLoans(device.id);
-    const openLoan = loans.find((l: any) => l.userId === userA.id && (l.returnedAt === null || l.status === "open" || l.status === "active"));
+    const openLoan = loans.find((l: any) => l.userId === userA.id && isOpenLoan(l));
     expect(openLoan).toBeDefined();
 
     // Axe a11y audit
@@ -279,7 +283,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     // Assert database state: 3 active loans created
     const allLoans = await api.getLoans();
     const userLoans = allLoans.filter(
-      (l: any) => l.userId === user.id && (l.returnedAt === null || l.status === "active" || l.status === "open")
+      (l: any) => l.userId === user.id && isOpenLoan(l)
     );
     expect(userLoans.length).toBe(3);
 
@@ -343,7 +347,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state: loan belongs to validUser, not unbound card
     const loans = await api.getDeviceLoans(device2.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null || l.status === "active" || l.status === "open");
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeDefined();
     expect(activeLoan.userId).toBe(validUser.id);
   });
@@ -380,7 +384,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state: no loan exists for device
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoans = loans.filter((l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open"));
+    const activeLoans = loans.filter(isOpenLoan);
     expect(activeLoans.length).toBe(0);
   });
 
@@ -482,7 +486,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     for (const d of borrowedDevices) {
       const loans = await api.getDeviceLoans(d.id);
       expect(loans.length).toBe(1);
-      expect(loans[0].returnedAt).toBeNull();
+      expect(loans[0].status).toBe("open");
       openLoans.push(loans[0]);
     }
     const dev11LoansBefore = await api.getDeviceLoans(device11.id);
@@ -684,7 +688,8 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     for (const d of borrowedDevices) {
       const loans = await api.getDeviceLoans(d.id);
       expect(loans.length).toBe(1);
-      expect(loans[0].returnedAt).not.toBeNull();
+      expect(loans[0].status).toBe("returned");
+      expect(loans[0].returnedAt).toBeDefined();
     }
   });
 
