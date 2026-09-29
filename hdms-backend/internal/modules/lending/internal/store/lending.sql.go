@@ -1206,6 +1206,52 @@ func (q *Queries) RecordHistorical(ctx context.Context, arg RecordHistoricalPara
 	return i, err
 }
 
+const setLoanDueAt = `-- name: SetLoanDueAt :one
+UPDATE loans
+SET due_at = $2
+WHERE id = $1 AND status = 'open'
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed
+`
+
+type SetLoanDueAtParams struct {
+	ID    pgtype.UUID        `json:"id"`
+	DueAt pgtype.Timestamptz `json:"due_at"`
+}
+
+func (q *Queries) SetLoanDueAt(ctx context.Context, arg SetLoanDueAtParams) (Loan, error) {
+	row := q.db.QueryRow(ctx, setLoanDueAt, arg.ID, arg.DueAt)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Status,
+		&i.Origin,
+		&i.BorrowedAt,
+		&i.DueAt,
+		&i.ReturnedAt,
+		&i.BorrowKioskID,
+		&i.ReturnKioskID,
+		&i.BorrowActor,
+		&i.ReturnActor,
+		&i.BorrowSource,
+		&i.ReturnSource,
+		&i.ConditionOut,
+		&i.ConditionIn,
+		&i.Notes,
+		&i.SessionID,
+		&i.PaperRef,
+		&i.RecordedAt,
+		&i.RecordedBy,
+		&i.BackfillNote,
+		&i.Disputed,
+	)
+	return i, err
+}
+
 const streamLoansForExport = `-- name: StreamLoansForExport :many
 SELECT
     l.id,

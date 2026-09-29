@@ -476,6 +476,36 @@ func (s *Service) ActiveOrUpcomingForDevice(ctx context.Context, deviceID string
 	return &res, matchKind, nil
 }
 
+// NextActiveStartForDevice returns when the earliest active reservation on
+// deviceID that has not ended by `from` starts, ignoring excludeID ("" for
+// none). nil means no reservation limits a loan opened now. It reads through
+// the caller's transaction, if any, so a checkout holding the device lock
+// sees exactly what a concurrent staff booking committed.
+func (s *Service) NextActiveStartForDevice(ctx context.Context, deviceID string, from time.Time, excludeID string) (*time.Time, error) {
+	did, err := pgtypeconv.UUID(deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("reservations: invalid device id: %w", err)
+	}
+	exclude, err := pgtypeconv.NullUUID(excludeID)
+	if err != nil {
+		return nil, fmt.Errorf("reservations: invalid reservation id: %w", err)
+	}
+	q := reservationsstore.New(db.Conn(ctx, s.pool))
+	start, err := q.NextActiveReservationStart(ctx, reservationsstore.NextActiveReservationStartParams{
+		DeviceID:  did,
+		FromAt:    pgtypeconv.Timestamptz(from),
+		ExcludeID: exclude,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reservations: next active reservation: %w", err)
+	}
+	t := pgtypeconv.Time(start)
+	return &t, nil
+}
+
 func (s *Service) ExpireNoShows(ctx context.Context, grace time.Duration, now time.Time) ([]reservationsapi.Reservation, error) {
 	q := reservationsstore.New(s.pool)
 	candidates, err := q.FindExpiredCandidates(ctx, reservationsstore.FindExpiredCandidatesParams{

@@ -111,6 +111,10 @@ from 14:00", never a bare "unavailable" — a borrower who is told no still
 needs to know what to do next. The server decides; the kiosk only renders
 what it is told.
 
+### Expected return date
+
+The loan opens with a default due date (collected reservation end, previous choice this session, category period, or 24 hours), clamped to the return window (`next active reservation start − booking gap`, `borrow + maximum booking length`); a reservation starting within `max(pre-window, gap + 30 minutes)` is treated as in force (walk-ups refused, reserver collects early); the borrower changes the date on the success screen via `POST /v1/sessions/{id}/loan-due-date`, which re-checks the window and answers `409 due-date-conflict` with `latestReturnAt`.
+
 ### Unregistered people
 
 There is no enrollment state. The kiosk cannot create a user, and its API token

@@ -499,6 +499,7 @@ export const zOutcome = z.object({
     loanId: z.string().optional(),
     device: zSessionDevice.optional(),
     dueAt: z.iso.datetime().optional(),
+    latestReturnAt: z.iso.datetime().optional(),
     newSessionId: z.string().optional()
 });
 
@@ -518,11 +519,24 @@ export const zScanSource = z.enum([
 export const zScanRequest = z.object({
     token: z.string(),
     source: zScanSource,
-    scannedAt: z.iso.datetime().optional()
+    scannedAt: z.iso.datetime().optional(),
+    preferredDueAt: z.iso.datetime().optional()
 });
 
 export const zReturnSessionLoanRequest = z.object({
     loanId: z.string()
+});
+
+export const zSetSessionLoanDueDateRequest = z.object({
+    loanId: z.string(),
+    dueAt: z.iso.datetime()
+});
+
+export const zSessionLoanDueDate = z.object({
+    loanId: z.string(),
+    dueAt: z.iso.datetime(),
+    latestReturnAt: z.iso.datetime().optional(),
+    sessionExpiresAt: z.iso.datetime()
 });
 
 export const zLoanStatus = z.enum([
@@ -1585,6 +1599,21 @@ export const zReturnSessionLoanPath = z.object({
  * Complete session state and outcome.
  */
 export const zReturnSessionLoanResponse = zScanResult;
+
+export const zSetSessionLoanDueDateBody = zSetSessionLoanDueDateRequest;
+
+export const zSetSessionLoanDueDateHeaders = z.object({
+    'Idempotency-Key': z.string().optional()
+});
+
+export const zSetSessionLoanDueDatePath = z.object({
+    id: z.string()
+});
+
+/**
+ * The loan's new expected return and its current return window.
+ */
+export const zSetSessionLoanDueDateResponse = zSessionLoanDueDate;
 
 export const zCloseSessionHeaders = z.object({
     'Idempotency-Key': z.string().optional()

@@ -136,6 +136,7 @@ var knownRoutes = []routeTemplate{
 	{"POST", "/v1/sessions"},
 	{"POST", "/v1/sessions/{id}/close"},
 	{"POST", "/v1/sessions/{id}/return-loan"},
+	{"POST", "/v1/sessions/{id}/loan-due-date"},
 	{"POST", "/v1/sessions/{id}/scan"},
 	{"POST", "/v1/staff/auth/logout"},
 	{"POST", "/v1/staff/auth/password"},

@@ -27,6 +27,8 @@ var windowStart = time.Date(2026, 9, 18, 14, 0, 0, 0, time.UTC)
 // force. The caller — not the machine — decides "in force", which is why
 // the same helper serves the in-window and pre-window cases: by the time
 // Decide sees it, both look identical, and that is the design.
+//
+//nolint:unparam
 func reservedDeviceScan(reservedFor string) Input {
 	return Input{
 		Kind:               KindDevice,

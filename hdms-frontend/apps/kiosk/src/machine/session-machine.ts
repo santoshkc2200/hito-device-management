@@ -12,6 +12,7 @@ import {
   closeSession,
   cancelSession,
   returnSessionLoan,
+  setSessionLoanDueDate,
   type ScanResult,
   type Session,
   type SessionUser,
@@ -78,6 +79,7 @@ logMachineStartup();
 
 export interface SessionContext {
   sessionId: string | null;
+  preferredDueAt: string | null; // The return date the borrower last chose this session; sent with the next device scan.
   kioskId: string;
   user: SessionUser | null;
   pendingDevice: SessionDevice | null;
@@ -95,6 +97,7 @@ export function createInitialContext(kioskId?: string): SessionContext {
   const cfg = getKioskConfig();
   return {
     sessionId: getSessionId(),
+    preferredDueAt: null,
     kioskId: kioskId ?? cfg?.kioskId ?? "unpaired-kiosk",
     user: null,
     pendingDevice: null,
@@ -112,6 +115,7 @@ export function createInitialContext(kioskId?: string): SessionContext {
 export type SessionMachineEvent =
   | { type: "SCAN"; token: string; source: ScanSource }
   | { type: "RETURN_LOAN"; loanId: string }
+  | { type: "LOAN_DUE_UPDATED"; loanId: string; dueAt: string; latestReturnAt: string | null; sessionExpiresAt: string }
   | { type: "CLOSE" }
   | { type: "CANCEL" }
   | { type: "RECONCILE_EXPIRY" }
@@ -128,6 +132,7 @@ export interface ScanActorInput {
   kioskId: string;
   token: string;
   source: ScanSource;
+  preferredDueAt?: string | null;
 }
 
 export interface ReturnLoanActorInput {
@@ -247,6 +252,7 @@ export async function executeScan(input: ScanActorInput): Promise<ScanResult> {
       token: input.token,
       source: input.source,
       scannedAt: new Date().toISOString(),
+      ...(input.preferredDueAt ? { preferredDueAt: input.preferredDueAt } : {}),
     },
     signal,
   });
@@ -285,6 +291,46 @@ export async function executeReturnLoan(
 
   setSessionId(res.data.session.id);
   return res.data;
+}
+
+export type SetDueDateResult =
+  | { ok: true; loanId: string; dueAt: string; latestReturnAt: string | null; sessionExpiresAt: string }
+  | { ok: false; conflict: true; latestReturnAt: string }
+  | { ok: false; conflict: false };
+
+export interface SetDueDateInput {
+  sessionId: string;
+  loanId: string;
+  dueAt: string;
+}
+
+// Changing a return date is not a new transaction, so the result goes to
+// LOAN_DUE_UPDATED rather than APPLY_SCAN_RESULT.
+export async function executeSetDueDate(input: SetDueDateInput): Promise<SetDueDateResult> {
+  try {
+    const res = await setSessionLoanDueDate({
+      path: { id: input.sessionId },
+      body: { loanId: input.loanId, dueAt: input.dueAt },
+      signal: getSessionAbortSignal(),
+    });
+    if (res.data) {
+      return {
+        ok: true,
+        loanId: res.data.loanId,
+        dueAt: res.data.dueAt,
+        latestReturnAt: res.data.latestReturnAt ?? null,
+        sessionExpiresAt: res.data.sessionExpiresAt,
+      };
+    }
+    const problem = res.error as { type?: string; latestReturnAt?: string; extensions?: { latestReturnAt?: string } } | undefined;
+    const latest = problem?.latestReturnAt ?? problem?.extensions?.latestReturnAt;
+    if (problem?.type?.endsWith("/due-date-conflict") && latest) {
+      return { ok: false, conflict: true, latestReturnAt: latest };
+    }
+    return { ok: false, conflict: false };
+  } catch {
+    return { ok: false, conflict: false };
+  }
 }
 
 export async function executeClose(input: CloseActorInput): Promise<void> {
@@ -375,6 +421,7 @@ export function buildKioskSessionMachine(
     return {
       ...context,
       sessionId: null,
+      preferredDueAt: null,
       user: null,
       pendingDevice: null,
       openLoans: [],
@@ -596,6 +643,24 @@ export function buildKioskSessionMachine(
         clearSessionContext(context)
       ),
     };
+
+    if (stateName === "ready") {
+      // Re-entering ready restarts its timeout: the borrower is still here.
+      onTransitions["LOAN_DUE_UPDATED"] = {
+        target: "ready",
+        reenter: true,
+        actions: assign(({ context, event }: { context: SessionContext; event: any }) => ({
+          ...context,
+          preferredDueAt: event.dueAt,
+          expiresAt: event.sessionExpiresAt,
+          lastOutcome:
+            context.lastOutcome && context.lastOutcome.loanId === event.loanId
+              ? { ...context.lastOutcome, dueAt: event.dueAt, latestReturnAt: event.latestReturnAt ?? undefined }
+              : context.lastOutcome,
+          openLoans: context.openLoans.map((l) => (l.id === event.loanId ? { ...l, dueAt: event.dueAt } : l)),
+        })),
+      };
+    }
 
     // Timeout definitions from JSON `after`
     const afterTransitions: Record<string, any> = {};

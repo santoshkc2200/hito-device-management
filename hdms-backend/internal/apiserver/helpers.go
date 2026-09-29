@@ -124,6 +124,15 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		return
 	}
 
+	var dueErr *checkoutapi.DueDateConflictError
+	if errors.As(err, &dueErr) {
+		p := httpx.NewProblem("due-date-conflict", "Expected return is too late", http.StatusConflict)
+		p.Detail = "Another reservation needs this device; choose an earlier return."
+		p.Extensions = map[string]any{"latestReturnAt": dueErr.LatestReturnAt}
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+
 	switch {
 	// Lending module errors
 	case errors.Is(err, lendingapi.ErrLoanNotFound):
@@ -152,6 +161,8 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		httpx.WriteProblem(w, r, httpx.NewProblem("session-conflict", "Concurrent modification of session", http.StatusConflict))
 	case errors.Is(err, checkoutapi.ErrInvalidTokenFormat):
 		httpx.WriteProblem(w, r, httpx.NewProblem("invalid-token-format", "Invalid token format or checksum", http.StatusBadRequest))
+	case errors.Is(err, checkoutapi.ErrDueDateNotInFuture):
+		writeValidationFailed(w, r, "dueAt must be in the future", []string{"dueAt"})
 
 	// Reservations module errors
 	case errors.Is(err, reservationsapi.ErrReservationNotFound):

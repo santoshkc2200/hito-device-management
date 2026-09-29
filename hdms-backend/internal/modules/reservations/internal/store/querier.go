@@ -24,6 +24,10 @@ type Querier interface {
 	ListReservations(ctx context.Context, arg ListReservationsParams) ([]ListReservationsRow, error)
 	ListReservationsByDevice(ctx context.Context, arg ListReservationsByDeviceParams) ([]ListReservationsByDeviceRow, error)
 	ListReservationsByUser(ctx context.Context, arg ListReservationsByUserParams) ([]ListReservationsByUserRow, error)
+	// The earliest reservation that will still need the device after from_at.
+	// Only 'active' counts: a collected reservation is already in its reserver's
+	// hands. exclude_id skips the reservation a borrow is collecting.
+	NextActiveReservationStart(ctx context.Context, arg NextActiveReservationStartParams) (pgtype.Timestamptz, error)
 }
 
 var _ Querier = (*Queries)(nil)

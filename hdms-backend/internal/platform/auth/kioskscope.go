@@ -18,14 +18,15 @@ import (
 // newly added endpoint fails the scope suite until it is classified,
 // regardless of what this map says.
 var KioskAllowedOperations = map[string]struct{}{
-	"POST /v1/sessions":                  {},
-	"GET /v1/sessions/{id}":              {},
-	"POST /v1/sessions/{id}/scan":        {},
-	"POST /v1/sessions/{id}/return-loan": {},
-	"POST /v1/sessions/{id}/close":       {},
-	"DELETE /v1/sessions/{id}":           {},
-	"GET /v1/healthz":                    {},
-	"GET /v1/readyz":                     {},
+	"POST /v1/sessions":                    {},
+	"GET /v1/sessions/{id}":                {},
+	"POST /v1/sessions/{id}/scan":          {},
+	"POST /v1/sessions/{id}/return-loan":   {},
+	"POST /v1/sessions/{id}/loan-due-date": {},
+	"POST /v1/sessions/{id}/close":         {},
+	"DELETE /v1/sessions/{id}":             {},
+	"GET /v1/healthz":                      {},
+	"GET /v1/readyz":                       {},
 }
 
 // KioskDeniedOperations is the explicit classification of every OpenAPI

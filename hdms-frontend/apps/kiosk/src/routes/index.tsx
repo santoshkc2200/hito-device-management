@@ -45,6 +45,8 @@ export function KioskApp() {
     setIsDiagnosticsOpen,
     setIsAttendantOpen,
     dismissOutcome,
+    sessionId,
+    applyDueUpdate,
     startScanning,
     scan,
     returnLoan,
@@ -120,6 +122,10 @@ export function KioskApp() {
           device={outcomeView.outcome.device ?? context.pendingDevice}
           dueAt={outcomeView.outcome.dueAt}
           itemCount={context.openLoans.length || 1}
+          sessionId={sessionId}
+          loanId={outcomeView.outcome.loanId}
+          latestReturnAt={outcomeView.outcome.latestReturnAt ?? null}
+          onDueUpdated={applyDueUpdate}
           onDone={dismissOutcome}
           onScanAnother={dismissOutcome}
           kioskName={kioskName}

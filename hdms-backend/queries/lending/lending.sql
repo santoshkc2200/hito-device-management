@@ -328,3 +328,12 @@ WHERE (sqlc.narg('status')::loan_status IS NULL OR l.status = sqlc.narg('status'
 ORDER BY l.borrowed_at DESC, l.id DESC;
 
 
+
+-- name: SetLoanDueAt :one
+UPDATE loans
+SET due_at = $2
+WHERE id = $1 AND status = 'open'
+RETURNING id, device_id, user_id, status, origin, borrowed_at, due_at, returned_at,
+    borrow_kiosk_id, return_kiosk_id, borrow_actor, return_actor, borrow_source, return_source,
+    condition_out, condition_in, notes, session_id, paper_ref, recorded_at, recorded_by,
+    backfill_note, disputed;

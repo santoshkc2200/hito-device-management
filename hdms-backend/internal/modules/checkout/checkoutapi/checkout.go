@@ -41,7 +41,32 @@ var (
 	ErrPaperRefRequired  = errors.New("checkout: a paper batch requires a paperRef")
 	ErrEmptyPaperBatch   = errors.New("checkout: a paper batch requires at least one row")
 	ErrPaperRowMalformed = errors.New("checkout: a paper row is malformed")
+
+	// ErrDueDateNotInFuture: a loan's expected return must be after now.
+	ErrDueDateNotInFuture = errors.New("checkout: expected return must be in the future")
 )
+
+// DueDateConflictError: the requested expected return is after the latest
+// the device's return window allows (usually because a reservation was
+// booked after the loan opened). LatestReturnAt is the current bound.
+type DueDateConflictError struct {
+	LatestReturnAt time.Time
+}
+
+func (e *DueDateConflictError) Error() string {
+	return "checkout: expected return is after the latest allowed return"
+}
+
+// LoanDueDate is the result of changing a loan's expected return at the
+// kiosk. LatestReturnAt is zero when no bound applies. SessionExpiresAt is
+// the session's refreshed expiry, so the kiosk can keep its countdown in
+// step with the server.
+type LoanDueDate struct {
+	LoanID           string
+	DueAt            time.Time
+	LatestReturnAt   time.Time
+	SessionExpiresAt time.Time
+}
 
 // HistoricalAction is ResolveHistorical's answer: given a device, a person
 // and a past instant, did that person take the device (borrow), give it
@@ -130,6 +155,11 @@ type Outcome struct {
 	Device *DeviceView
 	DueAt  *time.Time
 
+	// LatestReturnAt is the latest expected return the borrower may choose
+	// for this loan (borrow and reservation_collected only; nil when no
+	// bound applies).
+	LatestReturnAt *time.Time
+
 	// NewSessionID is set only for OutcomeUserSwitched: the current
 	// session closed and this is the id of the one that replaced it.
 	NewSessionID string
@@ -176,6 +206,11 @@ type ScanParams struct {
 	Source    string // scanner | camera | manual
 	ScannedAt time.Time
 	Actor     string
+
+	// PreferredDueAt is the expected return the borrower chose for their
+	// previous device in this session. A borrow uses it as the default when
+	// it is still in the future, clamped to the device's return window.
+	PreferredDueAt *time.Time
 }
 
 // Service is the checkout module's public API.
@@ -198,6 +233,12 @@ type Service interface {
 	// ReturnLoan returns one of the session's identified user's open loans
 	// without scanning the device (FR-30).
 	ReturnLoan(ctx context.Context, sessionID, loanID, actor string) (ScanResult, error)
+
+	// SetLoanDueDate changes the expected return of one of the session's
+	// identified user's open loans. dueAt must be after now
+	// (ErrDueDateNotInFuture) and no later than the device's return window
+	// allows (*DueDateConflictError). Refreshes the session's expiry.
+	SetLoanDueDate(ctx context.Context, sessionID, loanID string, dueAt time.Time, actor string) (LoanDueDate, error)
 
 	// Close finishes a session ("Done"), idempotently: closing an
 	// already-closed session is a no-op, not an error.

@@ -894,3 +894,30 @@ func (q *Queries) ListReservationsByUser(ctx context.Context, arg ListReservatio
 	}
 	return items, nil
 }
+
+const nextActiveReservationStart = `-- name: NextActiveReservationStart :one
+SELECT start_at
+FROM reservations
+WHERE device_id = $1
+  AND status = 'active'
+  AND end_at > $2
+  AND ($3::uuid IS NULL OR id <> $3::uuid)
+ORDER BY start_at ASC
+LIMIT 1
+`
+
+type NextActiveReservationStartParams struct {
+	DeviceID  pgtype.UUID        `json:"device_id"`
+	FromAt    pgtype.Timestamptz `json:"from_at"`
+	ExcludeID pgtype.UUID        `json:"exclude_id"`
+}
+
+// The earliest reservation that will still need the device after from_at.
+// Only 'active' counts: a collected reservation is already in its reserver's
+// hands. exclude_id skips the reservation a borrow is collecting.
+func (q *Queries) NextActiveReservationStart(ctx context.Context, arg NextActiveReservationStartParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, nextActiveReservationStart, arg.DeviceID, arg.FromAt, arg.ExcludeID)
+	var start_at pgtype.Timestamptz
+	err := row.Scan(&start_at)
+	return start_at, err
+}

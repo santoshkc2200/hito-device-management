@@ -89,11 +89,12 @@ func (s *Server) SubmitScan(w http.ResponseWriter, r *http.Request, id gen.IDPar
 
 	actor := actorFrom(r)
 	result, err := s.checkout.Scan(r.Context(), checkoutapi.ScanParams{
-		SessionID: id,
-		Token:     body.Token,
-		Source:    string(body.Source),
-		ScannedAt: scannedAt,
-		Actor:     actor,
+		SessionID:      id,
+		Token:          body.Token,
+		Source:         string(body.Source),
+		ScannedAt:      scannedAt,
+		Actor:          actor,
+		PreferredDueAt: body.PreferredDueAt,
 	})
 	if err != nil {
 		s.writeServiceError(w, r, err)
@@ -123,6 +124,32 @@ func (s *Server) ReturnSessionLoan(w http.ResponseWriter, r *http.Request, id ge
 	}
 
 	writeJSON(w, http.StatusOK, s.mapScanResult(r.Context(), result))
+}
+
+// SetSessionLoanDueDate changes the expected return of one of the session
+// user's open loans.
+func (s *Server) SetSessionLoanDueDate(w http.ResponseWriter, r *http.Request, id gen.IDParam, _ gen.SetSessionLoanDueDateParams) {
+	body, ok := decodeJSON[gen.SetSessionLoanDueDateRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if _, err := s.sessionForRequest(r, id); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	res, err := s.checkout.SetLoanDueDate(r.Context(), id, body.LoanId, body.DueAt, actorFrom(r))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+
+	out := gen.SessionLoanDueDate{LoanId: res.LoanID, DueAt: res.DueAt, SessionExpiresAt: res.SessionExpiresAt}
+	if !res.LatestReturnAt.IsZero() {
+		out.LatestReturnAt = &res.LatestReturnAt
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // sessionForRequest fetches the session and, when the caller authenticated
@@ -195,11 +222,12 @@ func (s *Server) mapScanResult(ctx context.Context, res checkoutapi.ScanResult) 
 	}
 
 	outcome := gen.Outcome{
-		Kind:         gen.OutcomeKind(res.Outcome.Kind),
-		LoanId:       strPtr(res.Outcome.LoanID),
-		Device:       dev,
-		DueAt:        res.Outcome.DueAt,
-		NewSessionId: strPtr(res.Outcome.NewSessionID),
+		Kind:           gen.OutcomeKind(res.Outcome.Kind),
+		LoanId:         strPtr(res.Outcome.LoanID),
+		Device:         dev,
+		DueAt:          res.Outcome.DueAt,
+		LatestReturnAt: res.Outcome.LatestReturnAt,
+		NewSessionId:   strPtr(res.Outcome.NewSessionID),
 	}
 
 	openLoans := make([]gen.SessionOpenLoan, len(res.OpenLoans))

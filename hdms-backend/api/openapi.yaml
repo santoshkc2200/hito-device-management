@@ -1007,6 +1007,36 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /sessions/{id}/loan-due-date:
+    post:
+      operationId: setSessionLoanDueDate
+      summary: Change the expected return of one of the session user's open loans.
+      description: >
+        The new date must be in the future and no later than the device's
+        return window allows (the booking gap before its next reservation,
+        or the maximum loan length). Refreshes the session's expiry.
+      tags: [sessions]
+      security:
+        - kioskToken: []
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetSessionLoanDueDateRequest"
+      responses:
+        "200":
+          description: The loan's new expected return and its current return window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionLoanDueDate"
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /sessions/{id}/close:
     post:
       operationId: closeSession
@@ -3324,6 +3354,10 @@ components:
         device:
           $ref: "#/components/schemas/SessionDevice"
         dueAt: { type: string, format: date-time }
+        latestReturnAt:
+          type: string
+          format: date-time
+          description: Latest expected return the borrower may choose (borrowed and reservation_collected only).
         newSessionId: { type: string }
 
     ScanResult:
@@ -3353,12 +3387,32 @@ components:
         source:
           $ref: "#/components/schemas/ScanSource"
         scannedAt: { type: string, format: date-time }
+        preferredDueAt:
+          type: string
+          format: date-time
+          description: Expected return the borrower chose for their previous device in this session; used as the default when a borrow follows.
 
     ReturnSessionLoanRequest:
       type: object
       required: [loanId]
       properties:
         loanId: { type: string }
+
+    SetSessionLoanDueDateRequest:
+      type: object
+      required: [loanId, dueAt]
+      properties:
+        loanId: { type: string }
+        dueAt: { type: string, format: date-time }
+
+    SessionLoanDueDate:
+      type: object
+      required: [loanId, dueAt, sessionExpiresAt]
+      properties:
+        loanId: { type: string }
+        dueAt: { type: string, format: date-time }
+        latestReturnAt: { type: string, format: date-time }
+        sessionExpiresAt: { type: string, format: date-time }
 
     # --- Loans --------------------------------------------------------------
 

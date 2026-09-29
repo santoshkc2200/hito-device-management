@@ -206,6 +206,16 @@ token or an asset tag / employee number. Every use is audited and counted.
 │      Scan another device, or tap Done      [ Done ]       │
 └───────────────────────────────────────────────────────────┘
 
+### Return by panel (borrow success)
+
+When a device is borrowed or a reservation collected, the success screen presents a **Return by** panel letting the borrower adjust the expected return date:
+
+- **Quick choices (chips)**: Pre-set options for common return times (such as *End of day*, *Tomorrow*, *2 days*, *1 week*), plus a *Latest* chip showing the maximum allowed return time. Chips that fall beyond the latest allowed return date are disabled.
+- **Other… day/time picker**: A flexible picker allowing selection of a specific day and time in 15-minute intervals, strictly bounded by the latest return date.
+- **Immediate save**: Selecting a chip or a time slot immediately persists the new return date via `POST /v1/sessions/{id}/loan-due-date`.
+- **Conflict handling**: If a reservation was placed on the device in the meantime, the server rejects the request with `409 due-date-conflict` carrying the revised `latestReturnAt`; the panel displays a clear conflict explanation and resets to the new maximum allowed time.
+- **Auto-dismissal & activity**: For borrows with the Return by panel, the auto-dismiss countdown is 12 seconds (giving borrowers ample time to adjust if needed). Any touch/interaction with the panel resets this 12-second timer. Return outcomes (device check-in) do not display the panel and auto-dismiss after 4 seconds as before.
+
 ┌───────────────────────────────────────────────────────────┐
 │  BLOCKED                                                  │
 │                        ⛔                                  │
@@ -236,7 +246,7 @@ not the screen.
 
 | Outcome | Colour | Sound | Haptic | Duration |
 |---|---|---|---|---|
-| Borrowed | green | rising two-tone | light | 4 s then back to `ready` |
+| Borrowed | green | rising two-tone | light | 12 s (reset by touch) then back to `ready` |
 | Returned | blue | falling two-tone | light | 4 s |
 | Scan accepted, waiting | neutral | single soft click | — | until next scan |
 | Blocked / rejected | amber | low buzz | double | 8 s or tap OK |

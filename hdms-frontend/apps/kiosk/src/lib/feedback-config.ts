@@ -1,4 +1,4 @@
-import type { OutcomeKind } from "@hdms/api-client";
+import type { Outcome, OutcomeKind } from "@hdms/api-client";
 import { AlertCircle, CalendarCheck, CheckCircle2, Clock, Copy, CornerDownLeft, UserCheck, Users, type LucideIcon } from "lucide-react";
 
 export type SoundId = "borrow" | "return" | "reject" | "accepted" | "none";
@@ -154,4 +154,11 @@ export function getOutcomeFeedback(kind?: OutcomeKind | string | null): OutcomeF
     entranceClass: "animate-feedback-reject",
     durationMs: 8000,
   };
+}
+
+// outcomeSoundKey identifies one outcome for audio feedback, so the sound
+// plays once per transaction. Keyed by loan rather than due date: changing a
+// loan's return date updates the outcome in place and must not replay it.
+export function outcomeSoundKey(outcome: Outcome): string {
+  return `outcome_${outcome.kind}_${outcome.loanId ?? outcome.device?.id ?? ""}`;
 }

@@ -11,6 +11,10 @@ import { ja } from "../apps/kiosk/src/i18n/ja";
 import { en } from "../apps/kiosk/src/i18n/en";
 import { simulateScan, typeKeypad } from "./helpers/scan";
 
+// A loan is open while its status is "open"; the API omits returnedAt for
+// open loans rather than sending null (see Loan in hdms-backend/api/openapi.yaml).
+const isOpenLoan = (l: { status?: string }) => l.status === "open";
+
 const catalogues = { ja, en } as const;
 
 for (const locale of ["en", "ja"] as const) {
@@ -50,7 +54,7 @@ for (const locale of ["en", "ja"] as const) {
       // Assert DB state: 1 active loan exists
       const loans = await api.getDeviceLoans(device.id);
       const activeLoan = loans.find(
-        (l: any) => l.returnedAt === null || l.status === "active" || l.status === "open"
+        isOpenLoan
       );
       expect(activeLoan).toBeDefined();
 
@@ -76,7 +80,7 @@ for (const locale of ["en", "ja"] as const) {
       // Assert DB state: loan is closed
       const loansAfter = await api.getDeviceLoans(device.id);
       const activeAfter = loansAfter.find(
-        (l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open")
+        isOpenLoan
       );
       expect(activeAfter).toBeUndefined();
 
@@ -118,7 +122,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: 1 active loan exists
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null || l.status === "active" || l.status === "open");
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeDefined();
 
     // Axe a11y audit
@@ -145,7 +149,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: 1 active loan exists
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null || l.status === "active" || l.status === "open");
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeDefined();
 
     // Axe a11y audit
@@ -174,7 +178,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: loan is closed
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open"));
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeUndefined();
 
     // Axe a11y audit
@@ -203,7 +207,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state via API: loan is closed
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open"));
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeUndefined();
 
     // Axe a11y audit
@@ -234,7 +238,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state: loan still belongs to User A
     const loans = await api.getDeviceLoans(device.id);
-    const openLoan = loans.find((l: any) => l.userId === userA.id && (l.returnedAt === null || l.status === "open" || l.status === "active"));
+    const openLoan = loans.find((l: any) => l.userId === userA.id && isOpenLoan(l));
     expect(openLoan).toBeDefined();
 
     // Axe a11y audit
@@ -279,7 +283,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     // Assert database state: 3 active loans created
     const allLoans = await api.getLoans();
     const userLoans = allLoans.filter(
-      (l: any) => l.userId === user.id && (l.returnedAt === null || l.status === "active" || l.status === "open")
+      (l: any) => l.userId === user.id && isOpenLoan(l)
     );
     expect(userLoans.length).toBe(3);
 
@@ -343,7 +347,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state: loan belongs to validUser, not unbound card
     const loans = await api.getDeviceLoans(device2.id);
-    const activeLoan = loans.find((l: any) => l.returnedAt === null || l.status === "active" || l.status === "open");
+    const activeLoan = loans.find(isOpenLoan);
     expect(activeLoan).toBeDefined();
     expect(activeLoan.userId).toBe(validUser.id);
   });
@@ -380,7 +384,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
 
     // Assert database state: no loan exists for device
     const loans = await api.getDeviceLoans(device.id);
-    const activeLoans = loans.filter((l: any) => l.returnedAt === null && (l.status === "active" || l.status === "open"));
+    const activeLoans = loans.filter(isOpenLoan);
     expect(activeLoans.length).toBe(0);
   });
 
@@ -482,7 +486,7 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     for (const d of borrowedDevices) {
       const loans = await api.getDeviceLoans(d.id);
       expect(loans.length).toBe(1);
-      expect(loans[0].returnedAt).toBeNull();
+      expect(loans[0].status).toBe("open");
       openLoans.push(loans[0]);
     }
     const dev11LoansBefore = await api.getDeviceLoans(device11.id);
@@ -684,7 +688,60 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     for (const d of borrowedDevices) {
       const loans = await api.getDeviceLoans(d.id);
       expect(loans.length).toBe(1);
-      expect(loans[0].returnedAt).not.toBeNull();
+      expect(loans[0].status).toBe("returned");
+      expect(loans[0].returnedAt).toBeDefined();
     }
+  });
+
+  test("E21_ReturnDateStopsBeforeTheNextReservation", async ({ page }) => {
+    const borrower: TestUser = await api.seedUser();
+    const reserver: TestUser = await api.seedUser();
+    const device: TestDevice = await api.seedDevice();
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    start.setHours(10, 0, 0, 0);
+    await api.seedReservation({ deviceId: device.id, userId: reserver.id, startAt: start, endAt: new Date(start.getTime() + 60 * 60 * 1000) });
+
+    await page.goto("/");
+    await expect(page.getByTestId("idle-prompt")).toBeVisible({ timeout: 10_000 });
+    await simulateScan(page, borrower.token);
+    await expect(page.getByTestId("awaiting-device-prompt")).toBeVisible({ timeout: 5_000 });
+    await simulateScan(page, device.token);
+    await expect(page.getByTestId("return-by-panel")).toBeVisible({ timeout: 5_000 });
+
+    // Tomorrow 17:00 is after 09:00 (10:00 minus the 60-minute gap).
+    await expect(page.getByRole("button", { name: ja.returnBy.tomorrow })).toBeDisabled();
+
+    await page.getByRole("button", { name: ja.returnBy.other }).click();
+    const lastSlot = page.getByRole("group", { name: ja.returnBy.pickTime }).getByRole("button").last();
+    // Pick tomorrow in the day row, then the last time offered must be 09:00.
+    await page.getByRole("group", { name: ja.returnBy.pickDay }).getByRole("button").last().click();
+    await expect(lastSlot).toHaveText(/9:00|09:00/);
+    await lastSlot.click();
+
+    await expect
+      .poll(async () => {
+        const loans = await api.getDeviceLoans(device.id);
+        const open = loans.find((l: any) => l.status === "open");
+        return open ? new Date(open.dueAt).getTime() : null;
+      })
+      .toBe(new Date(start.getTime() - 60 * 60 * 1000).getTime());
+
+    // The next device in the same session defaults to the borrower's choice.
+    const second: TestDevice = await api.seedDevice();
+    await page.getByTestId("scan-another-button").click();
+    await expect(page.getByTestId("awaiting-device-prompt")).toBeVisible({ timeout: 5_000 });
+    await simulateScan(page, second.token);
+    await expect(page.getByTestId("return-by-panel")).toBeVisible({ timeout: 5_000 });
+    await expect
+      .poll(async () => {
+        const loans = await api.getDeviceLoans(second.id);
+        const open = loans.find((l: any) => l.status === "open");
+        return open ? new Date(open.dueAt).getTime() : null;
+      })
+      .toBe(new Date(start.getTime() - 60 * 60 * 1000).getTime());
+
+    const a11y = await new AxeBuilder({ page }).analyze();
+    expect(a11y.violations).toEqual([]);
   });
 });

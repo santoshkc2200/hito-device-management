@@ -5,6 +5,7 @@ import { useLocale } from "@hdms/i18n";
 import { Button } from "@/components/ui/button";
 import { formatHumanDueDate } from "@/lib/date-format";
 import { useTranslator } from "@/i18n";
+import { ReturnByPanel, type ReturnByPanelProps } from "@/components/return-by-panel";
 import { ScreenFrame } from "./screen-frame";
 
 export interface SuccessScreenProps {
@@ -21,6 +22,10 @@ export interface SuccessScreenProps {
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
   onOpenManualEntry?: () => void;
+  sessionId?: string | null;
+  loanId?: string;
+  latestReturnAt?: string | null;
+  onDueUpdated?: ReturnByPanelProps["onUpdated"];
 }
 
 export function SuccessScreen({
@@ -37,6 +42,10 @@ export function SuccessScreen({
   onToggleCamera,
   onOpenDiagnostics,
   onOpenManualEntry,
+  sessionId,
+  loanId,
+  latestReturnAt,
+  onDueUpdated,
 }: SuccessScreenProps) {
   const t = useTranslator();
   const { locale } = useLocale();
@@ -48,13 +57,18 @@ export function SuccessScreen({
   const isCollected = kind === "reservation_collected";
   const dueLine = formatHumanDueDate(dueAt, undefined, locale);
 
-  // Auto-dismiss after 4 seconds (4000 ms)
+  const canChangeReturn = !isReturn && !(!sessionId || !loanId || !dueAt || !onDueUpdated);
+  const dismissAfterMs = canChangeReturn ? 12_000 : 4_000;
+  // Each touch in the Return by panel restarts the countdown.
+  const [activity, setActivity] = React.useState(0);
+  const noteActivity = React.useCallback(() => setActivity((n) => n + 1), []);
+
   React.useEffect(() => {
     const timer = setTimeout(() => {
       onDone();
-    }, 4000);
+    }, dismissAfterMs);
     return () => clearTimeout(timer);
-  }, [onDone]);
+  }, [onDone, dismissAfterMs, activity]);
 
   // The outcome text comes from this app's catalogue, not from the server's
   // SessionMessage. The backend rule in docs/superpowers/specs/2026-08-31-i18n-l10n-design.md
@@ -165,16 +179,26 @@ export function SuccessScreen({
               </div>
             </div>
 
-            {/* Due date line (strictly omitted when null) */}
-            {dueLine && (
-              <div
-                data-testid="success-due-line"
-                className="w-full pt-3 border-t border-border/80 text-center"
-              >
-                <p className="text-sm font-semibold text-foreground/90 bg-muted/60 py-1.5 px-3 rounded-lg">
-                  {dueLine}
-                </p>
-              </div>
+            {canChangeReturn ? (
+              <ReturnByPanel
+                sessionId={sessionId!}
+                loanId={loanId!}
+                dueAt={dueAt!}
+                latestReturnAt={latestReturnAt ?? null}
+                onUpdated={onDueUpdated!}
+                onActivity={noteActivity}
+              />
+            ) : (
+              dueLine && (
+                <div
+                  data-testid="success-due-line"
+                  className="w-full pt-3 border-t border-border/80 text-center"
+                >
+                  <p className="text-sm font-semibold text-foreground/90 bg-muted/60 py-1.5 px-3 rounded-lg">
+                    {dueLine}
+                  </p>
+                </div>
+              )
             )}
           </div>
         )}
@@ -182,7 +206,7 @@ export function SuccessScreen({
         {/* Bottom Actions and Auto-Return Notice */}
         <div className="w-full max-w-lg space-y-4 pt-2">
           <p className="text-sm text-muted-foreground">
-            {t("success.autoDismissHint")}
+            {t(canChangeReturn ? "success.borrowAutoDismissHint" : "success.autoDismissHint")}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">

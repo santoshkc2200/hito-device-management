@@ -87,7 +87,7 @@ func (s *Service) OpenLoan(ctx context.Context, deviceID, userID string, dueAt *
 	txErr := db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
 		// Staff booking takes this lock before checking for an open loan.
 		// Serialize a new loan with that check and reservation creation.
-		if _, err := db.Conn(ctx, s.pool).Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`, did); err != nil {
+		if err := db.LockDevice(ctx, s.pool, deviceID); err != nil {
 			return err
 		}
 		q := lendingstore.New(db.Conn(ctx, s.pool))
@@ -288,6 +288,40 @@ func (s *Service) WriteOff(ctx context.Context, loanID, reason, actor string) (l
 		return s.audit.Record(ctx, auditapi.Event{
 			Actor: actor, Action: "loan.written_off", Subject: "loan:" + loan.ID,
 			Payload: map[string]any{"reason": reason},
+		})
+	})
+	if err != nil {
+		return lendingapi.Loan{}, err
+	}
+	return loan, nil
+}
+
+func (s *Service) SetDueAt(ctx context.Context, loanID string, dueAt time.Time, meta lendingapi.DueChangeMeta) (lendingapi.Loan, error) {
+	lid, err := pgtypeconv.UUID(loanID)
+	if err != nil {
+		return lendingapi.Loan{}, fmt.Errorf("lending: invalid loan id: %w", err)
+	}
+	var loan lendingapi.Loan
+	err = db.NewTxManager(s.pool).Do(ctx, func(ctx context.Context) error {
+		q := lendingstore.New(db.Conn(ctx, s.pool))
+		prev, err := q.GetLoan(ctx, lid)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return lendingapi.ErrLoanNotFound
+			}
+			return err
+		}
+		row, err := q.SetLoanDueAt(ctx, lendingstore.SetLoanDueAtParams{ID: lid, DueAt: pgtypeconv.Timestamptz(dueAt)})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return lendingapi.ErrLoanNotOpen
+			}
+			return err
+		}
+		loan = toLoan(row)
+		return s.audit.Record(ctx, auditapi.Event{
+			Actor: meta.Actor, Action: "loan.due_changed", Subject: "loan:" + loan.ID,
+			Payload: map[string]any{"from": pgtypeconv.TimePtr(prev.DueAt), "to": dueAt, "kioskId": meta.KioskID},
 		})
 	})
 	if err != nil {
