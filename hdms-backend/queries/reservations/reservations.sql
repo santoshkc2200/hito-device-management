@@ -320,3 +320,16 @@ JOIN users u ON u.id = r.user_id
 WHERE r.status = 'active'
   AND (r.start_at + ($1 * interval '1 second')) < $2
 ORDER BY r.start_at ASC;
+
+-- name: NextActiveReservationStart :one
+-- The earliest reservation that will still need the device after from_at.
+-- Only 'active' counts: a collected reservation is already in its reserver's
+-- hands. exclude_id skips the reservation a borrow is collecting.
+SELECT start_at
+FROM reservations
+WHERE device_id = @device_id
+  AND status = 'active'
+  AND end_at > @from_at
+  AND (sqlc.narg('exclude_id')::uuid IS NULL OR id <> sqlc.narg('exclude_id')::uuid)
+ORDER BY start_at ASC
+LIMIT 1;

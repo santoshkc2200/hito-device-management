@@ -80,6 +80,12 @@ type ReservationLookup interface {
 	// MarkCollected closes the reservation out against the loan that was
 	// just opened from it.
 	MarkCollected(ctx context.Context, reservationID, loanID string) error
+	// ReturnWindowFor reports the return window for a loan of deviceID
+	// opened at `from`. collectingID names the reservation this borrow
+	// collects ("" for a walk-up borrow): it is skipped when looking for
+	// the next reservation, and its end is reported so the borrow can
+	// default to it.
+	ReturnWindowFor(ctx context.Context, deviceID string, from time.Time, collectingID string) (ReturnWindow, error)
 }
 
 // ReservationInForce is the flat view of a live reservation the machine
@@ -89,6 +95,16 @@ type ReservationInForce struct {
 	ID        string
 	ForUserID string
 	StartAt   time.Time
+}
+
+// ReturnWindow bounds a loan's expected return. Latest is the latest
+// allowed return: the maximum loan length, or the booking gap before the
+// device's next reservation, whichever comes first. A zero Latest means no
+// bound (no reservations module wired). CollectedEndAt is the end of the
+// reservation being collected, zero otherwise.
+type ReturnWindow struct {
+	Latest         time.Time
+	CollectedEndAt time.Time
 }
 
 // SettingsReader is the subset of settings.Service checkout needs.

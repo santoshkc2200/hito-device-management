@@ -59,7 +59,7 @@ func (s *Server) CreateStaffReservation(w http.ResponseWriter, r *http.Request) 
 	err = db.NewTxManager(s.pool).Do(r.Context(), func(ctx context.Context) error {
 		// Loan creation uses the same advisory lock. The row lock serializes
 		// status changes with the availability check and reservation insert.
-		if _, err := db.Conn(ctx, s.pool).Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`, body.DeviceId); err != nil {
+		if err := db.LockDevice(ctx, s.pool, deviceID); err != nil {
 			return err
 		}
 		var lockedID uuid.UUID
