@@ -93,7 +93,7 @@ export function ReturnByPanel({
             key={chip.id}
             type="button"
             variant={new Date(current).getTime() === chip.at.getTime() ? "default" : "outline"}
-            className="min-h-14 px-4 text-base"
+            className="min-h-14 px-4 text-xl font-bold"
             disabled={chip.disabled || saving}
             onClick={() => void choose(chip.at)}
           >
@@ -103,7 +103,7 @@ export function ReturnByPanel({
         <Button
           type="button"
           variant="outline"
-          className="min-h-14 px-4 text-base"
+          className="min-h-14 px-4 text-xl font-bold"
           disabled={saving}
           aria-expanded={pickerOpen}
           onClick={() => {
@@ -124,7 +124,7 @@ export function ReturnByPanel({
                 key={d.getTime()}
                 type="button"
                 variant={day?.getTime() === d.getTime() ? "default" : "outline"}
-                className="min-h-14 shrink-0 px-3"
+                className="min-h-14 shrink-0 px-3 text-xl font-bold"
                 onClick={() => {
                   onActivity();
                   setDay(d);
@@ -140,7 +140,7 @@ export function ReturnByPanel({
                 key={s.getTime()}
                 type="button"
                 variant="outline"
-                className="min-h-14"
+                className="min-h-14 text-xl font-bold"
                 disabled={saving}
                 onClick={() => void choose(s)}
               >

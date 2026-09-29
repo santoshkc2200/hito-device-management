@@ -25,6 +25,7 @@ This directory contains automated end-to-end tests exercising critical user jour
 - `E11_DoubleScanWithin1500ms_OneTransaction` (FR-63)
 - `E12_ApiKilled_FriendlyBannerNeverABrowserError` (NFR-4)
 - `E13_CameraFallbackDecodesRenderedQr` (FR-61)
+- `E21_ReturnDateStopsBeforeTheNextReservation`
 
 ### Admin Console Journeys (`e2e/admin.spec.ts`)
 - Reserved for Phase 4 (E8b, E14–E19).

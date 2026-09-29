@@ -687,4 +687,42 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
       expect(loans[0].returnedAt).not.toBeNull();
     }
   });
+
+  test("E21_ReturnDateStopsBeforeTheNextReservation", async ({ page }) => {
+    const borrower: TestUser = await api.seedUser();
+    const reserver: TestUser = await api.seedUser();
+    const device: TestDevice = await api.seedDevice();
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    start.setHours(10, 0, 0, 0);
+    await api.seedReservation({ deviceId: device.id, userId: reserver.id, startAt: start, endAt: new Date(start.getTime() + 60 * 60 * 1000) });
+
+    await page.goto("/");
+    await expect(page.getByTestId("idle-prompt")).toBeVisible({ timeout: 10_000 });
+    await simulateScan(page, borrower.token);
+    await expect(page.getByTestId("awaiting-device-prompt")).toBeVisible({ timeout: 5_000 });
+    await simulateScan(page, device.token);
+    await expect(page.getByTestId("return-by-panel")).toBeVisible({ timeout: 5_000 });
+
+    // Tomorrow 17:00 is after 09:00 (10:00 minus the 60-minute gap).
+    await expect(page.getByRole("button", { name: ja.returnBy.tomorrow })).toBeDisabled();
+
+    await page.getByRole("button", { name: ja.returnBy.other }).click();
+    const lastSlot = page.getByRole("group", { name: ja.returnBy.pickTime }).getByRole("button").last();
+    // Pick tomorrow in the day row, then the last time offered must be 09:00.
+    await page.getByRole("group", { name: ja.returnBy.pickDay }).getByRole("button").last().click();
+    await expect(lastSlot).toHaveText(/9:00|09:00/);
+    await lastSlot.click();
+
+    await expect
+      .poll(async () => {
+        const loans = await api.getDeviceLoans(device.id);
+        const open = loans.find((l: any) => l.status === "open");
+        return open ? new Date(open.dueAt).getTime() : null;
+      })
+      .toBe(new Date(start.getTime() - 60 * 60 * 1000).getTime());
+
+    const a11y = await new AxeBuilder({ page }).analyze();
+    expect(a11y.violations).toEqual([]);
+  });
 });

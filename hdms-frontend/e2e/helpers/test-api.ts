@@ -338,6 +338,22 @@ export class TestApiClient {
     };
   }
 
+  async seedReservation(params: { deviceId: string; userId: string; startAt: Date; endAt: Date }): Promise<{ id: string }> {
+    const res = await this.request("/v1/reservations", {
+      method: "POST",
+      body: JSON.stringify({
+        deviceId: params.deviceId,
+        userId: params.userId,
+        startAt: params.startAt.toISOString(),
+        endAt: params.endAt.toISOString(),
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Create reservation failed: ${await res.text()}`);
+    }
+    return (await res.json()) as { id: string };
+  }
+
   async seedUnboundCard(): Promise<{ id: string; token: string }> {
     const res = await this.request("/v1/credentials/blank-batch", {
       method: "POST",
