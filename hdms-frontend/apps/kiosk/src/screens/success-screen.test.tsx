@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
@@ -153,5 +153,41 @@ describe("SuccessScreen", () => {
     expect(formatHumanDueDate(null, base)).toBeNull();
     expect(formatHumanDueDate(undefined, base)).toBeNull();
     expect(formatHumanDueDate("invalid-date", base)).toBeNull();
+  });
+
+  it("shows the Return by panel for a borrow and waits 12s, reset by touches", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const onDone = vi.fn();
+    render(
+      <SuccessScreen
+        kind="borrowed"
+        device={{ id: "dev-1", name: "iPad", assetTag: "A1" }}
+        dueAt={new Date(Date.now() + 86400000).toISOString()}
+        sessionId="sess-1"
+        loanId="loan-1"
+        latestReturnAt={null}
+        onDueUpdated={vi.fn()}
+        onDone={onDone}
+      />
+    );
+    expect(screen.getByTestId("return-by-panel")).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.pointerDown(screen.getByTestId("return-by-panel"));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(onDone).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(2_500));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("keeps the 4s dismissal and no panel for a return", () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    render(<SuccessScreen kind="returned" device={{ id: "d", name: "iPad", assetTag: "A1" }} onDone={onDone} />);
+    expect(screen.queryByTestId("return-by-panel")).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(4_000));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

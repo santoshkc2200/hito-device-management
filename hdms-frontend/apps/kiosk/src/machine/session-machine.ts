@@ -654,7 +654,7 @@ export function buildKioskSessionMachine(
           preferredDueAt: event.dueAt,
           expiresAt: event.sessionExpiresAt,
           lastOutcome:
-            context.lastOutcome?.loanId === event.loanId
+            context.lastOutcome && context.lastOutcome.loanId === event.loanId
               ? { ...context.lastOutcome, dueAt: event.dueAt, latestReturnAt: event.latestReturnAt ?? undefined }
               : context.lastOutcome,
           openLoans: context.openLoans.map((l) => (l.id === event.loanId ? { ...l, dueAt: event.dueAt } : l)),
