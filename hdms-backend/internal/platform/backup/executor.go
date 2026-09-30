@@ -36,14 +36,20 @@ func (e *Executor) RunBackup(ctx context.Context) (RunReport, error) {
 	if err != nil {
 		return RunReport{Outcome: OutcomeFailure}, err
 	}
+	bundle, err := LoadRecoveryBundle(ctx, e.Pool.Pool)
+	if err != nil {
+		// A missing bundle must not stop a backup; log and carry on.
+		e.Logger.Error("backup: load recovery bundle", "error", err)
+	}
 	rep, err := RunBackup(ctx, Options{
-		Pool:         e.Pool,
-		DatabaseURL:  e.DatabaseURL,
-		BackupDir:    e.BackupDir,
-		AllowedRoots: e.AllowedRoots,
-		Restic:       e.Restic,
-		Destinations: dests,
-		MetricsDir:   e.MetricsDir,
+		Pool:           e.Pool,
+		DatabaseURL:    e.DatabaseURL,
+		BackupDir:      e.BackupDir,
+		AllowedRoots:   e.AllowedRoots,
+		Restic:         e.Restic,
+		Destinations:   dests,
+		RecoveryBundle: bundle,
+		MetricsDir:     e.MetricsDir,
 	}, e.Now().UTC())
 	e.RefreshSnapshots(ctx)
 	return rep, err
@@ -159,6 +165,13 @@ func (e *Executor) Test(ctx context.Context, id uuid.UUID) (string, map[string]a
 	}
 	if err := EnsureRepo(ctx, e.Restic, repo, &local); err != nil {
 		return fail(err)
+	}
+	if bundle, err := LoadRecoveryBundle(ctx, e.Pool.Pool); err != nil {
+		return fail(err)
+	} else if bundle != nil {
+		if err := WriteRecoveryBundle(repo, bundle); err != nil {
+			return fail(err)
+		}
 	}
 	if err := store.MarkDestinationInitialized(ctx, id); err != nil {
 		return fail(err)

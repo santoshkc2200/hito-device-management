@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -199,5 +201,118 @@ func TestHTTPRecoveryKeyConfirmWithoutKey(t *testing.T) {
 	h := newTestHarness(t)
 	if resp := h.post(t, "/v1/backup/recovery-key/confirm", nil); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("confirm with no key status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestBackupWritesRecoveryBundleBesideEveryRepository(t *testing.T) {
+	requireBinary(t, "pg_dump")
+	r := resticForTest(t)
+	pool, sourceURL := testdb.NewWithDSN(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+	root := t.TempDir()
+	nas := filepath.Join(root, "nas")
+	if err := os.MkdirAll(nas, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	opts := backup.Options{
+		Pool: pool, DatabaseURL: sourceURL, BackupDir: dir, Restic: r,
+		AllowedRoots: []string{root},
+		Destinations: []backup.Destination{{Name: "NAS", Kind: "path", Target: nas, Enabled: true, RetentionVersions: 2}},
+	}
+
+	// No key yet: no bundle anywhere.
+	if _, err := backup.RunBackup(ctx, opts, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []string{dir, nas} {
+		if _, err := backup.ReadRecoveryBundle(d); !errors.Is(err, backup.ErrRecoveryBundleMissing) {
+			t.Fatalf("%s: bundle written without a key: %v", d, err)
+		}
+	}
+
+	key, _ := backup.NewRecoveryKey()
+	secrets := backup.RecoverySecrets{BackupEncKey: "a", TokenPepper: "b", CredentialEncKey: "c", TOTPEncKey: "d"}
+	bundle, _ := backup.SealRecoveryBundle(key, secrets, time.Now())
+	opts.RecoveryBundle = bundle
+	rep, err := backup.RunBackup(ctx, opts, time.Now().UTC())
+	if err != nil || rep.Outcome != backup.OutcomeSuccess || rep.RecoveryBundleError != "" {
+		t.Fatalf("run = %+v, %v", rep, err)
+	}
+	for _, d := range []string{dir, nas} {
+		got, err := backup.ReadRecoveryBundle(d)
+		if err != nil {
+			t.Fatalf("%s: %v", d, err)
+		}
+		if s, err := backup.OpenRecoveryBundle(key, got); err != nil || s != secrets {
+			t.Fatalf("%s: bundle opens to %+v, %v", d, s, err)
+		}
+	}
+
+	// restic is unaffected by the file beside the repository.
+	repo, _ := opts.Destinations[0].Resolve([]string{root})
+	if err := r.Check(ctx, repo, 100); err != nil {
+		t.Fatalf("destination check with bundle beside it: %v", err)
+	}
+	if err := r.Check(ctx, backup.LocalRepo(dir), 100); err != nil {
+		t.Fatalf("local check with bundle beside it: %v", err)
+	}
+}
+
+func TestRecoveryBundleWriteFailureDegradesButKeepsTheBackup(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	requireBinary(t, "pg_dump")
+	r := resticForTest(t)
+	pool, sourceURL := testdb.NewWithDSN(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+	root := t.TempDir()
+	nas := filepath.Join(root, "nas")
+	if err := os.MkdirAll(nas, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	opts := backup.Options{
+		Pool: pool, DatabaseURL: sourceURL, BackupDir: dir, Restic: r,
+		AllowedRoots: []string{root},
+		Destinations: []backup.Destination{{Name: "NAS", Kind: "path", Target: nas, Enabled: true, RetentionVersions: 2}},
+	}
+	// First run creates both repositories.
+	if _, err := backup.RunBackup(ctx, opts, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+
+	// The server's backup directory becomes read-only for new entries; the
+	// repository inside it stays writable, so restic still works.
+	if err := os.Chmod(dir, 0o550); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o750) })
+
+	key, _ := backup.NewRecoveryKey()
+	opts.RecoveryBundle, _ = backup.SealRecoveryBundle(key, backup.RecoverySecrets{BackupEncKey: "a", TokenPepper: "b", CredentialEncKey: "c", TOTPEncKey: "d"}, time.Now())
+	rep, err := backup.RunBackup(ctx, opts, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("RunBackup returned %v; a bundle write failure must not fail the backup", err)
+	}
+	if rep.Snapshot == "" || rep.Outcome != backup.OutcomeDegraded || rep.RecoveryBundleError == "" {
+		t.Fatalf("report = %+v, want a snapshot, degraded, and the bundle error", rep)
+	}
+}
+
+func TestLoadRecoveryBundle(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	got, err := backup.LoadRecoveryBundle(ctx, pool.Pool)
+	if err != nil || got != nil {
+		t.Fatalf("no key: %q, %v", got, err)
+	}
+	if _, err := backup.SaveRecoveryKey(ctx, pool.Pool, []byte("sealed"), "fp", "admin:a"); err != nil {
+		t.Fatal(err)
+	}
+	got, err = backup.LoadRecoveryBundle(ctx, pool.Pool)
+	if err != nil || string(got) != "sealed" {
+		t.Fatalf("with key: %q, %v", got, err)
 	}
 }

@@ -62,16 +62,22 @@ type RunReport struct {
 	LocalForgot  int                 `json:"localForgot,omitempty"`
 	LegacyPruned []string            `json:"legacyPruned,omitempty"`
 	Destinations []DestinationResult `json:"destinations,omitempty"`
-	Outcome      string              `json:"outcome"`
+	// RecoveryBundleError is set when the recovery bundle could not be written
+	// beside the local repository. The backup itself still succeeded.
+	RecoveryBundleError string `json:"recoveryBundleError,omitempty"`
+	Outcome             string `json:"outcome"`
 }
 
 type Options struct {
-	Pool            *db.Pool
-	DatabaseURL     string
-	BackupDir       string
-	AllowedRoots    []string
-	Restic          Restic
-	Destinations    []Destination
+	Pool         *db.Pool
+	DatabaseURL  string
+	BackupDir    string
+	AllowedRoots []string
+	Restic       Restic
+	Destinations []Destination
+	// RecoveryBundle is the sealed recovery bundle to keep beside every
+	// repository. Nil when no recovery key has been created.
+	RecoveryBundle  []byte
 	MetricsDir      string
 	Dump            DumpStreamer
 	LockNonBlocking bool
@@ -122,6 +128,13 @@ func RunBackup(ctx context.Context, opts Options, now time.Time) (RunReport, err
 	rep.AddedBytes = summary.DataAdded
 	rep.DumpBytes = dumpBytes
 
+	// Written after the snapshot so a failure here never costs a backup.
+	if opts.RecoveryBundle != nil {
+		if err := WriteRecoveryBundle(local, opts.RecoveryBundle); err != nil {
+			rep.RecoveryBundleError = err.Error()
+		}
+	}
+
 	rep.Destinations = opts.fanOut(ctx, local)
 
 	forgot, err := opts.Restic.Forget(ctx, local, localPolicy)
@@ -139,6 +152,9 @@ func RunBackup(ctx context.Context, opts Options, now time.Time) (RunReport, err
 	rep.LegacyPruned = pruned
 
 	rep.Outcome = OutcomeSuccess
+	if rep.RecoveryBundleError != "" {
+		rep.Outcome = OutcomeDegraded
+	}
 	for _, d := range rep.Destinations {
 		if d.Outcome != OutcomeSuccess {
 			rep.Outcome = OutcomeDegraded
@@ -209,6 +225,11 @@ func (opts Options) copyTo(ctx context.Context, local Repo, d Destination, res *
 	}
 	if err := opts.Restic.Copy(ctx, repo, local); err != nil {
 		return err
+	}
+	if opts.RecoveryBundle != nil {
+		if err := WriteRecoveryBundle(repo, opts.RecoveryBundle); err != nil {
+			return err
+		}
 	}
 	forgot, err := opts.Restic.Forget(ctx, repo, RetentionPolicy{KeepLast: d.RetentionVersions})
 	if err != nil {

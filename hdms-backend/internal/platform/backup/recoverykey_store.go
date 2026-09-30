@@ -74,3 +74,16 @@ func RecoveryKeyStatus(rec *RecoveryKeyRecord, current RecoverySecrets) string {
 		return "ready"
 	}
 }
+
+// LoadRecoveryBundle returns the sealed bundle the worker writes beside every
+// repository, or nil when no recovery key exists yet.
+func LoadRecoveryBundle(ctx context.Context, q db.DBTX) ([]byte, error) {
+	rec, err := GetRecoveryKey(ctx, q)
+	if errors.Is(err, ErrNoRecoveryKey) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return rec.Bundle, nil
+}
