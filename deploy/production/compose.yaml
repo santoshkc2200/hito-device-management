@@ -74,6 +74,10 @@ services:
       HDMS_BACKUP_DIR: /var/backups/hdms
       # /mnt/nas is the optional network-share mount below.
       HDMS_BACKUP_ALLOWED_ROOTS: /var/backups:/mnt/nas
+      # The worker serves no TLS, but it loads the same fail-closed production
+      # config as the API, which refuses the localhost certificate defaults.
+      HDMS_TLS_CERT_FILE: /etc/ssl/certs/hdms.hospital.crt
+      HDMS_TLS_KEY_FILE: /etc/ssl/private/hdms.hospital.key
       TZ: ${TZ:?TZ must be set in the env file, e.g. TZ=Asia/Tokyo}
     volumes:
       - hdms-prod-backups:/var/backups/hdms

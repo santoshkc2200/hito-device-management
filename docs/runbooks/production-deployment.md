@@ -142,6 +142,7 @@ cd /opt/hdms
    - Set `HDMS_CREDENTIAL_ENC_KEY=<credential key>`
    - Set `HDMS_TOTP_ENC_KEY=<totp key>`
    - Set `HDMS_BACKUP_ENC_KEY=<backup key>`
+   - Set the `HDMS_SMTP_*` values to the hospital mail relay (host, port 25/465/587, sender address). They are required: production refuses to start with the development defaults, and overdue reminders and the weekly digest are sent through this relay.
 
 > **CRITICAL SECURITY WARNING — PASSWORD MANAGER BACKUP:**
 > Store all generated keys in the hospital password manager immediately:
