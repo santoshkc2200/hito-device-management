@@ -179,6 +179,9 @@ export const ja = {
   },
   users: {
     title: "利用者",
+    itemLabel: "利用者",
+    selectUserAria: "利用者 {fullName} を選択",
+    printCardsWithCount: "カードを印刷 ({count})",
     importCsv: "CSVインポート",
     newUser: "新規利用者",
     searchPlaceholder: "氏名・職員番号で検索…",
@@ -1122,6 +1125,16 @@ export const ja = {
     readyOther: "{count}枚のラベルの準備ができました。",
     skippedOne: "{count}件はスキップされました — 有効な認証カードがありません。",
     skippedOther: "{count}件はスキップされました — 有効な認証カードがありません。",
+    printSheet: "台紙を印刷",
+  },
+  userCardSheetDialog: {
+    title: "職員カードを印刷",
+    loading: "各利用者の既存カードを読み込み中…",
+    loadFailed: "カードを読み込めませんでした。閉じてもう一度お試しください。",
+    readyOne: "{count}枚のカードの準備ができました。",
+    readyOther: "{count}枚のカードの準備ができました。",
+    skippedOne: "{count}件はスキップされました — 印刷可能な有効カードがありません。",
+    skippedOther: "{count}件はスキップされました — 印刷可能な有効カードがありません。",
     printSheet: "台紙を印刷",
   },
   forcedPasswordChangeDialog: {

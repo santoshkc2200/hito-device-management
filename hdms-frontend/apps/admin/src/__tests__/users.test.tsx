@@ -205,6 +205,41 @@ describe("4.4a Users Table & Actions", () => {
     });
   });
 
+  it("prints the selected users' existing cards in bulk, skipping users without one", async () => {
+    const listCredsSpy = vi.spyOn(apiClient, "listCredentialsBySubject").mockImplementation((async ({ query }: any) => ({
+      data: {
+        items: query.subjectId === "user-1" ? [{ id: "cred-1", status: "active" }] : [],
+      },
+      error: undefined,
+    })) as any);
+    const revealSpy = vi.spyOn(apiClient, "revealCredential").mockResolvedValue({
+      data: { token: "HDMS-U-TOKEN-1" },
+      error: undefined,
+    } as any);
+
+    renderUsersPage("admin");
+    await screen.findByText("Dr. Taro Yamada");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("checkbox", { name: ja.users.selectUserAria.replace("{fullName}", "Dr. Taro Yamada") }));
+    await user.click(screen.getByRole("checkbox", { name: ja.users.selectUserAria.replace("{fullName}", "Staff Kenji Tanaka") }));
+    await user.click(screen.getByRole("button", { name: ja.users.printCardsWithCount.replace("{count}", "2") }));
+
+    expect(await screen.findByRole("heading", { name: ja.userCardSheetDialog.title })).toBeInTheDocument();
+    expect(await screen.findByText(ja.userCardSheetDialog.skippedOne.replace("{count}", "1"), { exact: false })).toBeInTheDocument();
+    expect(listCredsSpy).toHaveBeenCalledTimes(2);
+    expect(revealSpy).toHaveBeenCalledTimes(1);
+    expect(revealSpy).toHaveBeenCalledWith({ path: { id: "cred-1" } });
+    expect(screen.getByRole("button", { name: ja.userCardSheetDialog.printSheet })).toBeEnabled();
+  });
+
+  it("hides card selection from non-admins, since revealing a card token is admin-only", async () => {
+    renderUsersPage("technician");
+    await screen.findByText("Dr. Taro Yamada");
+
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+  });
+
   it("passes accessibility check with axe", async () => {
     const { container } = renderUsersPage("admin");
     await screen.findByText("Dr. Taro Yamada");

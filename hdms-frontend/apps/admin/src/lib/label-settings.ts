@@ -29,6 +29,21 @@ export const defaultLabelSheetSettings: LabelSheetSettings = {
   gapYMm: 4,
 };
 
+// CR80 cards (85.6×54mm), two across an A4 page — fixed by the card stock,
+// so unlike the sticker sheet it isn't a per-PC preference.
+export const cardSheetSettings: LabelSheetSettings = {
+  pageWidthMm: 210,
+  pageHeightMm: 297,
+  columns: 2,
+  rows: 5,
+  labelWidthMm: 85.6,
+  labelHeightMm: 54,
+  marginTopMm: 12,
+  marginLeftMm: 15,
+  gapXMm: 8,
+  gapYMm: 6,
+};
+
 const STORAGE_KEY = "hdms.admin.labelSheetSettings";
 
 export function loadLabelSheetSettings(): LabelSheetSettings {

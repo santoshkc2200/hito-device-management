@@ -29,20 +29,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/i18n";
+import { cardSheetSettings } from "@/lib/label-settings";
 import { authenticatedRoute } from "./authenticated";
-
-const CARD_SHEET_SETTINGS = {
-  pageWidthMm: 210,
-  pageHeightMm: 297,
-  columns: 2,
-  rows: 5,
-  labelWidthMm: 85.6,
-  labelHeightMm: 54,
-  marginTopMm: 12,
-  marginLeftMm: 15,
-  gapXMm: 8,
-  gapYMm: 6,
-};
 
 function QuickBindCardSection({ onBound }: { onBound: () => void }) {
   const t = useT();
@@ -325,7 +313,7 @@ function CredentialsPage() {
           </div>
         </div>
         <div className="overflow-auto rounded-xl border border-border bg-secondary/50 p-6">
-          <LabelSheet settings={CARD_SHEET_SETTINGS}>
+          <LabelSheet settings={cardSheetSettings}>
             {batch.map((token) => (
               <BlankCardLabel key={token} token={token} />
             ))}

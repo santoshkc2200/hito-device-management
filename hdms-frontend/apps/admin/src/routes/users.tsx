@@ -7,10 +7,10 @@ import {
   listUsers,
   suspendUser,
 } from "@hdms/api-client";
-import { createColumnHelper } from "@tanstack/react-table";
+import { type RowSelectionState, createColumnHelper } from "@tanstack/react-table";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Printer, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -24,9 +24,11 @@ import {
 import { userStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { UserCardSheetDialog } from "@/components/user-card-sheet-dialog";
 import { UserImportDialog } from "@/components/user-import-dialog";
 import { useT } from "@/i18n";
-import { RoleGate } from "@/lib/use-role";
+import { RoleGate, useRole } from "@/lib/use-role";
 import {
   Dialog,
   DialogContent,
@@ -221,6 +223,10 @@ export function UsersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [suspendTarget, setSuspendTarget] = useState<User | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<User | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [cardSheetUsers, setCardSheetUsers] = useState<User[]>([]);
+  // Printing a card reveals its token, which the API allows admins only.
+  const canPrintCards = useRole().hasMinRole("admin");
 
   const queryClient = useQueryClient();
 
@@ -259,6 +265,10 @@ export function UsersPage() {
     [query.data],
   );
   const selectedUser = users.find((u) => u.id === selectedId);
+  const selectedUsers = useMemo(
+    () => users.filter((u) => rowSelection[u.id]),
+    [rowSelection, users],
+  );
 
   function updateSearch(patch: Partial<UserSearch>) {
     void navigate({ search: (prev) => ({ ...prev, ...patch }) });
@@ -301,6 +311,34 @@ export function UsersPage() {
 
   const columns = useDataTableColumns(
     () => [
+      ...(canPrintCards
+        ? [
+            columnHelper.display({
+              id: "select",
+              header: ({ table }) => (
+                <Checkbox
+                  checked={
+                    table.getIsAllPageRowsSelected() ||
+                    (table.getIsSomePageRowsSelected() && "indeterminate")
+                  }
+                  onCheckedChange={(val) => table.toggleAllPageRowsSelected(!!val)}
+                  aria-label={t("columns.selectAll")}
+                  className="translate-y-0.5"
+                />
+              ),
+              cell: ({ row }) => (
+                <Checkbox
+                  checked={row.getIsSelected()}
+                  onCheckedChange={(val) => row.toggleSelected(!!val)}
+                  aria-label={t("users.selectUserAria", { fullName: row.original.fullName })}
+                  className="translate-y-0.5"
+                />
+              ),
+              enableSorting: false,
+              enableHiding: false,
+            }),
+          ]
+        : []),
       columnHelper.accessor("employeeNo", {
         sortingFn: sortText,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("users.columnEmployeeNo")} />,
@@ -370,7 +408,7 @@ export function UsersPage() {
         },
       }),
     ],
-    [departmentName, search.hasCredential, t, sortText],
+    [canPrintCards, departmentName, search.hasCredential, t, sortText],
   );
 
   const isFiltered = Boolean(search.q || search.status || search.department || search.hasCredential !== undefined);
@@ -398,6 +436,7 @@ export function UsersPage() {
         tableId="users"
         columns={columns}
         data={users}
+        getRowId={(row) => row.id}
         isLoading={query.isLoading}
         isError={query.isError}
         error={query.error}
@@ -411,6 +450,21 @@ export function UsersPage() {
         hasNextPage={query.hasNextPage}
         isFetchingNextPage={query.isFetchingNextPage}
         onFetchNextPage={() => query.fetchNextPage()}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        enableRowSelection={canPrintCards}
+        itemLabel={t("users.itemLabel")}
+        bulkActions={() => (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => setCardSheetUsers(selectedUsers)}
+          >
+            <Printer className="mr-1.5 size-3.5" />
+            {t("users.printCardsWithCount", { count: selectedUsers.length })}
+          </Button>
+        )}
         emptyTitle={t("users.emptyTitle")}
         emptyExplanation={t("users.emptyExplanation")}
         filterControls={
@@ -480,6 +534,13 @@ export function UsersPage() {
       </Dialog>
 
       <UserImportDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      <UserCardSheetDialog
+        users={cardSheetUsers}
+        departmentName={departmentName}
+        open={cardSheetUsers.length > 0}
+        onOpenChange={(open) => !open && setCardSheetUsers([])}
+      />
 
       {selectedUser && (
         <UserDetailSheet
