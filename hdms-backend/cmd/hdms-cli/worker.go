@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/jobs"
@@ -18,16 +19,20 @@ import (
 
 const workerTick = time.Minute
 
-// scheduledJobs is the worker's job table, highest priority first. Backup
-// leads so housekeeping never pushes the nightly copy back. Schedules match
-// the deploy/systemd/*.timer files, which Docker installs no longer use.
-func scheduledJobs(cfg config.Config, loc *time.Location) []jobs.Job {
-	owner := cfg
-	owner.DatabaseURL = cfg.WorkerDatabaseURL()
+// workerDeps are the parts of the job table that need the database: the
+// backup's live schedule and the executor-backed backup and verify runs.
+type workerDeps struct {
+	BackupSchedule jobs.Schedule
+	RunBackup      func(ctx context.Context) error
+	Verify         func(ctx context.Context) error
+}
 
+// scheduledJobs is the worker's job table, highest priority first. Backup
+// leads so housekeeping never pushes it back; verify trails because it only
+// reads what earlier jobs wrote.
+func scheduledJobs(cfg config.Config, loc *time.Location, deps workerDeps) []jobs.Job {
 	js := []jobs.Job{
-		{Name: "backup", Schedule: jobs.DailyAt{Hour: 2, Loc: loc},
-			Run: func(ctx context.Context) error { return runBackup(ctx, owner, nil) }},
+		{Name: "backup", Schedule: deps.BackupSchedule, Run: deps.RunBackup},
 		{Name: "reservation-expiry", Schedule: jobs.Every(5 * time.Minute),
 			Run: func(ctx context.Context) error { return runReservationExpiry(ctx, cfg, nil) }},
 		{Name: "overdue-scan", Schedule: jobs.Every(time.Hour),
@@ -37,14 +42,35 @@ func scheduledJobs(cfg config.Config, loc *time.Location) []jobs.Job {
 		{Name: "retention", Schedule: jobs.DailyAt{Hour: 3, Minute: 40, Loc: loc},
 			Run: func(ctx context.Context) error { return runRetention(ctx, cfg, nil) }},
 	}
-	// Without a directory there is nothing to sync; registering the job
-	// would only write a failure row every night.
 	if cfg.LDAPURL != "" {
 		js = append(js, jobs.Job{Name: "directory-sync", Schedule: jobs.DailyAt{Hour: 3, Loc: loc},
 			Run: func(ctx context.Context) error { return runDirectorySync(ctx, cfg, []string{"--apply"}) }})
 	}
-	return append(js, jobs.Job{Name: "weekly-digest", Schedule: jobs.WeeklyAt{Weekday: time.Monday, Hour: 8, Loc: loc},
-		Run: func(ctx context.Context) error { return runWeeklyDigest(ctx, cfg, nil) }})
+	return append(js,
+		jobs.Job{Name: "weekly-digest", Schedule: jobs.WeeklyAt{Weekday: time.Monday, Hour: 8, Loc: loc},
+			Run: func(ctx context.Context) error { return runWeeklyDigest(ctx, cfg, nil) }},
+		jobs.Job{Name: "verify", Schedule: jobs.DailyAt{Hour: 4, Minute: 30, Loc: loc}, Run: deps.Verify},
+	)
+}
+
+// liveSchedule reads the console-edited backup schedule on every tick. Any
+// read error makes the backup not due: a flapping database must not turn
+// into a backup every minute.
+type liveSchedule struct {
+	get func(context.Context) (backup.ScheduleConfig, error)
+	loc *time.Location
+	log *slog.Logger
+}
+
+func (s liveSchedule) Latest(now time.Time) time.Time {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	c, err := s.get(ctx)
+	if err != nil {
+		s.log.Error("worker: read backup schedule", "error", err)
+		return time.Time{}
+	}
+	return c.JobSchedule(s.loc).Latest(now)
 }
 
 // runWorker migrates as the owner, gives hdms_app its login, then runs the
@@ -88,9 +114,48 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 		}
 	}
 
-	go keepAlive(ctx, *heartbeat, 30*time.Second)
+	r, err := resticFor(cfg)
+	if err != nil {
+		return err
+	}
+	exec := &backup.Executor{
+		Pool:         pool,
+		DatabaseURL:  ownerURL,
+		BackupDir:    cfg.BackupDir,
+		AllowedRoots: cfg.BackupAllowedRoots,
+		Restic:       r,
+		MetricsDir:   cfg.JobMetricsDir,
+		Now:          time.Now,
+		Logger:       slog.Default(),
+	}
+	deps := workerDeps{
+		BackupSchedule: liveSchedule{
+			get: func(ctx context.Context) (backup.ScheduleConfig, error) { return backup.GetSchedule(ctx, pool.Pool) },
+			loc: time.Local,
+			log: slog.Default(),
+		},
+		RunBackup: func(ctx context.Context) error {
+			rep, err := exec.RunBackup(ctx)
+			if err == nil && rep.Outcome != backup.OutcomeSuccess {
+				err = fmt.Errorf("backup completed %s", rep.Outcome)
+			}
+			return err
+		},
+		Verify: func(ctx context.Context) error {
+			if outcome, _ := exec.Verify(ctx, nil); outcome != backup.OutcomeSuccess {
+				return fmt.Errorf("verify completed %s", outcome)
+			}
+			return nil
+		},
+	}
 
-	js := scheduledJobs(cfg, time.Local)
+	go keepAlive(ctx, *heartbeat, 30*time.Second, func(ctx context.Context) {
+		if err := backup.TouchWorker(ctx, pool.Pool, time.Now().UTC()); err != nil {
+			slog.Error("worker: database heartbeat", "error", err)
+		}
+	})
+
+	js := scheduledJobs(cfg, time.Local, deps)
 	names := make([]string, len(js))
 	for i, j := range js {
 		names[i] = j.Name
@@ -98,7 +163,8 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 	slog.Info("worker: started", "timezone", time.Local.String(), "jobs", names)
 
 	w := &jobs.Worker{
-		Jobs: js,
+		Jobs:    js,
+		Pending: exec.ProcessNext,
 		LastStarted: func(ctx context.Context, names []string) (map[string]time.Time, error) {
 			return jobs.LastStarted(ctx, pool.Pool, names)
 		},
@@ -111,10 +177,13 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 
 // keepAlive rewrites path every interval until ctx ends. The compose
 // healthcheck treats a file older than three minutes as a dead worker.
-func keepAlive(ctx context.Context, path string, every time.Duration) {
+func keepAlive(ctx context.Context, path string, every time.Duration, touchDB func(context.Context)) {
 	touch := func() {
 		if err := os.WriteFile(path, []byte(time.Now().UTC().Format(time.RFC3339)), 0o644); err != nil {
 			slog.Error("worker: write heartbeat", "path", path, "error", err)
+		}
+		if touchDB != nil {
+			touchDB(ctx)
 		}
 	}
 	touch()

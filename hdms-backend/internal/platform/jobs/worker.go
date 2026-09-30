@@ -22,7 +22,11 @@ type Job struct {
 // is what stops a job that fails before writing job_runs (a missing key, an
 // unreachable server) from being retried every minute.
 type Worker struct {
-	Jobs        []Job
+	Jobs []Job
+	// Pending, when set, runs one on-demand request (a console "Back up
+	// now", "Test", "Verify") and reports whether it did. Requests go first:
+	// a person is waiting on them, and nobody waits on a scheduled job.
+	Pending     func(ctx context.Context) bool
 	LastStarted func(ctx context.Context, names []string) (map[string]time.Time, error)
 	Logger      *slog.Logger
 
@@ -33,6 +37,9 @@ type Worker struct {
 func (w *Worker) Tick(ctx context.Context, now time.Time) string {
 	if w.attempted == nil {
 		w.attempted = map[string]time.Time{}
+	}
+	if w.Pending != nil && w.pendingSafely(ctx) {
+		return "request"
 	}
 	names := make([]string, len(w.Jobs))
 	for i, j := range w.Jobs {
@@ -70,6 +77,16 @@ func (w *Worker) run(ctx context.Context, j Job) {
 		return
 	}
 	w.Logger.Info("worker: job finished", "job", j.Name)
+}
+
+func (w *Worker) pendingSafely(ctx context.Context) (ran bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			w.Logger.Error("worker: request panicked", "panic", fmt.Sprint(r))
+			ran = true
+		}
+	}()
+	return w.Pending(ctx)
 }
 
 // Run ticks every interval until ctx ends. A job in progress receives the

@@ -41,6 +41,28 @@ services:
       db:
         condition: service_healthy
 
+  # Runs scheduled jobs and the admin console's backup requests (plan
+  # 2026-09-30). Same image stage as production.
+  worker:
+    build:
+      context: ./hdms-backend
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HDMS_ENV: development
+      HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms}:${POSTGRES_PASSWORD:-hdms}@db:5432/${POSTGRES_DB:-hdms}?sslmode=disable
+      HDMS_BACKUP_DIR: /var/backups/hdms
+      HDMS_BACKUP_ALLOWED_ROOTS: /var/backups:/mnt/nas
+      TZ: ${TZ:-Asia/Tokyo}
+    volumes:
+      - hdms-dev-backups:/var/backups/hdms
+    depends_on:
+      db:
+        condition: service_healthy
+
   caddy:
     image: caddy:2-alpine@sha256:ad27e531c8b286ff153c0e6e16587a1583e4111bb58c4d83bd73d6d3ef0a0ce1
     restart: unless-stopped
@@ -55,3 +77,4 @@ services:
 volumes:
   hdms-db-data:
   hdms-go-mod-cache:
+  hdms-dev-backups:
