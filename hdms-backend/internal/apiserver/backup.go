@@ -236,8 +236,6 @@ func (s *Server) CreateBackupDestination(w http.ResponseWriter, r *http.Request)
 	}
 	// The wizard already checked the folder; check again so the rules hold
 	// for any caller, and so a folder that changed since is caught.
-	// The wizard already checked the folder; check again so the rules hold
-	// for any caller, and so a folder that changed since is caught.
 	check, err := s.backupCfg.Locations.Check(r.Context(), body.Target)
 	if err != nil {
 		s.writeBackupError(w, r, err)
