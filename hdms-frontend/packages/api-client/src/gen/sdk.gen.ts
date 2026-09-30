@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ArchiveUserData, ArchiveUserErrors, ArchiveUserResponses, BeginTotpReenrolmentData, BeginTotpReenrolmentErrors, BeginTotpReenrolmentResponses, BindCredentialData, BindCredentialErrors, BindCredentialResponses, CancelReservationData, CancelReservationErrors, CancelReservationResponses, CancelSessionData, CancelSessionErrors, CancelSessionResponses, CancelStaffReservationData, CancelStaffReservationErrors, CancelStaffReservationResponses, ChangeOwnPasswordData, ChangeOwnPasswordErrors, ChangeOwnPasswordResponses, ChangeStaffPasswordData, ChangeStaffPasswordErrors, ChangeStaffPasswordResponses, CheckEmployeeNoData, CheckEmployeeNoErrors, CheckEmployeeNoResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, CommitDeviceImportData, CommitDeviceImportErrors, CommitDeviceImportResponses, CommitUserImportData, CommitUserImportErrors, CommitUserImportResponses, CompleteStaffProfileData, CompleteStaffProfileErrors, CompleteStaffProfileResponses, ConfirmTotpReenrolmentData, ConfirmTotpReenrolmentErrors, ConfirmTotpReenrolmentResponses, CorrectLoanAttributionData, CorrectLoanAttributionErrors, CorrectLoanAttributionResponses, CreateAdminData, CreateAdminErrors, CreateAdminResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDepartmentData, CreateDepartmentErrors, CreateDepartmentResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateKioskData, CreateKioskErrors, CreateKioskPairingCodeData, CreateKioskPairingCodeErrors, CreateKioskPairingCodeResponses, CreateKioskResponses, CreateReservationData, CreateReservationErrors, CreateReservationResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateStaffReservationData, CreateStaffReservationErrors, CreateStaffReservationResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteDepartmentData, DeleteDepartmentErrors, DeleteDepartmentResponses, DisableKioskData, DisableKioskErrors, DisableKioskResponses, EnableKioskData, EnableKioskErrors, EnableKioskResponses, ExportAuditCsvData, ExportAuditCsvErrors, ExportAuditCsvResponses, ExportDevicesCsvData, ExportDevicesCsvErrors, ExportDevicesCsvResponses, ExportLoansCsvData, ExportLoansCsvErrors, ExportLoansCsvResponses, ExportUsersCsvData, ExportUsersCsvErrors, ExportUsersCsvResponses, ForceAdminTotpReenrolmentData, ForceAdminTotpReenrolmentErrors, ForceAdminTotpReenrolmentResponses, ForceReturnLoanData, ForceReturnLoanErrors, ForceReturnLoanResponses, GetAdminData, GetAdminErrors, GetAdminResponses, GetBackfillLastEntryData, GetBackfillLastEntryErrors, GetBackfillLastEntryResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEventsStreamData, GetEventsStreamErrors, GetEventsStreamResponse, GetEventsStreamResponses, GetHealthzData, GetHealthzResponses, GetKioskData, GetKioskErrors, GetKioskResponses, GetLoanData, GetLoanErrors, GetLoanResponses, GetOperationalHealthData, GetOperationalHealthErrors, GetOperationalHealthResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetReportSummaryData, GetReportSummaryErrors, GetReportSummaryResponses, GetReservationData, GetReservationErrors, GetReservationResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetStaffBookingPolicyData, GetStaffBookingPolicyErrors, GetStaffBookingPolicyResponses, GetStaffDeviceData, GetStaffDeviceErrors, GetStaffDeviceResponses, GetStaffDevicesData, GetStaffDevicesErrors, GetStaffDevicesResponses, GetStaffMeCredentialData, GetStaffMeCredentialErrors, GetStaffMeCredentialResponses, GetStaffMeData, GetStaffMeErrors, GetStaffMeLoansData, GetStaffMeLoansErrors, GetStaffMeLoansResponses, GetStaffMeReservationsData, GetStaffMeReservationsErrors, GetStaffMeReservationsResponses, GetStaffMeResponses, GetTransactionsByOriginData, GetTransactionsByOriginErrors, GetTransactionsByOriginResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserNotificationPreferencesData, GetUserNotificationPreferencesErrors, GetUserNotificationPreferencesResponses, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListAdminsData, ListAdminsErrors, ListAdminsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDeviceLoansData, ListDeviceLoansErrors, ListDeviceLoansResponses, ListDeviceReservationsData, ListDeviceReservationsErrors, ListDeviceReservationsResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListDisputedLoansData, ListDisputedLoansErrors, ListDisputedLoansResponses, ListKiosksData, ListKiosksErrors, ListKiosksResponses, ListLeaverEscalationsData, ListLeaverEscalationsErrors, ListLeaverEscalationsResponses, ListLoansData, ListLoansErrors, ListLoansResponses, ListQuarantinedDeliveriesData, ListQuarantinedDeliveriesErrors, ListQuarantinedDeliveriesResponses, ListReservationsData, ListReservationsErrors, ListReservationsResponses, ListUserLoansData, ListUserLoansErrors, ListUserLoansResponses, ListUserReservationsData, ListUserReservationsErrors, ListUserReservationsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, PairKioskData, PairKioskErrors, PairKioskResponses, PreviewBackfillBatchData, PreviewBackfillBatchErrors, PreviewBackfillBatchResponses, PreviewDeviceImportData, PreviewDeviceImportErrors, PreviewDeviceImportResponses, PreviewUserImportData, PreviewUserImportErrors, PreviewUserImportResponses, RecordBackfillBatchData, RecordBackfillBatchErrors, RecordBackfillBatchResponses, RegenerateRecoveryCodesData, RegenerateRecoveryCodesErrors, RegenerateRecoveryCodesResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, RemindLoanData, RemindLoanErrors, RemindLoanResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResetAdminPasswordData, ResetAdminPasswordErrors, ResetAdminPasswordResponses, ResetStaffPasswordData, ResetStaffPasswordErrors, ResetStaffPasswordResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, ReturnSessionLoanData, ReturnSessionLoanErrors, ReturnSessionLoanResponses, RevealCredentialData, RevealCredentialErrors, RevealCredentialResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, RotateKioskTokenData, RotateKioskTokenErrors, RotateKioskTokenResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, SetSessionLoanDueDateData, SetSessionLoanDueDateErrors, SetSessionLoanDueDateResponses, StaffLogoutData, StaffLogoutErrors, StaffLogoutResponses, StaffMicrosoftCallbackData, StaffMicrosoftCallbackErrors, StaffMicrosoftCallbackResponses, StaffMicrosoftStartData, StaffMicrosoftStartErrors, StaffMicrosoftStartResponses, StaffPasswordLoginData, StaffPasswordLoginErrors, StaffPasswordLoginResponses, SubmitScanData, SubmitScanErrors, SubmitScanResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, UnlockAdminData, UnlockAdminErrors, UnlockAdminResponses, UpdateAdminData, UpdateAdminErrors, UpdateAdminResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDepartmentData, UpdateDepartmentErrors, UpdateDepartmentResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateKioskData, UpdateKioskErrors, UpdateKioskResponses, UpdateMyLocaleData, UpdateMyLocaleErrors, UpdateMyLocaleResponses, UpdateSettingsData, UpdateSettingsErrors, UpdateSettingsResponses, UpdateUserData, UpdateUserErrors, UpdateUserNotificationPreferencesData, UpdateUserNotificationPreferencesErrors, UpdateUserNotificationPreferencesResponses, UpdateUserResponses, WriteOffLoanData, WriteOffLoanErrors, WriteOffLoanResponses } from './types.gen';
+import type { ArchiveUserData, ArchiveUserErrors, ArchiveUserResponses, BeginTotpReenrolmentData, BeginTotpReenrolmentErrors, BeginTotpReenrolmentResponses, BindCredentialData, BindCredentialErrors, BindCredentialResponses, CancelReservationData, CancelReservationErrors, CancelReservationResponses, CancelSessionData, CancelSessionErrors, CancelSessionResponses, CancelStaffReservationData, CancelStaffReservationErrors, CancelStaffReservationResponses, ChangeOwnPasswordData, ChangeOwnPasswordErrors, ChangeOwnPasswordResponses, ChangeStaffPasswordData, ChangeStaffPasswordErrors, ChangeStaffPasswordResponses, CheckEmployeeNoData, CheckEmployeeNoErrors, CheckEmployeeNoResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, CommitDeviceImportData, CommitDeviceImportErrors, CommitDeviceImportResponses, CommitUserImportData, CommitUserImportErrors, CommitUserImportResponses, CompleteStaffProfileData, CompleteStaffProfileErrors, CompleteStaffProfileResponses, ConfirmTotpReenrolmentData, ConfirmTotpReenrolmentErrors, ConfirmTotpReenrolmentResponses, CorrectLoanAttributionData, CorrectLoanAttributionErrors, CorrectLoanAttributionResponses, CreateAdminData, CreateAdminErrors, CreateAdminResponses, CreateBackupDestinationData, CreateBackupDestinationErrors, CreateBackupDestinationResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateDepartmentData, CreateDepartmentErrors, CreateDepartmentResponses, CreateDeviceData, CreateDeviceErrors, CreateDeviceResponses, CreateKioskData, CreateKioskErrors, CreateKioskPairingCodeData, CreateKioskPairingCodeErrors, CreateKioskPairingCodeResponses, CreateKioskResponses, CreateReservationData, CreateReservationErrors, CreateReservationResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateStaffReservationData, CreateStaffReservationErrors, CreateStaffReservationResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteBackupDestinationData, DeleteBackupDestinationErrors, DeleteBackupDestinationResponses, DeleteDepartmentData, DeleteDepartmentErrors, DeleteDepartmentResponses, DisableKioskData, DisableKioskErrors, DisableKioskResponses, EnableKioskData, EnableKioskErrors, EnableKioskResponses, ExportAuditCsvData, ExportAuditCsvErrors, ExportAuditCsvResponses, ExportDevicesCsvData, ExportDevicesCsvErrors, ExportDevicesCsvResponses, ExportLoansCsvData, ExportLoansCsvErrors, ExportLoansCsvResponses, ExportUsersCsvData, ExportUsersCsvErrors, ExportUsersCsvResponses, ForceAdminTotpReenrolmentData, ForceAdminTotpReenrolmentErrors, ForceAdminTotpReenrolmentResponses, ForceReturnLoanData, ForceReturnLoanErrors, ForceReturnLoanResponses, GetAdminData, GetAdminErrors, GetAdminResponses, GetBackfillLastEntryData, GetBackfillLastEntryErrors, GetBackfillLastEntryResponses, GetBackupConfigData, GetBackupConfigErrors, GetBackupConfigResponses, GetBackupRequestData, GetBackupRequestErrors, GetBackupRequestResponses, GetCredentialHistoryData, GetCredentialHistoryErrors, GetCredentialHistoryResponses, GetCurrentAdminData, GetCurrentAdminErrors, GetCurrentAdminResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEventsStreamData, GetEventsStreamErrors, GetEventsStreamResponse, GetEventsStreamResponses, GetHealthzData, GetHealthzResponses, GetKioskData, GetKioskErrors, GetKioskResponses, GetLoanData, GetLoanErrors, GetLoanResponses, GetOperationalHealthData, GetOperationalHealthErrors, GetOperationalHealthResponses, GetReadyzData, GetReadyzErrors, GetReadyzResponses, GetReportSummaryData, GetReportSummaryErrors, GetReportSummaryResponses, GetReservationData, GetReservationErrors, GetReservationResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetStaffBookingPolicyData, GetStaffBookingPolicyErrors, GetStaffBookingPolicyResponses, GetStaffDeviceData, GetStaffDeviceErrors, GetStaffDeviceResponses, GetStaffDevicesData, GetStaffDevicesErrors, GetStaffDevicesResponses, GetStaffMeCredentialData, GetStaffMeCredentialErrors, GetStaffMeCredentialResponses, GetStaffMeData, GetStaffMeErrors, GetStaffMeLoansData, GetStaffMeLoansErrors, GetStaffMeLoansResponses, GetStaffMeReservationsData, GetStaffMeReservationsErrors, GetStaffMeReservationsResponses, GetStaffMeResponses, GetTransactionsByOriginData, GetTransactionsByOriginErrors, GetTransactionsByOriginResponses, GetUnboundCredentialCountData, GetUnboundCredentialCountErrors, GetUnboundCredentialCountResponses, GetUserData, GetUserErrors, GetUserNotificationPreferencesData, GetUserNotificationPreferencesErrors, GetUserNotificationPreferencesResponses, GetUserResponses, IssueBlankBatchData, IssueBlankBatchErrors, IssueBlankBatchResponses, IssueCredentialData, IssueCredentialErrors, IssueCredentialResponses, ListAdminsData, ListAdminsErrors, ListAdminsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListBackupDestinationsData, ListBackupDestinationsErrors, ListBackupDestinationsResponses, ListBackupRunsData, ListBackupRunsErrors, ListBackupRunsResponses, ListBackupSnapshotsData, ListBackupSnapshotsErrors, ListBackupSnapshotsResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCredentialsBySubjectData, ListCredentialsBySubjectErrors, ListCredentialsBySubjectResponses, ListDepartmentsData, ListDepartmentsErrors, ListDepartmentsResponses, ListDeviceLoansData, ListDeviceLoansErrors, ListDeviceLoansResponses, ListDeviceReservationsData, ListDeviceReservationsErrors, ListDeviceReservationsResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListDisputedLoansData, ListDisputedLoansErrors, ListDisputedLoansResponses, ListKiosksData, ListKiosksErrors, ListKiosksResponses, ListLeaverEscalationsData, ListLeaverEscalationsErrors, ListLeaverEscalationsResponses, ListLoansData, ListLoansErrors, ListLoansResponses, ListQuarantinedDeliveriesData, ListQuarantinedDeliveriesErrors, ListQuarantinedDeliveriesResponses, ListReservationsData, ListReservationsErrors, ListReservationsResponses, ListUserLoansData, ListUserLoansErrors, ListUserLoansResponses, ListUserReservationsData, ListUserReservationsErrors, ListUserReservationsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, LoginData, LoginErrors, LoginResponses, LogoutData, LogoutErrors, LogoutResponses, PairKioskData, PairKioskErrors, PairKioskResponses, PreviewBackfillBatchData, PreviewBackfillBatchErrors, PreviewBackfillBatchResponses, PreviewDeviceImportData, PreviewDeviceImportErrors, PreviewDeviceImportResponses, PreviewUserImportData, PreviewUserImportErrors, PreviewUserImportResponses, RecordBackfillBatchData, RecordBackfillBatchErrors, RecordBackfillBatchResponses, RegenerateRecoveryCodesData, RegenerateRecoveryCodesErrors, RegenerateRecoveryCodesResponses, RegisterUserWithCardData, RegisterUserWithCardErrors, RegisterUserWithCardResponses, ReissueCredentialData, ReissueCredentialErrors, ReissueCredentialResponses, RemindLoanData, RemindLoanErrors, RemindLoanResponses, ReprintCredentialData, ReprintCredentialErrors, ReprintCredentialResponses, ResetAdminPasswordData, ResetAdminPasswordErrors, ResetAdminPasswordResponses, ResetStaffPasswordData, ResetStaffPasswordErrors, ResetStaffPasswordResponses, ResolveCredentialData, ResolveCredentialErrors, ResolveCredentialResponses, ReturnSessionLoanData, ReturnSessionLoanErrors, ReturnSessionLoanResponses, RevealCredentialData, RevealCredentialErrors, RevealCredentialResponses, RevokeCredentialData, RevokeCredentialErrors, RevokeCredentialResponses, RotateKioskTokenData, RotateKioskTokenErrors, RotateKioskTokenResponses, RunBackupNowData, RunBackupNowErrors, RunBackupNowResponses, SetDeviceStatusData, SetDeviceStatusErrors, SetDeviceStatusResponses, SetSessionLoanDueDateData, SetSessionLoanDueDateErrors, SetSessionLoanDueDateResponses, StaffLogoutData, StaffLogoutErrors, StaffLogoutResponses, StaffMicrosoftCallbackData, StaffMicrosoftCallbackErrors, StaffMicrosoftCallbackResponses, StaffMicrosoftStartData, StaffMicrosoftStartErrors, StaffMicrosoftStartResponses, StaffPasswordLoginData, StaffPasswordLoginErrors, StaffPasswordLoginResponses, SubmitScanData, SubmitScanErrors, SubmitScanResponses, SuspendUserData, SuspendUserErrors, SuspendUserResponses, TestBackupDestinationData, TestBackupDestinationErrors, TestBackupDestinationResponses, UnlockAdminData, UnlockAdminErrors, UnlockAdminResponses, UpdateAdminData, UpdateAdminErrors, UpdateAdminResponses, UpdateBackupDestinationData, UpdateBackupDestinationErrors, UpdateBackupDestinationResponses, UpdateBackupScheduleData, UpdateBackupScheduleErrors, UpdateBackupScheduleResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateDepartmentData, UpdateDepartmentErrors, UpdateDepartmentResponses, UpdateDeviceData, UpdateDeviceErrors, UpdateDeviceResponses, UpdateKioskData, UpdateKioskErrors, UpdateKioskResponses, UpdateMyLocaleData, UpdateMyLocaleErrors, UpdateMyLocaleResponses, UpdateSettingsData, UpdateSettingsErrors, UpdateSettingsResponses, UpdateUserData, UpdateUserErrors, UpdateUserNotificationPreferencesData, UpdateUserNotificationPreferencesErrors, UpdateUserNotificationPreferencesResponses, UpdateUserResponses, VerifyBackupsData, VerifyBackupsErrors, VerifyBackupsResponses, WriteOffLoanData, WriteOffLoanErrors, WriteOffLoanResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1485,6 +1485,178 @@ export const updateSettings = <ThrowOnError extends boolean = false>(options: Op
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Schedule, local repository, last run and worker health.
+ */
+export const getBackupConfig = <ThrowOnError extends boolean = false>(options?: Options<GetBackupConfigData, ThrowOnError>): RequestResult<GetBackupConfigResponses, GetBackupConfigErrors, ThrowOnError> => (options?.client ?? client).get<GetBackupConfigResponses, GetBackupConfigErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/config',
+    ...options
+});
+
+/**
+ * Replace the backup schedule.
+ */
+export const updateBackupSchedule = <ThrowOnError extends boolean = false>(options: Options<UpdateBackupScheduleData, ThrowOnError>): RequestResult<UpdateBackupScheduleResponses, UpdateBackupScheduleErrors, ThrowOnError> => (options.client ?? client).put<UpdateBackupScheduleResponses, UpdateBackupScheduleErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/schedule',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remote copies of the backup repository.
+ */
+export const listBackupDestinations = <ThrowOnError extends boolean = false>(options?: Options<ListBackupDestinationsData, ThrowOnError>): RequestResult<ListBackupDestinationsResponses, ListBackupDestinationsErrors, ThrowOnError> => (options?.client ?? client).get<ListBackupDestinationsResponses, ListBackupDestinationsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/destinations',
+    ...options
+});
+
+/**
+ * Add a network-drive destination. Test it afterwards.
+ */
+export const createBackupDestination = <ThrowOnError extends boolean = false>(options: Options<CreateBackupDestinationData, ThrowOnError>): RequestResult<CreateBackupDestinationResponses, CreateBackupDestinationErrors, ThrowOnError> => (options.client ?? client).post<CreateBackupDestinationResponses, CreateBackupDestinationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/destinations',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Stop copying to this destination. Backups already there are not deleted.
+ */
+export const deleteBackupDestination = <ThrowOnError extends boolean = false>(options: Options<DeleteBackupDestinationData, ThrowOnError>): RequestResult<DeleteBackupDestinationResponses, DeleteBackupDestinationErrors, ThrowOnError> => (options.client ?? client).delete<DeleteBackupDestinationResponses, DeleteBackupDestinationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/destinations/{id}',
+    ...options
+});
+
+/**
+ * Rename, enable/disable, or change retention. The target cannot change.
+ */
+export const updateBackupDestination = <ThrowOnError extends boolean = false>(options: Options<UpdateBackupDestinationData, ThrowOnError>): RequestResult<UpdateBackupDestinationResponses, UpdateBackupDestinationErrors, ThrowOnError> => (options.client ?? client).patch<UpdateBackupDestinationResponses, UpdateBackupDestinationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/destinations/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Queue a test that opens or initialises the destination from the worker.
+ */
+export const testBackupDestination = <ThrowOnError extends boolean = false>(options: Options<TestBackupDestinationData, ThrowOnError>): RequestResult<TestBackupDestinationResponses, TestBackupDestinationErrors, ThrowOnError> => (options.client ?? client).post<TestBackupDestinationResponses, TestBackupDestinationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/destinations/{id}/test',
+    ...options
+});
+
+/**
+ * Queue a backup now. Returns the pending one if already queued.
+ */
+export const runBackupNow = <ThrowOnError extends boolean = false>(options?: Options<RunBackupNowData, ThrowOnError>): RequestResult<RunBackupNowResponses, RunBackupNowErrors, ThrowOnError> => (options?.client ?? client).post<RunBackupNowResponses, RunBackupNowErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/run',
+    ...options
+});
+
+/**
+ * Queue a verification of the local repository and enabled destinations, or of one destination.
+ */
+export const verifyBackups = <ThrowOnError extends boolean = false>(options?: Options<VerifyBackupsData, ThrowOnError>): RequestResult<VerifyBackupsResponses, VerifyBackupsErrors, ThrowOnError> => (options?.client ?? client).post<VerifyBackupsResponses, VerifyBackupsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/verify',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Snapshots in one repository, from the worker's cache, newest first.
+ */
+export const listBackupSnapshots = <ThrowOnError extends boolean = false>(options: Options<ListBackupSnapshotsData, ThrowOnError>): RequestResult<ListBackupSnapshotsResponses, ListBackupSnapshotsErrors, ThrowOnError> => (options.client ?? client).get<ListBackupSnapshotsResponses, ListBackupSnapshotsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/snapshots',
+    ...options
+});
+
+/**
+ * Poll a queued request.
+ */
+export const getBackupRequest = <ThrowOnError extends boolean = false>(options: Options<GetBackupRequestData, ThrowOnError>): RequestResult<GetBackupRequestResponses, GetBackupRequestErrors, ThrowOnError> => (options.client ?? client).get<GetBackupRequestResponses, GetBackupRequestErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/requests/{id}',
+    ...options
+});
+
+/**
+ * Recent backup and verify runs, newest first.
+ */
+export const listBackupRuns = <ThrowOnError extends boolean = false>(options?: Options<ListBackupRunsData, ThrowOnError>): RequestResult<ListBackupRunsResponses, ListBackupRunsErrors, ThrowOnError> => (options?.client ?? client).get<ListBackupRunsResponses, ListBackupRunsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'hdms_session',
+            type: 'apiKey'
+        }],
+    url: '/backup/runs',
+    ...options
 });
 
 /**

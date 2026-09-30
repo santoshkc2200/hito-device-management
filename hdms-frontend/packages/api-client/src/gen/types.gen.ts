@@ -13,6 +13,112 @@ export type HealthStatus = {
     environment?: 'development' | 'test' | 'staging' | 'production';
 };
 
+export type BackupSchedule = {
+    enabled: boolean;
+    mode: 'interval' | 'daily' | 'weekly';
+    intervalMinutes: number;
+    timeLocal: string;
+    /**
+     * 0 = Sunday
+     */
+    weekday: number;
+};
+
+export type BackupLocalRepo = {
+    path: string;
+    snapshotCount: number;
+    latestSizeBytes?: number;
+    verifiedAt?: string;
+};
+
+export type BackupRun = {
+    id: number;
+    job: 'backup' | 'verify';
+    startedAt: string;
+    finishedAt?: string;
+    outcome: 'success' | 'degraded' | 'failure';
+    detail: {
+        [key: string]: unknown;
+    };
+};
+
+export type BackupRunList = {
+    items: Array<BackupRun>;
+};
+
+export type BackupConfig = {
+    schedule: BackupSchedule;
+    /**
+     * Absent when the schedule is off.
+     */
+    nextRunAt?: string;
+    lastRun?: BackupRun;
+    lastSuccessAt?: string;
+    workerSeenAt?: string;
+    local: BackupLocalRepo;
+    allowedRoots: Array<string>;
+};
+
+export type BackupDestination = {
+    id: string;
+    name: string;
+    target: string;
+    enabled: boolean;
+    retentionVersions: number;
+    initializedAt?: string;
+    lastOkAt?: string;
+    lastError?: string;
+};
+
+export type BackupDestinationList = {
+    items: Array<BackupDestination>;
+};
+
+export type BackupDestinationInput = {
+    name: string;
+    target: string;
+    enabled?: boolean;
+    retentionVersions: number;
+};
+
+export type BackupDestinationUpdate = {
+    name: string;
+    enabled: boolean;
+    retentionVersions: number;
+};
+
+export type BackupRequest = {
+    id: string;
+    kind: 'run' | 'test' | 'verify';
+    destinationId?: string;
+    status: 'pending' | 'running' | 'done';
+    requestedAt: string;
+    startedAt?: string;
+    finishedAt?: string;
+    outcome?: 'success' | 'degraded' | 'failure';
+    detail?: {
+        [key: string]: unknown;
+    };
+};
+
+export type BackupSnapshot = {
+    snapshotId: string;
+    takenAt: string;
+    sizeBytes: number;
+    verifiedAt?: string;
+};
+
+export type BackupSnapshotList = {
+    items: Array<BackupSnapshot>;
+};
+
+export type VerifyBackupsRequest = {
+    /**
+     * Omit to verify the local repository and every enabled destination.
+     */
+    destinationId?: string;
+};
+
 export type Problem = {
     type: string;
     title: string;
@@ -4086,6 +4192,321 @@ export type UpdateSettingsResponses = {
 };
 
 export type UpdateSettingsResponse = UpdateSettingsResponses[keyof UpdateSettingsResponses];
+
+export type GetBackupConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/backup/config';
+};
+
+export type GetBackupConfigErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetBackupConfigError = GetBackupConfigErrors[keyof GetBackupConfigErrors];
+
+export type GetBackupConfigResponses = {
+    /**
+     * OK.
+     */
+    200: BackupConfig;
+};
+
+export type GetBackupConfigResponse = GetBackupConfigResponses[keyof GetBackupConfigResponses];
+
+export type UpdateBackupScheduleData = {
+    body: BackupSchedule;
+    path?: never;
+    query?: never;
+    url: '/backup/schedule';
+};
+
+export type UpdateBackupScheduleErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateBackupScheduleError = UpdateBackupScheduleErrors[keyof UpdateBackupScheduleErrors];
+
+export type UpdateBackupScheduleResponses = {
+    /**
+     * Saved; returns the full configuration.
+     */
+    200: BackupConfig;
+};
+
+export type UpdateBackupScheduleResponse = UpdateBackupScheduleResponses[keyof UpdateBackupScheduleResponses];
+
+export type ListBackupDestinationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/backup/destinations';
+};
+
+export type ListBackupDestinationsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListBackupDestinationsError = ListBackupDestinationsErrors[keyof ListBackupDestinationsErrors];
+
+export type ListBackupDestinationsResponses = {
+    /**
+     * OK.
+     */
+    200: BackupDestinationList;
+};
+
+export type ListBackupDestinationsResponse = ListBackupDestinationsResponses[keyof ListBackupDestinationsResponses];
+
+export type CreateBackupDestinationData = {
+    body: BackupDestinationInput;
+    path?: never;
+    query?: never;
+    url: '/backup/destinations';
+};
+
+export type CreateBackupDestinationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateBackupDestinationError = CreateBackupDestinationErrors[keyof CreateBackupDestinationErrors];
+
+export type CreateBackupDestinationResponses = {
+    /**
+     * Created.
+     */
+    201: BackupDestination;
+};
+
+export type CreateBackupDestinationResponse = CreateBackupDestinationResponses[keyof CreateBackupDestinationResponses];
+
+export type DeleteBackupDestinationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/backup/destinations/{id}';
+};
+
+export type DeleteBackupDestinationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type DeleteBackupDestinationError = DeleteBackupDestinationErrors[keyof DeleteBackupDestinationErrors];
+
+export type DeleteBackupDestinationResponses = {
+    /**
+     * Deleted.
+     */
+    204: void;
+};
+
+export type DeleteBackupDestinationResponse = DeleteBackupDestinationResponses[keyof DeleteBackupDestinationResponses];
+
+export type UpdateBackupDestinationData = {
+    body: BackupDestinationUpdate;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/backup/destinations/{id}';
+};
+
+export type UpdateBackupDestinationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type UpdateBackupDestinationError = UpdateBackupDestinationErrors[keyof UpdateBackupDestinationErrors];
+
+export type UpdateBackupDestinationResponses = {
+    /**
+     * OK.
+     */
+    200: BackupDestination;
+};
+
+export type UpdateBackupDestinationResponse = UpdateBackupDestinationResponses[keyof UpdateBackupDestinationResponses];
+
+export type TestBackupDestinationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/backup/destinations/{id}/test';
+};
+
+export type TestBackupDestinationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type TestBackupDestinationError = TestBackupDestinationErrors[keyof TestBackupDestinationErrors];
+
+export type TestBackupDestinationResponses = {
+    /**
+     * Queued.
+     */
+    202: BackupRequest;
+};
+
+export type TestBackupDestinationResponse = TestBackupDestinationResponses[keyof TestBackupDestinationResponses];
+
+export type RunBackupNowData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/backup/run';
+};
+
+export type RunBackupNowErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type RunBackupNowError = RunBackupNowErrors[keyof RunBackupNowErrors];
+
+export type RunBackupNowResponses = {
+    /**
+     * Queued.
+     */
+    202: BackupRequest;
+};
+
+export type RunBackupNowResponse = RunBackupNowResponses[keyof RunBackupNowResponses];
+
+export type VerifyBackupsData = {
+    body?: VerifyBackupsRequest;
+    path?: never;
+    query?: never;
+    url: '/backup/verify';
+};
+
+export type VerifyBackupsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type VerifyBackupsError = VerifyBackupsErrors[keyof VerifyBackupsErrors];
+
+export type VerifyBackupsResponses = {
+    /**
+     * Queued.
+     */
+    202: BackupRequest;
+};
+
+export type VerifyBackupsResponse = VerifyBackupsResponses[keyof VerifyBackupsResponses];
+
+export type ListBackupSnapshotsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * "local" or a destination id.
+         */
+        repo: string;
+    };
+    url: '/backup/snapshots';
+};
+
+export type ListBackupSnapshotsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListBackupSnapshotsError = ListBackupSnapshotsErrors[keyof ListBackupSnapshotsErrors];
+
+export type ListBackupSnapshotsResponses = {
+    /**
+     * OK.
+     */
+    200: BackupSnapshotList;
+};
+
+export type ListBackupSnapshotsResponse = ListBackupSnapshotsResponses[keyof ListBackupSnapshotsResponses];
+
+export type GetBackupRequestData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/backup/requests/{id}';
+};
+
+export type GetBackupRequestErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetBackupRequestError = GetBackupRequestErrors[keyof GetBackupRequestErrors];
+
+export type GetBackupRequestResponses = {
+    /**
+     * OK.
+     */
+    200: BackupRequest;
+};
+
+export type GetBackupRequestResponse = GetBackupRequestResponses[keyof GetBackupRequestResponses];
+
+export type ListBackupRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+    };
+    url: '/backup/runs';
+};
+
+export type ListBackupRunsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListBackupRunsError = ListBackupRunsErrors[keyof ListBackupRunsErrors];
+
+export type ListBackupRunsResponses = {
+    /**
+     * OK.
+     */
+    200: BackupRunList;
+};
+
+export type ListBackupRunsResponse = ListBackupRunsResponses[keyof ListBackupRunsResponses];
 
 export type GetKioskData = {
     body?: never;

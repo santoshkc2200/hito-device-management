@@ -17,7 +17,7 @@ func TestHealthzReportsEnvironment(t *testing.T) {
 	t.Parallel()
 
 	for _, env := range []string{"development", "staging", "production"} {
-		srv := apiserver.New(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, env)
+		srv := apiserver.New(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, env, apiserver.BackupConsoleConfig{})
 		rec := httptest.NewRecorder()
 		srv.GetHealthz(rec, httptest.NewRequest(http.MethodGet, "/v1/healthz", nil))
 

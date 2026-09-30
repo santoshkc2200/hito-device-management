@@ -9,6 +9,7 @@ package apiserver
 import (
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/audit"
 	"github.com/hito-hospital/hdms/internal/modules/catalog"
@@ -27,9 +28,19 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 )
 
+// BackupConsoleConfig is what the backup handlers need from configuration:
+// where the local repository is, which roots a destination may use, and the
+// time zone the schedule is expressed in.
+type BackupConsoleConfig struct {
+	BackupDir    string
+	AllowedRoots []string
+	Location     *time.Location
+}
+
 // Server implements gen.ServerInterface.
 type Server struct {
 	env                  string
+	backupCfg            BackupConsoleConfig
 	pool                 *db.Pool
 	auth                 *auth.Service
 	identity             *identity.Service
@@ -59,9 +70,11 @@ func New(
 	notificationSvc notificationapi.Service,
 	reservationsSvc reservationsapi.Service,
 	env string,
+	backupCfg BackupConsoleConfig,
 ) *Server {
 	return &Server{
 		env:                  env,
+		backupCfg:            backupCfg,
 		pool:                 pool,
 		auth:                 authSvc,
 		identity:             identitySvc,
