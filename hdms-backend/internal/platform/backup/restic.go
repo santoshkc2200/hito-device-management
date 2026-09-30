@@ -43,10 +43,17 @@ type SnapshotSummary struct {
 	DataAdded           int64  `json:"data_added"`
 }
 
+// SnapshotStats is the part of restic's per-snapshot summary the console
+// shows. restic 0.17+ writes it; older repositories leave it nil.
+type SnapshotStats struct {
+	TotalBytesProcessed int64 `json:"total_bytes_processed"`
+}
+
 type Snapshot struct {
-	ID    string    `json:"id"`
-	Time  time.Time `json:"time"`
-	Paths []string  `json:"paths"`
+	ID      string         `json:"id"`
+	Time    time.Time      `json:"time"`
+	Paths   []string       `json:"paths"`
+	Summary *SnapshotStats `json:"summary,omitempty"`
 }
 
 // RetentionPolicy is the per-repository retention rule. The local host
