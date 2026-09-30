@@ -953,6 +953,52 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, adminID, currentPasswor
 	return nil
 }
 
+// ReauthenticateAdmin checks an already signed-in admin's password and TOTP
+// code before a high-impact action (creating a recovery key, restoring). It
+// opens no session and does not touch last_login_at. Failures count toward
+// the same lockout as failed logins, so it cannot be used to guess a password
+// faster than the login form. Recovery codes are not accepted here.
+func (s *Service) ReauthenticateAdmin(ctx context.Context, adminID, password, totpCode string) error {
+	uid, err := pgtypeconv.UUID(adminID)
+	if err != nil {
+		return ErrAdminNotFound
+	}
+	s.loginMu.Lock()
+	defer s.loginMu.Unlock()
+
+	q := authstore.New(db.Conn(ctx, s.pool))
+	account, err := q.GetAdminAccountByID(ctx, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrAdminNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("auth: reauthenticate: %w", err)
+	}
+	if account.LockedUntil.Valid && s.clock.Now().Before(pgtypeconv.Time(account.LockedUntil)) {
+		return ErrAccountLocked
+	}
+	if account.Status != authstore.AdminStatusActive {
+		return ErrAccountDisabled
+	}
+	if ok, err := VerifyPassword(account.PasswordHash, password); err != nil || !ok {
+		s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "reauth_password_mismatch")
+		return ErrInvalidCredentials
+	}
+	if strings.TrimSpace(totpCode) == "" || len(account.TotpSecretEnc) == 0 {
+		return ErrInvalidCredentials
+	}
+	secret, err := decryptSecret(account.TotpSecretEnc, s.totpEncKey)
+	if err != nil {
+		return fmt.Errorf("auth: decrypt totp secret: %w", err)
+	}
+	if !ValidateTOTPCode(secret, totpCode) {
+		s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "reauth_totp_invalid")
+		return ErrInvalidCredentials
+	}
+	s.recordAudit(ctx, nil, "admin:"+adminID, "auth.reauthenticated", "admin:"+adminID, nil)
+	return nil
+}
+
 // BeginTotpReenrolment initiates self-service TOTP re-enrolment.
 func (s *Service) BeginTotpReenrolment(ctx context.Context, adminID string) (totpSecret, otpauthURL string, err error) {
 	uid, err := pgtypeconv.UUID(adminID)
