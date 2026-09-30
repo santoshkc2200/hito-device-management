@@ -216,3 +216,25 @@ systemctl list-timers hdms-backup.timer
 ```
 
 Unit files: `deploy/systemd/hdms-backup.service`, `deploy/systemd/hdms-backup.timer`.
+
+## Connecting a network drive
+
+The admin console's **Backups → Destinations → Add destination** wizard only
+offers folders on a drive mounted into the worker at `/mnt/nas`. Until IT
+connects one, the wizard shows the drive as **Not connected** and points here.
+
+1. Mount the share on the host (NFS or SMB), for example at `/srv/hdms-nas`,
+   and add it to `/etc/fstab` so it is mounted again after a reboot.
+2. Set `HDMS_BACKUP_NAS_HOST_PATH=/srv/hdms-nas` in `/etc/hdms/hdms.env`.
+3. Recreate the worker so it picks up the mount:
+   `sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env up -d worker`
+4. Reopen the wizard; the drive now shows **Connected**.
+
+The wizard refuses a folder on the server's own disk (`same_disk`), because a
+copy there is lost together with the server. If it reports `same_disk` after
+step 3, the share did not mount: check `mount | grep /srv/hdms-nas` on the host.
+
+The worker serves the wizard's folder checks on `HDMS_WORKER_ADDR` (default
+`:8090`) inside the compose network only; the API reaches it at
+`HDMS_WORKER_URL` (default `http://worker:8090`). Neither needs setting unless
+the service is renamed.

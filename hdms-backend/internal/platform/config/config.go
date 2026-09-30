@@ -73,6 +73,12 @@ type Config struct {
 	// administrator input; an empty list rejects every path destination.
 	BackupAllowedRoots []string
 
+	// WorkerHTTPAddr is where the worker serves its internal routes
+	// (HDMS_WORKER_ADDR). Compose network only; nothing publishes it.
+	WorkerHTTPAddr string
+	// WorkerURL is how the API reaches those routes (HDMS_WORKER_URL).
+	WorkerURL string
+
 	// ResticBinary names the restic executable (HDMS_RESTIC_BIN, default
 	// "restic"). Overridable so a pinned build can be used without PATH games.
 	ResticBinary string
@@ -153,6 +159,8 @@ func Load() (Config, error) {
 	cfg.BackupDir = getenvDefault("HDMS_BACKUP_DIR", "/var/backups/hdms")
 	cfg.BackupEncKey = getenvOptionalBase64Key32("HDMS_BACKUP_ENC_KEY", &errs)
 	cfg.BackupAllowedRoots = splitAndTrim(os.Getenv("HDMS_BACKUP_ALLOWED_ROOTS"), ":")
+	cfg.WorkerHTTPAddr = getenvDefault("HDMS_WORKER_ADDR", ":8090")
+	cfg.WorkerURL = getenvDefault("HDMS_WORKER_URL", "http://worker:8090")
 	cfg.ResticBinary = getenvDefault("HDMS_RESTIC_BIN", "restic")
 	cfg.RcloneConfig = os.Getenv("HDMS_RCLONE_CONFIG")
 
@@ -328,6 +336,7 @@ func (c Config) LogEffective(logger *slog.Logger) {
 		slog.String("backup_dir", c.BackupDir),
 		slog.String("backup_enc_key", "[REDACTED]"),
 		slog.String("backup_allowed_roots", strings.Join(c.BackupAllowedRoots, ":")),
+		slog.String("worker_url", c.WorkerURL),
 		slog.String("restic_binary", c.ResticBinary),
 		slog.String("rclone_config", c.RcloneConfig),
 		slog.String("retention_mode", c.RetentionMode),
