@@ -1,7 +1,5 @@
 import {
-  createBackupDestination,
   deleteBackupDestination,
-  getBackupConfig,
   listBackupDestinations,
   testBackupDestination,
   updateBackupDestination,
@@ -31,6 +29,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
+import { DestinationWizard } from "./destination-wizard";
 import { formatDateTime } from "./format";
 import { useBackupRequest } from "./use-backup-request";
 
@@ -40,7 +39,8 @@ export function DestinationsTab() {
   const t = useT();
   const { locale } = useLocale();
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState<BackupDestination | "new" | null>(null);
+  const [editing, setEditing] = useState<BackupDestination | null>(null);
+  const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<BackupDestination | null>(null);
   const [testId, setTestId] = useState<string | null>(null);
   const { request: testRequest } = useBackupRequest(testId);
@@ -53,15 +53,6 @@ export function DestinationsTab() {
       return res.data?.items ?? [];
     },
   });
-  const configQuery = useQuery({
-    queryKey: ["backup", "config"],
-    queryFn: async () => {
-      const res = await getBackupConfig();
-      if (res.error) throw res.error;
-      return res.data;
-    },
-  });
-  const roots = configQuery.data?.allowedRoots ?? [];
 
   useEffect(() => {
     if (testRequest?.status !== "done") return;
@@ -167,7 +158,7 @@ export function DestinationsTab() {
           <h2 className="text-base font-semibold">{t("backups.destinations.title")}</h2>
           <p className="text-sm text-muted-foreground">{t("backups.destinations.description")}</p>
         </div>
-        <Button onClick={() => setEditing("new")}>
+        <Button onClick={() => setAdding(true)}>
           <Plus className="size-4" data-icon="inline-start" />
           {t("backups.destinations.add")}
         </Button>
@@ -185,13 +176,8 @@ export function DestinationsTab() {
         emptyExplanation={t("backups.destinations.description")}
       />
 
-      {editing && (
-        <DestinationDialog
-          destination={editing === "new" ? null : editing}
-          roots={roots}
-          onClose={() => setEditing(null)}
-        />
-      )}
+      {adding && <DestinationWizard onClose={() => setAdding(false)} />}
+      {editing && <EditDestinationDialog destination={editing} onClose={() => setEditing(null)} />}
 
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
@@ -213,29 +199,20 @@ export function DestinationsTab() {
   );
 }
 
-function DestinationDialog({
-  destination,
-  roots,
-  onClose,
-}: {
-  destination: BackupDestination | null;
-  roots: string[];
-  onClose: () => void;
-}) {
+function EditDestinationDialog({ destination, onClose }: { destination: BackupDestination; onClose: () => void }) {
   const t = useT();
   const queryClient = useQueryClient();
-  const [name, setName] = useState(destination?.name ?? "");
-  const [target, setTarget] = useState(destination?.target ?? "");
-  const [retention, setRetention] = useState(String(destination?.retentionVersions ?? 3));
-  const [enabled, setEnabled] = useState(destination?.enabled ?? true);
+  const [name, setName] = useState(destination.name);
+  const [retention, setRetention] = useState(String(destination.retentionVersions));
+  const [enabled, setEnabled] = useState(destination.enabled);
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: async () => {
-      const retentionVersions = Number(retention);
-      const res = destination
-        ? await updateBackupDestination({ path: { id: destination.id }, body: { name: name.trim(), enabled, retentionVersions } })
-        : await createBackupDestination({ body: { name: name.trim(), target: target.trim(), retentionVersions, enabled } });
+      const res = await updateBackupDestination({
+        path: { id: destination.id },
+        body: { name: name.trim(), enabled, retentionVersions: Number(retention) },
+      });
       if (res.error) throw res.error;
       return res.data;
     },
@@ -252,7 +229,6 @@ function DestinationDialog({
   const retentionNumber = Number(retention);
   const submit = () => {
     if (!name.trim()) return setError(t("backups.validation.nameRequired"));
-    if (!destination && !target.trim().startsWith("/")) return setError(t("backups.validation.targetAbsolute"));
     if (!Number.isInteger(retentionNumber) || retentionNumber < 1 || retentionNumber > 100) {
       return setError(t("backups.validation.retentionRange"));
     }
@@ -264,9 +240,7 @@ function DestinationDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {destination ? t("backups.destinations.form.editTitle") : t("backups.destinations.form.createTitle")}
-          </DialogTitle>
+          <DialogTitle>{t("backups.destinations.form.editTitle")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -275,18 +249,8 @@ function DestinationDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="dest-target">{t("backups.destinations.form.target")}</Label>
-            <Input
-              id="dest-target"
-              value={target}
-              disabled={destination !== null}
-              placeholder="/mnt/nas/hdms" // i18n-allow-literal: path example, not translatable prose
-              onChange={(e) => setTarget(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              {destination
-                ? t("backups.destinations.form.targetFixed")
-                : t("backups.destinations.form.targetHint", { roots: roots.join(", ") })}
-            </p>
+            <Input id="dest-target" value={destination.target} disabled />
+            <p className="text-xs text-muted-foreground">{t("backups.destinations.form.targetFixed")}</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="dest-retention">{t("backups.destinations.form.retention")}</Label>

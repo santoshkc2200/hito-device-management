@@ -26,38 +26,6 @@ describe("Destinations tab", () => {
     expect(screen.getByText(/no such file or directory/)).toBeInTheDocument();
   });
 
-  it("adds a destination, warning when fewer than 3 versions", async () => {
-    const user = userEvent.setup();
-    const create = vi.spyOn(apiClient, "createBackupDestination").mockResolvedValue({ data: nas } as any);
-    renderWithClient(<DestinationsTab />);
-    await user.click(await screen.findByRole("button", { name: ja.backups.destinations.add }));
-    const dialog = await screen.findByRole("dialog");
-    await user.type(within(dialog).getByLabelText(ja.backups.destinations.form.name), "Ward NAS");
-    await user.type(within(dialog).getByLabelText(ja.backups.destinations.form.target), "/mnt/nas/hdms");
-    const retention = within(dialog).getByLabelText(ja.backups.destinations.form.retention);
-    await user.clear(retention);
-    await user.type(retention, "2");
-    expect(within(dialog).getByText(ja.backups.destinations.form.retentionWarning)).toBeInTheDocument();
-    expect(within(dialog).getByText(/\/var\/backups, \/mnt\/nas/)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: ja.backups.destinations.form.save }));
-    await waitFor(() =>
-      expect(create).toHaveBeenCalledWith({ body: { name: "Ward NAS", target: "/mnt/nas/hdms", retentionVersions: 2, enabled: true } })
-    );
-  });
-
-  it("rejects a relative path without calling the API", async () => {
-    const user = userEvent.setup();
-    const create = vi.spyOn(apiClient, "createBackupDestination");
-    renderWithClient(<DestinationsTab />);
-    await user.click(await screen.findByRole("button", { name: ja.backups.destinations.add }));
-    const dialog = await screen.findByRole("dialog");
-    await user.type(within(dialog).getByLabelText(ja.backups.destinations.form.name), "X");
-    await user.type(within(dialog).getByLabelText(ja.backups.destinations.form.target), "mnt/nas");
-    await user.click(within(dialog).getByRole("button", { name: ja.backups.destinations.form.save }));
-    expect(await within(dialog).findByText(ja.backups.validation.targetAbsolute)).toBeInTheDocument();
-    expect(create).not.toHaveBeenCalled();
-  });
-
   it("queues a test for a row", async () => {
     const user = userEvent.setup();
     const test = vi.spyOn(apiClient, "testBackupDestination").mockResolvedValue({
