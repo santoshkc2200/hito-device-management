@@ -2371,6 +2371,64 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /backup/locations:
+    get:
+      operationId: listBackupLocations
+      summary: Connected drives, or the subfolders of one folder, as the worker sees them.
+      tags: [backup]
+      parameters:
+        - name: path
+          in: query
+          required: false
+          schema: { type: string }
+          description: Omit to list only the drives.
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupLocationListing" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/locations/folders:
+    post:
+      operationId: createBackupLocationFolder
+      summary: Create a folder on a connected drive.
+      tags: [backup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupFolderInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupFolder" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/locations/check:
+    post:
+      operationId: checkBackupLocation
+      summary: Check whether a folder can hold backups. Failures are results, not errors.
+      tags: [backup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupLocationCheckInput" }
+      responses:
+        "200":
+          description: The checklist.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupLocationCheck" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /backup/run:
     post:
       operationId: runBackupNow
@@ -2918,6 +2976,64 @@ components:
       type: object
       properties:
         destinationId: { type: string, description: "Omit to verify the local repository and every enabled destination." }
+
+    BackupLocationRoot:
+      type: object
+      required: [path, connected]
+      properties:
+        path: { type: string }
+        connected: { type: boolean, description: "False when no drive is mounted there (same disk as the server)." }
+
+    BackupFolder:
+      type: object
+      required: [name, path, hasBackup]
+      properties:
+        name: { type: string }
+        path: { type: string }
+        hasBackup: { type: boolean, description: "The folder already holds an HDMS backup repository." }
+
+    BackupLocationListing:
+      type: object
+      required: [roots, folders]
+      properties:
+        roots: { type: array, items: { $ref: "#/components/schemas/BackupLocationRoot" } }
+        path: { type: string, description: "Absent for the drives-only listing." }
+        parent: { type: string, description: "Absent at a drive's top folder." }
+        folders: { type: array, items: { $ref: "#/components/schemas/BackupFolder" } }
+
+    BackupFolderInput:
+      type: object
+      required: [parent, name]
+      properties:
+        parent: { type: string }
+        name: { type: string, minLength: 1, maxLength: 100 }
+
+    BackupLocationCheckInput:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string }
+
+    BackupLocationCheckItem:
+      type: object
+      required: [name, status]
+      properties:
+        name: { type: string, enum: [allowed, connected, exists, writable, separate_disk, contents, space] }
+        status: { type: string, enum: [pass, fail, warn, info, skipped] }
+        code:
+          type: string
+          enum: [outside_roots, not_connected, not_found, not_writable, same_disk, not_empty, existing_repo, low_space]
+
+    BackupLocationCheck:
+      type: object
+      required: [path, ok, existingRepo, freeBytes, neededBytes, checks]
+      properties:
+        path: { type: string }
+        ok: { type: boolean, description: "No check failed. Warnings and information do not block." }
+        existingRepo: { type: boolean }
+        freeBytes: { type: integer, format: int64 }
+        neededBytes: { type: integer, format: int64 }
+        checks: { type: array, items: { $ref: "#/components/schemas/BackupLocationCheckItem" } }
 
     # RFC 9457 application/problem+json, the error shape for the whole API.
     # Registered types (docs/06-api-contract.md):

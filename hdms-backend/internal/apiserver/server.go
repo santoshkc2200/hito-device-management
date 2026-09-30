@@ -20,6 +20,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/notification/notificationapi"
 	"github.com/hito-hospital/hdms/internal/modules/reservations/reservationsapi"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
+	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
@@ -35,6 +36,9 @@ type BackupConsoleConfig struct {
 	BackupDir    string
 	AllowedRoots []string
 	Location     *time.Location
+	// Locations reaches the worker's folder routes. Nil means no worker is
+	// configured; every location call then reports the worker unavailable.
+	Locations *backup.LocationClient
 }
 
 // Server implements gen.ServerInterface.

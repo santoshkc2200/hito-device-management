@@ -14,6 +14,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +34,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/notification"
 	"github.com/hito-hospital/hdms/internal/modules/reservations"
 	"github.com/hito-hospital/hdms/internal/platform/auth"
+	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/clock"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/events"
@@ -72,6 +75,7 @@ type testHarness struct {
 	staffAuth         *staffauth.Service
 	handler           http.Handler
 	apiServer         *apiserver.Server
+	workerServer      *httptest.Server
 }
 
 func newTestHarness(t *testing.T) *testHarness {
@@ -108,7 +112,32 @@ func newTestHarness(t *testing.T) *testHarness {
 		Logger:                discardLogger,
 	})
 	resSvc := reservations.New(pool, auditSvc, clock.System{})
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc, resSvc, "test", apiserver.BackupConsoleConfig{BackupDir: "/var/backups/hdms", AllowedRoots: []string{os.TempDir()}, Location: time.UTC})
+	// A real worker locator on an httptest server. Every temp dir shares one
+	// device, so DeviceOf puts only the server backup area on "the server's
+	// disk"; any other temp folder counts as a connected drive.
+	serverArea, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	locator := &backup.Locator{
+		BackupDir:    serverArea,
+		AllowedRoots: []string{os.TempDir()},
+		DeviceOf: func(p string) (uint64, error) {
+			if strings.HasPrefix(p, serverArea) {
+				return 1, nil
+			}
+			return 2, nil
+		},
+		FreeBytes: func(string) (int64, error) { return 1 << 40, nil },
+	}
+	workerServer := httptest.NewServer(locator.InternalHandler())
+	t.Cleanup(workerServer.Close)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc, resSvc, "test", apiserver.BackupConsoleConfig{
+		// No AllowedRoots for the API, as in docker-compose.yml: the worker's
+		// location check is the only owner of that rule.
+		BackupDir: "/var/backups/hdms", Location: time.UTC,
+		Locations: backup.NewLocationClient(workerServer.URL),
+	})
 	mux := http.NewServeMux()
 
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")
@@ -138,21 +167,22 @@ func newTestHarness(t *testing.T) *testHarness {
 	}
 
 	h := &testHarness{
-		server:      ts,
-		client:      &http.Client{Jar: jar},
-		handler:     handler,
-		identity:    identitySvc,
-		catalog:     catalogSvc,
-		credentials: credentialsSvc,
-		lending:     lendingSvc,
-		checkout:    checkoutSvc,
-		auth:        authSvc,
-		staffAuth:   staffAuthSvc,
-		audit:       auditSvc,
-		settings:    settingsSvc,
-		bus:         bus,
-		pool:        pool,
-		apiServer:   srv,
+		server:       ts,
+		client:       &http.Client{Jar: jar},
+		handler:      handler,
+		identity:     identitySvc,
+		catalog:      catalogSvc,
+		credentials:  credentialsSvc,
+		lending:      lendingSvc,
+		checkout:     checkoutSvc,
+		auth:         authSvc,
+		staffAuth:    staffAuthSvc,
+		audit:        auditSvc,
+		settings:     settingsSvc,
+		bus:          bus,
+		pool:         pool,
+		apiServer:    srv,
+		workerServer: workerServer,
 	}
 
 	h.bootstrapAndLogin(t, authSvc)

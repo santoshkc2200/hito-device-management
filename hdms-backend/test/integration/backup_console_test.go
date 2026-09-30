@@ -230,7 +230,7 @@ func TestDestinationCRUD(t *testing.T) {
 
 	d, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
 		Name: "NAS", Target: filepath.Join(root, "hdms"), Enabled: true, RetentionVersions: 3,
-	}, []string{root}, "admin:a")
+	}, "admin:a")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -239,17 +239,17 @@ func TestDestinationCRUD(t *testing.T) {
 	}
 	if _, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
 		Name: "Dup", Target: filepath.Join(root, "hdms"), Enabled: true, RetentionVersions: 2,
-	}, []string{root}, "admin:a"); !errors.Is(err, backup.ErrDestinationExists) {
+	}, "admin:a"); !errors.Is(err, backup.ErrDestinationExists) {
 		t.Fatalf("duplicate err = %v, want ErrDestinationExists", err)
 	}
 	if _, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
-		Name: "Bad", Target: "/etc", Enabled: true, RetentionVersions: 2,
-	}, []string{root}, "admin:a"); err == nil {
-		t.Fatal("path outside allowed roots accepted")
+		Name: "Bad", Target: "relative/path", Enabled: true, RetentionVersions: 2,
+	}, "admin:a"); !errors.Is(err, backup.ErrInvalidDestination) {
+		t.Fatalf("relative path err = %v, want ErrInvalidDestination (allowed roots are the worker's check)", err)
 	}
 	if _, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
 		Name: "", Target: filepath.Join(root, "x"), Enabled: true, RetentionVersions: 0,
-	}, []string{root}, "admin:a"); !errors.Is(err, backup.ErrInvalidDestination) {
+	}, "admin:a"); !errors.Is(err, backup.ErrInvalidDestination) {
 		t.Fatalf("invalid input err = %v", err)
 	}
 
@@ -276,7 +276,7 @@ func TestExecutorRunTestVerify(t *testing.T) {
 
 	d, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
 		Name: "NAS", Target: filepath.Join(root, "nas"), Enabled: true, RetentionVersions: 2,
-	}, []string{root}, "admin:a")
+	}, "admin:a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +340,7 @@ func TestTestRequestForMissingDirectoryFails(t *testing.T) {
 	// know, the worker must say so.
 	d, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
 		Name: "Unmounted", Target: filepath.Join(root, "not-mounted"), Enabled: true, RetentionVersions: 2,
-	}, []string{root}, "admin:a")
+	}, "admin:a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +364,7 @@ func TestTestRequestForDeletedDestinationFails(t *testing.T) {
 
 	d, _ := backup.CreateDestination(ctx, pool, backup.DestinationInput{
 		Name: "Gone", Target: filepath.Join(root, "gone"), Enabled: true, RetentionVersions: 2,
-	}, []string{root}, "admin:a")
+	}, "admin:a")
 	req, _ := backup.EnqueueRequest(ctx, pool.Pool, backup.RequestTest, &d.ID, "admin:a")
 	if err := backup.DeleteDestination(ctx, pool, d.ID); err != nil {
 		t.Fatal(err)

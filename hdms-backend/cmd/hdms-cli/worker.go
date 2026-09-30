@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -97,6 +99,26 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// The internal listener starts before the database is touched: it needs
+	// only the filesystem, and later plans serve recovery from it while the
+	// database is broken.
+	locator := &backup.Locator{BackupDir: cfg.BackupDir, AllowedRoots: cfg.BackupAllowedRoots}
+	ln, err := net.Listen("tcp", cfg.WorkerHTTPAddr)
+	if err != nil {
+		return fmt.Errorf("worker: listen on %s: %w", cfg.WorkerHTTPAddr, err)
+	}
+	internal := &http.Server{Handler: locator.InternalHandler(), ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		if err := internal.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("worker: internal listener", "error", err)
+		}
+	}()
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = internal.Shutdown(shutdownCtx)
+	}()
 
 	ownerURL := cfg.WorkerDatabaseURL()
 	if err := db.Migrate(ctx, ownerURL); err != nil {

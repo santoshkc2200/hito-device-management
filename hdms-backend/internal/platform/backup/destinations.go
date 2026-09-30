@@ -42,27 +42,18 @@ func (in DestinationInput) validate() error {
 	return nil
 }
 
-// CheckPathSyntax is the check the API can make without seeing the worker's
-// filesystem: absolute, and under an allowed root after cleaning. Existence
-// and writability are proven by the worker's Test.
-func CheckPathSyntax(target string, allowedRoots []string) error {
-	if !filepath.IsAbs(target) {
-		return fmt.Errorf("%w: path %q must be absolute", ErrInvalidDestination, target)
-	}
-	if !isUnderAny(filepath.Clean(target), allowedRoots) {
-		return fmt.Errorf("%w: %s (allowed roots: %s)", ErrPathNotAllowed, filepath.Clean(target), strings.Join(allowedRoots, ", "))
-	}
-	return nil
-}
-
 func RepoKey(id uuid.UUID) string { return id.String() }
 
-func CreateDestination(ctx context.Context, pool *db.Pool, in DestinationInput, allowedRoots []string, actor string) (Destination, error) {
+// CreateDestination stores a path destination. Whether the folder is under an
+// allowed root, exists, is writable and is a separate disk is decided by the
+// worker's location check (Locator.Check), which the API runs first: only the
+// worker sees the mounts, so it alone owns that rule.
+func CreateDestination(ctx context.Context, pool *db.Pool, in DestinationInput, actor string) (Destination, error) {
 	if err := in.validate(); err != nil {
 		return Destination{}, err
 	}
-	if err := CheckPathSyntax(in.Target, allowedRoots); err != nil {
-		return Destination{}, err
+	if !filepath.IsAbs(in.Target) {
+		return Destination{}, fmt.Errorf("%w: path %q must be absolute", ErrInvalidDestination, in.Target)
 	}
 	row, err := backupstore.New(db.Conn(ctx, pool)).CreateDestination(ctx, backupstore.CreateDestinationParams{
 		ID:                ids.NewUUID(),

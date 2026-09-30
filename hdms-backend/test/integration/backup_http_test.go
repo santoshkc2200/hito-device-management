@@ -4,9 +4,14 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/hito-hospital/hdms/internal/platform/backup"
@@ -55,7 +60,10 @@ func TestHTTPBackupScheduleAndConfig(t *testing.T) {
 
 func TestHTTPBackupDestinationsAndRequests(t *testing.T) {
 	h := newTestHarness(t)
-	target := filepath.Join(os.TempDir(), "hdms-http-test-nas")
+	target := filepath.Join(t.TempDir(), "nas")
+	if err := os.Mkdir(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
 
 	resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "NAS", Target: target, RetentionVersions: 2})
 	if resp.StatusCode != http.StatusCreated {
@@ -133,5 +141,98 @@ func TestHTTPBackupDestinationsAndRequests(t *testing.T) {
 	runs := decodeBody[gen.BackupRunList](t, h.get(t, "/v1/backup/runs?limit=5"))
 	if runs.Items == nil {
 		t.Fatal("runs.items must be an empty array, not null")
+	}
+}
+
+func TestHTTPBackupLocations(t *testing.T) {
+	h := newTestHarness(t)
+	drive := filepath.Join(t.TempDir(), "drive")
+	if err := os.Mkdir(drive, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	listing := decodeBody[gen.BackupLocationListing](t, h.get(t, "/v1/backup/locations?path="+url.QueryEscape(filepath.Dir(drive))))
+	if len(listing.Folders) != 1 || listing.Folders[0].Name != "drive" {
+		t.Fatalf("listing = %+v", listing)
+	}
+
+	resp := h.post(t, "/v1/backup/locations/folders", gen.BackupFolderInput{Parent: drive, Name: "hdms-backups"})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create folder status = %d", resp.StatusCode)
+	}
+	folder := decodeBody[gen.BackupFolder](t, resp)
+	if resp := h.post(t, "/v1/backup/locations/folders", gen.BackupFolderInput{Parent: drive, Name: "hdms-backups"}); resp.StatusCode != http.StatusConflict {
+		t.Fatalf("duplicate folder status = %d, want 409", resp.StatusCode)
+	}
+	if resp := h.post(t, "/v1/backup/locations/folders", gen.BackupFolderInput{Parent: drive, Name: "../escape"}); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("traversal name status = %d, want 422", resp.StatusCode)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(drive), "escape")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("traversal name created a folder")
+	}
+	if resp := h.get(t, "/v1/backup/locations?path=/etc"); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("browse /etc status = %d, want 422", resp.StatusCode)
+	}
+
+	check := decodeBody[gen.BackupLocationCheck](t, h.post(t, "/v1/backup/locations/check", gen.BackupLocationCheckInput{Path: folder.Path}))
+	if !check.Ok || len(check.Checks) != 7 {
+		t.Fatalf("check = %+v", check)
+	}
+	bad := decodeBody[gen.BackupLocationCheck](t, h.post(t, "/v1/backup/locations/check", gen.BackupLocationCheckInput{Path: "/etc"}))
+	if bad.Ok || string(bad.Checks[0].Status) != "fail" || bad.Checks[0].Code == nil || string(*bad.Checks[0].Code) != "outside_roots" {
+		t.Fatalf("check /etc = %+v", bad)
+	}
+
+	// The server re-checks on create: a folder with other files is refused.
+	busy := filepath.Join(drive, "busy")
+	if err := os.MkdirAll(busy, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(busy, "notes.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Busy", Target: busy, RetentionVersions: 3}); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("busy folder create status = %d, want 422", resp.StatusCode)
+	}
+
+	// A folder already holding HDMS backups is reused, not refused.
+	reuse := filepath.Join(drive, "reuse")
+	if err := os.MkdirAll(filepath.Join(reuse, "repo"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(reuse, "repo", "config"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Reuse", Target: reuse, RetentionVersions: 3}); resp.StatusCode != http.StatusCreated {
+		t.Fatalf("existing-repo create status = %d, want 201", resp.StatusCode)
+	}
+
+	var audits int
+	_ = h.pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_events WHERE action = 'backup.location_folder_created'`).Scan(&audits)
+	if audits != 1 {
+		t.Fatalf("folder audit events = %d, want 1", audits)
+	}
+}
+
+func TestHTTPBackupLocationsWorkerDown(t *testing.T) {
+	h := newTestHarness(t)
+	target := filepath.Join(t.TempDir(), "nas")
+	if err := os.Mkdir(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	h.workerServer.Close()
+
+	resp := h.get(t, "/v1/backup/locations")
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("browse status = %d, want 503", resp.StatusCode)
+	}
+	var problem struct {
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil || !strings.HasSuffix(problem.Type, "worker-unavailable") {
+		t.Fatalf("problem = %+v, %v", problem, err)
+	}
+	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "NAS", Target: target, RetentionVersions: 3}); resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("create with worker down status = %d, want 503 (fail closed)", resp.StatusCode)
 	}
 }

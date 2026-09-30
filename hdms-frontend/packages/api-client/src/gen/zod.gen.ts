@@ -125,6 +125,71 @@ export const zVerifyBackupsRequest = z.object({
     destinationId: z.string().optional()
 });
 
+export const zBackupLocationRoot = z.object({
+    path: z.string(),
+    connected: z.boolean()
+});
+
+export const zBackupFolder = z.object({
+    name: z.string(),
+    path: z.string(),
+    hasBackup: z.boolean()
+});
+
+export const zBackupLocationListing = z.object({
+    roots: z.array(zBackupLocationRoot),
+    path: z.string().optional(),
+    parent: z.string().optional(),
+    folders: z.array(zBackupFolder)
+});
+
+export const zBackupFolderInput = z.object({
+    parent: z.string(),
+    name: z.string().min(1).max(100)
+});
+
+export const zBackupLocationCheckInput = z.object({
+    path: z.string()
+});
+
+export const zBackupLocationCheckItem = z.object({
+    name: z.enum([
+        'allowed',
+        'connected',
+        'exists',
+        'writable',
+        'separate_disk',
+        'contents',
+        'space'
+    ]),
+    status: z.enum([
+        'pass',
+        'fail',
+        'warn',
+        'info',
+        'skipped'
+    ]),
+    code: z.enum([
+        'outside_roots',
+        'not_connected',
+        'not_found',
+        'not_writable',
+        'same_disk',
+        'not_empty',
+        'existing_repo',
+        'low_space'
+    ]).optional()
+});
+
+export const zBackupLocationCheck = z.object({
+    path: z.string(),
+    ok: z.boolean(),
+    existingRepo: z.boolean(),
+    freeBytes: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    neededBytes: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    checks: z.array(zBackupLocationCheckItem)
+});
+
 export const zProblem = z.object({
     type: z.url(),
     title: z.string(),
@@ -2338,6 +2403,29 @@ export const zTestBackupDestinationPath = z.object({
  * Queued.
  */
 export const zTestBackupDestinationResponse = zBackupRequest;
+
+export const zListBackupLocationsQuery = z.object({
+    path: z.string().optional()
+});
+
+/**
+ * OK.
+ */
+export const zListBackupLocationsResponse = zBackupLocationListing;
+
+export const zCreateBackupLocationFolderBody = zBackupFolderInput;
+
+/**
+ * Created.
+ */
+export const zCreateBackupLocationFolderResponse = zBackupFolder;
+
+export const zCheckBackupLocationBody = zBackupLocationCheckInput;
+
+/**
+ * The checklist.
+ */
+export const zCheckBackupLocationResponse = zBackupLocationCheck;
 
 /**
  * Queued.
