@@ -156,6 +156,7 @@ func Render(key machine.MessageKey, args map[string]any) checkoutapi.Message {
 		Title:  execute(key, c.title, args),
 		Detail: execute(key, c.detail, args),
 		Tone:   tmpl.Tone,
+		Key:    string(key),
 	}
 }
 

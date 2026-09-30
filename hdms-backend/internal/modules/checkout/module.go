@@ -65,11 +65,24 @@ func ttlFor(state checkoutapi.SessionState) time.Duration {
 	return machine.TimeoutFor(machine.SessionState(state))
 }
 
+// neverExpires stands in for "no inactivity timeout" (a policy value of
+// 0). expires_at is NOT NULL and every reader — the sweeper, inline
+// expiry, the kiosk's countdown — already compares against it, so a
+// deadline nobody will reach is the whole implementation of "never".
+const neverExpires = 100 * 365 * 24 * time.Hour
+
+// ttlFor applies the administrator's inactivity policy to every session
+// state, so the borrow/return screens obey the same setting as the
+// identify screen. Without a readable policy it falls back to the
+// machine's built-in per-state timeouts.
 func (s *Service) ttlFor(ctx context.Context, state checkoutapi.SessionState) time.Duration {
 	if s.deps.Settings != nil {
-		if st, err := s.deps.Settings.GetSettings(ctx); err == nil && st.Policy.SessionIdleTimeoutSeconds > 0 {
-			if state == checkoutapi.StateIdle || state == checkoutapi.StateAwaitingUser {
-				return time.Duration(st.Policy.SessionIdleTimeoutSeconds) * time.Second
+		if st, err := s.deps.Settings.GetSettings(ctx); err == nil {
+			switch secs := st.Policy.SessionIdleTimeoutSeconds; {
+			case secs == 0:
+				return neverExpires
+			case secs > 0:
+				return time.Duration(secs) * time.Second
 			}
 		}
 	}
@@ -274,7 +287,7 @@ func (s *Service) assembleSession(ctx context.Context, row checkoutstore.ScanSes
 		if err != nil {
 			return checkoutapi.Session{}, fmt.Errorf("checkout: lookup pending device: %w", err)
 		}
-		sess.PendingDevice = &checkoutapi.DeviceView{ID: d.ID, AssetTag: d.AssetTag, Name: d.Name}
+		sess.PendingDevice = &checkoutapi.DeviceView{ID: d.ID, AssetTag: d.AssetTag, Name: d.Name, Status: string(d.Status)}
 	}
 
 	return sess, nil

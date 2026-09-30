@@ -76,6 +76,57 @@ describe("Kiosk Machine Lifecycle & Resilience", () => {
     expect(getSessionId()).toBeNull();
   });
 
+  function restoreReady(actor: ReturnType<typeof createActor<ReturnType<typeof buildKioskSessionMachine>>>, expiresAt: string) {
+    actor.send({
+      type: "RESTORE_SESSION",
+      session: {
+        id: "sess-expiry-1",
+        kioskId: "kiosk-1",
+        state: "ready",
+        user: { id: "user-1", fullName: "Dr. Sharma", department: "Radiology", openLoanCount: 0 },
+        startedAt: new Date().toISOString(),
+        expiresAt,
+      },
+      openLoans: [],
+    });
+  }
+
+  it("resets at the server's configured expiresAt, not a fixed 25s", () => {
+    const actor = createActor(buildKioskSessionMachine());
+    actor.start();
+    restoreReady(actor, new Date(Date.now() + 5 * 60_000).toISOString());
+
+    vi.advanceTimersByTime(25_000);
+    expect(actor.getSnapshot().value).toBe("ready");
+    vi.advanceTimersByTime(5 * 60_000 - 25_000);
+    expect(actor.getSnapshot().value).toBe("idle");
+    actor.stop();
+  });
+
+  it("waits out an expiresAt the server extended while the state was unchanged", () => {
+    const actor = createActor(buildKioskSessionMachine());
+    actor.start();
+    restoreReady(actor, new Date(Date.now() + 20_000).toISOString());
+
+    vi.advanceTimersByTime(15_000);
+    restoreReady(actor, new Date(Date.now() + 20_000).toISOString());
+    vi.advanceTimersByTime(10_000);
+    expect(actor.getSnapshot().value).toBe("ready");
+    vi.advanceTimersByTime(10_000);
+    expect(actor.getSnapshot().value).toBe("idle");
+    actor.stop();
+  });
+
+  it("never resets a session whose policy is 'never' (far-future expiresAt)", () => {
+    const actor = createActor(buildKioskSessionMachine());
+    actor.start();
+    restoreReady(actor, new Date(Date.now() + 100 * 365 * 24 * 3600_000).toISOString());
+
+    vi.advanceTimersByTime(60 * 24 * 3600_000); // 60 days, past setTimeout's 24.8-day limit
+    expect(actor.getSnapshot().value).toBe("ready");
+    actor.stop();
+  });
+
   it("watchdogReturnsToIdleAfterThreeMinutes and clears user context", () => {
     const machine = buildKioskSessionMachine();
     const actor = createActor(machine);

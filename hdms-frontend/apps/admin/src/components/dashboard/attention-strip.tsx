@@ -61,18 +61,21 @@ export function AttentionStrip({
     typeof unboundCredentialCount === "number" &&
     unboundCredentialCount < lowStockThreshold;
 
-  // Paper backlog check
+  // Paper backlog check. A threshold of 0 means the hospital keeps no paper
+  // ledger, so the warning is off.
   let isPaperBacklog = false;
   let paperTimeText = t("dashboard.attention.noPaperRecordsFound");
-  if (lastPaperEntry?.recordedAt) {
-    const lastDate = new Date(lastPaperEntry.recordedAt);
-    const { hours, text } = timeSince(lastDate, t);
-    paperTimeText = text;
-    if (hours >= paperBacklogHours) {
+  if (paperBacklogHours > 0) {
+    if (lastPaperEntry?.recordedAt) {
+      const lastDate = new Date(lastPaperEntry.recordedAt);
+      const { hours, text } = timeSince(lastDate, t);
+      paperTimeText = text;
+      if (hours >= paperBacklogHours) {
+        isPaperBacklog = true;
+      }
+    } else {
       isPaperBacklog = true;
     }
-  } else {
-    isPaperBacklog = true;
   }
 
   // Quiet kiosk check (active kiosks with lastSeenAt > 24 hours ago or missing)

@@ -567,7 +567,8 @@ export const zSessionUser = z.object({
 export const zSessionDevice = z.object({
     id: z.string(),
     assetTag: z.string(),
-    name: z.string()
+    name: z.string(),
+    status: zDeviceStatus.optional()
 });
 
 export const zSessionOpenLoan = z.object({
@@ -610,7 +611,9 @@ export const zMessageTone = z.enum([
 export const zSessionMessage = z.object({
     title: z.string(),
     detail: z.string(),
-    tone: zMessageTone
+    tone: zMessageTone,
+    key: z.string().optional(),
+    args: z.record(z.string(), z.string()).optional()
 });
 
 export const zOutcome = z.object({
@@ -1054,10 +1057,10 @@ export const zImportResult = z.object({
 
 export const zPolicySettings = z.object({
     blockOnOverdue: z.boolean(),
-    sessionIdleTimeoutSeconds: z.int(),
+    sessionIdleTimeoutSeconds: z.int().gte(0),
     kioskSoundEnabled: z.boolean(),
     lowStockThreshold: z.int(),
-    paperBacklogHours: z.int()
+    paperBacklogHours: z.int().gte(0)
 });
 
 export const zBookingPolicySettings = z.object({

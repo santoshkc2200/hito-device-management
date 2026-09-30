@@ -383,6 +383,33 @@ export interface MachineDependencies {
   resumeExecutor?: (input: ResumeActorInput) => Promise<Session | null>;
 }
 
+/**
+ * A session with no usable expiresAt still gets reset after this long, so a
+ * kiosk can never be left stuck mid-session by a malformed response.
+ */
+export const SESSION_WATCHDOG_MS = 180_000;
+
+// setTimeout overflows above 2^31-1 ms (~24.8 days) and fires immediately;
+// a "never" policy's far-future expiry must be clamped, then re-armed.
+const MAX_TIMER_MS = 2_147_483_647;
+
+function expiryTime(expiresAt: string | null): number | null {
+  if (!expiresAt) return null;
+  const t = new Date(expiresAt).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+export function isSessionExpired(expiresAt: string | null, now = Date.now()): boolean {
+  const t = expiryTime(expiresAt);
+  return t === null || t <= now;
+}
+
+export function sessionExpiryDelay(expiresAt: string | null, now = Date.now()): number {
+  const t = expiryTime(expiresAt);
+  if (t === null) return SESSION_WATCHDOG_MS;
+  return Math.min(Math.max(0, t - now), MAX_TIMER_MS);
+}
+
 export function buildKioskSessionMachine(
   definition: SessionMachineDefinition = rawSessionMachine,
   deps: MachineDependencies = {}
@@ -662,27 +689,23 @@ export function buildKioskSessionMachine(
       };
     }
 
-    // Timeout definitions from JSON `after`
+    // The session ends when the server says it does: expiresAt carries the
+    // administrator's inactivity policy (including "never"), so no timeout
+    // is hard-coded here. The delay is recomputed on every entry, and a
+    // timer that fires before a since-extended expiresAt re-enters the state
+    // to wait out the remainder instead of resetting a borrower mid-task.
     const afterTransitions: Record<string, any> = {};
-    if (stateDef.after) {
-      for (const [msStr, timeoutDef] of Object.entries(stateDef.after)) {
-        afterTransitions[msStr] = {
-          target: timeoutDef.target,
+    if (stateName !== "idle") {
+      afterTransitions.sessionExpiry = [
+        {
+          guard: ({ context }: { context: SessionContext }) => isSessionExpired(context.expiresAt),
+          target: "idle",
           actions: assign(({ context }: { context: SessionContext }) =>
             clearSessionContext(context)
           ),
-        };
-      }
-    }
-
-    // 3-minute unconditional watchdog from any non-idle state (180,000 ms)
-    if (stateName !== "idle") {
-      afterTransitions["180000"] = {
-        target: "idle",
-        actions: assign(({ context }: { context: SessionContext }) =>
-          clearSessionContext(context)
-        ),
-      };
+        },
+        { target: stateName, reenter: true },
+      ];
     }
 
     statesConfig[stateName] = {
@@ -704,6 +727,9 @@ export function buildKioskSessionMachine(
       returnLoanActor,
       closeActor,
       cancelActor,
+    },
+    delays: {
+      sessionExpiry: ({ context }: { context: SessionContext }) => sessionExpiryDelay(context.expiresAt),
     },
   }).createMachine({
     id: "kioskSession",

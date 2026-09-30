@@ -30,8 +30,10 @@ export function AwaitingUserScreen({
   onOpenManualEntry,
 }: AwaitingUserScreenProps) {
   const t = useTranslator();
-  const deviceStatus = (pendingDevice as any)?.status;
-  const isOnLoan = deviceStatus === "on_loan";
+  // A device someone else already has is still held here, because its
+  // borrower may be the one returning it — but the screen must say so
+  // before anyone scans a card expecting to borrow it.
+  const isOnLoan = pendingDevice?.status === "on_loan";
 
   return (
     <ScreenFrame
@@ -58,11 +60,11 @@ export function AwaitingUserScreen({
             data-testid="awaiting-user-prompt"
             className="text-kiosk-prompt text-foreground leading-tight"
           >
-            {t("awaitingUser.prompt")}
+            {isOnLoan ? t("awaitingUser.onLoanPrompt") : t("awaitingUser.prompt")}
           </h2>
 
-          <p className="text-kiosk-body text-muted-foreground">
-            {t("awaitingUser.hint")}
+          <p data-testid="awaiting-user-hint" className="text-kiosk-body text-muted-foreground">
+            {isOnLoan ? t("awaitingUser.onLoanHint") : t("awaitingUser.hint")}
           </p>
         </div>
 

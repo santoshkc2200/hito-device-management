@@ -50,6 +50,8 @@ export const ja: KioskCatalogue = {
     assetTagLabel: "資産タグ",
     categoryLabel: "カテゴリ",
     defaultDeviceName: "機器アイテム",
+    onLoanPrompt: "この機器はすでに貸出中です",
+    onLoanHint: "返却できるのは借りている本人のみです。本人の職員証をスキャンしてください。ご自身のものでない場合は「キャンセル」を押してください。",
   },
   awaitingDevice: {
     greeting: "{name}さん、こんにちは",
@@ -102,6 +104,61 @@ export const ja: KioskCatalogue = {
     saving: "保存中…",
     conflict: "この機器には近く予約があります。返却は {date} {time} までです。",
     failed: "返却予定を変更できませんでした。現在の返却予定のままです。",
+  },
+  sessionMessage: {
+    fallback: {
+      device: "この機器",
+      holder: "他の職員",
+      status: "利用不可",
+    },
+    deviceStatus: {
+      available: "利用可能",
+      on_loan: "貸出中",
+      maintenance: "メンテナンス中",
+      retired: "廃棄済み",
+      lost: "紛失届出中",
+    },
+    device_held_by_other: {
+      title: "すでに貸出中です",
+      detail: "{device}は{holder}{department}が貸出中です{since}。返却できるのは借りている本人のみです。機器管理窓口にお問い合わせください。",
+      department: "（{department}）",
+      since: "（{date}から）",
+    },
+    device_reserved: {
+      title: "他の方の予約があります",
+      detail: "{device}は{reservedFor}{from}予約されています。別の機器を選ぶか、機器管理窓口にお問い合わせください。",
+      reservedFor: "{name}さんにより",
+      from: "{date}から",
+    },
+    device_unavailable: {
+      title: "利用できません",
+      detail: "{device}は現在「{status}」のため貸出できません。",
+    },
+    user_suspended: {
+      title: "貸出停止中",
+      detail: "貸出が停止されています。機器管理窓口にお問い合わせください。",
+    },
+    user_archived: {
+      title: "アカウント無効",
+      detail: "このアカウントは無効化されているため貸出できません。機器管理窓口にお問い合わせください。",
+    },
+    unbound: {
+      title: "未登録のカード",
+      detail: "このカードはまだ登録されていません。係員が紙の台帳に記録できますので、係員にお声がけのうえカードを受け取ってください。",
+    },
+    unknown: {
+      title: "カードを認識できません",
+      detail: "カードを認識できませんでした。機器はお持ちいただけます。係員が記録しますので、登録のためお声がけください。",
+    },
+    revoked: {
+      title: "再発行済みのカード",
+      detail: "このカードは{on}再発行されています。現在のカードをご使用ください。それまでは係員が紙の台帳に記録できます。",
+      on: "{date}に",
+    },
+    expired: {
+      title: "セッションがタイムアウトしました",
+      detail: "一定時間操作がなかったため、最初の画面に戻りました。",
+    },
   },
   blocked: {
     defaultTitle: "処理を完了できませんでした",

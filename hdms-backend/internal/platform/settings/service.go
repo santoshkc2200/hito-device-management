@@ -222,14 +222,16 @@ func (s *Service) InvalidateCache() {
 }
 
 func validatePolicy(p PolicySettings) error {
-	if p.SessionIdleTimeoutSeconds <= 0 {
-		return fmt.Errorf("%w: sessionIdleTimeoutSeconds must be greater than 0", ErrInvalidSettingValue)
+	// 0 means the kiosk never times out an active session.
+	if p.SessionIdleTimeoutSeconds < 0 {
+		return fmt.Errorf("%w: sessionIdleTimeoutSeconds must be non-negative", ErrInvalidSettingValue)
 	}
 	if p.LowStockThreshold < 0 {
 		return fmt.Errorf("%w: lowStockThreshold must be non-negative", ErrInvalidSettingValue)
 	}
-	if p.PaperBacklogHours <= 0 {
-		return fmt.Errorf("%w: paperBacklogHours must be greater than 0", ErrInvalidSettingValue)
+	// 0 turns the dashboard's paper ledger warning off.
+	if p.PaperBacklogHours < 0 {
+		return fmt.Errorf("%w: paperBacklogHours must be non-negative", ErrInvalidSettingValue)
 	}
 	if p.ReservationPreWindowMinutes < 0 {
 		return fmt.Errorf("%w: reservationPreWindowMinutes must be non-negative", ErrInvalidSettingValue)

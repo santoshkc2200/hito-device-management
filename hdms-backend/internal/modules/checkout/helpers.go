@@ -3,6 +3,7 @@ package checkout
 import (
 	"context"
 	"maps"
+	"strconv"
 	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/checkout/checkoutapi"
@@ -136,6 +137,8 @@ func (s *Service) renderMessage(ctx context.Context, decision machine.Decision, 
 		args["reservationStartAtText"] = t.Format(displayTimeLayout)
 	}
 
+	display := displayArgs(args)
+
 	// Timestamps arrive as time.Time and leave as display strings — and
 	// leave entirely if there is none, so a template's {{with}} can drop
 	// the clause rather than render a formatted zero time.
@@ -150,7 +153,36 @@ func (s *Service) renderMessage(ctx context.Context, decision machine.Decision, 
 		delete(args, "revokedAt")
 	}
 
-	return messages.Render(decision.MessageKey, args)
+	msg := messages.Render(decision.MessageKey, args)
+	msg.Args = display
+	return msg
+}
+
+// displayArgs picks the args a client needs to word a message itself:
+// names as-is and timestamps as RFC 3339, so the kiosk formats them in the
+// borrower's locale instead of showing the server's English layout. Ids
+// never leave — a kiosk screen has no use for a UUID.
+func displayArgs(args map[string]any) map[string]string {
+	out := map[string]string{}
+	for _, k := range []string{"deviceName", "deviceStatus", "fullName", "holderName", "holderDepartment", "reservedForName"} {
+		if v, _ := args[k].(string); v != "" {
+			out[k] = v
+		}
+	}
+	if n, ok := args["openLoanCount"].(int); ok {
+		out["openLoanCount"] = strconv.Itoa(n)
+	}
+	times := map[string]time.Time{
+		"borrowedAt":         firstTime(args, "borrowedAt", "pendingDeviceBorrowedAt"),
+		"reservationStartAt": firstTime(args, "reservationStartAt", "pendingDeviceReservationStartAt"),
+		"revokedAt":          firstTime(args, "revokedAt"),
+	}
+	for k, t := range times {
+		if !t.IsZero() {
+			out[k] = t.UTC().Format(time.RFC3339)
+		}
+	}
+	return out
 }
 
 // loanEventPayload and deviceEventPayload build the JSON outbox payload

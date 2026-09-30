@@ -600,6 +600,10 @@ export type SessionDevice = {
     id: string;
     assetTag: string;
     name: string;
+    /**
+     * Catalog status; present on a session's pendingDevice.
+     */
+    status?: DeviceStatus;
 };
 
 export type SessionOpenLoan = {
@@ -629,6 +633,17 @@ export type SessionMessage = {
     title: string;
     detail: string;
     tone: MessageTone;
+    /**
+     * Machine-readable message code (e.g. device_held_by_other). Clients render the text from this in their own locale; title and detail are the English fallback.
+     *
+     */
+    key?: string;
+    /**
+     * Display-safe values for the key's text; timestamps are RFC 3339.
+     */
+    args?: {
+        [key: string]: string;
+    };
 };
 
 export type Outcome = {
@@ -820,7 +835,7 @@ export type Dashboard = {
      */
     lowStockThreshold?: number;
     /**
-     * Echoed from settings, for the paper backlog warning.
+     * Echoed from settings, for the paper backlog warning; 0 means the warning is off.
      */
     paperBacklogHours?: number;
 };
@@ -1127,6 +1142,9 @@ export type ImportResult = {
 
 export type PolicySettings = {
     blockOnOverdue: boolean;
+    /**
+     * Inactivity seconds before an active kiosk session resets to idle; 0 means never.
+     */
     sessionIdleTimeoutSeconds: number;
     kioskSoundEnabled: boolean;
     /**
@@ -1134,7 +1152,7 @@ export type PolicySettings = {
      */
     lowStockThreshold: number;
     /**
-     * Hours since the last recorded paper page before the dashboard warns. Default 48.
+     * Hours since the last recorded paper page before the dashboard warns; 0 turns the warning off. Default 48.
      */
     paperBacklogHours: number;
 };

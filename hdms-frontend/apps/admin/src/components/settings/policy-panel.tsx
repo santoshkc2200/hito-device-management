@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { z } from "zod";
 import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { toast } from "sonner";
@@ -41,10 +41,16 @@ import { useT } from "@/i18n";
 
 const policyFormSchema = z.object({
   blockOnOverdue: z.boolean(),
-  sessionIdleTimeoutSeconds: z.number().int().min(5, "validation.sessionTimeoutMin").max(600, "validation.sessionTimeoutMax"),
+  sessionIdleTimeoutSeconds: z.number().int().min(5, "validation.sessionTimeoutMin").max(86400, "validation.sessionTimeoutMax"),
+  // Stored as sessionIdleTimeoutSeconds = 0; a separate field so the seconds
+  // input keeps its last value while "never" is ticked.
+  sessionNeverTimeout: z.boolean(),
   kioskSoundEnabled: z.boolean(),
   lowStockThreshold: z.number().int().min(0, "validation.thresholdMin").max(10000, "validation.thresholdMax"),
   paperBacklogHours: z.number().int().min(1, "validation.backlogThresholdMin").max(720, "validation.backlogThresholdMax"),
+  // Stored as paperBacklogHours = 0; kept separate for the same reason as
+  // sessionNeverTimeout.
+  paperBacklogDisabled: z.boolean(),
 });
 
 type PolicyFormValues = z.infer<typeof policyFormSchema>;
@@ -113,11 +119,16 @@ export function PolicyPanel() {
     defaultValues: {
       blockOnOverdue: false,
       sessionIdleTimeoutSeconds: 45,
+      sessionNeverTimeout: false,
       kioskSoundEnabled: true,
       lowStockThreshold: 10,
       paperBacklogHours: 48,
+      paperBacklogDisabled: false,
     },
   });
+
+  const sessionNeverTimeout = useWatch({ control, name: "sessionNeverTimeout" });
+  const paperBacklogDisabled = useWatch({ control, name: "paperBacklogDisabled" });
 
   const bookingForm = useForm<BookingPolicyFormValues>({
     resolver: useLocalizedResolver(bookingPolicySchema),
@@ -128,10 +139,12 @@ export function PolicyPanel() {
     if (settingsData?.policy) {
       reset({
         blockOnOverdue: settingsData.policy.blockOnOverdue,
-        sessionIdleTimeoutSeconds: settingsData.policy.sessionIdleTimeoutSeconds,
+        sessionIdleTimeoutSeconds: settingsData.policy.sessionIdleTimeoutSeconds || 45,
+        sessionNeverTimeout: settingsData.policy.sessionIdleTimeoutSeconds === 0,
         kioskSoundEnabled: settingsData.policy.kioskSoundEnabled,
         lowStockThreshold: settingsData.policy.lowStockThreshold,
-        paperBacklogHours: settingsData.policy.paperBacklogHours,
+        paperBacklogHours: settingsData.policy.paperBacklogHours || 48,
+        paperBacklogDisabled: settingsData.policy.paperBacklogHours === 0,
       });
     }
   }, [settingsData, reset]);
@@ -142,10 +155,14 @@ export function PolicyPanel() {
 
   // 4. Update Policy Mutation
   const updatePolicyMutation = useMutation({
-    mutationFn: async (values: PolicyFormValues) => {
+    mutationFn: async ({ sessionNeverTimeout, paperBacklogDisabled, ...policy }: PolicyFormValues) => {
       const res = await updateSettings({
         body: {
-          policy: values,
+          policy: {
+            ...policy,
+            sessionIdleTimeoutSeconds: sessionNeverTimeout ? 0 : policy.sessionIdleTimeoutSeconds,
+            paperBacklogHours: paperBacklogDisabled ? 0 : policy.paperBacklogHours,
+          },
         },
       });
       if (res.error) throw res.error;
@@ -413,10 +430,32 @@ export function PolicyPanel() {
                   id="sessionIdleTimeoutSeconds"
                   type="number"
                   min={5}
-                  max={600}
+                  max={86400}
                   disabled={!isAdmin}
+                  // readOnly, not disabled: react-hook-form drops a disabled
+                  // input's value, which would fail validation on save.
+                  readOnly={sessionNeverTimeout}
+                  aria-disabled={sessionNeverTimeout}
+                  className={sessionNeverTimeout ? "opacity-50" : undefined}
                   {...register("sessionIdleTimeoutSeconds", { valueAsNumber: true })}
                 />
+                <div className="flex items-center gap-2">
+                  <Controller
+                    name="sessionNeverTimeout"
+                    control={control}
+                    render={({ field }) => (
+                      <Checkbox
+                        id="sessionNeverTimeout"
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(checked === true)}
+                        disabled={!isAdmin}
+                      />
+                    )}
+                  />
+                  <label htmlFor="sessionNeverTimeout" className="text-sm cursor-pointer">
+                    {t("policyPanel.sessionNeverTimeoutLabel")}
+                  </label>
+                </div>
                 <p className="text-xs text-muted-foreground">{t("policyPanel.sessionTimeoutHint")}</p>
                 {errors.sessionIdleTimeoutSeconds && (
                   <p className="text-xs text-destructive">{errors.sessionIdleTimeoutSeconds.message}</p>
@@ -453,8 +492,28 @@ export function PolicyPanel() {
                   min={1}
                   max={720}
                   disabled={!isAdmin}
+                  readOnly={paperBacklogDisabled}
+                  aria-disabled={paperBacklogDisabled}
+                  className={paperBacklogDisabled ? "opacity-50" : undefined}
                   {...register("paperBacklogHours", { valueAsNumber: true })}
                 />
+                <div className="flex items-center gap-2">
+                  <Controller
+                    name="paperBacklogDisabled"
+                    control={control}
+                    render={({ field }) => (
+                      <Checkbox
+                        id="paperBacklogDisabled"
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(checked === true)}
+                        disabled={!isAdmin}
+                      />
+                    )}
+                  />
+                  <label htmlFor="paperBacklogDisabled" className="text-sm cursor-pointer">
+                    {t("policyPanel.paperBacklogDisabledLabel")}
+                  </label>
+                </div>
                 <p className="text-xs text-muted-foreground">{t("policyPanel.paperBacklogHoursHint")}</p>
                 {errors.paperBacklogHours && (
                   <p className="text-xs text-destructive">{errors.paperBacklogHours.message}</p>

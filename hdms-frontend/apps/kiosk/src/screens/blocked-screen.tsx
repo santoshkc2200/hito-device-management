@@ -3,7 +3,9 @@ import { AlertCircle, FileText, Info } from "lucide-react";
 import type { SessionMessage, MessageTone } from "@hdms/api-client";
 import { errorMessage, type KioskProblem } from "@/lib/problem";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@hdms/i18n";
 import { useTranslator } from "@/i18n";
+import { renderSessionMessage } from "@/lib/session-message";
 import { ScreenFrame } from "./screen-frame";
 
 export interface BlockedScreenProps {
@@ -41,18 +43,24 @@ export function BlockedScreen({
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
+  const { locale } = useLocale();
   const mappedProblem = problem ? errorMessage(problem, t) : null;
+  // A keyed server message is worded from this app's catalogue so the
+  // refusal reads in the borrower's language; the server's own English
+  // title/detail are used only when it sent no key at all.
+  const localized = message?.key ? renderSessionMessage(message, locale) : null;
+  const serverText = message?.key ? null : message;
 
   const title =
-    message?.title ||
+    localized?.title ||
+    serverText?.title ||
     mappedProblem?.title ||
-    problem?.title ||
     t("blocked.defaultTitle");
 
   const detail =
-    message?.detail ||
+    localized?.detail ||
+    serverText?.detail ||
     mappedProblem?.detail ||
-    problem?.detail ||
     t("blocked.defaultDetail");
 
   const tone: MessageTone | string = message?.tone || mappedProblem?.tone || "warning";

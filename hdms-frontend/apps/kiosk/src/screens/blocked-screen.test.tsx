@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
+import { LocaleProvider } from "@hdms/i18n";
 import { BlockedScreen } from "./blocked-screen";
 
 describe("BlockedScreen", () => {
@@ -63,6 +64,55 @@ describe("BlockedScreen", () => {
     expect(screen.getByTestId("blocked-detail")).toHaveTextContent(
       "This card credential has been deactivated. Please contact the equipment administrator."
     );
+  });
+
+  it("words a keyed held-by-other refusal in the active locale, not the server English", () => {
+    render(
+      <LocaleProvider locale="ja">
+        <BlockedScreen
+          message={{
+            title: "Held by someone else",
+            detail: "iPad 12 is with Dr. Sato. Please see the equipment desk.",
+            tone: "warning",
+            key: "device_held_by_other",
+            args: { deviceName: "iPad 12", holderName: "佐藤", holderDepartment: "放射線科" },
+          }}
+          onDismiss={vi.fn()}
+        />
+      </LocaleProvider>
+    );
+
+    expect(screen.getByTestId("blocked-title")).toHaveTextContent("すでに貸出中です");
+    expect(screen.getByTestId("blocked-detail")).toHaveTextContent("iPad 12は佐藤（放射線科）が貸出中です");
+    expect(screen.getByTestId("blocked-detail")).not.toHaveTextContent(/Held|equipment desk/);
+  });
+
+  it("drops the optional clauses of a keyed message whose args are missing", () => {
+    render(
+      <LocaleProvider locale="en">
+        <BlockedScreen
+          message={{ title: "x", detail: "x", tone: "warning", key: "device_held_by_other" }}
+          onDismiss={vi.fn()}
+        />
+      </LocaleProvider>
+    );
+
+    expect(screen.getByTestId("blocked-detail")).toHaveTextContent(
+      "That device is with a colleague. Only they can return it. Please see the equipment desk."
+    );
+  });
+
+  it("never shows server English for a key the kiosk does not know", () => {
+    render(
+      <LocaleProvider locale="ja">
+        <BlockedScreen
+          message={{ title: "Brand new refusal", detail: "English only", tone: "warning", key: "not_in_catalogue" }}
+          onDismiss={vi.fn()}
+        />
+      </LocaleProvider>
+    );
+
+    expect(screen.getByTestId("blocked-title")).toHaveTextContent("処理を完了できませんでした");
   });
 
   it("unknownOutcomeKindFallsBackToSafeMessage", () => {

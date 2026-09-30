@@ -170,6 +170,42 @@ describe("Settings Panels", () => {
         advanceDays: 14, maxDurationDays: 2, returnBufferMinutes: 45,
       } } }));
     });
+    it("saves a five-minute kiosk timeout, and 0 when 'never' is ticked", async () => {
+      const update = vi.spyOn(apiClient, "updateSettings").mockResolvedValue({ data: mockSettings, error: undefined, response: new Response() });
+      renderWithClient(<PolicyPanel />);
+      const user = userEvent.setup();
+
+      const seconds = await screen.findByLabelText(ja.policyPanel.sessionTimeoutLabel);
+      await waitFor(() => expect(seconds).toHaveValue(45));
+      await user.clear(seconds);
+      await user.type(seconds, "300");
+      await user.click(screen.getByRole("button", { name: ja.policyPanel.savePolicySettings }));
+      await waitFor(() => expect(update).toHaveBeenLastCalledWith({ body: { policy: expect.objectContaining({
+        sessionIdleTimeoutSeconds: 300,
+      }) } }));
+
+      await user.click(screen.getByLabelText(ja.policyPanel.sessionNeverTimeoutLabel));
+      await user.click(screen.getByRole("button", { name: ja.policyPanel.savePolicySettings }));
+      await waitFor(() => expect(update).toHaveBeenLastCalledWith({ body: { policy: expect.objectContaining({
+        sessionIdleTimeoutSeconds: 0,
+      }) } }));
+      expect(update.mock.lastCall?.[0]?.body?.policy).not.toHaveProperty("sessionNeverTimeout");
+    });
+
+    it("saves paperBacklogHours 0 when 'no paper ledger' is ticked", async () => {
+      const update = vi.spyOn(apiClient, "updateSettings").mockResolvedValue({ data: mockSettings, error: undefined, response: new Response() });
+      renderWithClient(<PolicyPanel />);
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(screen.getByLabelText(ja.policyPanel.paperBacklogHoursLabel)).toHaveValue(48));
+      await user.click(screen.getByLabelText(ja.policyPanel.paperBacklogDisabledLabel));
+      await user.click(screen.getByRole("button", { name: ja.policyPanel.savePolicySettings }));
+      await waitFor(() => expect(update).toHaveBeenLastCalledWith({ body: { policy: expect.objectContaining({
+        paperBacklogHours: 0,
+      }) } }));
+      expect(update.mock.lastCall?.[0]?.body?.policy).not.toHaveProperty("paperBacklogDisabled");
+    });
+
     it("renders categories and system policy form fields", async () => {
       renderWithClient(<PolicyPanel />);
 

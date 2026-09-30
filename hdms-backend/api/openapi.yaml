@@ -3629,6 +3629,9 @@ components:
         id: { type: string }
         assetTag: { type: string }
         name: { type: string }
+        status:
+          $ref: "#/components/schemas/DeviceStatus"
+          description: Catalog status; present on a session's pendingDevice.
 
     SessionOpenLoan:
       type: object
@@ -3672,6 +3675,16 @@ components:
         detail: { type: string }
         tone:
           $ref: "#/components/schemas/MessageTone"
+        key:
+          type: string
+          description: >
+            Machine-readable message code (e.g. device_held_by_other). Clients
+            render the text from this in their own locale; title and detail are
+            the English fallback.
+        args:
+          type: object
+          additionalProperties: { type: string }
+          description: Display-safe values for the key's text; timestamps are RFC 3339.
 
     Outcome:
       type: object
@@ -3967,7 +3980,7 @@ components:
           description: Echoed from settings so the strip renders in one call.
         paperBacklogHours:
           type: integer
-          description: Echoed from settings, for the paper backlog warning.
+          description: Echoed from settings, for the paper backlog warning; 0 means the warning is off.
 
     # --- Kiosks -------------------------------------------------------------
 
@@ -4423,14 +4436,18 @@ components:
       required: [blockOnOverdue, sessionIdleTimeoutSeconds, kioskSoundEnabled, lowStockThreshold, paperBacklogHours]
       properties:
         blockOnOverdue: { type: boolean }
-        sessionIdleTimeoutSeconds: { type: integer }
+        sessionIdleTimeoutSeconds:
+          type: integer
+          minimum: 0
+          description: Inactivity seconds before an active kiosk session resets to idle; 0 means never.
         kioskSoundEnabled: { type: boolean }
         lowStockThreshold:
           type: integer
           description: The dashboard warns when the unbound blank-card count falls below this.
         paperBacklogHours:
           type: integer
-          description: Hours since the last recorded paper page before the dashboard warns. Default 48.
+          minimum: 0
+          description: Hours since the last recorded paper page before the dashboard warns; 0 turns the warning off. Default 48.
 
     BookingPolicySettings:
       type: object

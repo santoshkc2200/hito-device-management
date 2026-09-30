@@ -48,6 +48,8 @@ export const en = {
     assetTagLabel: "Asset Tag",
     categoryLabel: "Category",
     defaultDeviceName: "Equipment Item",
+    onLoanPrompt: "This device is already on loan",
+    onLoanHint: "Only the person who borrowed it can scan their ID card to return it. If it is not yours, press Cancel.",
   },
   awaitingDevice: {
     greeting: "Hello, {name}",
@@ -100,6 +102,61 @@ export const en = {
     saving: "Saving…",
     conflict: "A reservation needs this device soon. Latest return {date}, {time}.",
     failed: "Could not change the return date. Your current return date stays.",
+  },
+  sessionMessage: {
+    fallback: {
+      device: "That device",
+      holder: "a colleague",
+      status: "not available",
+    },
+    deviceStatus: {
+      available: "available",
+      on_loan: "on loan",
+      maintenance: "in maintenance",
+      retired: "retired",
+      lost: "reported lost",
+    },
+    device_held_by_other: {
+      title: "Already on loan",
+      detail: "{device} is with {holder}{department}{since}. Only they can return it. Please see the equipment desk.",
+      department: " ({department})",
+      since: ", out since {date}",
+    },
+    device_reserved: {
+      title: "Reserved for someone else",
+      detail: "{device} is reserved{reservedFor}{from}. Please choose another device or see the equipment desk.",
+      reservedFor: " for {name}",
+      from: " from {date}",
+    },
+    device_unavailable: {
+      title: "Not available",
+      detail: "{device} is {status} and cannot be borrowed.",
+    },
+    user_suspended: {
+      title: "Borrowing suspended",
+      detail: "Borrowing suspended — see the equipment desk.",
+    },
+    user_archived: {
+      title: "Account archived",
+      detail: "This account is archived and cannot borrow. Please see the equipment desk.",
+    },
+    unbound: {
+      title: "Card not registered",
+      detail: "This card has not been registered yet. The attendant can write your item in the register — please see them to get your card.",
+    },
+    unknown: {
+      title: "Card not recognised",
+      detail: "Card not recognised. You can still take the item — the attendant will record it. Please see them to register.",
+    },
+    revoked: {
+      title: "Card replaced",
+      detail: "This card was replaced{on}. Please use your current card — the attendant can record the item in the register meanwhile.",
+      on: " on {date}",
+    },
+    expired: {
+      title: "Session timed out",
+      detail: "Session timed out.",
+    },
   },
   blocked: {
     defaultTitle: "Action Not Completed",

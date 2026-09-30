@@ -10,7 +10,7 @@ describe("AwaitingUserScreen", () => {
     assetTag: "SCANNER-99",
     name: "Ultrasound Probe",
     category: "Diagnostic Tool",
-    status: "available",
+    status: "available" as const,
   };
 
   it("renders prompt at required size and passes vitest-axe", async () => {
@@ -36,12 +36,25 @@ describe("AwaitingUserScreen", () => {
     expect(results).toHaveNoViolations();
   });
 
+  it("tells the person an on-loan device is already out before they scan a card", () => {
+    render(
+      <AwaitingUserScreen
+        pendingDevice={{ id: "d1", assetTag: "LAPTOP-01", name: "Clinical Tablet", status: "on_loan" }}
+        expiresAt={new Date(Date.now() + 45000).toISOString()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("awaiting-user-prompt")).toHaveTextContent("This device is already on loan");
+    expect(screen.getByTestId("awaiting-user-hint")).toHaveTextContent(/Only the person who borrowed it/);
+  });
+
   it("awaitingUserShowsDeviceWithoutHolderName", () => {
     const onLoanDevice = {
       id: "dev-laptop-01",
       assetTag: "LAPTOP-01",
       name: "Clinical Tablet",
-      status: "on_loan",
+      status: "on_loan" as const,
     };
 
     const { container } = render(

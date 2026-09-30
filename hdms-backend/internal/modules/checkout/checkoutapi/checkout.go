@@ -101,6 +101,10 @@ type DeviceView struct {
 	ID       string
 	AssetTag string
 	Name     string
+	// Status is the catalog status ("on_loan", ...). It is set on a
+	// session's pendingDevice so the kiosk can tell, before the card scan,
+	// that the device is already out; outcome devices leave it empty.
+	Status string
 }
 
 // LoanView is one open loan as the kiosk needs it for the "return without
@@ -178,10 +182,16 @@ const (
 // Message is the server-authored, display-ready text for a scan result —
 // wording lives here so it can change without a kiosk deploy
 // (docs/phases/phase-2/2.3b-transition-table.md).
+//
+// Key and Args carry the same message as a code plus display-safe
+// values (names, RFC 3339 timestamps) so the kiosk can render it in the
+// borrower's language; Title and Detail are the English fallback.
 type Message struct {
 	Title  string
 	Detail string
 	Tone   Tone
+	Key    string
+	Args   map[string]string
 }
 
 // ScanResult is exactly the shape POST /v1/sessions/{id}/scan returns, so

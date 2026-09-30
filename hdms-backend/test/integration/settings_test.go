@@ -129,11 +129,11 @@ func TestSettingsGetAndUpdate(t *testing.T) {
 func TestSettingsValidationRefusesOutOfRangeValues(t *testing.T) {
 	h := newTestHarness(t)
 
-	// Zero / negative timeout
+	// Negative timeout (0 is valid: it means "never")
 	badReq := gen.UpdateSettingsRequest{
 		Policy: &gen.PolicySettings{
 			BlockOnOverdue:            true,
-			SessionIdleTimeoutSeconds: 0,
+			SessionIdleTimeoutSeconds: -1,
 			KioskSoundEnabled:         true,
 			LowStockThreshold:         10,
 			PaperBacklogHours:         48,
@@ -141,7 +141,7 @@ func TestSettingsValidationRefusesOutOfRangeValues(t *testing.T) {
 	}
 	resp := h.doJSON(t, http.MethodPatch, "/v1/settings", h.csrfToken, badReq)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("zero timeout status = %d, want 422", resp.StatusCode)
+		t.Fatalf("negative timeout status = %d, want 422", resp.StatusCode)
 	}
 	resp.Body.Close()
 
@@ -160,6 +160,37 @@ func TestSettingsValidationRefusesOutOfRangeValues(t *testing.T) {
 		t.Fatalf("negative threshold status = %d, want 422", resp2.StatusCode)
 	}
 	resp2.Body.Close()
+
+	// Negative paperBacklogHours (0 is valid: it turns the warning off)
+	badReq3 := gen.UpdateSettingsRequest{
+		Policy: &gen.PolicySettings{
+			BlockOnOverdue:            true,
+			SessionIdleTimeoutSeconds: 45,
+			KioskSoundEnabled:         true,
+			LowStockThreshold:         10,
+			PaperBacklogHours:         -1,
+		},
+	}
+	resp3 := h.doJSON(t, http.MethodPatch, "/v1/settings", h.csrfToken, badReq3)
+	if resp3.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("negative paper backlog status = %d, want 422", resp3.StatusCode)
+	}
+	resp3.Body.Close()
+
+	okReq := gen.UpdateSettingsRequest{
+		Policy: &gen.PolicySettings{
+			BlockOnOverdue:            true,
+			SessionIdleTimeoutSeconds: 45,
+			KioskSoundEnabled:         true,
+			LowStockThreshold:         10,
+			PaperBacklogHours:         0,
+		},
+	}
+	resp4 := h.doJSON(t, http.MethodPatch, "/v1/settings", h.csrfToken, okReq)
+	if resp4.StatusCode != http.StatusOK {
+		t.Fatalf("paper backlog 0 status = %d, want 200", resp4.StatusCode)
+	}
+	resp4.Body.Close()
 }
 
 // TestPolicyChangeTakesEffectOnNextCheckoutWithoutRestart tests that

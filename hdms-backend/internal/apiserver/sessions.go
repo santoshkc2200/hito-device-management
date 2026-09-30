@@ -196,6 +196,10 @@ func (s *Server) mapSession(ctx context.Context, sess checkoutapi.Session) gen.S
 			AssetTag: sess.PendingDevice.AssetTag,
 			Name:     sess.PendingDevice.Name,
 		}
+		if sess.PendingDevice.Status != "" {
+			status := gen.DeviceStatus(sess.PendingDevice.Status)
+			dev.Status = &status
+		}
 	}
 
 	return gen.Session{
@@ -246,6 +250,10 @@ func (s *Server) mapScanResult(ctx context.Context, res checkoutapi.ScanResult) 
 		Title:  res.Message.Title,
 		Detail: res.Message.Detail,
 		Tone:   gen.MessageTone(res.Message.Tone),
+		Key:    strPtr(res.Message.Key),
+	}
+	if len(res.Message.Args) > 0 {
+		message.Args = &res.Message.Args
 	}
 
 	return gen.ScanResult{
