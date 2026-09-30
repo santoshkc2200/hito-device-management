@@ -18,6 +18,15 @@ Prerequisites on the host:
 - `restic` version **0.14 or newer** (repository format version 2 is required for internal compression and chunk-level deduplication via `--from-repo`).
 - `rclone` — required on the host when one or more cloud destinations (e.g. Google Drive, OneDrive) are configured.
 
+## From the admin console
+
+- Admin → **Backups**. Overview shows last result, next run, **Back up now**, and the schedule (every N minutes 15–720, daily, or weekly, in the server's `TZ`).
+- **Destinations**: add a network-drive folder (must be under `HDMS_BACKUP_ALLOWED_ROOTS`, i.e. `/var/backups` or `/mnt/nas` in the container; IT mounts the share at `HDMS_BACKUP_NAS_HOST_PATH` first — see `production-deployment.md` §11), then **Test**. A failed test shows the reason on the row.
+- **Backups**: stored backups per location, with **Verify now**. A daily verify also runs at 04:30.
+- **History**: last 20 backup and verify runs with per-destination results.
+- "Backup worker not responding" means the `worker` container is down: `docker compose … ps worker`, `… logs worker`.
+- The dashboard warns when no backup has succeeded for 26 hours.
+
 ## What one run does (the five pipeline steps)
 
 Every execution of `hdms-cli backup` proceeds through five sequential steps:
@@ -88,7 +97,7 @@ Cloud storage destinations route through `rclone`. HDMS stores no cloud credenti
    ```bash
    rclone lsd gdrive-hospital:
    ```
-5. In the HDMS admin console (**Settings → Backups → Destinations**), create a destination specifying the kind `rclone` and the target string `remote:path` (e.g. `gdrive-hospital:hdms-backups`).
+5. In the admin console (**Backups → Destinations**), create a destination specifying the kind `rclone` and the target string `remote:path` (e.g. `gdrive-hospital:hdms-backups`). Note that cloud destinations arrive with the next release.
 6. If the rclone configuration is stored in a non-standard path rather than `~/.config/rclone/rclone.conf`, set `HDMS_RCLONE_CONFIG` in `/etc/hdms/hdms.env`.
 
 ## Run it by hand (safe mid-day, safe twice)

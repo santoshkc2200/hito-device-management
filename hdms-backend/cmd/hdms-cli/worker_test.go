@@ -2,38 +2,47 @@ package main
 
 import (
 	"context"
+	"errors"
+	"io"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/config"
+	"github.com/hito-hospital/hdms/internal/platform/jobs"
 )
+
+func testDeps(loc *time.Location) workerDeps {
+	return workerDeps{
+		BackupSchedule: jobs.DailyAt{Hour: 2, Loc: loc},
+		RunBackup:      func(context.Context) error { return nil },
+		Verify:         func(context.Context) error { return nil },
+	}
+}
 
 func jobNames(cfg config.Config) []string {
 	var names []string
-	for _, j := range scheduledJobs(cfg, time.UTC) {
+	for _, j := range scheduledJobs(cfg, time.UTC, testDeps(time.UTC)) {
 		names = append(names, j.Name)
 	}
 	return names
 }
 
-// The names must equal what each job writes to job_runs, or the worker would
-// never see a job as done and would rerun it every window.
 func TestScheduledJobsPriorityAndNames(t *testing.T) {
 	got := strings.Join(jobNames(config.Config{}), ",")
-	want := "backup,reservation-expiry,overdue-scan,reconcile,retention,weekly-digest"
+	want := "backup,reservation-expiry,overdue-scan,reconcile,retention,weekly-digest,verify"
 	if got != want {
 		t.Fatalf("jobs without LDAP = %s, want %s", got, want)
 	}
-
 	got = strings.Join(jobNames(config.Config{LDAPURL: "ldaps://dc.hospital.local"}), ",")
-	want = "backup,reservation-expiry,overdue-scan,reconcile,retention,directory-sync,weekly-digest"
+	want = "backup,reservation-expiry,overdue-scan,reconcile,retention,directory-sync,weekly-digest,verify"
 	if got != want {
 		t.Fatalf("jobs with LDAP = %s, want %s", got, want)
 	}
 }
 
-// Schedules must match the retired deploy/systemd/*.timer files.
 func TestScheduledJobsMatchRetiredTimers(t *testing.T) {
 	tokyo, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
@@ -48,11 +57,37 @@ func TestScheduledJobsMatchRetiredTimers(t *testing.T) {
 		"retention":          time.Date(2026, 9, 30, 3, 40, 0, 0, tokyo),
 		"directory-sync":     time.Date(2026, 9, 30, 3, 0, 0, 0, tokyo),
 		"weekly-digest":      time.Date(2026, 9, 28, 8, 0, 0, 0, tokyo),
+		"verify":             time.Date(2026, 9, 30, 4, 30, 0, 0, tokyo),
 	}
-	for _, j := range scheduledJobs(config.Config{LDAPURL: "ldaps://dc"}, tokyo) {
+	for _, j := range scheduledJobs(config.Config{LDAPURL: "ldaps://dc"}, tokyo, testDeps(tokyo)) {
 		if got := j.Schedule.Latest(now); !got.Equal(want[j.Name]) {
 			t.Errorf("%s: Latest = %s, want %s", j.Name, got, want[j.Name])
 		}
+	}
+}
+
+// The backup schedule comes from the database; a read error must make the
+// backup "not due", never "due every minute".
+func TestLiveScheduleFollowsDatabase(t *testing.T) {
+	tokyo, _ := time.LoadLocation("Asia/Tokyo")
+	now := time.Date(2026, 9, 30, 12, 34, 0, 0, tokyo)
+	cfg := backup.ScheduleConfig{Enabled: true, Mode: "daily", TimeLocal: "05:00"}
+	var err error
+	s := liveSchedule{
+		get: func(context.Context) (backup.ScheduleConfig, error) { return cfg, err },
+		loc: tokyo,
+		log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	if got := s.Latest(now); !got.Equal(time.Date(2026, 9, 30, 5, 0, 0, 0, tokyo)) {
+		t.Fatalf("Latest = %s", got)
+	}
+	cfg.Enabled = false
+	if got := s.Latest(now); !got.IsZero() {
+		t.Fatalf("disabled Latest = %s, want zero", got)
+	}
+	cfg.Enabled, err = true, errors.New("db down")
+	if got := s.Latest(now); !got.IsZero() {
+		t.Fatalf("Latest on read error = %s, want zero", got)
 	}
 }
 

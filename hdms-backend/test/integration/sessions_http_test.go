@@ -287,7 +287,7 @@ func TestHTTPSessionsRejectionOutcomes(t *testing.T) {
 	if scanRes.Outcome.Kind != gen.OutcomeKindRejected {
 		t.Fatalf("Outcome kind = %s, want rejected", scanRes.Outcome.Kind)
 	}
-	if scanRes.Message.Tone != gen.Warning && scanRes.Message.Tone != gen.Error {
+	if scanRes.Message.Tone != gen.MessageToneWarning && scanRes.Message.Tone != gen.MessageToneError {
 		t.Fatalf("Message tone = %s, want warning/error", scanRes.Message.Tone)
 	}
 

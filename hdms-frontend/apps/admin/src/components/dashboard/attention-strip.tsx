@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   CreditCard,
+  DatabaseBackup,
   FileSpreadsheet,
   MonitorSmartphone,
   ShieldAlert,
@@ -11,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
+import { BACKUP_STALE_MS } from "@/components/backups/format";
 import { useT } from "@/i18n";
 import { cn } from "@hdms/ui";
 
@@ -21,6 +23,7 @@ interface AttentionStripProps {
   kiosks?: Kiosk[];
   lastPaperEntry?: BackfillLastEntry;
   paperBacklogHours?: number;
+  backup?: { lastSuccessAt?: string | null };
 }
 
 function timeSince(date: Date, t: ReturnType<typeof useT>): { hours: number; days: number; text: string } {
@@ -40,8 +43,15 @@ export function AttentionStrip({
   kiosks = [],
   lastPaperEntry,
   paperBacklogHours = 48,
+  backup,
 }: AttentionStripProps) {
   const t = useT();
+  const backupNever = backup !== undefined && !backup.lastSuccessAt;
+  const backupStale =
+    backup !== undefined &&
+    Boolean(backup.lastSuccessAt) &&
+    Date.now() - new Date(backup.lastSuccessAt as string).getTime() > BACKUP_STALE_MS;
+
   const revokedScans = turnedAwayCounts.find((t) => t.resolvedType === "revoked");
   const unboundScans = turnedAwayCounts.find((t) => t.resolvedType === "unbound");
   const unknownScans = turnedAwayCounts.find((t) => t.resolvedType === "unknown");
@@ -75,6 +85,8 @@ export function AttentionStrip({
   });
 
   const hasAnyAttention =
+    backupNever ||
+    backupStale ||
     Boolean(revokedScans && revokedScans.totalScans > 0) ||
     totalUnregisteredScans > 0 ||
     isLowStock ||
@@ -88,6 +100,22 @@ export function AttentionStrip({
 
   return (
     <div className="flex flex-col gap-3" data-testid="attention-strip">
+      {(backupNever || backupStale) && (
+        <Card className="border-destructive/40">
+          <CardContent className="flex items-center justify-between gap-3 py-3">
+            <div className="flex items-center gap-2">
+              <DatabaseBackup className="size-4 text-destructive" />
+              <span className="text-sm font-medium">
+                {backupNever ? t("dashboard.attention.backupNeverTitle") : t("dashboard.attention.backupStaleTitle")}
+              </span>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/backups">{t("dashboard.attention.backupStaleAction")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 1. Revoked card scan alert */}
       {revokedScans && revokedScans.totalScans > 0 && (
         <Card

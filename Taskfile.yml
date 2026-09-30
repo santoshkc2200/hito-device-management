@@ -30,14 +30,14 @@ tasks:
     desc: Bring up Postgres, Caddy and the API (Docker), then both frontend dev servers (native, for fast HMR).
     deps: [env, certs]
     cmds:
-      - docker compose up -d --build db caddy api
+      - docker compose up -d --build db caddy api worker
       - task: frontend:dev
 
   dev:remote:
     desc: Bring up the development stack and expose both frontend dev servers on the local network.
     deps: [env, certs]
     cmds:
-      - docker compose up -d --build db caddy api
+      - docker compose up -d --build db caddy api worker
       - task: frontend:dev:remote
 
   down:

@@ -57,6 +57,20 @@ var KioskDeniedOperations = map[string]struct{}{
 	"GET /v1/audit":     {},
 	"GET /v1/audit.csv": {},
 
+	// Backup console
+	"GET /v1/backup/config":                  {},
+	"PUT /v1/backup/schedule":                {},
+	"GET /v1/backup/destinations":            {},
+	"POST /v1/backup/destinations":           {},
+	"PATCH /v1/backup/destinations/{id}":     {},
+	"DELETE /v1/backup/destinations/{id}":    {},
+	"POST /v1/backup/destinations/{id}/test": {},
+	"POST /v1/backup/run":                    {},
+	"POST /v1/backup/verify":                 {},
+	"GET /v1/backup/snapshots":               {},
+	"GET /v1/backup/requests/{id}":           {},
+	"GET /v1/backup/runs":                    {},
+
 	// Backfill
 	"POST /v1/backfill":           {},
 	"GET /v1/backfill/last-entry": {},

@@ -24,6 +24,9 @@ type Destination struct {
 	Enabled           bool
 	RetentionVersions int
 	InitializedAt     *time.Time
+	LastOkAt          *time.Time
+	LastError         string
+	UpdatedAt         time.Time
 }
 
 // LoadEnabledDestinations returns the destinations a run should fan out to.
@@ -62,5 +65,8 @@ func mapDestination(r backupstore.BackupDestination) Destination {
 		Enabled:           r.Enabled,
 		RetentionVersions: int(r.RetentionVersions),
 		InitializedAt:     pgtypeconv.TimePtr(r.InitializedAt),
+		LastOkAt:          pgtypeconv.TimePtr(r.LastOkAt),
+		LastError:         pgtypeconv.TextString(r.LastError),
+		UpdatedAt:         pgtypeconv.Time(r.UpdatedAt),
 	}
 }

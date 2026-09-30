@@ -12,6 +12,119 @@ export const zHealthStatus = z.object({
     ]).optional()
 });
 
+export const zBackupSchedule = z.object({
+    enabled: z.boolean(),
+    mode: z.enum([
+        'interval',
+        'daily',
+        'weekly'
+    ]),
+    intervalMinutes: z.int().gte(15).lte(720),
+    timeLocal: z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/),
+    weekday: z.int().gte(0).lte(6)
+});
+
+export const zBackupLocalRepo = z.object({
+    path: z.string(),
+    snapshotCount: z.int(),
+    latestSizeBytes: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }).optional(),
+    verifiedAt: z.iso.datetime().optional()
+});
+
+export const zBackupRun = z.object({
+    id: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    job: z.enum(['backup', 'verify']),
+    startedAt: z.iso.datetime(),
+    finishedAt: z.iso.datetime().optional(),
+    outcome: z.enum([
+        'success',
+        'degraded',
+        'failure'
+    ]),
+    detail: z.record(z.string(), z.unknown())
+});
+
+export const zBackupRunList = z.object({
+    items: z.array(zBackupRun)
+});
+
+export const zBackupConfig = z.object({
+    schedule: zBackupSchedule,
+    nextRunAt: z.iso.datetime().optional(),
+    lastRun: zBackupRun.optional(),
+    lastSuccessAt: z.iso.datetime().optional(),
+    workerSeenAt: z.iso.datetime().optional(),
+    local: zBackupLocalRepo,
+    allowedRoots: z.array(z.string())
+});
+
+export const zBackupDestination = z.object({
+    id: z.string(),
+    name: z.string(),
+    target: z.string(),
+    enabled: z.boolean(),
+    retentionVersions: z.int(),
+    initializedAt: z.iso.datetime().optional(),
+    lastOkAt: z.iso.datetime().optional(),
+    lastError: z.string().optional()
+});
+
+export const zBackupDestinationList = z.object({
+    items: z.array(zBackupDestination)
+});
+
+export const zBackupDestinationInput = z.object({
+    name: z.string().min(1).max(100),
+    target: z.string(),
+    enabled: z.boolean().optional().default(true),
+    retentionVersions: z.int().gte(1).lte(100)
+});
+
+export const zBackupDestinationUpdate = z.object({
+    name: z.string().min(1).max(100),
+    enabled: z.boolean(),
+    retentionVersions: z.int().gte(1).lte(100)
+});
+
+export const zBackupRequest = z.object({
+    id: z.string(),
+    kind: z.enum([
+        'run',
+        'test',
+        'verify'
+    ]),
+    destinationId: z.string().optional(),
+    status: z.enum([
+        'pending',
+        'running',
+        'done'
+    ]),
+    requestedAt: z.iso.datetime(),
+    startedAt: z.iso.datetime().optional(),
+    finishedAt: z.iso.datetime().optional(),
+    outcome: z.enum([
+        'success',
+        'degraded',
+        'failure'
+    ]).optional(),
+    detail: z.record(z.string(), z.unknown()).optional()
+});
+
+export const zBackupSnapshot = z.object({
+    snapshotId: z.string(),
+    takenAt: z.iso.datetime(),
+    sizeBytes: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    verifiedAt: z.iso.datetime().optional()
+});
+
+export const zBackupSnapshotList = z.object({
+    items: z.array(zBackupSnapshot)
+});
+
+export const zVerifyBackupsRequest = z.object({
+    destinationId: z.string().optional()
+});
+
 export const zProblem = z.object({
     type: z.url(),
     title: z.string(),
@@ -2169,6 +2282,98 @@ export const zUpdateSettingsBody = zUpdateSettingsRequest;
  * OK.
  */
 export const zUpdateSettingsResponse = zSettings;
+
+/**
+ * OK.
+ */
+export const zGetBackupConfigResponse = zBackupConfig;
+
+export const zUpdateBackupScheduleBody = zBackupSchedule;
+
+/**
+ * Saved; returns the full configuration.
+ */
+export const zUpdateBackupScheduleResponse = zBackupConfig;
+
+/**
+ * OK.
+ */
+export const zListBackupDestinationsResponse = zBackupDestinationList;
+
+export const zCreateBackupDestinationBody = zBackupDestinationInput;
+
+/**
+ * Created.
+ */
+export const zCreateBackupDestinationResponse = zBackupDestination;
+
+export const zDeleteBackupDestinationPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Deleted.
+ */
+export const zDeleteBackupDestinationResponse = z.void();
+
+export const zUpdateBackupDestinationBody = zBackupDestinationUpdate;
+
+export const zUpdateBackupDestinationPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zUpdateBackupDestinationResponse = zBackupDestination;
+
+export const zTestBackupDestinationPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Queued.
+ */
+export const zTestBackupDestinationResponse = zBackupRequest;
+
+/**
+ * Queued.
+ */
+export const zRunBackupNowResponse = zBackupRequest;
+
+export const zVerifyBackupsBody = zVerifyBackupsRequest;
+
+/**
+ * Queued.
+ */
+export const zVerifyBackupsResponse = zBackupRequest;
+
+export const zListBackupSnapshotsQuery = z.object({
+    repo: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zListBackupSnapshotsResponse = zBackupSnapshotList;
+
+export const zGetBackupRequestPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetBackupRequestResponse = zBackupRequest;
+
+export const zListBackupRunsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(20)
+});
+
+/**
+ * OK.
+ */
+export const zListBackupRunsResponse = zBackupRunList;
 
 export const zGetKioskPath = z.object({
     id: z.string()

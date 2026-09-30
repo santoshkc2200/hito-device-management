@@ -1,4 +1,4 @@
-import { getDashboard } from "@hdms/api-client";
+import { getBackupConfig, getDashboard } from "@hdms/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
@@ -10,6 +10,7 @@ import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { ErrorState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRole } from "@/lib/use-role";
 import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
@@ -45,6 +46,16 @@ function DashboardSkeleton() {
 
 function DashboardPage() {
   const t = useT();
+  const { isAdmin } = useRole();
+  const backupQuery = useQuery({
+    queryKey: ["backup", "config"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const res = await getBackupConfig();
+      if (res.error) throw res.error;
+      return res.data;
+    },
+  });
   const {
     data: dashboard,
     isLoading,
@@ -115,6 +126,7 @@ function DashboardPage() {
         kiosks={dashboard.kiosks}
         lastPaperEntry={dashboard.lastPaperEntry}
         paperBacklogHours={dashboard.paperBacklogHours}
+        backup={isAdmin && backupQuery.data ? { lastSuccessAt: backupQuery.data.lastSuccessAt ?? null } : undefined}
       />
 
       {/* 4 Stat Tiles */}

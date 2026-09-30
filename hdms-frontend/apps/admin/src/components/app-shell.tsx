@@ -5,6 +5,7 @@ import {
   Bell,
   Boxes,
   CalendarClock,
+  DatabaseBackup,
   FileCheck2,
   FileSpreadsheet,
   FileText,
@@ -85,6 +86,7 @@ export function AppShell() {
         name: t("nav.groups.settings"),
         items: [
           { to: "/settings", label: t("nav.settings"), icon: Settings, minRole: "admin" },
+          { to: "/backups", label: t("nav.backups"), icon: DatabaseBackup, minRole: "admin" },
           { to: "/credentials", label: t("nav.credentials"), icon: IdCardLanyard, minRole: "technician" },
           { to: "/labels", label: t("nav.labels"), icon: Tags, minRole: "technician" },
           { to: "/card-reader-test", label: t("nav.cardReaderTest"), icon: Radio, minRole: "technician" },

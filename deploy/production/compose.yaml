@@ -129,6 +129,9 @@ services:
       HDMS_OTLP_ENDPOINT: ${HDMS_OTLP_ENDPOINT:-}
       # The worker migrates as the owner; hdms_app cannot run DDL.
       HDMS_MIGRATE_ON_START: "false"
+      HDMS_BACKUP_DIR: /var/backups/hdms
+      HDMS_BACKUP_ALLOWED_ROOTS: /var/backups:/mnt/nas
+      TZ: ${TZ:?TZ must be set in the env file, e.g. TZ=Asia/Tokyo}
     volumes:
       # Hospital PKI material, provisioned in 5.3b; read-only, never in git.
       - ${HDMS_TLS_CERT_HOST_PATH:-/etc/ssl/certs/hdms.hospital.crt}:/etc/ssl/certs/hdms.hospital.crt:ro

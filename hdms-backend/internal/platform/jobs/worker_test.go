@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -184,5 +185,35 @@ func TestRunStopsWhenContextEnds(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not return after its context was cancelled")
+	}
+}
+
+func TestPendingRequestRunsBeforeScheduledJobs(t *testing.T) {
+	runs := &fakeRuns{last: map[string]time.Time{}}
+	var calls []string
+	now := wed(9, 0)
+	pending := 1
+	w := &jobs.Worker{
+		Jobs: []jobs.Job{recordingJob("backup", jobs.DailyAt{Hour: 2, Loc: tokyo}, runs, &calls, &now)},
+		Pending: func(context.Context) bool {
+			if pending == 0 {
+				return false
+			}
+			pending--
+			calls = append(calls, "request")
+			return true
+		},
+		LastStarted: runs.lastStarted,
+		Logger:      quietLogger(),
+	}
+	if got := w.Tick(context.Background(), now); got != "request" {
+		t.Fatalf("first tick = %q, want request", got)
+	}
+	now = now.Add(time.Minute)
+	if got := w.Tick(context.Background(), now); got != "backup" {
+		t.Fatalf("second tick = %q, want backup", got)
+	}
+	if strings.Join(calls, ",") != "request,backup" {
+		t.Fatalf("calls = %v", calls)
 	}
 }

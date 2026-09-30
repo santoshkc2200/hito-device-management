@@ -452,4 +452,27 @@ describe("Phase 4.7 — Dashboard", () => {
       expect(results).toHaveNoViolations();
     });
   });
+
+  describe("backup attention item", () => {
+    it("warns when last backup is older than 26 hours", () => {
+      render(
+        <AttentionStrip backup={{ lastSuccessAt: new Date(Date.now() - 27 * 3_600_000).toISOString() }} />
+      );
+      expect(screen.getByText(ja.dashboard.attention.backupStaleTitle)).toBeInTheDocument();
+    });
+
+    it("warns when no backup ever succeeded", () => {
+      render(<AttentionStrip backup={{ lastSuccessAt: null }} />);
+      expect(screen.getByText(ja.dashboard.attention.backupNeverTitle)).toBeInTheDocument();
+    });
+
+    it("stays quiet for a recent backup or a non-admin", () => {
+      const { rerender } = render(
+        <AttentionStrip backup={{ lastSuccessAt: new Date(Date.now() - 3_600_000).toISOString() }} />
+      );
+      expect(screen.queryByText(ja.dashboard.attention.backupStaleTitle)).not.toBeInTheDocument();
+      rerender(<AttentionStrip />);
+      expect(screen.queryByText(ja.dashboard.attention.backupNeverTitle)).not.toBeInTheDocument();
+    });
+  });
 });
