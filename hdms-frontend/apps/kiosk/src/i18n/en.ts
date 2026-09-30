@@ -389,6 +389,10 @@ export const en = {
       detail: "Live background events are temporarily unavailable.",
     },
   },
+  environment: {
+    development: "DEVELOPMENT — test data, not the live system",
+    staging: "STAGING — test data, not the live system",
+  },
 };
 
 export type KioskCatalogue = typeof en;

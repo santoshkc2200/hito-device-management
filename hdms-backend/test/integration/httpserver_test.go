@@ -107,7 +107,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		Logger:                discardLogger,
 	})
 	resSvc := reservations.New(pool, auditSvc, clock.System{})
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc, resSvc)
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc, resSvc, "test")
 	mux := http.NewServeMux()
 
 	gen.HandlerFromMuxWithBaseURL(srv, mux, "/v1")

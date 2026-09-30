@@ -135,4 +135,8 @@ export const ja: StaffCatalogue = {
     currentPasswordRequired: "現在のパスワードを入力してください",
     passwordMinLength: "パスワードは12文字以上で入力してください",
   },
+  environment: {
+    development: "開発 — テスト用・本番ではありません",
+    staging: "ステージング — 検証用・本番ではありません",
+  },
 };

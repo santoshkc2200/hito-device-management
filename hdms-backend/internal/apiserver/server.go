@@ -29,6 +29,7 @@ import (
 
 // Server implements gen.ServerInterface.
 type Server struct {
+	env                  string
 	pool                 *db.Pool
 	auth                 *auth.Service
 	identity             *identity.Service
@@ -57,8 +58,10 @@ func New(
 	staffAuthSvc *staffauth.Service, staffOIDC *staffauth.OIDC,
 	notificationSvc notificationapi.Service,
 	reservationsSvc reservationsapi.Service,
+	env string,
 ) *Server {
 	return &Server{
+		env:                  env,
 		pool:                 pool,
 		auth:                 authSvc,
 		identity:             identitySvc,
@@ -81,7 +84,8 @@ func New(
 var _ gen.ServerInterface = (*Server)(nil)
 
 func (s *Server) GetHealthz(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.HealthStatusStatusOk})
+	env := gen.HealthStatusEnvironment(s.env)
+	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.HealthStatusStatusOk, Environment: &env})
 }
 
 func (s *Server) GetReadyz(w http.ResponseWriter, r *http.Request) {

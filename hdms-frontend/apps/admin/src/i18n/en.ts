@@ -1756,8 +1756,11 @@ export const en: AdminMessages = {
     updatedAt: "Updated at: {date}",
   },
   staging: {
-    banner: "STAGING ENVIRONMENT — Do not register real borrowers",
     registerWarningTitle: "STAGING ENVIRONMENT — Never register real staff or borrower information",
     registerWarningDescription: "This environment is for drills, rehearsals, and load testing. Any registered data will be overwritten or reset.",
+  },
+  environment: {
+    development: "DEVELOPMENT — test data, not the live system",
+    staging: "STAGING — test data, not the live system",
   },
 };

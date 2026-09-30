@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import * as apiClient from "@hdms/api-client";
 import { translate } from "@hdms/i18n";
+import { EnvironmentProvider } from "@hdms/ui";
 import { catalogues } from "@/i18n";
 import { ja } from "@/i18n/ja";
 import { registerRoute } from "../routes/register";
@@ -50,6 +51,33 @@ describe("4.4b Register borrower form", () => {
       data: { count: 27 },
       error: undefined,
     } as any);
+  });
+
+  it.each([
+    ["staging", true],
+    ["development", false],
+    ["production", false],
+  ])("warns against real registrations only on %s", async (environment, warned) => {
+    vi.spyOn(apiClient, "getHealthz").mockResolvedValue({ data: { status: "ok", environment } } as any);
+
+    const RegisterComponent = registerRoute.options.component!;
+    render(
+      <EnvironmentProvider>
+        <QueryClientProvider client={createTestQueryClient()}>
+          <RegisterComponent />
+        </QueryClientProvider>
+      </EnvironmentProvider>
+    );
+
+    await waitFor(() => expect(apiClient.getHealthz).toHaveBeenCalled());
+    if (warned) {
+      expect(await screen.findByTestId("staging-register-warning")).toHaveTextContent(
+        ja.staging.registerWarningTitle
+      );
+    } else {
+      await screen.findByRole("heading", { name: ja.nav.register });
+      expect(screen.queryByTestId("staging-register-warning")).not.toBeInTheDocument();
+    }
   });
 
   it("passes axe accessibility audit", async () => {

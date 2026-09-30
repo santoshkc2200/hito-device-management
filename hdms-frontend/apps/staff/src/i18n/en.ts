@@ -133,6 +133,10 @@ export const en = {
     currentPasswordRequired: "Current password is required",
     passwordMinLength: "Password must be at least 12 characters",
   },
+  environment: {
+    development: "DEVELOPMENT — test data, not the live system",
+    staging: "STAGING — test data, not the live system",
+  },
 };
 
 export type StaffCatalogue = typeof en;

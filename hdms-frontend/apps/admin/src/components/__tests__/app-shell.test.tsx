@@ -89,31 +89,4 @@ describe("AppShell Navigation & Role Visibility", () => {
     // Settings group should not render at all for viewer
     expect(screen.queryByText(ja.nav.settings)).not.toBeInTheDocument();
   });
-
-  it("does not render staging banner by default in development/production", () => {
-    renderShell({
-      id: "admin-1",
-      email: "admin@hito.local",
-      fullName: "System Admin",
-      role: "admin",
-    });
-    expect(screen.queryByTestId("staging-banner")).not.toBeInTheDocument();
-  });
-
-  it("visibly displays staging banner when in staging environment", () => {
-    vi.stubEnv("VITE_ENV", "staging");
-    try {
-      renderShell({
-        id: "admin-1",
-        email: "admin@hito.local",
-        fullName: "System Admin",
-        role: "admin",
-      });
-      const banner = screen.getByTestId("staging-banner");
-      expect(banner).toBeInTheDocument();
-      expect(banner).toHaveTextContent(ja.staging.banner);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
 });

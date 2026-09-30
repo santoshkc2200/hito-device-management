@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { LocaleProvider } from "@hdms/i18n";
+import { EnvironmentProvider } from "@hdms/ui";
 import { initKioskApi, queryClient } from "@/lib/api";
 import { getKioskConfig } from "@/lib/kiosk-config";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -14,11 +15,13 @@ export function App() {
 
   return (
     <ErrorBoundary kioskName={kioskName}>
-      <LocaleProvider locale={config?.defaultLocale}>
-        <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
-        </QueryClientProvider>
-      </LocaleProvider>
+      <EnvironmentProvider>
+        <LocaleProvider locale={config?.defaultLocale}>
+          <QueryClientProvider client={queryClient}>
+            <RouterProvider router={router} />
+          </QueryClientProvider>
+        </LocaleProvider>
+      </EnvironmentProvider>
     </ErrorBoundary>
   );
 }

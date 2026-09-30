@@ -2589,6 +2589,13 @@ components:
         status:
           type: string
           enum: [ok]
+        environment:
+          type: string
+          enum: [development, test, staging, production]
+          description: >
+            Deployment environment (HDMS_ENV). Clients show a non-production
+            banner for anything other than production; an absent value is
+            treated as production.
 
     # RFC 9457 application/problem+json, the error shape for the whole API.
     # Registered types (docs/06-api-contract.md):
