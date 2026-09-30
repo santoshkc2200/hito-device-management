@@ -59,6 +59,10 @@ services:
       TZ: ${TZ:-Asia/Tokyo}
     volumes:
       - hdms-dev-backups:/var/backups/hdms
+      # Host folder for a second backup copy: add a destination at /mnt/nas/hdms
+      # in the admin console and it appears here on the Mac. Docker creates the
+      # folder if it is missing.
+      - ${HDMS_BACKUP_NAS_HOST_PATH:-./.dev-backups}:/mnt/nas
     depends_on:
       db:
         condition: service_healthy

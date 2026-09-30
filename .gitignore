@@ -48,3 +48,6 @@ hdms-frontend/blob-report/
 # --- Local agent/tool scratch ---
 .playwright/
 .zcode/
+
+# Dev backup copy mounted at /mnt/nas in the worker container
+/.dev-backups/
