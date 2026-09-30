@@ -176,7 +176,13 @@ func run() error {
 	}
 
 	sseHub := events.NewSSEHub(pool, bus, logger)
-	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc, notificationSvc, reservationsSvc, cfg.Env, apiserver.BackupConsoleConfig{BackupDir: cfg.BackupDir, AllowedRoots: cfg.BackupAllowedRoots, Location: time.Local, Locations: backup.NewLocationClient(cfg.WorkerURL)})
+	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc, notificationSvc, reservationsSvc, cfg.Env, apiserver.BackupConsoleConfig{
+		BackupDir:       cfg.BackupDir,
+		AllowedRoots:    cfg.BackupAllowedRoots,
+		Location:        time.Local,
+		Locations:       backup.NewLocationClient(cfg.WorkerURL),
+		RecoverySecrets: backup.NewRecoverySecrets(cfg.BackupEncKey, cfg.TokenPepper, cfg.CredentialEncKey, cfg.TOTPSecretEncKey),
+	})
 
 	// actorOf scopes an idempotency key to the caller (2.5): a kiosk's key
 	// never collides with an admin's. httpx cannot import auth directly

@@ -76,6 +76,9 @@ type testHarness struct {
 	handler           http.Handler
 	apiServer         *apiserver.Server
 	workerServer      *httptest.Server
+	adminPassword     string
+	adminTOTPSecret   string
+	recoverySecrets   backup.RecoverySecrets
 }
 
 func newTestHarness(t *testing.T) *testHarness {
@@ -132,11 +135,13 @@ func newTestHarness(t *testing.T) *testHarness {
 	}
 	workerServer := httptest.NewServer(locator.InternalHandler())
 	t.Cleanup(workerServer.Close)
+	recoverySecrets := backup.NewRecoverySecrets(random32(t), pepper, credEncKey, totpEncKey)
 	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc, resSvc, "test", apiserver.BackupConsoleConfig{
 		// No AllowedRoots for the API, as in docker-compose.yml: the worker's
 		// location check is the only owner of that rule.
 		BackupDir: "/var/backups/hdms", Location: time.UTC,
-		Locations: backup.NewLocationClient(workerServer.URL),
+		Locations:       backup.NewLocationClient(workerServer.URL),
+		RecoverySecrets: recoverySecrets,
 	})
 	mux := http.NewServeMux()
 
@@ -167,22 +172,23 @@ func newTestHarness(t *testing.T) *testHarness {
 	}
 
 	h := &testHarness{
-		server:       ts,
-		client:       &http.Client{Jar: jar},
-		handler:      handler,
-		identity:     identitySvc,
-		catalog:      catalogSvc,
-		credentials:  credentialsSvc,
-		lending:      lendingSvc,
-		checkout:     checkoutSvc,
-		auth:         authSvc,
-		staffAuth:    staffAuthSvc,
-		audit:        auditSvc,
-		settings:     settingsSvc,
-		bus:          bus,
-		pool:         pool,
-		apiServer:    srv,
-		workerServer: workerServer,
+		server:          ts,
+		client:          &http.Client{Jar: jar},
+		handler:         handler,
+		identity:        identitySvc,
+		catalog:         catalogSvc,
+		credentials:     credentialsSvc,
+		lending:         lendingSvc,
+		checkout:        checkoutSvc,
+		auth:            authSvc,
+		staffAuth:       staffAuthSvc,
+		audit:           auditSvc,
+		settings:        settingsSvc,
+		bus:             bus,
+		pool:            pool,
+		apiServer:       srv,
+		workerServer:    workerServer,
+		recoverySecrets: recoverySecrets,
 	}
 
 	h.bootstrapAndLogin(t, authSvc)
@@ -204,6 +210,8 @@ func (h *testHarness) bootstrapAndLogin(t *testing.T, authSvc *auth.Service) {
 	if err != nil {
 		t.Fatalf("CreateAdminAccount: %v", err)
 	}
+	h.adminPassword = password
+	h.adminTOTPSecret = secret
 	code, err := totp.GenerateCode(secret, time.Now())
 	if err != nil {
 		t.Fatalf("GenerateCode: %v", err)

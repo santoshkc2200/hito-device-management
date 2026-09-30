@@ -48,16 +48,6 @@ export const zBackupRunList = z.object({
     items: z.array(zBackupRun)
 });
 
-export const zBackupConfig = z.object({
-    schedule: zBackupSchedule,
-    nextRunAt: z.iso.datetime().optional(),
-    lastRun: zBackupRun.optional(),
-    lastSuccessAt: z.iso.datetime().optional(),
-    workerSeenAt: z.iso.datetime().optional(),
-    local: zBackupLocalRepo,
-    allowedRoots: z.array(z.string())
-});
-
 export const zBackupDestination = z.object({
     id: z.string(),
     name: z.string(),
@@ -188,6 +178,39 @@ export const zBackupLocationCheck = z.object({
     freeBytes: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     neededBytes: z.coerce.bigint().min(BigInt('-9223372036854775808'), { error: 'Invalid value: Expected int64 to be >= -9223372036854775808' }).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     checks: z.array(zBackupLocationCheckItem)
+});
+
+export const zBackupRecoveryKeyState = z.object({
+    status: z.enum([
+        'missing',
+        'unconfirmed',
+        'ready',
+        'outdated'
+    ]),
+    createdAt: z.iso.datetime().optional(),
+    createdBy: z.string().optional(),
+    confirmedAt: z.iso.datetime().optional()
+});
+
+export const zBackupConfig = z.object({
+    schedule: zBackupSchedule,
+    nextRunAt: z.iso.datetime().optional(),
+    lastRun: zBackupRun.optional(),
+    lastSuccessAt: z.iso.datetime().optional(),
+    workerSeenAt: z.iso.datetime().optional(),
+    local: zBackupLocalRepo,
+    allowedRoots: z.array(z.string()),
+    recoveryKey: zBackupRecoveryKeyState
+});
+
+export const zBackupReauth = z.object({
+    password: z.string(),
+    totpCode: z.string()
+});
+
+export const zBackupRecoveryKeyIssued = z.object({
+    key: z.string(),
+    createdAt: z.iso.datetime()
 });
 
 export const zProblem = z.object({
@@ -2426,6 +2449,18 @@ export const zCheckBackupLocationBody = zBackupLocationCheckInput;
  * The checklist.
  */
 export const zCheckBackupLocationResponse = zBackupLocationCheck;
+
+export const zCreateBackupRecoveryKeyBody = zBackupReauth;
+
+/**
+ * Created. Print it now; it cannot be shown again.
+ */
+export const zCreateBackupRecoveryKeyResponse = zBackupRecoveryKeyIssued;
+
+/**
+ * OK.
+ */
+export const zConfirmBackupRecoveryKeyResponse = zBackupRecoveryKeyState;
 
 /**
  * Queued.

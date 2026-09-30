@@ -2429,6 +2429,39 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /backup/recovery-key:
+    post:
+      operationId: createBackupRecoveryKey
+      summary: Create or replace the recovery key. The key is in this response only.
+      tags: [backup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupReauth" }
+      responses:
+        "201":
+          description: Created. Print it now; it cannot be shown again.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRecoveryKeyIssued" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/recovery-key/confirm:
+    post:
+      operationId: confirmBackupRecoveryKey
+      summary: Record that the recovery sheet was printed and stored.
+      tags: [backup]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRecoveryKeyState" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   /backup/run:
     post:
       operationId: runBackupNow
@@ -2897,7 +2930,7 @@ components:
 
     BackupConfig:
       type: object
-      required: [schedule, local, allowedRoots]
+      required: [schedule, local, allowedRoots, recoveryKey]
       properties:
         schedule: { $ref: "#/components/schemas/BackupSchedule" }
         nextRunAt: { type: string, format: date-time, description: "Absent when the schedule is off." }
@@ -2906,6 +2939,7 @@ components:
         workerSeenAt: { type: string, format: date-time }
         local: { $ref: "#/components/schemas/BackupLocalRepo" }
         allowedRoots: { type: array, items: { type: string } }
+        recoveryKey: { $ref: "#/components/schemas/BackupRecoveryKeyState" }
 
     BackupDestination:
       type: object
@@ -3034,6 +3068,32 @@ components:
         freeBytes: { type: integer, format: int64 }
         neededBytes: { type: integer, format: int64 }
         checks: { type: array, items: { $ref: "#/components/schemas/BackupLocationCheckItem" } }
+
+    BackupRecoveryKeyState:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [missing, unconfirmed, ready, outdated]
+          description: "outdated: the running secrets no longer match the stored bundle; print a new sheet."
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        confirmedAt: { type: string, format: date-time }
+
+    BackupReauth:
+      type: object
+      required: [password, totpCode]
+      properties:
+        password: { type: string }
+        totpCode: { type: string }
+
+    BackupRecoveryKeyIssued:
+      type: object
+      required: [key, createdAt]
+      properties:
+        key: { type: string, description: "28 characters in seven groups of four. Shown once." }
+        createdAt: { type: string, format: date-time }
 
     # RFC 9457 application/problem+json, the error shape for the whole API.
     # Registered types (docs/06-api-contract.md):
