@@ -119,6 +119,63 @@ export type VerifyBackupsRequest = {
     destinationId?: string;
 };
 
+export type BackupLocationRoot = {
+    path: string;
+    /**
+     * False when no drive is mounted there (same disk as the server).
+     */
+    connected: boolean;
+};
+
+export type BackupFolder = {
+    name: string;
+    path: string;
+    /**
+     * The folder already holds an HDMS backup repository.
+     */
+    hasBackup: boolean;
+};
+
+export type BackupLocationListing = {
+    roots: Array<BackupLocationRoot>;
+    /**
+     * Absent for the drives-only listing.
+     */
+    path?: string;
+    /**
+     * Absent at a drive's top folder.
+     */
+    parent?: string;
+    folders: Array<BackupFolder>;
+};
+
+export type BackupFolderInput = {
+    parent: string;
+    name: string;
+};
+
+export type BackupLocationCheckInput = {
+    path: string;
+};
+
+export type BackupLocationCheckItem = {
+    name: 'allowed' | 'connected' | 'exists' | 'writable' | 'separate_disk' | 'contents' | 'space';
+    status: 'pass' | 'fail' | 'warn' | 'info' | 'skipped';
+    code?: 'outside_roots' | 'not_connected' | 'not_found' | 'not_writable' | 'same_disk' | 'not_empty' | 'existing_repo' | 'low_space';
+};
+
+export type BackupLocationCheck = {
+    path: string;
+    /**
+     * No check failed. Warnings and information do not block.
+     */
+    ok: boolean;
+    existingRepo: boolean;
+    freeBytes: number;
+    neededBytes: number;
+    checks: Array<BackupLocationCheckItem>;
+};
+
 export type Problem = {
     type: string;
     title: string;
@@ -4373,6 +4430,86 @@ export type TestBackupDestinationResponses = {
 };
 
 export type TestBackupDestinationResponse = TestBackupDestinationResponses[keyof TestBackupDestinationResponses];
+
+export type ListBackupLocationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Omit to list only the drives.
+         */
+        path?: string;
+    };
+    url: '/backup/locations';
+};
+
+export type ListBackupLocationsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListBackupLocationsError = ListBackupLocationsErrors[keyof ListBackupLocationsErrors];
+
+export type ListBackupLocationsResponses = {
+    /**
+     * OK.
+     */
+    200: BackupLocationListing;
+};
+
+export type ListBackupLocationsResponse = ListBackupLocationsResponses[keyof ListBackupLocationsResponses];
+
+export type CreateBackupLocationFolderData = {
+    body: BackupFolderInput;
+    path?: never;
+    query?: never;
+    url: '/backup/locations/folders';
+};
+
+export type CreateBackupLocationFolderErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateBackupLocationFolderError = CreateBackupLocationFolderErrors[keyof CreateBackupLocationFolderErrors];
+
+export type CreateBackupLocationFolderResponses = {
+    /**
+     * Created.
+     */
+    201: BackupFolder;
+};
+
+export type CreateBackupLocationFolderResponse = CreateBackupLocationFolderResponses[keyof CreateBackupLocationFolderResponses];
+
+export type CheckBackupLocationData = {
+    body: BackupLocationCheckInput;
+    path?: never;
+    query?: never;
+    url: '/backup/locations/check';
+};
+
+export type CheckBackupLocationErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CheckBackupLocationError = CheckBackupLocationErrors[keyof CheckBackupLocationErrors];
+
+export type CheckBackupLocationResponses = {
+    /**
+     * The checklist.
+     */
+    200: BackupLocationCheck;
+};
+
+export type CheckBackupLocationResponse = CheckBackupLocationResponses[keyof CheckBackupLocationResponses];
 
 export type RunBackupNowData = {
     body?: never;

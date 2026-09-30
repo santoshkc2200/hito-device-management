@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,14 +26,21 @@ func (s *Server) backupLoc() *time.Location {
 // goes through the shared mapper.
 func (s *Server) writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, backup.ErrInvalidSchedule), errors.Is(err, backup.ErrInvalidDestination), errors.Is(err, backup.ErrPathNotAllowed):
+	case errors.Is(err, backup.ErrInvalidSchedule), errors.Is(err, backup.ErrInvalidDestination),
+		errors.Is(err, backup.ErrPathNotAllowed), errors.Is(err, backup.ErrInvalidFolderName):
 		p := httpx.NewProblem("validation-error", "Validation error", http.StatusUnprocessableEntity)
 		p.Detail = err.Error()
 		httpx.WriteProblem(w, r, p)
 	case errors.Is(err, backup.ErrDestinationExists):
 		p := httpx.NewProblem("destination-exists", "A destination already uses this path", http.StatusConflict)
 		httpx.WriteProblem(w, r, p)
-	case errors.Is(err, backup.ErrDestinationNotFound), errors.Is(err, backup.ErrRequestNotFound):
+	case errors.Is(err, backup.ErrFolderExists):
+		httpx.WriteProblem(w, r, httpx.NewProblem("folder-exists", "A folder with that name already exists", http.StatusConflict))
+	case errors.Is(err, backup.ErrLocationNotWritable):
+		httpx.WriteProblem(w, r, httpx.NewProblem("folder-not-writable", "HDMS cannot write in this folder", http.StatusUnprocessableEntity))
+	case errors.Is(err, backup.ErrWorkerUnavailable):
+		httpx.WriteProblem(w, r, httpx.NewProblem("worker-unavailable", "Backup worker not responding", http.StatusServiceUnavailable))
+	case errors.Is(err, backup.ErrDestinationNotFound), errors.Is(err, backup.ErrRequestNotFound), errors.Is(err, backup.ErrLocationNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("not-found", "Not found", http.StatusNotFound))
 	default:
 		s.writeServiceError(w, r, err)
@@ -226,6 +234,21 @@ func (s *Server) CreateBackupDestination(w http.ResponseWriter, r *http.Request)
 	if body.Enabled != nil {
 		enabled = *body.Enabled
 	}
+	// The wizard already checked the folder; check again so the rules hold
+	// for any caller, and so a folder that changed since is caught.
+	// The wizard already checked the folder; check again so the rules hold
+	// for any caller, and so a folder that changed since is caught.
+	check, err := s.backupCfg.Locations.Check(r.Context(), body.Target)
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	if !check.OK {
+		p := httpx.NewProblem("location-check-failed", "The folder did not pass the checks", http.StatusUnprocessableEntity)
+		p.Detail = strings.Join(check.FailedCodes(), ", ")
+		httpx.WriteProblem(w, r, p)
+		return
+	}
 	d, err := backup.CreateDestination(r.Context(), s.pool, backup.DestinationInput{
 		Name: body.Name, Target: body.Target, Enabled: enabled, RetentionVersions: body.RetentionVersions,
 	}, s.backupCfg.AllowedRoots, actorFrom(r))
@@ -390,4 +413,84 @@ func (s *Server) ListBackupRuns(w http.ResponseWriter, r *http.Request, params g
 		items = append(items, mapRun(run))
 	}
 	writeJSON(w, http.StatusOK, gen.BackupRunList{Items: items})
+}
+
+func mapLocationListing(l backup.LocationListing) gen.BackupLocationListing {
+	out := gen.BackupLocationListing{
+		Roots:   make([]gen.BackupLocationRoot, 0, len(l.Roots)),
+		Folders: make([]gen.BackupFolder, 0, len(l.Folders)),
+	}
+	for _, root := range l.Roots {
+		out.Roots = append(out.Roots, gen.BackupLocationRoot{Path: root.Path, Connected: root.Connected})
+	}
+	for _, f := range l.Folders {
+		out.Folders = append(out.Folders, gen.BackupFolder{Name: f.Name, Path: f.Path, HasBackup: f.HasBackup})
+	}
+	if l.Path != "" {
+		out.Path = strPtr(l.Path)
+	}
+	if l.Parent != "" {
+		out.Parent = strPtr(l.Parent)
+	}
+	return out
+}
+
+func mapLocationCheck(c backup.LocationCheck) gen.BackupLocationCheck {
+	out := gen.BackupLocationCheck{
+		Path: c.Path, Ok: c.OK, ExistingRepo: c.ExistingRepo,
+		FreeBytes: c.FreeBytes, NeededBytes: c.NeededBytes,
+		Checks: make([]gen.BackupLocationCheckItem, 0, len(c.Checks)),
+	}
+	for _, it := range c.Checks {
+		item := gen.BackupLocationCheckItem{
+			Name:   gen.BackupLocationCheckItemName(it.Name),
+			Status: gen.BackupLocationCheckItemStatus(it.Status),
+		}
+		if it.Code != "" {
+			code := gen.BackupLocationCheckItemCode(it.Code)
+			item.Code = &code
+		}
+		out.Checks = append(out.Checks, item)
+	}
+	return out
+}
+
+func (s *Server) ListBackupLocations(w http.ResponseWriter, r *http.Request, params gen.ListBackupLocationsParams) {
+	path := ""
+	if params.Path != nil {
+		path = *params.Path
+	}
+	listing, err := s.backupCfg.Locations.Browse(r.Context(), path)
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, mapLocationListing(listing))
+}
+
+func (s *Server) CreateBackupLocationFolder(w http.ResponseWriter, r *http.Request) {
+	body, ok := decodeJSON[gen.BackupFolderInput](w, r)
+	if !ok {
+		return
+	}
+	f, err := s.backupCfg.Locations.CreateFolder(r.Context(), body.Parent, body.Name)
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	s.recordBackupAudit(r, "backup.location_folder_created", "backup_location:"+f.Path, map[string]any{"path": f.Path})
+	writeJSON(w, http.StatusCreated, gen.BackupFolder{Name: f.Name, Path: f.Path, HasBackup: f.HasBackup})
+}
+
+func (s *Server) CheckBackupLocation(w http.ResponseWriter, r *http.Request) {
+	body, ok := decodeJSON[gen.BackupLocationCheckInput](w, r)
+	if !ok {
+		return
+	}
+	check, err := s.backupCfg.Locations.Check(r.Context(), body.Path)
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, mapLocationCheck(check))
 }
