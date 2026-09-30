@@ -133,7 +133,9 @@ func newTestHarness(t *testing.T) *testHarness {
 	workerServer := httptest.NewServer(locator.InternalHandler())
 	t.Cleanup(workerServer.Close)
 	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc, resSvc, "test", apiserver.BackupConsoleConfig{
-		BackupDir: "/var/backups/hdms", AllowedRoots: []string{os.TempDir()}, Location: time.UTC,
+		// No AllowedRoots for the API, as in docker-compose.yml: the worker's
+		// location check is the only owner of that rule.
+		BackupDir: "/var/backups/hdms", Location: time.UTC,
 		Locations: backup.NewLocationClient(workerServer.URL),
 	})
 	mux := http.NewServeMux()

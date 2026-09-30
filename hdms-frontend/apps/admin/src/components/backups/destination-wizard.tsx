@@ -339,7 +339,9 @@ function DetailsStep({
     onError: (err: unknown) => {
       if (problemIs(err, "location-check-failed")) setError(t("backups.wizard.details.checkChanged"));
       else if (problemIs(err, "worker-unavailable")) setError(t("backups.wizard.workerDown"));
-      else setError((err as Problem)?.detail ?? t("backups.errors.save"));
+      // Raw server text never reaches the user; the name and retention
+      // rules are already checked before the request is sent.
+      else setError(t("backups.errors.save"));
     },
   });
 

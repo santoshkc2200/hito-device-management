@@ -249,7 +249,7 @@ func (s *Server) CreateBackupDestination(w http.ResponseWriter, r *http.Request)
 	}
 	d, err := backup.CreateDestination(r.Context(), s.pool, backup.DestinationInput{
 		Name: body.Name, Target: body.Target, Enabled: enabled, RetentionVersions: body.RetentionVersions,
-	}, s.backupCfg.AllowedRoots, actorFrom(r))
+	}, actorFrom(r))
 	if err != nil {
 		s.writeBackupError(w, r, err)
 		return
