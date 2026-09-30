@@ -278,3 +278,64 @@ func productionConfigLogsNoSecretValues(t *testing.T) {
 		t.Errorf("expected database URL in log output to contain redacted password 'xxxxx', got:\n%s", logOutput)
 	}
 }
+
+func TestWorkerDatabaseURLFallsBackToAppURL(t *testing.T) {
+	for k, v := range validProductionEnv() {
+		t.Setenv(k, v)
+	}
+	t.Setenv("HDMS_OWNER_DATABASE_URL", "")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if cfg.OwnerDatabaseURL != "" {
+		t.Fatalf("OwnerDatabaseURL = %q, want empty when unset", cfg.OwnerDatabaseURL)
+	}
+	if got := cfg.WorkerDatabaseURL(); got != cfg.DatabaseURL {
+		t.Fatalf("WorkerDatabaseURL = %q, want the app DSN", got)
+	}
+
+	owner := "postgres://hdms_prod:owner@db:5432/hdms_prod?sslmode=disable"
+	t.Setenv("HDMS_OWNER_DATABASE_URL", owner)
+	cfg, err = config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if got := cfg.WorkerDatabaseURL(); got != owner {
+		t.Fatalf("WorkerDatabaseURL = %q, want the owner DSN", got)
+	}
+}
+
+func TestMigrateOnStart(t *testing.T) {
+	for k, v := range validProductionEnv() {
+		t.Setenv(k, v)
+	}
+	cases := []struct {
+		raw     string
+		want    bool
+		wantErr bool
+	}{
+		{"", true, false},
+		{"true", true, false},
+		{"false", false, false},
+		{"FALSE", false, false},
+		{"sometimes", false, true},
+	}
+	for _, c := range cases {
+		t.Setenv("HDMS_MIGRATE_ON_START", c.raw)
+		cfg, err := config.Load()
+		if c.wantErr {
+			if err == nil || !strings.Contains(err.Error(), "HDMS_MIGRATE_ON_START") {
+				t.Fatalf("raw %q: err = %v, want one naming HDMS_MIGRATE_ON_START", c.raw, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("raw %q: %v", c.raw, err)
+		}
+		if cfg.MigrateOnStart != c.want {
+			t.Fatalf("raw %q: MigrateOnStart = %v, want %v", c.raw, cfg.MigrateOnStart, c.want)
+		}
+	}
+}

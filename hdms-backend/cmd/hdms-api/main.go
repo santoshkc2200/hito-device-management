@@ -65,8 +65,13 @@ func run() error {
 		}
 	}()
 
-	if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
-		return err
+	// In production the worker migrates as the owner before the API starts
+	// (compose orders api after a healthy worker); the API's hdms_app role
+	// cannot run DDL.
+	if cfg.MigrateOnStart {
+		if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
+			return err
+		}
 	}
 
 	pool, err := db.Open(ctx, cfg.DatabaseURL)

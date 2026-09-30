@@ -20,9 +20,11 @@
 # - HDMS_ENV=production and HDMS_RATE_LIMIT=on are enforced here
 #   (environment overrides any env file), so the fail-closed checks in
 #   internal/platform/config cannot be softened by a stale secrets file.
-# - Migrations run on API startup from the embedded goose set under the
-#   advisory lock — two API replicas starting together migrate exactly once
-#   (see test/integration/production_migrate_concurrent_test.go).
+# - Migrations run in the worker at start, as the database owner, under the
+#   goose advisory lock; the API starts only after the worker is healthy and
+#   connects as the restricted hdms_app role (HDMS_MIGRATE_ON_START=false).
+# - The worker runs every scheduled job (backup, reminders, expiry,
+#   retention …) — the deploy/systemd timers are for non-Docker installs.
 
 name: hdms-production
 
@@ -56,6 +58,55 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  worker:
+    build:
+      context: ../../hdms-backend
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    # Runs migrations and backups as the database owner
+    # (HDMS_OWNER_DATABASE_URL), and every other job as hdms_app
+    # (HDMS_DATABASE_URL). Both come from the root-only env file.
+    env_file:
+      - ${HDMS_PROD_ENV_FILE:-/etc/hdms/hdms.env}
+    environment:
+      HDMS_ENV: production
+      HDMS_BACKUP_DIR: /var/backups/hdms
+      # /mnt/nas is the optional network-share mount below.
+      HDMS_BACKUP_ALLOWED_ROOTS: /var/backups:/mnt/nas
+      # The worker serves no TLS, but it loads the same fail-closed production
+      # config as the API, which refuses the localhost certificate defaults.
+      HDMS_TLS_CERT_FILE: /etc/ssl/certs/hdms.hospital.crt
+      HDMS_TLS_KEY_FILE: /etc/ssl/private/hdms.hospital.key
+      TZ: ${TZ:?TZ must be set in the env file, e.g. TZ=Asia/Tokyo}
+    volumes:
+      - hdms-prod-backups:/var/backups/hdms
+      # A host path mounted by hospital IT (NFS/SMB) when a LAN copy is wanted.
+      # Unset, this falls back to an empty named volume so compose stays valid.
+      - ${HDMS_BACKUP_NAS_HOST_PATH:-hdms-prod-nas-unset}:/mnt/nas
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # The heartbeat is written only after migrations succeed, then every 30s.
+      test: ["CMD-SHELL", "test -n \"$$(find /tmp/hdms-worker-alive -mmin -3 2>/dev/null)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     build:
       context: ../../hdms-backend
@@ -76,12 +127,16 @@ services:
       HDMS_TLS_KEY_FILE: /etc/ssl/private/hdms.hospital.key
       HDMS_LOG_LEVEL: ${HDMS_LOG_LEVEL:-info}
       HDMS_OTLP_ENDPOINT: ${HDMS_OTLP_ENDPOINT:-}
+      # The worker migrates as the owner; hdms_app cannot run DDL.
+      HDMS_MIGRATE_ON_START: "false"
     volumes:
       # Hospital PKI material, provisioned in 5.3b; read-only, never in git.
       - ${HDMS_TLS_CERT_HOST_PATH:-/etc/ssl/certs/hdms.hospital.crt}:/etc/ssl/certs/hdms.hospital.crt:ro
       - ${HDMS_TLS_KEY_HOST_PATH:-/etc/ssl/private/hdms.hospital.key}:/etc/ssl/private/hdms.hospital.key:ro
     depends_on:
       db:
+        condition: service_healthy
+      worker:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1:8443/v1/healthz | grep -q '\"status\":\"ok\"'"]
@@ -141,3 +196,5 @@ services:
 
 volumes:
   hdms-prod-db-data:
+  hdms-prod-backups:
+  hdms-prod-nas-unset:

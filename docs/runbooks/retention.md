@@ -112,6 +112,8 @@ deliberately not a flag on this command.
 
 ## Timer
 
+On the Docker stack this job runs inside the `worker` container on the same schedule; the systemd timer is for non-Docker installs:
+
 ```bash
 systemctl enable --now hdms-retention.timer
 systemctl list-timers hdms-retention.timer

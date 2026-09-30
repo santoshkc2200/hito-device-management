@@ -24,3 +24,24 @@ func recordJobRun(ctx context.Context, q db.DBTX, job string, started, finished 
 	}
 	return nil
 }
+
+// LastStarted returns the newest job_runs start time for each named job that
+// has at least one row. The worker compares it with each job's schedule.
+func LastStarted(ctx context.Context, q db.DBTX, names []string) (map[string]time.Time, error) {
+	rows, err := q.Query(ctx,
+		`SELECT job, max(started_at) FROM job_runs WHERE job = ANY($1) GROUP BY job`, names)
+	if err != nil {
+		return nil, fmt.Errorf("jobs: read last starts: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[string]time.Time, len(names))
+	for rows.Next() {
+		var job string
+		var started time.Time
+		if err := rows.Scan(&job, &started); err != nil {
+			return nil, fmt.Errorf("jobs: scan last start: %w", err)
+		}
+		out[job] = started
+	}
+	return out, rows.Err()
+}

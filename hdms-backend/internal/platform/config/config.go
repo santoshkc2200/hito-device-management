@@ -23,8 +23,23 @@ type Config struct {
 	Env         string // "development" | "test" | "staging" | "production"
 	HTTPAddr    string
 	DatabaseURL string
-	TLSCertFile string
-	TLSKeyFile  string
+
+	// OwnerDatabaseURL is the database owner's DSN (HDMS_OWNER_DATABASE_URL).
+	// Only the worker uses it — for migrations and backups. Empty means the
+	// worker uses DatabaseURL, which is right for dev and staging, where the
+	// app already connects as the owner. Never given to the API in production.
+	OwnerDatabaseURL string
+
+	// AppDBPassword, when set, is applied to the hdms_app role by the worker
+	// at start (HDMS_APP_DB_PASSWORD), replacing the hand-run ALTER ROLE.
+	AppDBPassword string
+
+	// MigrateOnStart lets the API skip migrations when the worker owns them
+	// (HDMS_MIGRATE_ON_START, default true). Production sets it false: the
+	// API connects as hdms_app, which cannot run DDL.
+	MigrateOnStart bool
+	TLSCertFile    string
+	TLSKeyFile     string
 
 	TokenPepper      string
 	CredentialEncKey []byte        // 32 raw bytes, AES-256-GCM key for reversible device token storage
@@ -111,6 +126,18 @@ func Load() (Config, error) {
 		TokenPepper:  requireEnv("HDMS_TOKEN_PEPPER", &errs),
 		OTLPEndpoint: os.Getenv("HDMS_OTLP_ENDPOINT"),
 		LogLevel:     getenvDefault("HDMS_LOG_LEVEL", "info"),
+	}
+
+	cfg.OwnerDatabaseURL = strings.TrimSpace(os.Getenv("HDMS_OWNER_DATABASE_URL"))
+	cfg.AppDBPassword = os.Getenv("HDMS_APP_DB_PASSWORD")
+	cfg.MigrateOnStart = true
+	if raw := strings.TrimSpace(os.Getenv("HDMS_MIGRATE_ON_START")); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("HDMS_MIGRATE_ON_START: %q is not true or false", raw))
+		} else {
+			cfg.MigrateOnStart = v
+		}
 	}
 
 	cfg.SessionTTL = getenvDurationDefault("HDMS_SESSION_TTL", 25*time.Second, &errs)
@@ -202,6 +229,14 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("config: %w", errors.Join(errs...))
 	}
 	return cfg, nil
+}
+
+// WorkerDatabaseURL is the DSN the worker migrates and backs up with.
+func (c Config) WorkerDatabaseURL() string {
+	if c.OwnerDatabaseURL != "" {
+		return c.OwnerDatabaseURL
+	}
+	return c.DatabaseURL
 }
 
 // validate enforces fail-closed production safety constraints.

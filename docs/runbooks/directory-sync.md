@@ -20,7 +20,7 @@ The directory synchronization job connects to the hospital's central directory (
 
 ## What runs automatically
 
-Every night at 03:00, a systemd timer runs the synchronization command on the host:
+Every night at 03:00, a systemd timer runs the synchronization command on the host. On the Docker stack this job runs inside the `worker` container on the same schedule; the systemd timer is for non-Docker installs. The worker registers this job only when `HDMS_LDAP_URL` is set:
 
 ```bash
 /opt/hdms/bin/hdms-cli directory-sync --apply

@@ -23,6 +23,22 @@ COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -o /out/hdms-api ./cmd/hdms-api && \
     CGO_ENABLED=0 go build -trimpath -o /out/hdms-cli ./cmd/hdms-cli
 
+# Worker (plan 2026-09-30): runs every scheduled job — backup, reminders,
+# reservation expiry, retention. Built on the same Postgres 18 image as the
+# database so pg_dump/pg_restore match the server's major version; restic and
+# rclone come from Alpine. Select with `target: worker`.
+FROM postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2 AS worker
+
+RUN apk add --no-cache ca-certificates restic rclone && \
+    addgroup -S hdms && adduser -S hdms -G hdms && \
+    mkdir -p /var/backups/hdms && chown hdms:hdms /var/backups/hdms
+
+COPY --from=builder /out/hdms-cli /usr/local/bin/hdms-cli
+
+USER hdms
+
+ENTRYPOINT ["/usr/local/bin/hdms-cli", "worker"]
+
 # Runtime: minimal Alpine, pinned by index digest, with root CAs so the
 # Entra OIDC discovery (HTTPS) and Postgres sslmode=verify-full both work.
 FROM alpine:3.22@sha256:87ba4a8b898045643099c4f2f8771dece62048755ecd2d6fc2ec4acdb95d2f2a

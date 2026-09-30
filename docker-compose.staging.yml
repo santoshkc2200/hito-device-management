@@ -25,6 +25,17 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hdms_staging}"]
 
+  worker:
+    env_file: !override
+      - ${HDMS_STAGING_ENV_FILE:-../../.env.staging}
+    environment:
+      HDMS_ENV: staging
+      HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms_staging}:${POSTGRES_PASSWORD:-hdms_staging_secret}@db:5432/${POSTGRES_DB:-hdms_staging}?sslmode=disable
+      TZ: ${TZ:-Asia/Tokyo}
+    volumes: !override
+      - hdms-staging-backups:/var/backups/hdms
+      - ${HDMS_BACKUP_NAS_HOST_PATH:-hdms-staging-nas-unset}:/mnt/nas
+
   api:
     env_file: !override
       - ${HDMS_STAGING_ENV_FILE:-../../.env.staging}
@@ -33,6 +44,7 @@ services:
       HDMS_RATE_LIMIT: "on"
       HDMS_HTTP_ADDR: ":8443"
       HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms_staging}:${POSTGRES_PASSWORD:-hdms_staging_secret}@db:5432/${POSTGRES_DB:-hdms_staging}?sslmode=disable
+      HDMS_MIGRATE_ON_START: "true"
       HDMS_TLS_CERT_FILE: /certs/localhost.pem
       HDMS_TLS_KEY_FILE: /certs/localhost-key.pem
     # Same production image, no source bind-mount — only the localhost
@@ -53,3 +65,5 @@ services:
 
 volumes:
   hdms-staging-db-data:
+  hdms-staging-backups:
+  hdms-staging-nas-unset:

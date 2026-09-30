@@ -13,7 +13,7 @@ The overdue scan detects open, non-disputed equipment loans that have passed the
 
 ## What runs automatically
 
-Every hour, a systemd timer runs the scan command on the host:
+Every hour, a systemd timer runs the scan command on the host. On the Docker stack this job runs inside the `worker` container on the same schedule; the systemd timer is for non-Docker installs:
 
 ```bash
 /opt/hdms/bin/hdms-cli overdue-scan
