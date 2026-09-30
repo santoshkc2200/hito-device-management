@@ -5,6 +5,10 @@ package integration
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +16,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hito-hospital/hdms/internal/platform/backup"
+	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/test/testdb"
 )
 
@@ -201,5 +206,174 @@ func TestWorkerHeartbeatAndRecentRuns(t *testing.T) {
 	last, err := backup.LastSuccessfulBackup(ctx, pool.Pool)
 	if err != nil || last == nil || !last.Equal(now) {
 		t.Fatalf("LastSuccessfulBackup = %v %v, want the first (only successful) backup", last, err)
+	}
+}
+
+func newExecutor(t *testing.T, pool *db.Pool, dsn string, roots []string) *backup.Executor {
+	t.Helper()
+	requireBinary(t, "pg_dump")
+	return &backup.Executor{
+		Pool:         pool,
+		DatabaseURL:  dsn,
+		BackupDir:    t.TempDir(),
+		AllowedRoots: roots,
+		Restic:       resticForTest(t),
+		Now:          time.Now,
+		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+}
+
+func TestDestinationCRUD(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	root := t.TempDir()
+
+	d, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
+		Name: "NAS", Target: filepath.Join(root, "hdms"), Enabled: true, RetentionVersions: 3,
+	}, []string{root}, "admin:a")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if d.Kind != "path" || d.Provider != "lan" {
+		t.Fatalf("created = %+v", d)
+	}
+	if _, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
+		Name: "Dup", Target: filepath.Join(root, "hdms"), Enabled: true, RetentionVersions: 2,
+	}, []string{root}, "admin:a"); !errors.Is(err, backup.ErrDestinationExists) {
+		t.Fatalf("duplicate err = %v, want ErrDestinationExists", err)
+	}
+	if _, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
+		Name: "Bad", Target: "/etc", Enabled: true, RetentionVersions: 2,
+	}, []string{root}, "admin:a"); err == nil {
+		t.Fatal("path outside allowed roots accepted")
+	}
+	if _, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
+		Name: "", Target: filepath.Join(root, "x"), Enabled: true, RetentionVersions: 0,
+	}, []string{root}, "admin:a"); !errors.Is(err, backup.ErrInvalidDestination) {
+		t.Fatalf("invalid input err = %v", err)
+	}
+
+	up, err := backup.UpdateDestination(ctx, pool, d.ID, backup.DestinationInput{Name: "NAS 2", Enabled: false, RetentionVersions: 5}, "admin:b")
+	if err != nil || up.Name != "NAS 2" || up.Enabled || up.RetentionVersions != 5 || up.Target != d.Target {
+		t.Fatalf("update = %+v %v", up, err)
+	}
+	if err := backup.DeleteDestination(ctx, pool, d.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := backup.GetDestination(ctx, pool, d.ID); !errors.Is(err, backup.ErrDestinationNotFound) {
+		t.Fatalf("get deleted err = %v", err)
+	}
+}
+
+func TestExecutorRunTestVerify(t *testing.T) {
+	pool, dsn := testdb.NewWithDSN(t)
+	ctx := context.Background()
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "nas"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e := newExecutor(t, pool, dsn, []string{root})
+
+	d, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
+		Name: "NAS", Target: filepath.Join(root, "nas"), Enabled: true, RetentionVersions: 2,
+	}, []string{root}, "admin:a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test before any backup: initialises both repositories.
+	req, _ := backup.EnqueueRequest(ctx, pool.Pool, backup.RequestTest, &d.ID, "admin:a")
+	if !e.ProcessNext(ctx) {
+		t.Fatal("ProcessNext found no request")
+	}
+	got, _ := backup.GetRequest(ctx, pool.Pool, req.ID)
+	if got.Outcome != "success" {
+		t.Fatalf("test outcome = %s detail=%s", got.Outcome, got.Detail)
+	}
+	d, _ = backup.GetDestination(ctx, pool, d.ID)
+	if d.InitializedAt == nil || d.LastOkAt == nil {
+		t.Fatalf("destination after test = %+v", d)
+	}
+
+	// Back up now.
+	req, _ = backup.EnqueueRequest(ctx, pool.Pool, backup.RequestRun, nil, "admin:a")
+	e.ProcessNext(ctx)
+	got, _ = backup.GetRequest(ctx, pool.Pool, req.ID)
+	if got.Outcome != "success" {
+		t.Fatalf("run outcome = %s detail=%s", got.Outcome, got.Detail)
+	}
+	local, _ := backup.ListSnapshots(ctx, pool.Pool, backup.LocalRepoKey)
+	remote, _ := backup.ListSnapshots(ctx, pool.Pool, backup.RepoKey(d.ID))
+	if len(local) != 1 || len(remote) != 1 || !local[0].TakenAt.Equal(remote[0].TakenAt) || local[0].SizeBytes != remote[0].SizeBytes {
+		t.Fatalf("cache local=%+v remote=%+v, want the same single snapshot", local, remote)
+	}
+
+	// Verify everything.
+	req, _ = backup.EnqueueRequest(ctx, pool.Pool, backup.RequestVerify, nil, "admin:a")
+	e.ProcessNext(ctx)
+	got, _ = backup.GetRequest(ctx, pool.Pool, req.ID)
+	if got.Outcome != "success" {
+		t.Fatalf("verify outcome = %s detail=%s", got.Outcome, got.Detail)
+	}
+	local, _ = backup.ListSnapshots(ctx, pool.Pool, backup.LocalRepoKey)
+	if local[0].VerifiedAt == nil {
+		t.Fatal("local snapshot not marked verified")
+	}
+	var verifyRows int
+	_ = pool.QueryRow(ctx, `SELECT count(*) FROM job_runs WHERE job = 'verify' AND outcome = 'success'`).Scan(&verifyRows)
+	if verifyRows != 1 {
+		t.Fatalf("verify job_runs rows = %d, want 1", verifyRows)
+	}
+
+	if e.ProcessNext(ctx) {
+		t.Fatal("ProcessNext ran with an empty queue")
+	}
+}
+
+func TestTestRequestForMissingDirectoryFails(t *testing.T) {
+	pool, dsn := testdb.NewWithDSN(t)
+	ctx := context.Background()
+	root := t.TempDir()
+	e := newExecutor(t, pool, dsn, []string{root})
+
+	// Syntactically fine (under the root), but never created: the API cannot
+	// know, the worker must say so.
+	d, err := backup.CreateDestination(ctx, pool, backup.DestinationInput{
+		Name: "Unmounted", Target: filepath.Join(root, "not-mounted"), Enabled: true, RetentionVersions: 2,
+	}, []string{root}, "admin:a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := backup.EnqueueRequest(ctx, pool.Pool, backup.RequestTest, &d.ID, "admin:a")
+	e.ProcessNext(ctx)
+	got, _ := backup.GetRequest(ctx, pool.Pool, req.ID)
+	if got.Outcome != "failure" {
+		t.Fatalf("outcome = %s, want failure", got.Outcome)
+	}
+	d, _ = backup.GetDestination(ctx, pool, d.ID)
+	if d.LastError == "" || d.LastOkAt != nil {
+		t.Fatalf("destination = %+v, want last_error set", d)
+	}
+}
+
+func TestTestRequestForDeletedDestinationFails(t *testing.T) {
+	pool, dsn := testdb.NewWithDSN(t)
+	ctx := context.Background()
+	root := t.TempDir()
+	e := newExecutor(t, pool, dsn, []string{root})
+
+	d, _ := backup.CreateDestination(ctx, pool, backup.DestinationInput{
+		Name: "Gone", Target: filepath.Join(root, "gone"), Enabled: true, RetentionVersions: 2,
+	}, []string{root}, "admin:a")
+	req, _ := backup.EnqueueRequest(ctx, pool.Pool, backup.RequestTest, &d.ID, "admin:a")
+	if err := backup.DeleteDestination(ctx, pool, d.ID); err != nil {
+		t.Fatal(err)
+	}
+	// The pending request went with its destination (ON DELETE CASCADE).
+	if _, err := backup.GetRequest(ctx, pool.Pool, req.ID); !errors.Is(err, backup.ErrRequestNotFound) {
+		t.Fatalf("request after destination delete: %v", err)
+	}
+	if e.ProcessNext(ctx) {
+		t.Fatal("processed a request whose destination was deleted")
 	}
 }
