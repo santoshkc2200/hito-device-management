@@ -3,7 +3,13 @@
 import * as z from 'zod';
 
 export const zHealthStatus = z.object({
-    status: z.enum(['ok'])
+    status: z.enum(['ok']),
+    environment: z.enum([
+        'development',
+        'test',
+        'staging',
+        'production'
+    ]).optional()
 });
 
 export const zProblem = z.object({

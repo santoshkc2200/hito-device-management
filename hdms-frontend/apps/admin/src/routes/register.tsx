@@ -24,10 +24,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TokenRevealDialog } from "@/components/token-reveal-dialog";
-import { isStagingEnvironment } from "@/lib/environment";
 import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { authenticatedRoute } from "./authenticated";
 import { useT } from "@/i18n";
+import { useEnvironment } from "@hdms/ui";
 
 const registerSchema = zCreateUserRequest.extend({
   employeeNo: z.string().min(1, "validation.employeeNoRequired"),
@@ -195,6 +195,7 @@ function ScanCardField({
 
 function RegisterBorrowerForm() {
   const t = useT();
+  const environment = useEnvironment();
   const queryClient = useQueryClient();
   const [cardMode, setCardMode] = useState<CardMode>("scan");
   const [resolvedCredentialId, setResolvedCredentialId] = useState<string | null>(null);
@@ -378,7 +379,7 @@ function RegisterBorrowerForm() {
         <p className="text-sm text-muted-foreground">{t("register.subtitle")}</p>
       </div>
 
-      {isStagingEnvironment() && (
+      {environment === "staging" && (
         <div
           data-testid="staging-register-warning"
           className="flex items-start gap-3 rounded-lg border-2 border-amber-500 bg-amber-500/15 p-4 text-amber-950 dark:text-amber-200 shadow-sm"

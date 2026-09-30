@@ -391,4 +391,8 @@ export const ja: KioskCatalogue = {
       detail: "バックグラウンドのリアルタイムイベントが一時的に利用できません。",
     },
   },
+  environment: {
+    development: "開発 — テスト用・本番ではありません",
+    staging: "ステージング — 検証用・本番ではありません",
+  },
 } as const;

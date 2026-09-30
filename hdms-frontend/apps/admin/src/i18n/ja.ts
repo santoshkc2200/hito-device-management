@@ -1759,9 +1759,12 @@ export const ja = {
     updatedAt: "最終更新日時: {date}",
   },
   staging: {
-    banner: "【ステージング環境】検証・訓練用です。実在の利用者を登録しないでください",
     registerWarningTitle: "【ステージング環境】実在の職員・利用者情報は絶対に登録しないでください",
     registerWarningDescription: "この環境は演習・リハーサル・負荷テスト用です。登録されたデータはリセットまたはテストで上書きされます。",
+  },
+  environment: {
+    development: "開発 — テスト用・本番ではありません",
+    staging: "ステージング — 検証用・本番ではありません",
   },
 };
 

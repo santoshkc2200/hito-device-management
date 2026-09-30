@@ -25,7 +25,6 @@ import { hasRoleAtLeast } from "@/lib/use-role";
 import { ReauthDialog } from "@/components/reauth-dialog";
 import { ForcedPasswordChangeDialog } from "@/components/forced-password-change-dialog";
 import { ForcedTotpDialog } from "@/components/forced-totp-dialog";
-import { isStagingEnvironment } from "@/lib/environment";
 import { useT } from "@/i18n";
 import { cn } from "@hdms/ui";
 
@@ -152,15 +151,6 @@ export function AppShell() {
         </div>
       </aside>
       <div className={cn("flex flex-col min-w-0")}>
-        {isStagingEnvironment() && (
-          <div
-            data-testid="staging-banner"
-            className="flex items-center justify-center gap-2 border-b border-amber-600 bg-amber-500 px-4 py-2 text-center text-xs font-bold tracking-wider text-black uppercase shadow-sm"
-          >
-            <ShieldAlert className="size-4 shrink-0" />
-            <span>{t("staging.banner")}</span>
-          </div>
-        )}
         <main className="flex-1 overflow-y-auto p-8">
           <Outlet />
         </main>

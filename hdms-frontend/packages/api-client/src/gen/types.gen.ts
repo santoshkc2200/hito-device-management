@@ -6,6 +6,11 @@ export type ClientOptions = {
 
 export type HealthStatus = {
     status: 'ok';
+    /**
+     * Deployment environment (HDMS_ENV). Clients show a non-production banner for anything other than production; an absent value is treated as production.
+     *
+     */
+    environment?: 'development' | 'test' | 'staging' | 'production';
 };
 
 export type Problem = {
