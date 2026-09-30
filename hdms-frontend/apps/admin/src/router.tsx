@@ -3,6 +3,7 @@ import { queryClient } from "@/lib/query-client";
 import { auditRoute } from "./routes/audit";
 import { authenticatedRoute } from "./routes/authenticated";
 import { backfillRoute } from "./routes/backfill";
+import { backupsRoute } from "./routes/backups";
 import { cardReaderTestRoute } from "./routes/card-reader-test";
 import { credentialsRoute } from "./routes/credentials";
 import { dashboardRoute } from "./routes/dashboard";
@@ -42,6 +43,7 @@ const routeTree = rootRoute.addChildren([
     auditRoute,
     notificationsRoute,
     settingsRoute,
+    backupsRoute,
     credentialsRoute,
     labelsRoute,
     cardReaderTestRoute,
