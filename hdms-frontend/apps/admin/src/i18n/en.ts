@@ -176,6 +176,9 @@ export const en: AdminMessages = {
   },
   users: {
     title: "Users",
+    itemLabel: "user",
+    selectUserAria: "Select user {fullName}",
+    printCardsWithCount: "Print cards ({count})",
     importCsv: "Import CSV",
     newUser: "New user",
     searchPlaceholder: "Search name, employee no.\u2026",
@@ -1119,6 +1122,16 @@ export const en: AdminMessages = {
     readyOther: "{count} labels ready.",
     skippedOne: "{count} skipped — no active credential.",
     skippedOther: "{count} skipped — no active credential.",
+    printSheet: "Print sheet",
+  },
+  userCardSheetDialog: {
+    title: "Print staff cards",
+    loading: "Loading each user's existing card\u2026",
+    loadFailed: "Couldn't load the cards. Close and try again.",
+    readyOne: "{count} card ready.",
+    readyOther: "{count} cards ready.",
+    skippedOne: "{count} skipped \u2014 no printable active card.",
+    skippedOther: "{count} skipped \u2014 no printable active card.",
     printSheet: "Print sheet",
   },
   forcedPasswordChangeDialog: {
