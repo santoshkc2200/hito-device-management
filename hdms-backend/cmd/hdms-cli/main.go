@@ -18,6 +18,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/hito-hospital/hdms/internal/cliimport"
 	"github.com/hito-hospital/hdms/internal/modules/audit"
@@ -91,7 +92,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|backup|snapshots|verify|restore|reconcile|retention|overdue-scan|weekly-digest|directory-sync|reservation-expiry|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|worker|backup|snapshots|verify|restore|reconcile|retention|overdue-scan|weekly-digest|directory-sync|reservation-expiry|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -131,6 +132,8 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 		return runDirectorySync(ctx, cfg, args)
 	case "reservation-expiry":
 		return runReservationExpiry(ctx, cfg, args)
+	case "worker":
+		return runWorker(ctx, cfg, args)
 	case "admin":
 		return runAdmin(ctx, cfg, args, cat)
 	case "import":
