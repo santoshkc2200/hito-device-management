@@ -20,7 +20,9 @@ and the connected role still holds `UPDATE` on `audit_events`.
 
 ## One-time setup on a new production database
 
-The migration creates `hdms_app` as `NOLOGIN`: a migration must not carry a
+For Docker installs, no manual setup is required: the `worker` container automatically provisions the `hdms_app` login and applies the password from `HDMS_APP_DB_PASSWORD` at every start before launching the API.
+
+For non-Docker installs, the migration creates `hdms_app` as `NOLOGIN`: a migration must not carry a
 password. Grant it login rights once, with a password taken from the hospital's
 secret store:
 
@@ -31,7 +33,7 @@ ALTER ROLE hdms_app WITH LOGIN PASSWORD '<from the vault>';
 Then point the application's `HDMS_DATABASE_URL` at that role:
 
 ```
-postgres://hdms_app:<password>@<prod-db>:5432/hdms_prod?sslmode=verify-full
+postgres://hdms_app:<password>@<prod-db>:5432/hdms_prod?sslmode=disable
 ```
 
 Migrations keep using the owner's connection string, which is held separately and
@@ -53,6 +55,15 @@ still points at the owner.
 
 ## Rotating the hdms_app password
 
+On Docker installs:
+1. In `/etc/hdms/hdms.env`, update the password in both `HDMS_APP_DB_PASSWORD` and `HDMS_DATABASE_URL`.
+2. Apply the change:
+   ```bash
+   sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env up -d
+   ```
+   The `worker` container starts first, applies the new password to `hdms_app` via `ALTER ROLE`, and the `api` container reconnects with the new credentials.
+
+On non-Docker installs:
 1. `ALTER ROLE hdms_app WITH PASSWORD '<new password from the vault>';`
 2. Update `HDMS_DATABASE_URL` in the secret store.
 3. Restart the API. The startup privilege check runs again on the new connection.

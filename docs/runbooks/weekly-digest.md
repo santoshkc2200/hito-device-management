@@ -14,7 +14,7 @@ The weekly digest compiles an overview of currently overdue equipment and delive
 
 ## What runs automatically
 
-Every Monday at 08:00, a systemd timer runs the digest command:
+Every Monday at 08:00, a systemd timer runs the digest command. On the Docker stack this job runs inside the `worker` container on the same schedule; the systemd timer is for non-Docker installs:
 
 ```bash
 /opt/hdms/bin/hdms-cli weekly-digest

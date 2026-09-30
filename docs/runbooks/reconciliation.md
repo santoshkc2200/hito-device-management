@@ -117,6 +117,8 @@ stories about the same device.
 
 ## Timer
 
+On the Docker stack this job runs inside the `worker` container on the same schedule; the systemd timer is for non-Docker installs:
+
 ```bash
 systemctl enable --now hdms-reconcile.timer
 systemctl list-timers hdms-reconcile.timer

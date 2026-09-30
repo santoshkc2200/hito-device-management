@@ -95,6 +95,12 @@ Cloud storage destinations route through `rclone`. HDMS stores no cloud credenti
 
 Running backups manually is completely safe. Multiple concurrent invocations are serialized by `.backup.lock`:
 
+On Docker installs:
+```bash
+sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env exec worker hdms-cli backup
+```
+
+On host/non-Docker installs:
 ```bash
 sudo -u hdms /opt/hdms/bin/hdms-cli backup
 ```
@@ -191,7 +197,9 @@ Starting from the deployment of this engine:
 
 ## Timer
 
-The scheduled backup runs under systemd:
+On Docker installs, the backup runs automatically inside the `worker` container daily at 02:00 local time (`TZ`).
+
+For non-Docker installs, the scheduled backup runs under systemd:
 
 ```bash
 systemctl enable --now hdms-backup.timer

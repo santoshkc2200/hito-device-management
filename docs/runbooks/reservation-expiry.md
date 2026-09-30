@@ -14,7 +14,7 @@ The reservation expiry job identifies uncollected reservations where the reserve
 
 ## What runs automatically
 
-Every 5 minutes, a systemd timer runs the expiry command on the host:
+Every 5 minutes, a systemd timer runs the expiry command on the host. On the Docker stack this job runs inside the `worker` container on the same schedule; the systemd timer is for non-Docker installs:
 
 ```bash
 /opt/hdms/bin/hdms-cli reservation-expiry

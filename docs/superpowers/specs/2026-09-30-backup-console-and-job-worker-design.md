@@ -32,7 +32,7 @@ restore into the admin console.
 
 | Question | Decision |
 |---|---|
-| Where jobs execute | A fourth compose service, `backup-worker`, running `hdms-cli worker`. It reaches `db:5432` on the compose network; no database port is published and nothing is installed on the host |
+| Where jobs execute | A fourth compose service, `worker`, running `hdms-cli worker`. It reaches `db:5432` on the compose network; no database port is published and nothing is installed on the host |
 | Which jobs | All of them: backup (per the configurable schedule), backup verify (daily), and the seven jobs that were systemd timers, at their current cadences |
 | How the console triggers work | The API enqueues a `backup_requests` row; the worker claims it within a minute; the console polls. The API never touches a destination |
 | Restore semantics | Replace live data, with a safety net: automatic pre-restore backup, restore into a separate database, validate, maintenance mode, swap by rename, catch-up migrate, keep the old database for one-click rollback |
@@ -47,7 +47,7 @@ restore into the admin console.
  browser ──► caddy ──► api (hdms_app role)
                          │  writes backup_requests, reads status tables
                          ▼
-                        db  ◄──── backup-worker (owner role for backup/restore,
+                        db  ◄──── worker (owner role for backup/restore,
                          ▲         hdms_app role for the other jobs)
                          │           │ restic ─► /var/backups/hdms (volume)
                          │           │        ─► /mnt/nas (optional bind mount)
@@ -93,7 +93,7 @@ past the most recent scheduled instant and the newest `job_runs` row for that jo
 started before it. A missed window catches up once, not once per missed window.
 Every job already writes `job_runs`; that is the only state the scheduler needs.
 
-`directory-sync` stays inert when Entra is not configured, as today.
+`directory-sync` is registered only when `HDMS_LDAP_URL` is set.
 
 ## Data model
 
@@ -308,7 +308,7 @@ Table v8 loops silently otherwise), and every string is in `i18n/en.ts` and
 - `hdms-backend/Dockerfile` gains a `worker` target: the runtime image plus
   `postgresql18-client`, `restic` and `rclone` at pinned versions, entrypoint
   `hdms-cli worker`.
-- `deploy/production/compose.yaml` adds `backup-worker` (restart unless-stopped,
+- `deploy/production/compose.yaml` adds `worker` (restart unless-stopped,
   healthcheck on the heartbeat, resource limits, `depends_on: db healthy`), a
   named volume at `/var/backups/hdms`, a tmpfs for the rendered rclone config, and
   an optional bind mount `${HDMS_BACKUP_NAS_HOST_PATH}` → `/mnt/nas`.
@@ -323,6 +323,7 @@ Table v8 loops silently otherwise), and every string is in `i18n/en.ts` and
   from `HDMS_APP_DB_PASSWORD`. That replaces the manual SQL step in
   `production-database-roles.md`. The API's existing startup check that it is not
   connected as owner still applies.
+- The worker, not the API, runs migrations in production (`HDMS_MIGRATE_ON_START=false` on the API): the API's `hdms_app` role cannot run DDL.
 - `deploy/systemd/*` stay for non-Docker installs; runbooks state that Docker
   installs do not use them.
 
