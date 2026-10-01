@@ -75,6 +75,18 @@ Taskfile targets match the repository convention:
 | `task staging:down` | Stops the staging stack containers and networks. |
 | `task staging:seed` | Runs migrations and seeds the synthetic pilot-scale dataset (~800 staff, ~500 devices, 5 000 loans). |
 
+### LAN test host on a Windows PC
+
+To run staging on a Windows PC so testers on the same network can reach it, clone the repository, start Docker Desktop, and from an administrator PowerShell window at the repository root run:
+
+```powershell
+task staging:lan -- -Seed -AdminEmail admin@staging.test
+# without Task installed:
+powershell -ExecutionPolicy Bypass -File deploy\staging-lan.ps1 -Seed -AdminEmail admin@staging.test
+```
+
+`deploy/staging-lan.ps1` installs mkcert if missing, creates `.env.staging` with fresh secrets, issues a certificate covering the PC's LAN IP and hostname, opens TCP 9443 in Windows Firewall (Private/Domain networks), starts the stack, and prints the tester URLs. Testers must trust `certs\hdms-staging-rootCA.crt` once per device. Re-running it is safe; drop `-Seed` and `-AdminEmail` after the first run.
+
 ---
 
 ## 5. Pilot-Scale Synthetic Data Seeding

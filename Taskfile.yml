@@ -59,6 +59,12 @@ tasks:
     cmds:
       - docker compose -f deploy/production/compose.yaml -f docker-compose.staging.yml --env-file .env.staging up -d --build
 
+  staging:lan:
+    desc: "Windows only: set up staging reachable from the LAN (run in an administrator shell). Options after --, e.g. task staging:lan -- -Seed -AdminEmail admin@staging.test"
+    platforms: [windows]
+    cmds:
+      - powershell -NoProfile -ExecutionPolicy Bypass -File deploy/staging-lan.ps1 {{.CLI_ARGS}}
+
   staging:down:
     desc: Stop the staging Docker Compose stack.
     cmds:

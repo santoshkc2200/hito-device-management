@@ -13,7 +13,10 @@
 	auto_https off
 }
 
-https://localhost:9443 {
+# Site address is the bare port, not localhost:9443, so testers on the LAN can
+# reach staging by the host's IP or hostname (deploy/staging-lan.ps1 issues a
+# certificate that covers those names).
+:9443 {
 	tls /certs/localhost.pem /certs/localhost-key.pem
 
 	log {
