@@ -215,6 +215,8 @@ func run() error {
 		httpx.WithSecurityHeaders(),
 		httpx.WithLogging(logger),
 		httpx.WithRecovery(logger),
+		// Before auth: during a restore no session lookup reaches the database.
+		apiserver.MaintenanceGate(pool, time.Now),
 		httpx.WithCORS(cfg.CORSAllowedOrigins),
 		staffAuthSvc.Middleware,
 		authSvc.Middleware,
