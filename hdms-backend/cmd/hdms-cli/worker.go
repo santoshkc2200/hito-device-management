@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -18,7 +19,17 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/jobs"
+	"github.com/hito-hospital/hdms/internal/platform/recovery"
 )
+
+// workerMux serves the API-only /internal routes and the public recovery
+// API on one listener. caddy routes /recovery/api/* here and never /internal.
+func workerMux(internal, recoveryAPI http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/internal/", internal)
+	mux.Handle("/recovery/api/", recoveryAPI)
+	return mux
+}
 
 const workerTick = time.Minute
 
@@ -202,27 +213,11 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 		return err
 	}
 
-	// The internal listener starts before the database is touched: it needs
-	// only the filesystem, and later plans serve recovery from it while the
-	// database is broken.
-	locator := &backup.Locator{BackupDir: cfg.BackupDir, AllowedRoots: cfg.BackupAllowedRoots}
-	ln, err := net.Listen("tcp", cfg.WorkerHTTPAddr)
-	if err != nil {
-		return fmt.Errorf("worker: listen on %s: %w", cfg.WorkerHTTPAddr, err)
-	}
-	internal := &http.Server{Handler: locator.InternalHandler(), ReadHeaderTimeout: 5 * time.Second}
-	go func() {
-		if err := internal.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("worker: internal listener", "error", err)
-		}
-	}()
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = internal.Shutdown(shutdownCtx)
-	}()
-
 	ownerURL := cfg.WorkerDatabaseURL()
+	liveDB, err := recovery.DatabaseName(ownerURL)
+	if err != nil {
+		return fmt.Errorf("worker: %w", err)
+	}
 	start := &startup{
 		Every:  dbRetry,
 		Kick:   make(chan struct{}, 1),
@@ -231,6 +226,49 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 			return connectWorkerDB(ctx, cfg, ownerURL)
 		},
 	}
+	ops := &recovery.PGOps{LiveURL: ownerURL, BackupDir: cfg.BackupDir, Restic: r, Migrate: db.Migrate}
+	engine := &recovery.Engine{
+		StatePath: filepath.Join(cfg.BackupDir, recovery.StateFile), LiveDB: liveDB, Ops: ops,
+		Now: time.Now, Logger: slog.Default(),
+		Settle: 3 * time.Second, RetryDelay: time.Second,
+		Finished: start.kick, Base: ctx,
+	}
+	start.Prepare, start.Blocked = engine.Resume, engine.Active
+	recoveryAPI := &recovery.Handler{
+		Engine: engine,
+		Status: ops.LiveState,
+		Worker: start.mode,
+		Sources: func(ctx context.Context) []recovery.Source {
+			return recovery.DiscoverSources(ctx, cfg.BackupDir, cfg.BackupAllowedRoots, ops.Destinations)
+		},
+		Snapshots: func(ctx context.Context, s recovery.Source) ([]backup.Snapshot, error) {
+			return r.Snapshots(ctx, s.Repo())
+		},
+		Secrets: backup.NewRecoverySecrets(cfg.BackupEncKey, cfg.TokenPepper, cfg.CredentialEncKey, cfg.TOTPSecretEncKey),
+		Limiter: &recovery.Limiter{PerIP: 5, Total: 20, Now: time.Now},
+		Now:     time.Now,
+		Logger:  slog.Default(),
+	}
+
+	// The listener starts before the database is touched: it needs only the
+	// filesystem, and it serves the recovery page whatever state the
+	// database is in.
+	locator := &backup.Locator{BackupDir: cfg.BackupDir, AllowedRoots: cfg.BackupAllowedRoots}
+	ln, err := net.Listen("tcp", cfg.WorkerHTTPAddr)
+	if err != nil {
+		return fmt.Errorf("worker: listen on %s: %w", cfg.WorkerHTTPAddr, err)
+	}
+	listener := &http.Server{Handler: workerMux(locator.InternalHandler(), recoveryAPI.Routes()), ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		if err := listener.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("worker: listener", "error", err)
+		}
+	}()
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = listener.Shutdown(shutdownCtx)
+	}()
 	pool, err := start.run(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -288,6 +326,7 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 	w := &jobs.Worker{
 		Jobs:    js,
 		Pending: exec.ProcessNext,
+		Paused:  engine.Active,
 		LastStarted: func(ctx context.Context, names []string) (map[string]time.Time, error) {
 			return jobs.LastStarted(ctx, pool.Pool, names)
 		},

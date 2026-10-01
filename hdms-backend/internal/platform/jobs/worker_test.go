@@ -217,3 +217,25 @@ func TestPendingRequestRunsBeforeScheduledJobs(t *testing.T) {
 		t.Fatalf("calls = %v", calls)
 	}
 }
+
+func TestTickDoesNothingWhilePaused(t *testing.T) {
+	runs := &fakeRuns{last: map[string]time.Time{}}
+	var calls []string
+	now := wed(9, 0)
+	paused := true
+	pending := 0
+	w := &jobs.Worker{
+		Jobs:        []jobs.Job{recordingJob("backup", jobs.DailyAt{Hour: 2, Loc: tokyo}, runs, &calls, &now)},
+		Pending:     func(context.Context) bool { pending++; return false },
+		LastStarted: runs.lastStarted,
+		Paused:      func() bool { return paused },
+		Logger:      quietLogger(),
+	}
+	if got := w.Tick(context.Background(), now); got != "" || len(calls) != 0 || pending != 0 {
+		t.Fatalf("paused tick ran %q (calls %v, pending %d)", got, calls, pending)
+	}
+	paused = false
+	if got := w.Tick(context.Background(), now); got != "backup" {
+		t.Fatalf("unpaused tick ran %q, want backup", got)
+	}
+}

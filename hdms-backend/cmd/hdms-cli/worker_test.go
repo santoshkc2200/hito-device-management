@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -14,6 +18,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/config"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/jobs"
+	"github.com/hito-hospital/hdms/internal/platform/recovery"
 )
 
 func testDeps(loc *time.Location) workerDeps {
@@ -202,5 +207,75 @@ func TestStartupStopsWithTheContext(t *testing.T) {
 	}()
 	if _, err := s.run(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("run = %v, want context.Canceled", err)
+	}
+}
+
+// The spec's guarantee: with migrations failing, the recovery status route
+// answers and says so.
+func TestRecoveryStatusAnswersWhileTheDatabaseIsUnavailable(t *testing.T) {
+	discard := slog.New(slog.NewTextHandler(io.Discard, nil))
+	start := quietStartup(func(context.Context) (*db.Pool, error) {
+		return nil, errors.New("db: migrate: up: relation \"devices\" does not exist")
+	})
+	start.Every = time.Hour
+	engine := &recovery.Engine{
+		StatePath: filepath.Join(t.TempDir(), recovery.StateFile), LiveDB: "hdms",
+		Now: time.Now, Logger: discard, Base: context.Background(),
+	}
+	api := &recovery.Handler{
+		Engine:  engine,
+		Status:  func(context.Context) recovery.LiveState { return recovery.LiveDamaged },
+		Worker:  start.mode,
+		Sources: func(context.Context) []recovery.Source { return nil },
+		Limiter: &recovery.Limiter{PerIP: 5, Total: 20, Now: time.Now},
+		Now:     time.Now, Logger: discard,
+	}
+	srv := httptest.NewServer(workerMux(http.NotFoundHandler(), api.Routes()))
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _, _ = start.run(ctx) }()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		resp, err := http.Get(srv.URL + "/recovery/api/status")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var body struct{ Database, Worker string }
+		_ = json.NewDecoder(resp.Body).Decode(&body)
+		_ = resp.Body.Close()
+		if body.Worker == modeDatabaseUnavailable {
+			if body.Database != "damaged" {
+				t.Fatalf("database = %q, want damaged", body.Database)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("worker mode never became %q (last %+v)", modeDatabaseUnavailable, body)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestWorkerMuxKeepsInternalAndRecoveryApart(t *testing.T) {
+	internal := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
+	rec := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) })
+	srv := httptest.NewServer(workerMux(internal, rec))
+	defer srv.Close()
+	for path, want := range map[string]int{
+		"/internal/locations":  http.StatusTeapot,
+		"/recovery/api/status": http.StatusAccepted,
+		"/recovery/index.html": http.StatusNotFound,
+		"/v1/healthz":          http.StatusNotFound,
+	} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Errorf("%s = %d, want %d", path, resp.StatusCode, want)
+		}
 	}
 }
