@@ -272,7 +272,7 @@ create the first administrator, then print the recovery key in the console".
    path contains an HDMS repository.
 2. Reads the recovery key without echo and passes it on **stdin** — never argv —
    to the worker image:
-   `docker run --rm -i --network none -v <path>:/restore-src:ro <worker image> hdms-cli recovery unwrap --repo /restore-src`.
+   `docker run --rm -i --network none -v <folder>:/restore-src:ro --entrypoint hdms-cli hdms-install-worker recovery unwrap --from /restore-src`, where `<folder>` is the backup folder found under the path (the one holding `repo` and `hdms-recovery.bin`).
    The command prints the four secrets in env-file format. A bad key or path
    prints a plain error and re-prompts.
 3. Writes the env file with those four secrets, freshly generated database
@@ -284,6 +284,27 @@ create the first administrator, then print the recovery key in the console".
 
 It refuses to run when `/etc/hdms/hdms.env` exists unless `--force` is given.
 TLS certificate placement and host naming stay manual runbook steps.
+
+Settled while planning (plan 4):
+
+- The script builds the worker image itself (`docker build --target worker`,
+  tagged `hdms-install-worker`, removed afterwards): `docker compose build`
+  needs the env file the script has not written yet.
+- It searches the given path two folders down for `repo/config` beside
+  `hdms-recovery.bin`, skipping dot-folders, as the recovery page does under
+  `/mnt/nas`; `HDMS_BACKUP_NAS_HOST_PATH` is the path IT typed.
+- Before asking for the key it checks, as the worker's user (uid 100), that
+  the folder can be read and `repo/locks` written; otherwise it offers
+  `chown -R` and stops if that is declined or refused.
+- It refuses when the `hdms-production_hdms-prod-db-data` volume exists, even
+  with `--force` (Postgres keeps its first password); `--force` keeps the old
+  env file as `hdms.env.replaced-<timestamp>`.
+- It also asks for the host name (`HDMS_SITE_ADDR`) and refuses to run without
+  the certificate files; values are written single-quoted; it stops after five
+  wrong keys; it waits up to 3 minutes for HDMS and shows the logs if it does
+  not answer.
+- Tests use a stub `docker` plus the real `docker compose config`;
+  Docker-in-Docker is used once for the full drill, not in CI.
 
 `hdms-cli recovery unwrap` is a new subcommand: reads the key from stdin, opens
 `<repo>/hdms-recovery.bin`, prints the secrets. It needs no database.

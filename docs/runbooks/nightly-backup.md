@@ -224,7 +224,9 @@ offers folders on a drive mounted into the worker at `/mnt/nas`. Until IT
 connects one, the wizard shows the drive as **Not connected** and points here.
 
 1. Mount the share on the host (NFS or SMB), for example at `/srv/hdms-nas`,
-   and add it to `/etc/fstab` so it is mounted again after a reboot.
+   and add it to `/etc/fstab` so it is mounted again after a reboot. The
+   worker writes as user ID 100, so the share must give that user read and
+   write access.
 2. Set `HDMS_BACKUP_NAS_HOST_PATH=/srv/hdms-nas` in `/etc/hdms/hdms.env`.
 3. Recreate the worker so it picks up the mount:
    `sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env up -d worker`

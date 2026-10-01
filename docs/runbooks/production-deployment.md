@@ -10,7 +10,7 @@ HDMS runs on a single Linux server on the hospital LAN. It operates four Docker 
 - **`db`** (`postgres:18-alpine`): PostgreSQL database storing operational and audit records. Database ports are not published to the host or LAN.
 - **`worker`**: Background job daemon running `hdms-cli worker`. It runs database migrations as the database owner at startup, provisions the restricted runtime role, and executes all scheduled jobs (nightly backups, overdue scans, reservation expiries, etc.).
 - **`api`** (`hdms-api`): REST API backend connecting to the database as the restricted `hdms_app` role.
-- **`caddy`**: Reverse proxy handling TLS termination and serving frontend static web applications (kiosk, admin console, staff portal).
+- **`caddy`**: Reverse proxy handling TLS termination and serving frontend static web applications (kiosk, admin console, staff portal, recovery page).
 
 Hospital staff and administrators access the system in their web browser at:
 ```
@@ -101,77 +101,60 @@ cd /opt/hdms
 
 ---
 
-## 6. Secrets configuration
+## 6. Install and start
 
-1. Create the secure configuration directory and copy the template:
-   ```bash
-   sudo mkdir -p /etc/hdms
-   sudo cp /opt/hdms/deploy/production/production.env.example /etc/hdms/hdms.env
-   sudo chmod 600 /etc/hdms/hdms.env
-   ```
+Run the installer from the checkout:
 
-2. Generate strong secrets using `openssl`:
-   ```bash
-   # 1. Database master password (32 alphanumeric chars):
-   openssl rand -hex 16
+```bash
+cd /opt/hdms
+sudo deploy/production/install.sh
+```
 
-   # 2. Database app password (32 alphanumeric chars):
-   openssl rand -hex 16
+It checks for Docker and for the certificate from step 4, generates every
+secret, and asks for:
 
-   # 3. Token pepper (64 hex chars / 32 bytes):
-   openssl rand -hex 32
+- the host name staff use (default `hdms.hospital.local`),
+- the time zone for scheduled jobs (for example `Asia/Tokyo`),
+- the hospital mail relay: host, port (25, 465 or 587), user name and password
+  if the relay needs them, sender address and reply-to address. Production
+  refuses to start with the development defaults; overdue reminders and the
+  weekly digest go through this relay.
 
-   # 4. Credential encryption key (32 bytes base64):
-   openssl rand -base64 32
+It writes `/etc/hdms/hdms.env` (mode `0600`, root only), starts the four
+containers and waits until HDMS answers; if it does not, it shows the recent
+logs. It refuses to run when `/etc/hdms/hdms.env` already exists; `--force`
+replaces the file and keeps the old one beside it as
+`hdms.env.replaced-<date and time>`.
 
-   # 5. TOTP encryption key (32 bytes base64):
-   openssl rand -base64 32
-
-   # 6. Backup encryption key (32 bytes base64):
-   openssl rand -base64 32
-   ```
-
-3. Edit `/etc/hdms/hdms.env` with `sudo nano /etc/hdms/hdms.env` and fill in the values:
-   - Set `POSTGRES_USER=hdms_prod`
-   - Set `POSTGRES_PASSWORD=<master password from above>`
-   - Set `HDMS_APP_DB_PASSWORD=<app password from above>`
-   - Set `HDMS_DATABASE_URL=postgres://hdms_app:<app password from above>@db:5432/hdms_prod?sslmode=disable`
-   - Set `HDMS_OWNER_DATABASE_URL=postgres://hdms_prod:<master password from above>@db:5432/hdms_prod?sslmode=disable`
-   - Set `TZ=Asia/Tokyo` (or your local hospital timezone)
-   - Set `HDMS_TOKEN_PEPPER=<token pepper>`
-   - Set `HDMS_CREDENTIAL_ENC_KEY=<credential key>`
-   - Set `HDMS_TOTP_ENC_KEY=<totp key>`
-   - Set `HDMS_BACKUP_ENC_KEY=<backup key>`
-   - Set the `HDMS_SMTP_*` values to the hospital mail relay (host, port 25/465/587, sender address). They are required: production refuses to start with the development defaults, and overdue reminders and the weekly digest are sent through this relay.
+To rebuild a lost server from its backups, run `install.sh --restore` instead:
+see [disaster-recovery.md](disaster-recovery.md), section B.
 
 > **CRITICAL SECURITY WARNING — PASSWORD MANAGER BACKUP:**
-> Store all generated keys in the hospital password manager immediately:
-> - **`HDMS_TOKEN_PEPPER`**: If lost, all issued staff QR badges, session tokens, and kiosk credentials become permanently invalid and must be re-issued manually.
-> - **`HDMS_BACKUP_ENC_KEY`**: If lost, **every backup snapshot is mathematically impossible to decrypt or restore**.
+> Copy these four values from `/etc/hdms/hdms.env` into the hospital password
+> manager now. The recovery key (step 8) also unlocks them; the password
+> manager is the fallback if the recovery sheet is lost.
+> - **`HDMS_BACKUP_ENC_KEY`**: if lost, **no backup can ever be decrypted or restored**.
+> - **`HDMS_TOKEN_PEPPER`**: if lost, every staff QR badge, session token and kiosk credential becomes invalid and must be re-issued.
+> - **`HDMS_CREDENTIAL_ENC_KEY`** and **`HDMS_TOTP_ENC_KEY`**: if lost, stored integration secrets and every administrator's TOTP enrolment cannot be read.
 
 ---
 
-## 7. Start the services
+## 7. Check the installation
 
-Start the Docker Compose stack:
-```bash
-cd /opt/hdms
-sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env up -d --build
-```
-
-Verify that all four containers are running and report `healthy`:
+Verify that all four containers are running and report `healthy` (the worker
+can take two minutes):
 ```bash
 sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env ps
 ```
 
 Run the post-deployment smoke test:
 ```bash
-sh deploy/production/smoke.sh
+HDMS_BASE_URL=https://hdms.hospital.local sh deploy/production/smoke.sh
 ```
 
 ---
 
-## 8. Create the first administrator
+## 8. Create the first administrator and the recovery key
 
 Bootstrap the initial system administrator account:
 ```bash
@@ -182,7 +165,17 @@ The command outputs:
 - The administrator ID
 - An `otpauth://` URL and a raw base32 TOTP secret
 
-Scan the QR code into your authenticator app (e.g. Google Authenticator, 1Password) immediately. Navigate to `https://hdms.hospital.local/admin/`, sign in with the temporary password prompted during bootstrap, and verify TOTP login.
+Scan the QR code into your authenticator app (e.g. Google Authenticator, 1Password) immediately. Navigate to `https://hdms.hospital.local/admin/`, sign in with the password prompted during bootstrap, and verify TOTP login.
+
+Then create the recovery key. It lets the administrator restore HDMS from a
+browser if the database breaks, and lets IT rebuild a lost server:
+
+1. In the admin console open **Backups** and choose **Create recovery key**.
+   Enter your password and a TOTP code.
+2. Print the sheet that appears. The key is shown only once.
+3. Type the last group of the key to confirm it was printed.
+4. Store the sheet away from the server room, with a named custodian. Until
+   step 3 is done the dashboard shows "No recovery key printed yet".
 
 ---
 
@@ -232,6 +225,7 @@ To replicate backups to a hospital network share (NFS or SMB/CIFS):
    # nas.hospital.local:/volume1/hdms-backups /mnt/hospital-nas/hdms nfs defaults 0 0
    sudo mount /mnt/hospital-nas/hdms
    ```
+   The worker writes as user ID 100, so the share must give that user read and write access.
 2. In `/etc/hdms/hdms.env`, uncomment and set:
    ```bash
    HDMS_BACKUP_NAS_HOST_PATH=/mnt/hospital-nas/hdms
@@ -266,3 +260,10 @@ To upgrade to a new version:
    sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env ps
    sh deploy/production/smoke.sh
    ```
+
+---
+
+## 13. Disaster recovery
+
+If HDMS stops working, the database server will not start, or the server is
+lost, follow [disaster-recovery.md](disaster-recovery.md).
