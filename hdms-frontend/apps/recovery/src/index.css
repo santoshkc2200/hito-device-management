@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@import "@hdms/ui/tokens.css";
+
+body {
+  @apply bg-background text-foreground;
+}
+
+:root:lang(ja) {
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+:root:lang(en) {
+  overflow-wrap: break-word;
+}
