@@ -28,3 +28,32 @@ func ProvisionAppRole(ctx context.Context, q DBTX, password string) error {
 	}
 	return nil
 }
+
+// GrantAppPrivileges gives hdms_app the privileges migration 0019 grants. A
+// restore needs it: pg_restore runs with --no-privileges, so a restored
+// database otherwise grants hdms_app nothing and the production API, which
+// connects as hdms_app, can read no table. Keep in step with 0019.
+func GrantAppPrivileges(ctx context.Context, q DBTX) error {
+	for _, stmt := range []string{
+		`DO $$
+		BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hdms_app') THEN
+				CREATE ROLE hdms_app NOLOGIN;
+			END IF;
+		END
+		$$`,
+		`GRANT USAGE ON SCHEMA public TO hdms_app`,
+		`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hdms_app`,
+		`REVOKE ALL ON TABLE audit_events FROM PUBLIC`,
+		`REVOKE UPDATE, DELETE, TRUNCATE ON TABLE audit_events FROM hdms_app`,
+		`GRANT SELECT, INSERT ON TABLE audit_events TO hdms_app`,
+		`GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO hdms_app`,
+		`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hdms_app`,
+		`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO hdms_app`,
+	} {
+		if _, err := q.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("db: grant hdms_app privileges: %w", err)
+		}
+	}
+	return nil
+}
