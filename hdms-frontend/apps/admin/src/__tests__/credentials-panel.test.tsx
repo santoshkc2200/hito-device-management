@@ -451,59 +451,6 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     expect(screen.queryByRole("button", { name: /issue/i })).not.toBeInTheDocument();
   });
 
-  it("adds an employee ID barcode as a manual credential and offers no QR or reissue for it", async () => {
-    const manual: apiClient.Credential = {
-      id: "cred-m",
-      subjectType: "user",
-      subjectId: "user-1",
-      kind: "manual",
-      tokenPreview: "4217",
-      status: "active",
-      issueSeq: 1,
-      issuedAt: "2026-08-10T10:00:00Z",
-      issuedBy: "admin:admin-1",
-      printedCount: 0,
-    };
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: [manual] },
-      error: undefined,
-    } as any);
-    vi.mocked(apiClient.issueCredential).mockResolvedValue({
-      data: { ...manual, token: "E-004217" },
-      error: undefined,
-      response: { status: 201 },
-    } as any);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{ type: "user", fullName: "Dr. Taro Yamada", employeeNo: "HH-1001" }}
-        />
-      </QueryClientProvider>
-    );
-
-    await screen.findByText("…4217");
-    expect(screen.queryByRole("button", { name: ja.credentialsPanel.viewQr })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: ja.credentialsPanel.reportLost })).not.toBeInTheDocument();
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: ja.credentialsPanel.employeeBarcodeAdd }));
-    await user.type(await screen.findByLabelText(ja.credentialsPanel.employeeBarcodeField), "E-004217{Enter}");
-
-    await waitFor(() =>
-      expect(apiClient.issueCredential).toHaveBeenCalledWith({
-        body: expect.objectContaining({
-          subjectType: "user",
-          subjectId: "user-1",
-          kind: "manual",
-          manualToken: "E-004217",
-        }),
-      })
-    );
-  });
-
   it("passes axe accessibility checks", async () => {
     vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
       data: { items: mockUserCredentials },

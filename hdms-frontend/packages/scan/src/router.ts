@@ -1,4 +1,8 @@
-import { canonicalScan, TokenParseError } from "@hdms/domain";
+import {
+  parseToken,
+  formatToken,
+  TokenParseError,
+} from "@hdms/domain";
 import type { Scan, ScanSource, ScanEvent, Unsubscribe } from "./types";
 
 export interface ScanRouterOptions {
@@ -136,7 +140,8 @@ export class ScanRouter {
       // 1. Local parse & token validation
       let canonicalToken: string;
       try {
-        canonicalToken = canonicalScan(raw);
+        const parsed = parseToken(raw);
+        canonicalToken = formatToken(parsed);
       } catch (err) {
         if (err instanceof TokenParseError) {
           this.emitEvent({

@@ -13,7 +13,6 @@ import {
   ChevronDown,
   ChevronUp,
   CreditCard,
-  IdCard,
   Printer,
   QrCode,
   RotateCcw,
@@ -35,7 +34,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { EmployeeBarcodeDialog } from "@/components/employee-barcode-dialog";
 import { credentialStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { TokenRevealDialog, type TokenRevealSubject } from "@/components/token-reveal-dialog";
 import { useT } from "@/i18n";
@@ -207,7 +205,6 @@ export function CredentialsPanel({
   const [revokeTarget, setRevokeTarget] = useState<Credential | null>(null);
   const [reissueTarget, setReissueTarget] = useState<Credential | null>(null);
   const [revealToken, setRevealToken] = useState<string | undefined>();
-  const [barcodeOpen, setBarcodeOpen] = useState(false);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: listKey });
 
@@ -277,12 +274,6 @@ export function CredentialsPanel({
         <h3 className="text-base font-semibold text-foreground">
           {subjectType === "user" ? t("credentialsPanel.borrowerCardsHeading") : t("credentialsPanel.deviceCredentialsHeading")}
         </h3>
-        {subjectType === "user" && (
-          <Button size="sm" variant="outline" className="ml-auto" onClick={() => setBarcodeOpen(true)}>
-            <IdCard className="size-4" data-icon="inline-start" />
-            {t("credentialsPanel.employeeBarcodeAdd")}
-          </Button>
-        )}
       </div>
 
       {isLoading && (
@@ -423,7 +414,7 @@ export function CredentialsPanel({
                             {t("credentialsPanel.reprint")}
                           </Button>
                         )}
-                        {subjectType === "user" && c.kind === "manual" ? null : subjectType === "user" ? (
+                        {subjectType === "user" ? (
                           <>
                             <Button
                               size="sm"
@@ -522,15 +513,6 @@ export function CredentialsPanel({
           reissueTarget && reissueMutation.mutate({ id: reissueTarget.id, reason })
         }
       />
-
-      {subjectType === "user" && (
-        <EmployeeBarcodeDialog
-          open={barcodeOpen}
-          onOpenChange={setBarcodeOpen}
-          userId={subjectId}
-          onIssued={invalidate}
-        />
-      )}
 
       {/* One-Shot Token Reveal Dialog */}
       <TokenRevealDialog

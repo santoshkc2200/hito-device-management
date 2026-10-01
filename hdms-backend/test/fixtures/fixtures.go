@@ -272,24 +272,6 @@ func ActiveCredentialFor(t *testing.T, pool *db.Pool, subjectType credentialsapi
 	return issued.ID, issued.Token
 }
 
-// ManualCredentialFor issues an active manual credential carrying token
-// verbatim — how a foreign barcode such as an employee ID is adopted —
-// and returns its id.
-func ManualCredentialFor(t *testing.T, pool *db.Pool, subjectType credentialsapi.SubjectType, subjectID, token string) (credentialID string) {
-	t.Helper()
-	issued, err := newCredentialsService(t, pool).Issue(context.Background(), credentialsapi.IssueParams{
-		SubjectType: subjectType,
-		SubjectID:   subjectID,
-		Kind:        credentialsapi.KindManual,
-		ManualToken: token,
-		IssuedBy:    fixtureActor,
-	})
-	if err != nil {
-		t.Fatalf("fixtures: issue manual credential: %v", err)
-	}
-	return issued.ID
-}
-
 // UnboundCredential issues a blank, unbound credential (card stock) and
 // returns its id and plaintext token.
 func UnboundCredential(t *testing.T, pool *db.Pool) (credentialID, token string) {

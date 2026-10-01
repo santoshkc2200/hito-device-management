@@ -229,8 +229,6 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 		httpx.WriteProblem(w, r, httpx.NewProblem("credential-kind-unavailable", "nfc and rfid credentials are not issued until Phase 6", http.StatusUnprocessableEntity))
 	case errors.Is(err, credentialsapi.ErrManualTokenRequired):
 		writeValidationFailed(w, r, "manualToken is required when kind is manual", []string{"manualToken"})
-	case errors.Is(err, credentialsapi.ErrManualTokenInvalid):
-		writeValidationFailed(w, r, "manualToken must be 1 to 64 printable characters", []string{"manualToken"})
 	case errors.Is(err, credentialsapi.ErrTokenAlreadyRegistered):
 		httpx.WriteProblem(w, r, httpx.NewProblem("credential-token-taken", "That token is already registered to a credential", http.StatusConflict))
 	case errors.Is(err, credentialsapi.ErrTokenNotRecoverable):

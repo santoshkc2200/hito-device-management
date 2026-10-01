@@ -12,7 +12,7 @@ HD-U-7K3M9QXA2F-4
 │  │ │            └── check character (Crockford Base32 mod-37)
 │  │ └─────────────── 10-char random payload, Crockford Base32
 │  └───────────────── subject hint: U = user, D = device
-└──────────────────── namespace: a damaged HD- scan is rejected instantly
+└──────────────────── namespace, so a foreign barcode is rejected instantly
 ```
 
 - **Alphabet:** Crockford Base32 — `0123456789ABCDEFGHJKMNPQRSTVWXYZ`. Excludes
@@ -24,14 +24,6 @@ HD-U-7K3M9QXA2F-4
   sizes and for Code 128 on a 25 mm sticker.
 - **Case:** always uppercase on the wire and on the label — required for Code 39
   compatibility and better OCR if it is ever read by eye.
-
-A scan that is not in the `HD-` namespace is not rejected on format. If it is 1–64
-printable ASCII characters, the kiosk submits it and the server looks it up like any
-other credential. That is how a borrower's existing employee-ID barcode works: an admin
-adds it from the user page as a `manual` credential (alongside the QR card), and it
-borrows and returns identically. A barcode nobody adopted is a normal "unknown card"
-rejection. Manual values are stored and matched verbatim, case included, so scan the
-card into the admin field rather than retyping it.
 
 The subject hint is a *hint*, not authority. The server always resolves against
 the credential table and uses the stored `subject_type`. A tampered `HD-U-…`

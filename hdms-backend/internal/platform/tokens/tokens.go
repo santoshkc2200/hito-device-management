@@ -208,30 +208,3 @@ func normalize(raw string) string {
 	}
 	return b.String()
 }
-
-// maxForeignLength bounds a foreign credential value (an employee-ID
-// barcode, an RFID UID) so a stray scan cannot push an arbitrarily long
-// string at the database.
-const maxForeignLength = 64
-
-// Scannable reports whether raw is worth resolving against credentials: an
-// HDMS token with a valid structure and checksum, or a foreign credential
-// value (employee-ID barcode, card UID) of 1 to 64 printable ASCII
-// characters. A string in the HDMS namespace that fails Parse is a damaged
-// HDMS token, not a foreign credential, so it is rejected rather than
-// looked up. Whether a scannable value matches anything is for Resolve.
-func Scannable(raw string) bool {
-	s := strings.TrimSpace(raw)
-	if len(s) >= len(Namespace)+1 && strings.EqualFold(s[:len(Namespace)+1], Namespace+"-") {
-		return Validate(s)
-	}
-	if s == "" || len(s) > maxForeignLength {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < 0x21 || s[i] > 0x7E {
-			return false
-		}
-	}
-	return true
-}

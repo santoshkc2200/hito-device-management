@@ -293,7 +293,7 @@ func TestHTTPSessionsRejectionOutcomes(t *testing.T) {
 
 	// Scan invalid token format: must be HTTP 400 Problem
 	resp, data = postKiosk("/v1/sessions/"+sess.Id+"/scan", gen.ScanRequest{
-		Token:  "HD-U-NOTAVALID0-0",
+		Token:  "NOT_A_VALID_TOKEN",
 		Source: gen.ScanSourceScanner,
 	})
 	if resp.StatusCode != http.StatusBadRequest {

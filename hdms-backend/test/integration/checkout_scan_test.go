@@ -110,32 +110,6 @@ func TestScenario1_DeviceThenUser_Borrow(t *testing.T) {
 	}
 }
 
-// An employee-ID barcode adopted as a manual credential borrows exactly as
-// the QR card does, and a barcode nobody adopted is a rejection, not an
-// invalid-format error.
-func TestEmployeeBarcodeBorrowsLikeQRCard(t *testing.T) {
-	pool := testdb.New(t)
-	svc := newScanCheckoutService(t, pool, clock.System{})
-	ctx := context.Background()
-	kioskID, _ := fixtures.Kiosk(t, pool)
-	deviceID := fixtures.AvailableDevice(t, pool)
-	userID := fixtures.User(t, pool)
-	_, deviceToken := fixtures.ActiveCredentialFor(t, pool, credentialsapi.SubjectDevice, deviceID)
-	fixtures.ManualCredentialFor(t, pool, credentialsapi.SubjectUser, userID, "E-004217")
-
-	session := createSession(t, ctx, svc, kioskID)
-	scan(t, ctx, svc, session.ID, deviceToken)
-	r := scan(t, ctx, svc, session.ID, "E-004217")
-	if r.Outcome.Kind != checkoutapi.OutcomeBorrowed {
-		t.Fatalf("employee barcode scan: outcome.Kind = %q, want borrowed", r.Outcome.Kind)
-	}
-
-	r = scan(t, ctx, svc, session.ID, "E-999999")
-	if r.Outcome.Kind != checkoutapi.OutcomeRejected {
-		t.Fatalf("unadopted barcode: outcome.Kind = %q, want rejected", r.Outcome.Kind)
-	}
-}
-
 // borrowViaCheckout opens a loan through the checkout service itself
 // (rather than fixtures.OpenLoan, which calls lending directly and never
 // touches catalog) so the device's status and the loan stay in sync the
