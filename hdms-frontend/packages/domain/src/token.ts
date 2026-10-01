@@ -127,6 +127,31 @@ export function validateToken(raw: string): boolean {
   }
 }
 
+/** Mirrors Go's maxForeignLength: bounds a foreign credential value. */
+const MAX_FOREIGN_LENGTH = 64;
+
+/**
+ * Canonicalises a scan for submission: an HDMS token (valid structure and
+ * checksum) comes back in canonical form, and a foreign credential value
+ * (an employee-ID barcode, a card UID) of 1 to 64 printable ASCII
+ * characters comes back trimmed. A string in the HDMS namespace that fails
+ * parseToken is a damaged HDMS token, not a foreign credential, so it
+ * throws. Twin of Go's tokens.Scannable.
+ */
+export function canonicalScan(raw: string): string {
+  const s = raw.trim();
+  if (s.toUpperCase().startsWith(`${NAMESPACE}-`)) {
+    return formatToken(parseToken(s));
+  }
+  if (s.length === 0 || s.length > MAX_FOREIGN_LENGTH || !/^[\x21-\x7e]+$/.test(s)) {
+    throw new TokenParseError(
+      "invalid-format",
+      "not a token or a credential value",
+    );
+  }
+  return s;
+}
+
 export interface TokenInspection {
   isValid: boolean;
   token?: Token;

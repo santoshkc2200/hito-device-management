@@ -34,7 +34,7 @@ func (s *Service) Scan(ctx context.Context, params checkoutapi.ScanParams) (chec
 	if err != nil {
 		return checkoutapi.ScanResult{}, fmt.Errorf("checkout: invalid session id: %w", err)
 	}
-	if _, err := tokens.Parse(params.Token); err != nil {
+	if !tokens.Scannable(params.Token) {
 		return checkoutapi.ScanResult{}, checkoutapi.ErrInvalidTokenFormat
 	}
 

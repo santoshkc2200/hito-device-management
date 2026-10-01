@@ -208,3 +208,37 @@ func TestCaseInsensitiveAndAmbiguousSubstitution(t *testing.T) {
 		t.Fatalf("Validate(%q) = false, want true (I/O substitution must normalize)", substituted)
 	}
 }
+
+func TestScannable(t *testing.T) {
+	valid, err := tokens.Generate(tokens.HintUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	damaged := valid.String()[:len(valid.String())-1] + "Z"
+	if damaged == valid.String() {
+		damaged = valid.String()[:len(valid.String())-1] + "Y"
+	}
+
+	cases := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{"valid HDMS token", valid.String(), true},
+		{"lowercase HDMS token", strings.ToLower(valid.String()), true},
+		{"HDMS namespace with bad checksum", damaged, false},
+		{"employee number", "E12345", true},
+		{"numeric barcode", "0012345678", true},
+		{"surrounding whitespace", "  E12345\n", true},
+		{"empty", "  ", false},
+		{"inner space", "E 123", false},
+		{"non-ASCII", "社員1234", false},
+		{"too long", strings.Repeat("A", 65), false},
+		{"max length", strings.Repeat("A", 64), true},
+	}
+	for _, tc := range cases {
+		if got := tokens.Scannable(tc.raw); got != tc.want {
+			t.Errorf("%s: Scannable(%q) = %v, want %v", tc.name, tc.raw, got, tc.want)
+		}
+	}
+}

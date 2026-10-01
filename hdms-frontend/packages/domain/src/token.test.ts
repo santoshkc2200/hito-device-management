@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { validateToken, parseToken, formatToken, TokenParseError } from "./token";
+import { canonicalScan, validateToken, parseToken, formatToken, TokenParseError } from "./token";
 
 interface FixtureCase {
   token: string;
@@ -63,5 +63,30 @@ describe("parseToken", () => {
     const flipped =
       sampleValid.slice(0, 3) + flippedHint + sampleValid.slice(4);
     expect(validateToken(flipped)).toBe(true);
+  });
+});
+
+describe("canonicalScan", () => {
+  const valid = fixture.find((c) => c.valid)!.token;
+
+  it("canonicalises an HDMS token", () => {
+    expect(canonicalScan(` ${valid.toLowerCase()} `)).toBe(formatToken(parseToken(valid)));
+  });
+
+  it("rejects a damaged HDMS token rather than treating it as foreign", () => {
+    const flipped = `${valid.slice(0, -1)}${valid.endsWith("Z") ? "Y" : "Z"}`;
+    expect(() => canonicalScan(flipped)).toThrow(TokenParseError);
+  });
+
+  it("passes an employee barcode through trimmed, case intact", () => {
+    expect(canonicalScan(" e-004217\n")).toBe("e-004217");
+    expect(canonicalScan("0012345678")).toBe("0012345678");
+  });
+
+  it("rejects empty, spaced, non-ASCII and over-long values", () => {
+    for (const bad of ["  ", "E 123", "社員1234", "A".repeat(65)]) {
+      expect(() => canonicalScan(bad)).toThrow(TokenParseError);
+    }
+    expect(canonicalScan("A".repeat(64))).toBe("A".repeat(64));
   });
 });

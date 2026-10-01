@@ -112,13 +112,13 @@ describe("ScanRouter", () => {
     const events: ScanEvent[] = [];
     router.subscribe((e) => events.push(e));
 
-    // Garbage barcode (e.g. standard UPC or invalid namespace)
-    source.simulateScan("123456789012");
+    // Garbage that cannot be any credential (inner whitespace)
+    source.simulateScan("1234 56789012");
 
     expect(events).toHaveLength(1);
     expect(events[0]).toEqual({
       kind: "invalid",
-      raw: "123456789012",
+      raw: "1234 56789012",
       reason: "invalid-format",
     });
 
@@ -131,6 +131,25 @@ describe("ScanRouter", () => {
       raw: badChecksumToken,
       reason: "invalid-checksum",
     });
+  });
+
+  it("foreignBarcodeIsSubmittedTrimmedAndCaseIntact", async () => {
+    const source = new FakeSource("scanner", "Bluetooth Scanner");
+    router.register(source);
+    await router.start();
+
+    const events: ScanEvent[] = [];
+    router.subscribe((e) => events.push(e));
+
+    // An employee-ID barcode is not an HD token but is a valid credential value.
+    source.simulateScan(" e-004217\n");
+
+    expect(events).toHaveLength(1);
+    const first = events[0];
+    expect(first?.kind).toBe("scan");
+    if (first && first.kind === "scan") {
+      expect(first.scan.token).toBe("e-004217");
+    }
   });
 
   it("twoSourcesInterleaveIntoOneOrderedStream", async () => {

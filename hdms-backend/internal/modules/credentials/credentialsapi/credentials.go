@@ -63,6 +63,7 @@ var (
 	ErrNotDeviceCredential    = errors.New("credentials: only device credentials store a recoverable token")
 	ErrKindNotIssuableInV1    = errors.New("credentials: nfc and rfid credentials are not issued until Phase 6")
 	ErrManualTokenRequired    = errors.New("credentials: a manual credential requires an explicit token value")
+	ErrManualTokenInvalid     = errors.New("credentials: a manual token must be 1 to 64 printable characters and, if it starts with HD-, a valid HDMS token")
 	ErrTokenAlreadyRegistered = errors.New("credentials: that token is already registered to a credential")
 	ErrTokenNotRecoverable    = errors.New("credentials: this credential predates reversible storage")
 )
