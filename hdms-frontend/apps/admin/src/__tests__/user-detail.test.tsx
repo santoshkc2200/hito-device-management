@@ -245,7 +245,7 @@ describe("4.4c User Detail Page", () => {
     expect(screen.getByText(ja.userDetail.provenanceCsvImport)).toBeInTheDocument();
   });
 
-  it("shows 'no card issued' badge and 'Issue card' CTA when user has no credentials", async () => {
+  it("shows 'no card issued' badge and no issue or bind action when user has no credentials", async () => {
     vi.spyOn(apiClient, "listCredentialsBySubject").mockResolvedValue({
       data: { items: [] },
       error: undefined,
@@ -257,7 +257,7 @@ describe("4.4c User Detail Page", () => {
     // "カード未発行" in Japanese (distinct wording in English, identical here).
     expect((await screen.findAllByText(ja.userDetail.noCardIssued)).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(ja.credentialsPanel.noCardIssuedHint)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: ja.credentialsPanel.issueCard })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /発行|紐付/ })).not.toBeInTheDocument();
   });
 
   it("shows revoked state warning when all credentials are revoked", async () => {

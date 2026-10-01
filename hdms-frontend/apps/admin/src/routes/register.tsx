@@ -1,15 +1,12 @@
 import {
   checkEmployeeNo,
-  createUser,
-  getUnboundCredentialCount,
   listDepartments,
   registerUserWithCard,
-  resolveCredential,
   zCreateUserRequest,
 } from "@hdms/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, CreditCard, Printer, ScanLine, ShieldAlert, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Printer, ShieldAlert, UserPlus, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -36,8 +33,6 @@ const registerSchema = zCreateUserRequest.extend({
   email: z.string().email("validation.emailInvalid").optional().or(z.literal("")),
 });
 type RegisterFormValues = z.infer<typeof registerSchema>;
-
-type CardMode = "scan" | "print" | "none";
 
 function useDebounced<T>(value: T, delayMs = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -104,102 +99,10 @@ function DuplicateCheck({
   );
 }
 
-function ScanCardField({
-  onResolved,
-}: {
-  onResolved: (result: { credentialId: string; ready: boolean; message: string } | null) => void;
-}) {
-  const t = useT();
-  const [tokenInput, setTokenInput] = useState("");
-  const [status, setStatus] = useState<{ ready: boolean; message: string } | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const mutation = useMutation({
-    mutationFn: async (token: string) => resolveCredential({ query: { token } }),
-    onSuccess: ({ data, error }) => {
-      if (error || !data) {
-        setStatus({ ready: false, message: t("register.cardNoMatch") });
-        onResolved(null);
-        return;
-      }
-      if (data.type !== "unbound") {
-        setStatus({
-          ready: false,
-          message:
-            data.type === "user" || data.type === "device"
-              ? t("register.cardAlreadyRegistered")
-              : t("register.cardCannotBeBound"),
-        });
-        onResolved(null);
-        return;
-      }
-      if (data.credentialStatus !== "active") {
-        setStatus({
-          ready: false,
-          message: t("register.cardNotActive", { status: data.credentialStatus }),
-        });
-        onResolved(null);
-        return;
-      }
-      setStatus({
-        ready: true,
-        message: t("register.readyToBind", { kind: data.kind.toUpperCase() }),
-      });
-      onResolved({ credentialId: data.credentialId, ready: true, message: "" });
-    },
-    onError: () => {
-      setStatus({ ready: false, message: t("register.cardLookupFailed") });
-      onResolved(null);
-    },
-  });
-
-  return (
-    <Field>
-      <FieldLabel htmlFor="scan-token">{t("register.scanBlankCard")}</FieldLabel>
-      <div className="relative">
-        <ScanLine className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          id="scan-token"
-          ref={inputRef}
-          className="pl-8 font-identifier"
-          placeholder={t("register.waitingForScan")}
-          value={tokenInput}
-          autoFocus
-          onChange={(e) => {
-            setTokenInput(e.target.value);
-            setStatus(null);
-            onResolved(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && tokenInput.trim()) {
-              e.preventDefault();
-              mutation.mutate(tokenInput.trim());
-            }
-          }}
-        />
-      </div>
-      {status && (
-        <FieldDescription
-          className={
-            status.ready
-              ? "flex items-center gap-1 text-xs text-success"
-              : "flex items-center gap-1 text-xs text-destructive"
-          }
-        >
-          {status.ready ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
-          {status.message}
-        </FieldDescription>
-      )}
-    </Field>
-  );
-}
-
 function RegisterBorrowerForm() {
   const t = useT();
   const environment = useEnvironment();
   const queryClient = useQueryClient();
-  const [cardMode, setCardMode] = useState<CardMode>("scan");
-  const [resolvedCredentialId, setResolvedCredentialId] = useState<string | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const [isEmployeeNoAvailable, setIsEmployeeNoAvailable] = useState(true);
   const [success, setSuccess] = useState<{
@@ -208,7 +111,6 @@ function RegisterBorrowerForm() {
     departmentId?: string;
     department?: string;
     token?: string;
-    mode: CardMode;
   } | null>(null);
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
 
@@ -223,15 +125,6 @@ function RegisterBorrowerForm() {
     },
   });
 
-  const { data: unboundCount } = useQuery({
-    queryKey: ["credentials", "unbound-count"],
-    queryFn: async () => {
-      const { data, error } = await getUnboundCredentialCount();
-      if (error) throw error;
-      return data.count;
-    },
-  });
-
   const form = useForm<RegisterFormValues>({
     resolver: useLocalizedResolver(registerSchema),
     defaultValues: { employeeNo: "", fullName: "", departmentId: "", email: "", phone: "", notes: "" },
@@ -240,30 +133,18 @@ function RegisterBorrowerForm() {
 
   const mutation = useMutation({
     mutationFn: async (values: RegisterFormValues) => {
-      if (cardMode === "none") {
-        const { data, error } = await createUser({ body: values });
-        if (error) throw error;
-        return { user: data!, token: undefined };
-      }
-      const { data, error } = await registerUserWithCard({
-        body: {
-          ...values,
-          credentialId: cardMode === "scan" ? (resolvedCredentialId ?? undefined) : undefined,
-        },
-      });
+      const { data, error } = await registerUserWithCard({ body: values });
       if (error) throw error;
       return { user: data!.user, token: data!.token };
     },
     onSuccess: async ({ user, token }) => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
-      await queryClient.invalidateQueries({ queryKey: ["credentials", "unbound-count"] });
       setSuccess({
         fullName: user.fullName,
         employeeNo: user.employeeNo,
         departmentId: user.departmentId || selectedDepartmentId || undefined,
         department: departments?.find((d) => d.id === user.departmentId)?.name,
         token,
-        mode: cardMode,
       });
       if (token) {
         setTokenDialogOpen(true);
@@ -281,9 +162,7 @@ function RegisterBorrowerForm() {
 
   function resetForm() {
     form.reset({ employeeNo: "", fullName: "", departmentId: "", email: "", phone: "", notes: "" });
-    setCardMode("scan");
     setSelectedDepartmentId("");
-    setResolvedCredentialId(null);
     setIsEmployeeNoAvailable(true);
     setSuccess(null);
     setTimeout(() => {
@@ -301,9 +180,7 @@ function RegisterBorrowerForm() {
       phone: "",
       notes: "",
     });
-    setCardMode("scan");
     setSelectedDepartmentId(retainedDepartmentId);
-    setResolvedCredentialId(null);
     setIsEmployeeNoAvailable(true);
     setSuccess(null);
     setTimeout(() => {
@@ -313,7 +190,7 @@ function RegisterBorrowerForm() {
 
 
 
-  const canSubmit = (cardMode !== "scan" || !!resolvedCredentialId) && isEmployeeNoAvailable;
+  const canSubmit = isEmployeeNoAvailable;
 
   if (success) {
     return (
@@ -325,21 +202,10 @@ function RegisterBorrowerForm() {
             {success.employeeNo}
             {success.department && ` · ${success.department}`}
           </p>
-          {success.mode === "scan" && (
-            <p className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-1.5">
-              <CreditCard className="size-4 text-success" />
-              {t("register.cardBoundReady")}
-            </p>
-          )}
-          {success.mode === "print" && (
-            <p className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-1.5">
-              <Printer className="size-4 text-primary" />
-              {t("register.newCardGenerated")}
-            </p>
-          )}
-          {success.mode === "none" && (
-            <p className="mt-2 text-sm text-warning font-medium">{t("register.noCardIssuedYet")}</p>
-          )}
+          <p className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+            <Printer className="size-4 text-primary" />
+            {t("register.newCardGenerated")}
+          </p>
         </div>
 
         <div className="flex flex-col w-full gap-2 pt-2">
@@ -465,59 +331,6 @@ function RegisterBorrowerForm() {
             {form.formState.errors.email && <FieldError>{form.formState.errors.email.message}</FieldError>}
           </Field>
         </FieldGroup>
-
-        <div className="border-t border-border pt-4">
-          <p className="mb-2 text-sm font-semibold">{t("register.assignCard")}</p>
-          <div className="flex flex-col gap-3">
-            <label className="flex items-start gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="cardMode"
-                className="mt-1 accent-primary"
-                checked={cardMode === "scan"}
-                onChange={() => setCardMode("scan")}
-              />
-              <span className="flex-1">
-                <span className="font-medium">{t("register.scanBlankCard")}</span>
-                {typeof unboundCount === "number" && (
-                  <span className="ml-1 text-muted-foreground">
-                    {t("register.remainUnbound", { count: unboundCount })}
-                  </span>
-                )}
-                {cardMode === "scan" && (
-                  <div className="mt-2">
-                    <ScanCardField
-                      onResolved={(r) => setResolvedCredentialId(r ? r.credentialId : null)}
-                    />
-                  </div>
-                )}
-              </span>
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="cardMode"
-                className="accent-primary"
-                checked={cardMode === "print"}
-                onChange={() => setCardMode("print")}
-              />
-              <span className="font-medium">{t("register.printNewCardNow")}</span>
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="cardMode"
-                className="accent-primary"
-                checked={cardMode === "none"}
-                onChange={() => setCardMode("none")}
-              />
-              <span>
-                <span className="font-medium">{t("register.registerWithoutCard")}</span>{" "}
-                <span className="text-muted-foreground">{t("register.cannotBorrowYet")}</span>
-              </span>
-            </label>
-          </div>
-        </div>
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={resetForm}>

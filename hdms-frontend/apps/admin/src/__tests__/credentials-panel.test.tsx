@@ -25,10 +25,6 @@ vi.mock("@hdms/api-client", async (importOriginal) => {
   };
 });
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -156,13 +152,8 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
 
     expect(await screen.findByText(ja.credentialsPanel.noCardIssued)).toBeInTheDocument();
     expect(screen.getByText(ja.credentialsPanel.noCardIssuedHint)).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("button", { name: ja.credentialsPanel.bindBlankCard }).length
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByRole("button", { name: new RegExp(escapeRegExp(ja.credentialsPanel.issueCard)) })
-        .length
-    ).toBeGreaterThan(0);
+    // Cards are issued at registration; the panel offers neither issuing nor binding.
+    expect(screen.queryByRole("button", { name: /発行|紐付/ })).not.toBeInTheDocument();
   });
 
   it("distinguishes 'All credentials have been revoked' warning state", async () => {

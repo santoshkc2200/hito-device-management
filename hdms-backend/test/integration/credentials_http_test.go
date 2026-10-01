@@ -7,17 +7,24 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 )
 
 func TestHTTPCredentialIssueHistoryRevokeReissue(t *testing.T) {
 	h := newTestHarness(t)
 
-	userResp := h.doJSON(t, http.MethodPost, "/v1/users", "", map[string]any{
-		"employeeNo": "HH-3001",
-		"fullName":   "B. Lama",
+	// Created through the service: the HTTP create issues a card of its own,
+	// and this test drives the issue endpoint from a user with none.
+	svcUser, err := h.identity.CreateUser(t.Context(), identityapi.CreateUserParams{
+		EmployeeNo:   "HH-3001",
+		FullName:     "B. Lama",
+		RegisteredBy: "admin:test",
 	})
-	user := decodeBody[gen.User](t, userResp)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	user := gen.User{Id: svcUser.ID}
 
 	issueResp := h.doJSON(t, http.MethodPost, "/v1/credentials", "", map[string]any{
 		"subjectType": "user",

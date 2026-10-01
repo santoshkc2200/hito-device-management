@@ -9,7 +9,7 @@ import (
 
 	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
-	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
+	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 )
@@ -203,7 +203,7 @@ func TestHTTPListUsersHasCredentialFilter(t *testing.T) {
 	h := newTestHarness(t)
 	ctx := t.Context()
 
-	// User 1: Has card issued
+	// User 1: created over HTTP, so it gets a card automatically
 	u1Resp := h.doJSON(t, http.MethodPost, "/v1/users", "", map[string]any{
 		"employeeNo": "HH-CARD-01",
 		"fullName":   "User With Card",
@@ -212,25 +212,18 @@ func TestHTTPListUsersHasCredentialFilter(t *testing.T) {
 		t.Fatalf("create user 1: %d", u1Resp.StatusCode)
 	}
 	u1 := decodeBody[gen.User](t, u1Resp)
-	_, err := h.credentials.Issue(ctx, credentialsapi.IssueParams{
-		SubjectType: credentialsapi.SubjectUser,
-		SubjectID:   u1.Id,
-		Kind:        credentialsapi.KindQR,
-		IssuedBy:    "admin:test",
-	})
-	if err != nil {
-		t.Fatalf("issue credential: %v", err)
-	}
 
 	// User 2: No card issued
-	u2Resp := h.doJSON(t, http.MethodPost, "/v1/users", "", map[string]any{
-		"employeeNo": "HH-NOCARD-01",
-		"fullName":   "User Without Card",
+	// Created through the service: the HTTP create always issues a card.
+	svcU2, err := h.identity.CreateUser(ctx, identityapi.CreateUserParams{
+		EmployeeNo:   "HH-NOCARD-01",
+		FullName:     "User Without Card",
+		RegisteredBy: "admin:test",
 	})
-	if u2Resp.StatusCode != http.StatusCreated {
-		t.Fatalf("create user 2: %d", u2Resp.StatusCode)
+	if err != nil {
+		t.Fatalf("create user 2: %v", err)
 	}
-	u2 := decodeBody[gen.User](t, u2Resp)
+	u2 := gen.User{Id: svcU2.ID}
 
 	// Filter hasCredential=false (work queue)
 	noCardResp := h.doJSON(t, http.MethodGet, "/v1/users?hasCredential=false", "", nil)

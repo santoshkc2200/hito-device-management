@@ -1,25 +1,18 @@
 import {
   type Credential,
-  type CredentialKind,
-  bindCredential,
   getCredentialHistory,
-  issueCredential,
   listCredentialsBySubject,
   reissueCredential,
   reprintCredential,
-  resolveCredential,
   revealCredential,
   revokeCredential,
 } from "@hdms/api-client";
-import { inspectToken } from "@hdms/domain";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
   CreditCard,
-  Link as LinkIcon,
-  Plus,
   Printer,
   QrCode,
   RotateCcw,
@@ -39,25 +32,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { credentialStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { TokenRevealDialog, type TokenRevealSubject } from "@/components/token-reveal-dialog";
 import { useT } from "@/i18n";
-
-// docs/05: nfc/rfid aren't issuable until Phase 6; manual requires an
-// explicit token typed by an attendant, so it's not offered here.
-const ISSUABLE_KINDS: CredentialKind[] = ["qr", "code128"];
 
 export function ReasonAlertDialog({
   open,
@@ -200,145 +179,6 @@ function CredentialHistory({ credentialId }: { credentialId: string }) {
   );
 }
 
-function BindBlankCardDialog({
-  open,
-  onOpenChange,
-  userId,
-  onSuccess,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  userId: string;
-  onSuccess: () => void;
-}) {
-  const t = useT();
-  const [tokenInput, setTokenInput] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const bindMutation = useMutation({
-    mutationFn: async (cardId: string) => {
-      const { data, error } = await bindCredential({
-        path: { id: cardId },
-        body: { subjectId: userId },
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      toast.success(t("credentialsPanel.blankCardBound"));
-      setTokenInput("");
-      setErrorMsg(null);
-      onOpenChange(false);
-      onSuccess();
-    },
-    onError: (err: any) => {
-      setErrorMsg(err?.detail ?? err?.message ?? t("credentialsPanel.bindFailed"));
-    },
-  });
-
-  const handleBind = async () => {
-    setErrorMsg(null);
-    const trimmed = tokenInput.trim();
-    if (!trimmed) {
-      setErrorMsg(t("credentialsPanel.scanOrEnterToken"));
-      return;
-    }
-
-    const inspection = inspectToken(trimmed);
-    if (!inspection.isValid) {
-      setErrorMsg(inspection.errorMessage ?? t("credentials.invalidTokenStructure"));
-      return;
-    }
-
-    setIsVerifying(true);
-    try {
-      const { data: resolved, error: resolveErr } = await resolveCredential({
-        query: { token: trimmed },
-      });
-      if (resolveErr || !resolved) {
-        setErrorMsg(t("credentialsPanel.tokenNotFoundInSystem"));
-        setIsVerifying(false);
-        return;
-      }
-
-      if (resolved.type !== "unbound") {
-        setErrorMsg(
-          t("credentialsPanel.alreadyBound", {
-            status: resolved.credentialStatus,
-            type: resolved.type,
-          }),
-        );
-        setIsVerifying(false);
-        return;
-      }
-
-      bindMutation.mutate(resolved.credentialId);
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? t("credentials.verifyFailed"));
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="size-5 text-primary" />
-            {t("credentialsPanel.bindDialogTitle")}
-          </DialogTitle>
-          <DialogDescription>{t("credentialsPanel.bindDialogDescription")}</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-3 py-2">
-          <div>
-            <label htmlFor="blank-token-input" className="text-xs font-semibold text-foreground mb-1 block">
-              {t("credentialsPanel.blankCardTokenLabel")}
-            </label>
-            <Input
-              id="blank-token-input"
-              placeholder={t("credentials.tokenPlaceholder")}
-              value={tokenInput}
-              onChange={(e) => {
-                setTokenInput(e.target.value);
-                setErrorMsg(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleBind();
-                }
-              }}
-              autoFocus
-              className="font-mono"
-            />
-          </div>
-          {errorMsg && (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-2 text-xs text-destructive flex items-center gap-2">
-              <AlertTriangle className="size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            disabled={!tokenInput.trim() || isVerifying || bindMutation.isPending}
-            onClick={handleBind}
-          >
-            {isVerifying || bindMutation.isPending
-              ? t("credentialsPanel.activating")
-              : t("credentialsPanel.bindCard")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function CredentialsPanel({
   subjectType,
   subjectId,
@@ -364,25 +204,9 @@ export function CredentialsPanel({
   const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<Credential | null>(null);
   const [reissueTarget, setReissueTarget] = useState<Credential | null>(null);
-  const [issueOpen, setIssueOpen] = useState(false);
-  const [bindOpen, setBindOpen] = useState(false);
-  const [issueKind, setIssueKind] = useState<CredentialKind>("qr");
   const [revealToken, setRevealToken] = useState<string | undefined>();
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: listKey });
-
-  const issueMutation = useMutation({
-    mutationFn: async () =>
-      issueCredential({ body: { subjectType, subjectId, kind: issueKind } }),
-    onSuccess: async ({ data, error }) => {
-      if (error) throw error;
-      await invalidate();
-      setIssueOpen(false);
-      setRevealToken(data?.token);
-      toast.success(t("credentialsPanel.cardIssued"));
-    },
-    onError: () => toast.error(t("credentialsPanel.issueFailed")),
-  });
 
   const reprintMutation = useMutation({
     mutationFn: async (id: string) => reprintCredential({ path: { id } }),
@@ -445,28 +269,11 @@ export function CredentialsPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header with Title and Primary CTAs */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CreditCard className="size-4 text-primary" />
-          <h3 className="text-base font-semibold text-foreground">
-            {subjectType === "user" ? t("credentialsPanel.borrowerCardsHeading") : t("credentialsPanel.deviceCredentialsHeading")}
-          </h3>
-        </div>
-        <div className="flex items-center gap-2">
-          {subjectType === "user" && !hasActive && (
-            <Button size="sm" variant="outline" onClick={() => setBindOpen(true)}>
-              <LinkIcon className="size-4" data-icon="inline-start" />
-              {t("credentialsPanel.bindBlankCard")}
-            </Button>
-          )}
-          {subjectType === "user" && (
-            <Button size="sm" variant={hasActive ? "outline" : "default"} onClick={() => setIssueOpen(true)}>
-              <Plus className="size-4" data-icon="inline-start" />
-              {t("credentialsPanel.issueNewCard")}
-            </Button>
-          )}
-        </div>
+      <div className="flex items-center gap-2">
+        <CreditCard className="size-4 text-primary" />
+        <h3 className="text-base font-semibold text-foreground">
+          {subjectType === "user" ? t("credentialsPanel.borrowerCardsHeading") : t("credentialsPanel.deviceCredentialsHeading")}
+        </h3>
       </div>
 
       {isLoading && (
@@ -492,18 +299,6 @@ export function CredentialsPanel({
                 : t("credentialsPanel.noCredentialIssuedHint")}
             </p>
           </div>
-          {subjectType === "user" && (
-            <div className="flex items-center gap-2 mt-2">
-              <Button size="sm" variant="outline" onClick={() => setBindOpen(true)}>
-                <LinkIcon className="size-4" data-icon="inline-start" />
-                {t("credentialsPanel.bindBlankCard")}
-              </Button>
-              <Button size="sm" onClick={() => setIssueOpen(true)}>
-                <Plus className="size-4" data-icon="inline-start" />
-                {t("credentialsPanel.issueCard")}
-              </Button>
-            </div>
-          )}
         </div>
       )}
 
@@ -519,18 +314,6 @@ export function CredentialsPanel({
                   ? t("credentialsPanel.allRevokedHintUser")
                   : t("credentialsPanel.allRevokedHintDevice")}
               </p>
-              {subjectType === "user" && (
-                <div className="flex items-center gap-2 mt-3">
-                  <Button size="sm" variant="outline" onClick={() => setBindOpen(true)}>
-                    <LinkIcon className="size-4" data-icon="inline-start" />
-                    {t("credentialsPanel.bindBlankCard")}
-                  </Button>
-                  <Button size="sm" onClick={() => setIssueOpen(true)}>
-                    <Plus className="size-4" data-icon="inline-start" />
-                    {t("credentialsPanel.issueNewCard")}
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -697,53 +480,6 @@ export function CredentialsPanel({
             );
           })}
         </ul>
-      )}
-
-      {/* Modal: Issue Additional Credential */}
-      <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
-              {t("credentialsPanel.issueNewCardTitle")}
-            </DialogTitle>
-            <DialogDescription>{t("credentialsPanel.issueDialogDescription")}</DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            <label htmlFor="issue-kind-select" className="text-xs font-semibold text-foreground mb-1 block">
-              {t("credentialsPanel.symbologyLabel")}
-            </label>
-            <Select value={issueKind} onValueChange={(v) => setIssueKind(v as CredentialKind)}>
-              <SelectTrigger id="issue-kind-select" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ISSUABLE_KINDS.map((k) => (
-                  <SelectItem key={k} value={k}>
-                    {k === "qr" ? t("credentialsPanel.qrRecommended") : t("credentials.formatCode128")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIssueOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button disabled={issueMutation.isPending} onClick={() => issueMutation.mutate()}>
-              {issueMutation.isPending ? t("credentialsPanel.issuing") : t("credentialsPanel.issue")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal: Bind Blank Card to User */}
-      {subjectType === "user" && (
-        <BindBlankCardDialog
-          open={bindOpen}
-          onOpenChange={setBindOpen}
-          userId={subjectId}
-          onSuccess={invalidate}
-        />
       )}
 
       {/* Destructive Flow: Revoke */}

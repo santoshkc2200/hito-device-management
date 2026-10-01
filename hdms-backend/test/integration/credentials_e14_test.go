@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 )
 
@@ -21,14 +22,17 @@ func TestScenarioE14_ReissueAndLostFlow(t *testing.T) {
 	h := newTestHarness(t)
 
 	// 1. Create a user and a device
-	userResp := h.doJSON(t, http.MethodPost, "/v1/users", "", map[string]any{
-		"employeeNo": "HH-E14-001",
-		"fullName":   "Dr. Ronald Vance",
+	// Created through the service: the HTTP create issues a card of its own,
+	// and this scenario starts from the first card ("Issue #1") being issued.
+	svcUser, err := h.identity.CreateUser(t.Context(), identityapi.CreateUserParams{
+		EmployeeNo:   "HH-E14-001",
+		FullName:     "Dr. Ronald Vance",
+		RegisteredBy: "admin:test",
 	})
-	if userResp.StatusCode != http.StatusCreated {
-		t.Fatalf("create user: status = %d", userResp.StatusCode)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
 	}
-	user := decodeBody[gen.User](t, userResp)
+	user := gen.User{Id: svcUser.ID}
 
 	catResp := h.doJSON(t, http.MethodPost, "/v1/categories", "", map[string]any{
 		"name": "Defibrillators",

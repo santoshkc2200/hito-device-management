@@ -81,14 +81,32 @@ func (s *Server) CreateUser(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	user, err := s.identity.CreateUser(r.Context(), identityapi.CreateUserParams{
-		EmployeeNo:   req.EmployeeNo,
-		FullName:     req.FullName,
-		DepartmentID: fromPtr(req.DepartmentId),
-		Email:        fromPtr(req.Email),
-		Phone:        fromPtr(req.Phone),
-		Notes:        fromPtr(req.Notes),
-		RegisteredBy: actorFrom(r),
+	actor := actorFrom(r)
+
+	// A borrower is created with a QR card in one transaction, so no user
+	// exists without a credential.
+	var user identityapi.UserSummary
+	err := db.NewTxManager(s.pool).Do(r.Context(), func(ctx context.Context) error {
+		var err error
+		user, err = s.identity.CreateUser(ctx, identityapi.CreateUserParams{
+			EmployeeNo:   req.EmployeeNo,
+			FullName:     req.FullName,
+			DepartmentID: fromPtr(req.DepartmentId),
+			Email:        fromPtr(req.Email),
+			Phone:        fromPtr(req.Phone),
+			Notes:        fromPtr(req.Notes),
+			RegisteredBy: actor,
+		})
+		if err != nil {
+			return err
+		}
+		_, err = s.credentials.Issue(ctx, credentialsapi.IssueParams{
+			SubjectType: credentialsapi.SubjectUser,
+			SubjectID:   user.ID,
+			Kind:        credentialsapi.KindQR,
+			IssuedBy:    actor,
+		})
+		return err
 	})
 	if err != nil {
 		s.writeServiceError(w, r, err)

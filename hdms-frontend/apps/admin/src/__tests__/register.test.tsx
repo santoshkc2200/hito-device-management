@@ -47,10 +47,6 @@ describe("4.4b Register borrower form", () => {
       data: { items: mockDepartments },
       error: undefined,
     } as any);
-    vi.spyOn(apiClient, "getUnboundCredentialCount").mockResolvedValue({
-      data: { count: 27 },
-      error: undefined,
-    } as any);
   });
 
   it.each([
@@ -149,116 +145,41 @@ describe("4.4b Register borrower form", () => {
     // Fill the rest
     await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Dr. Test User");
 
-    // Select option C (no card)
-    const noCardRadio = screen.getByLabelText(new RegExp(ja.register.registerWithoutCard));
-    await user.click(noCardRadio);
-
     // Submit button should be disabled because employee number is not available
     const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
     expect(submitBtn).toBeDisabled();
   });
 
-  it("registers without a card (Option C) and shows no card issued state", async () => {
+  it("registers a borrower, issues a QR card automatically and offers to print it", async () => {
     const user = userEvent.setup();
     vi.spyOn(apiClient, "checkEmployeeNo").mockResolvedValue({
       data: { employeeNo: "HH-2401", available: true },
       error: undefined,
     } as any);
 
-    const createUserSpy = vi.spyOn(apiClient, "createUser").mockResolvedValue({
-      data: {
-        id: "new-user-1",
-        employeeNo: "HH-2401",
-        fullName: "Anita Thapa",
-        departmentId: "dept-1",
-        status: "active",
-        registeredAt: "2026-08-21T10:00:00Z",
-        registeredBy: "admin:1",
-        updatedAt: "2026-08-21T10:00:00Z",
-      },
-      error: undefined,
-    } as any);
-
-    const queryClient = createTestQueryClient();
-    const RegisterComponent = registerRoute.options.component!;
-    render(
-      <QueryClientProvider client={queryClient}>
-        <RegisterComponent />
-      </QueryClientProvider>
-    );
-
-    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Anita Thapa");
-    await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-2401");
-
-    await waitFor(() => {
-      expect(screen.getByText(ja.register.available)).toBeInTheDocument();
-    });
-
-    // Option C
-    await user.click(screen.getByLabelText(new RegExp(ja.register.registerWithoutCard)));
-
-    const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
-    expect(submitBtn).toBeEnabled();
-    await user.click(submitBtn);
-
-    await waitFor(() => {
-      expect(createUserSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          body: expect.objectContaining({
-            fullName: "Anita Thapa",
-            employeeNo: "HH-2401",
-          }),
-        })
-      );
-      expect(
-        screen.getByRole("heading", {
-          name: translate(catalogues, "ja", "register.registeredHeading", {
-            fullName: "Anita Thapa",
-          }),
-        })
-      ).toBeInTheDocument();
-      expect(screen.getByText(ja.register.noCardIssuedYet)).toBeInTheDocument();
-    });
-  });
-
-  it("scans a blank card (Option A) and binds it atomically", async () => {
-    const user = userEvent.setup();
-    vi.spyOn(apiClient, "checkEmployeeNo").mockResolvedValue({
-      data: { employeeNo: "HH-2402", available: true },
-      error: undefined,
-    } as any);
-
-    const resolveSpy = vi.spyOn(apiClient, "resolveCredential").mockResolvedValue({
-      data: {
-        credentialId: "cred-blank-1",
-        type: "unbound",
-        kind: "qr",
-        credentialStatus: "active",
-      },
-      error: undefined,
-    } as any);
-
     const registerSpy = vi.spyOn(apiClient, "registerUserWithCard").mockResolvedValue({
       data: {
         user: {
-          id: "new-user-2",
-          employeeNo: "HH-2402",
-          fullName: "Dr. Blank Scan",
+          id: "new-user-1",
+          employeeNo: "HH-2401",
+          fullName: "Anita Thapa",
+          departmentId: "dept-1",
           status: "active",
           registeredAt: "2026-08-21T10:00:00Z",
           registeredBy: "admin:1",
           updatedAt: "2026-08-21T10:00:00Z",
         },
         credential: {
-          id: "cred-blank-1",
+          id: "cred-1",
           kind: "qr",
           status: "active",
           subjectType: "user",
-          subjectId: "new-user-2",
+          subjectId: "new-user-1",
           issuedAt: "2026-08-21T10:00:00Z",
           issuedBy: "admin:1",
           version: 1,
         },
+        token: "U-TOKEN",
       },
       error: undefined,
     } as any);
@@ -271,25 +192,14 @@ describe("4.4b Register borrower form", () => {
       </QueryClientProvider>
     );
 
-    // Verify unbound count is displayed
-    await waitFor(() => {
-      expect(
-        screen.getByText(translate(catalogues, "ja", "register.remainUnbound", { count: 27 }))
-      ).toBeInTheDocument();
-    });
+    // No card-mode choice: a card is always issued.
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Dr. Blank Scan");
-    await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-2402");
-
-    // Scan blank card
-    const scanInput = screen.getByPlaceholderText(ja.register.waitingForScan);
-    await user.type(scanInput, "BLANK_CARD_TOKEN{enter}");
+    await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Anita Thapa");
+    await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-2401");
 
     await waitFor(() => {
-      expect(resolveSpy).toHaveBeenCalled();
-      expect(
-        screen.getByText(translate(catalogues, "ja", "register.readyToBind", { kind: "QR" }))
-      ).toBeInTheDocument();
+      expect(screen.getByText(ja.register.available)).toBeInTheDocument();
     });
 
     const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
@@ -300,21 +210,25 @@ describe("4.4b Register borrower form", () => {
       expect(registerSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           body: expect.objectContaining({
-            fullName: "Dr. Blank Scan",
-            employeeNo: "HH-2402",
-            credentialId: "cred-blank-1",
+            fullName: "Anita Thapa",
+            employeeNo: "HH-2401",
           }),
         })
       );
+      expect(registerSpy.mock.calls[0][0]!.body).not.toHaveProperty("credentialId");
+      // The card dialog opens on its own, so the page behind it is aria-hidden.
       expect(
         screen.getByRole("heading", {
+          hidden: true,
           name: translate(catalogues, "ja", "register.registeredHeading", {
-            fullName: "Dr. Blank Scan",
+            fullName: "Anita Thapa",
           }),
         })
       ).toBeInTheDocument();
-      expect(screen.getByText(ja.register.cardBoundReady)).toBeInTheDocument();
     });
+    await user.keyboard("{Escape}");
+    expect(screen.getByText(ja.register.newCardGenerated)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: ja.register.printCard })).toBeInTheDocument();
   });
 
   it("handles race 409 conflict gracefully as field error", async () => {
@@ -324,7 +238,7 @@ describe("4.4b Register borrower form", () => {
       error: undefined,
     } as any);
 
-    vi.spyOn(apiClient, "createUser").mockRejectedValue({
+    vi.spyOn(apiClient, "registerUserWithCard").mockRejectedValue({
       status: 409,
       type: "unique-constraint-violation",
       title: "Conflict",
@@ -340,7 +254,6 @@ describe("4.4b Register borrower form", () => {
 
     await user.type(screen.getByLabelText(ja.userDetail.fullNameLabel), "Race Tester");
     await user.type(screen.getByLabelText(ja.users.columnEmployeeNo), "HH-RACE");
-    await user.click(screen.getByLabelText(new RegExp(ja.register.registerWithoutCard)));
 
     const submitBtn = screen.getByRole("button", { name: ja.register.registerAndIssue });
     await user.click(submitBtn);
@@ -356,16 +269,20 @@ describe("4.4b Register borrower form", () => {
       error: undefined,
     } as any);
 
-    const createUserSpy = vi.spyOn(apiClient, "createUser").mockResolvedValue({
+    const createUserSpy = vi.spyOn(apiClient, "registerUserWithCard").mockResolvedValue({
       data: {
-        id: "new-user-batch",
-        employeeNo: "HH-BATCH-1",
-        fullName: "Batch User 1",
-        departmentId: "dept-2",
-        status: "active",
-        registeredAt: "2026-08-21T10:00:00Z",
-        registeredBy: "admin:1",
-        updatedAt: "2026-08-21T10:00:00Z",
+        user: {
+          id: "new-user-batch",
+          employeeNo: "HH-BATCH-1",
+          fullName: "Batch User 1",
+          departmentId: "dept-2",
+          status: "active",
+          registeredAt: "2026-08-21T10:00:00Z",
+          registeredBy: "admin:1",
+          updatedAt: "2026-08-21T10:00:00Z",
+        },
+        credential: { id: "cred-batch", kind: "qr", status: "active", subjectType: "user", subjectId: "new-user-batch" },
+        token: "U-BATCH",
       },
       error: undefined,
     } as any);
@@ -394,8 +311,6 @@ describe("4.4b Register borrower form", () => {
     await user.click(cardioOption);
 
 
-    // Submit with Option C
-    await user.click(screen.getByLabelText(new RegExp(ja.register.registerWithoutCard)));
     await user.click(screen.getByRole("button", { name: ja.register.registerAndIssue }));
 
     await waitFor(() => {
@@ -408,12 +323,15 @@ describe("4.4b Register borrower form", () => {
       );
       expect(
         screen.getByRole("heading", {
+          hidden: true,
           name: translate(catalogues, "ja", "register.registeredHeading", {
             fullName: "Batch User 1",
           }),
         })
       ).toBeInTheDocument();
     });
+    // Close the card dialog that opens on its own.
+    await user.keyboard("{Escape}");
 
     // Click Register another
     const registerAnotherBtn = screen.getByRole("button", { name: ja.register.registerAnother });
