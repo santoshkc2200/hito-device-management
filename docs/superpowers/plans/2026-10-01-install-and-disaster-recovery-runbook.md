@@ -1453,3 +1453,14 @@ Add a "Changes made during execution" section at the end of this plan with the d
 git add docs/superpowers/plans/2026-10-01-install-and-disaster-recovery-runbook.md
 git commit -m "docs(plans): record the plan 4 drill"
 ```
+
+## Changes made during execution
+
+- **Drill Date:** 2026-10-01
+- **Status:** Stopped at Task 3 Step 2 per Rule 2 and Rule 6.
+- **Details:**
+  - Task 1 and Task 2 completed exactly as specified and were committed (`a015849`, `d6f7ef6`).
+  - Task 3 Step 1 started the `hdms-drill` container and provisioned tools and certificates.
+  - Task 3 Step 2 ran `install.sh` for a fresh install. Container images built successfully. During service startup and health checking, `install.sh` timed out after 3 minutes waiting for `https://localhost/v1/healthz`.
+  - Container logs showed `hdms-production-api-1` failed to start with `open /etc/ssl/private/hdms.hospital.key: permission denied`. The key file copied from the host into `hdms-drill` had host UID 501 and mode `0600`; inside the `api` container the process runs as non-root user `hdms` (UID 100), which cannot read `0600` files owned by UID 501.
+  - Per Rule 2 ("If a plan step's command does not give the plan's Expected result, STOP that task, do not work around it, and report the exact command and its exact output") and Rule 6 ("If a step fails, stop and report; do not invent alternative commands. At the end always run: docker rm -f -v hdms-drill. Write the 'Changes made during execution' section the plan asks for only with what really happened, then make the plan's final commit"), execution stopped without inventing alternative commands, `docker rm -f -v hdms-drill` was executed, and the plan is committed.
