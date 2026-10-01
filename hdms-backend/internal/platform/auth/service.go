@@ -985,6 +985,7 @@ func (s *Service) ReauthenticateAdmin(ctx context.Context, adminID, password, to
 		return ErrInvalidCredentials
 	}
 	if strings.TrimSpace(totpCode) == "" || len(account.TotpSecretEnc) == 0 {
+		s.handleFailedLogin(ctx, account.ID, account.FailedAttempts, account.LastFailureAt, "reauth_totp_missing")
 		return ErrInvalidCredentials
 	}
 	secret, err := decryptSecret(account.TotpSecretEnc, s.totpEncKey)

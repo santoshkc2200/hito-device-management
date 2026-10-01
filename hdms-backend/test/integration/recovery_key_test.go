@@ -97,9 +97,10 @@ func TestReauthenticateAdmin(t *testing.T) {
 		t.Fatalf("unknown admin err = %v", err)
 	}
 
-	// Wrong passwords count toward the same lockout as failed logins.
+	// Wrong passwords count toward the same lockout as failed logins. The
+	// missing-code attempt above already counted as one failure.
 	var last error
-	for i := 0; i < auth.MaxFailedAttempts; i++ {
+	for i := 0; i < auth.MaxFailedAttempts-1; i++ {
 		last = svc.ReauthenticateAdmin(ctx, id, "wrong password here", code())
 	}
 	if !errors.Is(last, auth.ErrInvalidCredentials) {
