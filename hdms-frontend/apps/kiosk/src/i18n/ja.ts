@@ -183,6 +183,12 @@ export const ja: KioskCatalogue = {
     workingOfflinePending: "オフライン動作中 — 保留中のトランザクション {count} 件",
     workingOfflinePendingSingular: "オフライン動作中 — 保留中のトランザクション 1 件",
   },
+  maintenance: {
+    badge: "メンテナンス中",
+    title: "ただいまメンテナンス中です",
+    subtitle: "HDMSはメンテナンス中です。まもなく自動的に再開します。",
+    notice: "状態を自動的に確認しています。",
+  },
   pairing: {
     title: "このiPadはまだペアリングされていません",
     subtitle: "管理者コンソールから6桁のペアリングコードを取得してください。",

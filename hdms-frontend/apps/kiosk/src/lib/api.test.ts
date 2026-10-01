@@ -10,6 +10,7 @@ import {
   getSessionAbortSignal,
 } from "./api";
 import { isKioskOffline, resetConnectivityForTesting } from "./connectivity";
+import { isUnderMaintenance, resetMaintenanceForTesting } from "@hdms/ui";
 
 describe("api library & resilience", () => {
   beforeEach(() => {
@@ -17,6 +18,7 @@ describe("api library & resilience", () => {
     resetScanSequence();
     resetKioskApiForTesting();
     resetConnectivityForTesting(false);
+    resetMaintenanceForTesting(async () => false);
   });
 
   afterEach(() => {
@@ -184,4 +186,26 @@ describe("api library & resilience", () => {
     expect(response.status).toBe(200);
     expect(callCount).toBe(2);
   });
+
+  it("aMaintenance503IsNeitherRetriedNorCountedAsOffline", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount += 1;
+      return new Response(
+        JSON.stringify({ type: "https://hdms.hito.local/errors/maintenance", title: "Under maintenance", status: 503 }),
+        { status: 503, headers: { "Content-Type": "application/problem+json", "Retry-After": "15" } },
+      );
+    });
+
+    const first = await resilientFetch("https://api.test/v1/sessions/123/scan");
+    const second = await resilientFetch("https://api.test/v1/sessions/123/scan");
+
+    expect(first.status).toBe(503);
+    expect(second.status).toBe(503);
+    // No retries, and two of them would have flipped the kiosk offline.
+    expect(callCount).toBe(2);
+    expect(isKioskOffline()).toBe(false);
+    expect(isUnderMaintenance()).toBe(true);
+  });
 });
+
