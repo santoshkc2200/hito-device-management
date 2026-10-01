@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -301,5 +302,44 @@ func TestCreateFolder(t *testing.T) {
 		if _, err := l.CreateFolder(ro, "x"); !errors.Is(err, ErrLocationNotWritable) {
 			t.Fatalf("read-only parent err = %v, want ErrLocationNotWritable", err)
 		}
+	}
+}
+
+func makeRecoverySource(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, "repo"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{filepath.Join(dir, "repo", "config"), filepath.Join(dir, RecoveryBundleFile)} {
+		if err := os.WriteFile(f, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestFindRepoFolders(t *testing.T) {
+	root := t.TempDir()
+	makeRecoverySource(t, filepath.Join(root, "hdms-backups"))
+	makeRecoverySource(t, filepath.Join(root, "it", "hdms"))
+	makeRecoverySource(t, filepath.Join(root, "a", "b", "too-deep"))
+	makeRecoverySource(t, filepath.Join(root, ".hidden"))
+	if err := os.MkdirAll(filepath.Join(root, "repo-only", "repo"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(root, "repo-only", "repo", "config"), []byte("x"), 0o600)
+	outside := t.TempDir()
+	makeRecoverySource(t, outside)
+	if err := os.Symlink(outside, filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+
+	got := FindRepoFolders(root, 2)
+	want := []string{filepath.Join(root, "hdms-backups"), filepath.Join(root, "it", "hdms")}
+	slices.Sort(got)
+	if !slices.Equal(got, want) {
+		t.Fatalf("FindRepoFolders = %v, want %v (no deeper than 2, no dot-folders, no symlinks, bundle required)", got, want)
+	}
+	if !IsRecoverySource(filepath.Join(root, "hdms-backups")) || IsRecoverySource(filepath.Join(root, "repo-only")) {
+		t.Fatal("IsRecoverySource must need both repo/config and the bundle")
 	}
 }
