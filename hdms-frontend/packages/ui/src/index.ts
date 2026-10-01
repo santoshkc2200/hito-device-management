@@ -21,6 +21,7 @@ export {
   installMaintenanceInterceptor,
   isMaintenanceResponse,
   isUnderMaintenance,
+  maintenanceEnded,
   reportMaintenance,
   resetMaintenanceForTesting,
   subscribeMaintenance,

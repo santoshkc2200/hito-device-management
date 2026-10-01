@@ -71,6 +71,18 @@ export function subscribeMaintenance(listener: Listener): () => void {
   };
 }
 
+/** Resolves once maintenance is over — at once if it is not on. */
+export function maintenanceEnded(): Promise<void> {
+  if (!active) return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsubscribe = subscribeMaintenance(() => {
+      if (active) return;
+      unsubscribe();
+      resolve();
+    });
+  });
+}
+
 /** True while maintenance is on. `onEnd` runs once each time it ends — apps refetch there. */
 export function useMaintenance(onEnd?: () => void): boolean {
   const on = React.useSyncExternalStore(subscribeMaintenance, isUnderMaintenance, () => false);

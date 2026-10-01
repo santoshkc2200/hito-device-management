@@ -1775,6 +1775,12 @@ export const en: AdminMessages = {
     development: "DEVELOPMENT — test data, not the live system",
     staging: "STAGING — test data, not the live system",
   },
+  maintenance: {
+    title: "HDMS is under maintenance",
+    body: "HDMS data is being restored from a backup. Kiosks and staff phones show a maintenance notice until it finishes.",
+    recheck: "This page comes back by itself when maintenance ends.",
+    openBackups: "Open Backups",
+  },
   backups: {
     subtitle: "Database backups: schedule, copies, checks and history.",
     tabs: { overview: "Overview", destinations: "Destinations", snapshots: "Backups", history: "History" },

@@ -8,6 +8,7 @@ import {
   installMaintenanceInterceptor,
   isMaintenanceResponse,
   isUnderMaintenance,
+  maintenanceEnded,
   reportMaintenance,
   resetMaintenanceForTesting,
   useMaintenance,
@@ -99,6 +100,22 @@ describe("maintenance state", () => {
     act(() => clearMaintenance());
     expect(screen.getByText("off")).toBeInTheDocument();
     expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("maintenanceEnded resolves at once when off, and only when maintenance ends when on", async () => {
+    await maintenanceEnded();
+
+    reportMaintenance();
+    let ended = false;
+    void maintenanceEnded().then(() => {
+      ended = true;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ended).toBe(false);
+
+    clearMaintenance();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ended).toBe(true);
   });
 
   it("the interceptor reports a maintenance response and passes every response through", async () => {

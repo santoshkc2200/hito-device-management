@@ -1,12 +1,14 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { LocaleProvider } from "@hdms/i18n";
-import { EnvironmentProvider } from "@hdms/ui";
+import { EnvironmentProvider, installMaintenanceInterceptor } from "@hdms/ui";
 import { installAuthInterceptors } from "./lib/auth";
 import { queryClient } from "./lib/query-client";
+import { MaintenanceOverlay } from "./components/maintenance-notice";
 import { router } from "./router";
 
 installAuthInterceptors();
+installMaintenanceInterceptor();
 
 export function App() {
   return (
@@ -14,6 +16,7 @@ export function App() {
       <LocaleProvider>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
+          <MaintenanceOverlay router={router} queryClient={queryClient} />
         </QueryClientProvider>
       </LocaleProvider>
     </EnvironmentProvider>

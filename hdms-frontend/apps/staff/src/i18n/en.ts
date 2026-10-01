@@ -141,6 +141,11 @@ export const en = {
     development: "DEVELOPMENT — test data, not the live system",
     staging: "STAGING — test data, not the live system",
   },
+  maintenance: {
+    title: "HDMS is under maintenance",
+    body: "HDMS data is being restored from a backup. Please try again in a few minutes.",
+    recheck: "This page comes back by itself when maintenance ends.",
+  },
 };
 
 export type StaffCatalogue = typeof en;
