@@ -85,6 +85,9 @@ HDMS requires HTTPS with a valid certificate issued by the hospital's internal C
    sudo chmod 644 /etc/ssl/certs/hdms.hospital.crt
    sudo chmod 600 /etc/ssl/private/hdms.hospital.key
    ```
+   The installer in step 6 then creates the `hdms` system user and makes the
+   key readable by root and group `hdms` only (`root:hdms`, mode `0640`): the
+   API container runs as that user and must read the key.
 3. **CA Root Installation:** Install the hospital root CA certificate on every kiosk iPad and client PC:
    - On iPad: Install CA profile, then go to **Settings → General → About → Certificate Trust Settings** and enable full trust for the root certificate.
    - **Crucial:** Without a trusted HTTPS connection, Safari and iPad WebKit block WebRTC/getUserMedia camera access, which breaks kiosk QR code scanning.

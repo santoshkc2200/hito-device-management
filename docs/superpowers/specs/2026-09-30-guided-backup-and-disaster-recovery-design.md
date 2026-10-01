@@ -305,6 +305,11 @@ Settled while planning (plan 4):
   not answer.
 - Tests use a stub `docker` plus the real `docker compose config`;
   Docker-in-Docker is used once for the full drill, not in CI.
+- Found by the drill: the api container is not root and could not read the
+  root-only TLS key on Linux. `install.sh` creates a host `hdms` system user
+  and group, the api runs as it (`user: ${HDMS_UID:-100}:${HDMS_GID:-101}` in
+  `compose.yaml`, values in the env file), and the key becomes `root:hdms`
+  mode `0640`.
 
 `hdms-cli recovery unwrap` is a new subcommand: reads the key from stdin, opens
 `<repo>/hdms-recovery.bin`, prints the secrets. It needs no database.

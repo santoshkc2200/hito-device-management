@@ -31,7 +31,7 @@ work=""
 env_tmp=""
 # Answers and secrets, filled in by the steps below (ask assigns by name).
 site_addr="" tz="" smtp_host="" smtp_port="" smtp_user="" smtp_password="" smtp_from="" smtp_reply=""
-source_dir="" nas_host_path=""
+source_dir="" nas_host_path="" service_uid="" service_gid=""
 backup_enc_key="" token_pepper="" credential_enc_key="" totp_enc_key=""
 
 say() { printf '%s\n' "$*" >&2; }
@@ -110,6 +110,9 @@ check_prerequisites() {
 		die "the Docker Compose plugin is not installed; see docs/runbooks/production-deployment.md, step 2"
 	command -v openssl >/dev/null 2>&1 || die "openssl is not installed (apt-get install openssl)"
 	command -v curl >/dev/null 2>&1 || die "curl is not installed (apt-get install curl)"
+	for tool in getent groupadd useradd; do
+		command -v "$tool" >/dev/null 2>&1 || die "$tool is not installed (apt-get install passwd libc-bin)"
+	done
 	case $env_file in
 	/*) ;;
 	*) die "HDMS_PROD_ENV_FILE must be an absolute path" ;;
@@ -287,6 +290,24 @@ collect_settings() {
 	ask smtp_reply "Reply-to address (empty for none)" "" optional
 }
 
+# ensure_service_user creates the host's `hdms` system user, which the api
+# container runs as (HDMS_UID/HDMS_GID in the env file), and makes the TLS key
+# readable by root and that group only. Without it the api, which is not root
+# inside its container, cannot open a root-only key.
+ensure_service_user() {
+	if ! getent group hdms >/dev/null; then
+		groupadd --system hdms
+	fi
+	if ! id -u hdms >/dev/null 2>&1; then
+		useradd --system --gid hdms --no-create-home --shell /usr/sbin/nologin hdms
+	fi
+	service_uid=$(id -u hdms)
+	service_gid=$(getent group hdms | cut -d: -f3)
+	chown root:hdms "$key_file"
+	chmod 640 "$key_file"
+	echo "The API runs as the hdms system user (uid $service_uid); $key_file is readable by root and group hdms only."
+}
+
 # render_env NAME VALUE ... prints the template with each NAME's line (or its
 # commented-out line) replaced by NAME='VALUE'. Values reach awk through its
 # environment, never its arguments.
@@ -340,6 +361,8 @@ write_env_file() {
 		HDMS_SMTP_PASSWORD "$smtp_password"
 		HDMS_SMTP_FROM_ADDRESS "$smtp_from"
 		HDMS_SMTP_REPLY_ADDRESS "$smtp_reply"
+		HDMS_UID "$service_uid"
+		HDMS_GID "$service_gid"
 	)
 	if [ "$mode" = restore ]; then
 		settings+=(HDMS_BACKUP_NAS_HOST_PATH "$nas_host_path")
@@ -429,6 +452,7 @@ main() {
 		generate_secrets
 	fi
 	collect_settings
+	ensure_service_user
 	write_env_file
 	start_and_wait
 	next_steps

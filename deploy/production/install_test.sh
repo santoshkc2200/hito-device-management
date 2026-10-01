@@ -49,13 +49,33 @@ case "$*" in
 	;;
 esac
 EOF
+# The host's `hdms` service user: uid 998, group 997, once useradd has run.
 cat >"$stub_bin/id" <<'EOF'
 #!/usr/bin/env bash
-if [ "${1:-}" = -u ]; then echo "${STUB_UID:-0}"; else exec /usr/bin/id "$@"; fi
+case "$*" in
+-u) echo "${STUB_UID:-0}" ;;
+"-u hdms") [ -f "$STUB_STATE/hdms-user" ] && echo 998 ;;
+*) exec /usr/bin/id "$@" ;;
+esac
+EOF
+cat >"$stub_bin/getent" <<'EOF'
+#!/usr/bin/env bash
+[ "$*" = "group hdms" ] && [ -f "$STUB_STATE/hdms-group" ] && echo "hdms:x:997:"
+EOF
+cat >"$stub_bin/groupadd" <<'EOF'
+#!/usr/bin/env bash
+printf 'groupadd %s\n' "$*" >>"$STUB_STATE/accounts.log"
+touch "$STUB_STATE/hdms-group"
+EOF
+cat >"$stub_bin/useradd" <<'EOF'
+#!/usr/bin/env bash
+printf 'useradd %s\n' "$*" >>"$STUB_STATE/accounts.log"
+touch "$STUB_STATE/hdms-user"
 EOF
 cat >"$stub_bin/chown" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$STUB_STATE/chown.log"
+[ "$1" = -R ] || exit 0 # the TLS key; only the backup folder plays the worker's access
 if [ -f "$STUB_STATE/chown-fails" ]; then
 	echo "chown: Operation not permitted" >&2
 	exit 1
@@ -72,7 +92,8 @@ fresh_state() {
 	state="$case_dir/state"
 	env_file="$case_dir/etc/hdms.env"
 	mkdir -p "$state" "$case_dir/etc" "$case_dir/certs"
-	touch "$state/docker.log" "$case_dir/certs/crt" "$case_dir/certs/key"
+	touch "$state/docker.log" "$state/accounts.log" "$case_dir/certs/crt" "$case_dir/certs/key"
+	chmod 600 "$case_dir/certs/key"
 }
 
 # run_install INPUT [ARGS...] runs install.sh with INPUT on stdin and sets
@@ -142,11 +163,20 @@ check "fresh: network drive stays unset" has_line "$env_file" "# HDMS_BACKUP_NAS
 check "fresh: starts the stack with the env file" grep -qF "compose -f $here/compose.yaml --env-file $env_file up -d --build" "$state/docker.log"
 check "fresh: builds no separate worker image" lacks "$state/docker.log" "build --quiet"
 check "fresh: points at the first administrator" says "hdms-cli admin bootstrap"
+check "fresh: creates the hdms system group" grep -qx "groupadd --system hdms" "$state/accounts.log"
+check "fresh: creates the hdms system user without a login" \
+	grep -qx "useradd --system --gid hdms --no-create-home --shell /usr/sbin/nologin hdms" "$state/accounts.log"
+check "fresh: the api runs as the hdms user" has_line "$env_file" "HDMS_UID='998'"
+check "fresh: ... and its group" has_line "$env_file" "HDMS_GID='997'"
+check "fresh: the TLS key belongs to root and group hdms" has_line "$state/chown.log" "root:hdms $case_dir/certs/key"
+# shellcheck disable=SC2012 # ls -l is the portable way to read a mode.
+check "fresh: the TLS key is readable by group hdms only" [ "$(ls -l "$case_dir/certs/key" | cut -c1-10)" = "-rw-r-----" ]
 
 compose_json=$(HDMS_PROD_ENV_FILE="$env_file" "$real_docker" compose -f "$here/compose.yaml" --env-file "$env_file" config --format json) ||
 	compose_json=""
 check "compose reads the SMTP password literally" grep -qF '"HDMS_SMTP_PASSWORD": "pa$$s w #rd\"x"' <<<"$compose_json"
 check "compose reads the time zone" grep -qF '"TZ": "Europe/London"' <<<"$compose_json"
+check "compose runs the api as the hdms user" grep -qF '"user": "998:997"' <<<"$compose_json"
 check "compose reads the pepper" grep -qF "\"HDMS_TOKEN_PEPPER\": \"$(value_of HDMS_TOKEN_PEPPER)\"" <<<"$compose_json"
 
 # --- refusals ----------------------------------------------------------------
@@ -160,6 +190,13 @@ run_install "$settings" --force
 check "--force replaces the env file" exits_with 0
 check "--force keeps the old file beside it" bash -c '[ "$(cat "$0".replaced-*)" = "$1" ]' "$env_file" "$before"
 check "--force writes new secrets" [ "$(cat "$env_file")" != "$before" ]
+
+fresh_state
+touch "$state/hdms-group" "$state/hdms-user"
+run_install "$settings"
+check "an existing hdms user is reused" exits_with 0
+check "an existing hdms user is not created again" [ ! -s "$state/accounts.log" ]
+check "an existing hdms user's IDs are used" has_line "$env_file" "HDMS_UID='998'"
 
 fresh_state
 touch "$state/db-volume"

@@ -112,6 +112,10 @@ services:
       context: ../../hdms-backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    # The host's `hdms` system user (install.sh creates it), so the api can read
+    # the TLS key, which is root:hdms 0640 on the host. Unset, the image's own
+    # user (100:101) is used, as on staging.
+    user: "${HDMS_UID:-100}:${HDMS_GID:-101}"
     # Secrets (HDMS_DATABASE_URL, HDMS_TOKEN_PEPPER, HDMS_CREDENTIAL_ENC_KEY,
     # HDMS_TOTP_ENC_KEY, HDMS_BACKUP_ENC_KEY, POSTGRES_*) arrive via
     # --env-file /etc/hdms/hdms.env for interpolation AND via env_file below

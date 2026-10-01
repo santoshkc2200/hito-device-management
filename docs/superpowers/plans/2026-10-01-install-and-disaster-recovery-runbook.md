@@ -1318,7 +1318,7 @@ Run everything from the worktree root on the Mac. The drill builds every image i
 S=$(mktemp -d)        # scratch for cookies and the key
 docker run -d --privileged --name hdms-drill -p 9443:443 docker:dind
 until docker exec hdms-drill docker info >/dev/null 2>&1; do sleep 2; done
-docker exec hdms-drill apk add --no-cache bash curl openssl
+docker exec hdms-drill apk add --no-cache bash curl openssl shadow   # shadow: useradd/groupadd
 git archive --format=tar HEAD | docker exec -i hdms-drill sh -c 'mkdir -p /opt/hdms && tar -x -C /opt/hdms'
 # The main checkout's mkcert pair for "localhost", trusted by this Mac's browser.
 MAIN=$(git worktree list | head -1 | awk '{print $1}')
@@ -1456,11 +1456,5 @@ git commit -m "docs(plans): record the plan 4 drill"
 
 ## Changes made during execution
 
-- **Drill Date:** 2026-10-01
-- **Status:** Stopped at Task 3 Step 2 per Rule 2 and Rule 6.
-- **Details:**
-  - Task 1 and Task 2 completed exactly as specified and were committed (`a015849`, `d6f7ef6`).
-  - Task 3 Step 1 started the `hdms-drill` container and provisioned tools and certificates.
-  - Task 3 Step 2 ran `install.sh` for a fresh install. Container images built successfully. During service startup and health checking, `install.sh` timed out after 3 minutes waiting for `https://localhost/v1/healthz`.
-  - Container logs showed `hdms-production-api-1` failed to start with `open /etc/ssl/private/hdms.hospital.key: permission denied`. The key file copied from the host into `hdms-drill` had host UID 501 and mode `0600`; inside the `api` container the process runs as non-root user `hdms` (UID 100), which cannot read `0600` files owned by UID 501.
-  - Per Rule 2 ("If a plan step's command does not give the plan's Expected result, STOP that task, do not work around it, and report the exact command and its exact output") and Rule 6 ("If a step fails, stop and report; do not invent alternative commands. At the end always run: docker rm -f -v hdms-drill. Write the 'Changes made during execution' section the plan asks for only with what really happened, then make the plan's final commit"), execution stopped without inventing alternative commands, `docker rm -f -v hdms-drill` was executed, and the plan is committed.
+- **Tasks 1–2** were implemented by agy (gemini-3.8-flash-medium) as `a015849` and `d6f7ef6`; the files are byte-identical to the plan's blocks. Claude re-ran shellcheck, the 67 checks, the six mutation checks and Task 2's link and string checks.
+- **Task 3, Step 2 (plan bug, pre-existing in production).** The fresh install timed out: the api exited with `open /etc/ssl/private/hdms.hospital.key: permission denied`. The api image runs as uid 100, and production-deployment.md step 4 leaves the key `root:root 0600`, so the documented production stack could never start on Linux (staging on Docker Desktop hides it, because macOS file sharing ignores ownership). The user chose a dedicated host user. `install.sh` now creates the `hdms` system group and user (`groupadd --system`, `useradd --system --no-create-home --shell /usr/sbin/nologin`) before writing the env file, sets the key to `root:hdms 0640`, and writes `HDMS_UID`/`HDMS_GID`. `compose.yaml` runs the api as `${HDMS_UID:-100}:${HDMS_GID:-101}` (unset keeps the image user, as on staging), `production.env.example` documents both, and step 4 of production-deployment.md says what the installer does. `install_test.sh` gained 10 checks (8 failed first); two more mutation checks (key mode 0644, always running useradd) were caught. `getent`, `groupadd` and `useradd` are now prerequisites, and the drill installs `shadow` in the Alpine container.
