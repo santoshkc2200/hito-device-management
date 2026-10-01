@@ -14,3 +14,16 @@ export {
   type DeploymentEnvironment,
   type EnvironmentBannerProps,
 } from "./environment";
+
+export {
+  MAINTENANCE_RECHECK_MS,
+  clearMaintenance,
+  installMaintenanceInterceptor,
+  isMaintenanceResponse,
+  isUnderMaintenance,
+  reportMaintenance,
+  resetMaintenanceForTesting,
+  subscribeMaintenance,
+  useMaintenance,
+} from "./maintenance";
+
