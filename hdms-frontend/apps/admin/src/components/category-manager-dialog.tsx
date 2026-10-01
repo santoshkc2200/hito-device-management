@@ -162,46 +162,48 @@ export function CategoryManagerDialog() {
           />
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("categoryManagerDialog.nameLabel")}</TableHead>
-                  <TableHead>{t("categoryManagerDialog.loanPeriodLabel")}</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>{c.name}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {c.defaultLoanPeriodSeconds
-                        ? t("categoryManagerDialog.daysSuffix", {
-                            days: String(Math.round(c.defaultLoanPeriodSeconds / 86400)),
-                          })
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setEditing(c)}
-                        aria-label={t("categoryManagerDialog.editAria", { name: c.name })}
-                      >
-                        <PencilLine className="size-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {data?.length === 0 && (
+            <div className="max-h-[55dvh] overflow-y-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
-                      {t("categoryManagerDialog.noCategoriesYet")}
-                    </TableCell>
+                    <TableHead>{t("categoryManagerDialog.nameLabel")}</TableHead>
+                    <TableHead>{t("categoryManagerDialog.loanPeriodLabel")}</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {data?.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell>{c.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {c.defaultLoanPeriodSeconds
+                          ? t("categoryManagerDialog.daysSuffix", {
+                              days: String(Math.round(c.defaultLoanPeriodSeconds / 86400)),
+                            })
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setEditing(c)}
+                          aria-label={t("categoryManagerDialog.editAria", { name: c.name })}
+                        >
+                          <PencilLine className="size-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {data?.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground">
+                        {t("categoryManagerDialog.noCategoriesYet")}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
             <Button
               variant="outline"
               size="sm"
