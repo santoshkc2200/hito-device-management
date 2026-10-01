@@ -4,7 +4,6 @@ import { createRoute } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
 import { AttentionStrip } from "@/components/dashboard/attention-strip";
 import { CategoryAvailabilityBars } from "@/components/dashboard/category-availability-bars";
-import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
 import { OverdueLoansTable } from "@/components/dashboard/overdue-loans-table";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { ErrorState } from "@/components/states";
@@ -141,18 +140,10 @@ function DashboardPage() {
         maintenanceCount={dashboard.maintenanceCount}
       />
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Overdue Work Queue & Category Availability */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          <OverdueLoansTable loans={dashboard.overdueLoans} />
-          <CategoryAvailabilityBars categories={dashboard.availabilityByCategory} />
-        </div>
-
-        {/* Right Column: Live Event Feed over SSE */}
-        <div className="lg:col-span-5">
-          <LiveActivityFeed />
-        </div>
+      {/* Main Content */}
+      <div className="flex flex-col gap-6">
+        <OverdueLoansTable loans={dashboard.overdueLoans} />
+        <CategoryAvailabilityBars categories={dashboard.availabilityByCategory} />
       </div>
     </div>
   );

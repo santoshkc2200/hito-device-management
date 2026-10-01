@@ -8,7 +8,6 @@ import { translate } from "@hdms/i18n";
 import { catalogues } from "@/i18n";
 import { AttentionStrip } from "@/components/dashboard/attention-strip";
 import { CategoryAvailabilityBars } from "@/components/dashboard/category-availability-bars";
-import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
 import { OverdueLoansTable } from "@/components/dashboard/overdue-loans-table";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { currentAdminQueryKey } from "@/lib/auth";
@@ -275,99 +274,6 @@ describe("Phase 4.7 — Dashboard", () => {
     });
   });
 
-  describe("4.7b — Live Activity Feed over SSE", () => {
-    it("renders incoming events newest first and de-duplicates by event ID", async () => {
-      const mockStreamUrl = "/v1/events/stream-test";
-      let streamController: ReadableStreamDefaultController | null = null;
-
-      const mockStream = new ReadableStream({
-        start(controller) {
-          streamController = controller;
-        },
-      });
-
-      const encoder = new TextEncoder();
-      vi.spyOn(globalThis, "fetch").mockImplementation(async (url: any) => {
-        if (String(url).includes("stream-test")) {
-          return new Response(mockStream, {
-            status: 200,
-            headers: { "Content-Type": "text/event-stream" },
-          });
-        }
-        return new Response("Not found", { status: 404 });
-      });
-
-      render(<LiveActivityFeed streamUrl={mockStreamUrl} />);
-
-      // Wait for connection
-      await waitFor(() => {
-        expect(screen.getByTestId("connection-status-connected")).toBeInTheDocument();
-      });
-
-      // Stream event 1
-      act(() => {
-        streamController?.enqueue(
-          encoder.encode(
-            'id: 101\nevent: loan.opened\ndata: {"userName":"Nurse Alice","deviceName":"iPad Mini 1","kioskId":"kiosk-1"}\n\n'
-          )
-        );
-      });
-
-      const checkoutDesc = translate(catalogues, "ja", "dashboard.feed.deviceCheckedOutDesc", {
-        user: "Nurse Alice",
-        device: "iPad Mini 1",
-        kiosk: translate(catalogues, "ja", "dashboard.feed.atKiosk", { kioskId: "kiosk-1" }),
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(ja.dashboard.feed.deviceCheckedOutTitle)).toBeInTheDocument();
-        expect(screen.getByText(checkoutDesc)).toBeInTheDocument();
-      });
-
-      // Stream event 2
-      act(() => {
-        streamController?.enqueue(
-          encoder.encode(
-            'id: 102\nevent: user.registered\ndata: {"fullName":"Dr. Sato","employeeNo":"EMP-999"}\n\n'
-          )
-        );
-      });
-
-      const registeredDesc = translate(catalogues, "ja", "dashboard.feed.userRegisteredDesc", {
-        name: "Dr. Sato",
-        employeeNo: translate(catalogues, "ja", "dashboard.feed.employeeNoSuffix", {
-          employeeNo: "EMP-999",
-        }),
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(ja.dashboard.feed.userRegisteredTitle)).toBeInTheDocument();
-        expect(screen.getByText(registeredDesc)).toBeInTheDocument();
-      });
-
-      // Stream duplicate event 101 (should NOT create a duplicate in the UI)
-      act(() => {
-        streamController?.enqueue(
-          encoder.encode(
-            'id: 101\nevent: loan.opened\ndata: {"userName":"Nurse Alice","deviceName":"iPad Mini 1"}\n\n'
-          )
-        );
-      });
-
-      const checkoutEvents = screen.getAllByText(ja.dashboard.feed.deviceCheckedOutTitle);
-      expect(checkoutEvents).toHaveLength(1);
-    });
-
-    it("displays honest connection states on network failure and provides Reconnect", async () => {
-      vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network error"));
-
-      render(<LiveActivityFeed streamUrl="/v1/events/stream-error" />);
-
-      // Starts reconnecting
-      expect(screen.getByTestId("connection-status-reconnecting")).toBeInTheDocument();
-    });
-  });
-
   describe("4.7c — Attention Strip", () => {
     it("shows no paper backlog warning when the threshold is 0", () => {
       render(<AttentionStrip kiosks={mockDashboardData.kiosks} lastPaperEntry={undefined} paperBacklogHours={0} />);
@@ -449,7 +355,6 @@ describe("Phase 4.7 — Dashboard", () => {
       expect(screen.getByText(ja.dashboard.headerTitle)).toBeInTheDocument();
       expect(screen.getByText(ja.dashboard.categories.title)).toBeInTheDocument();
       expect(screen.getByText(ja.dashboard.overdue.title)).toBeInTheDocument();
-      expect(screen.getByText(ja.dashboard.feed.title)).toBeInTheDocument();
 
       // Accessibility test
       const results = await axe(container);
