@@ -1,12 +1,15 @@
 package apiserver
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
+	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
+	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/listing"
 )
@@ -61,17 +64,35 @@ func (s *Server) CreateDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	device, err := s.catalog.CreateDevice(r.Context(), catalogapi.CreateDeviceParams{
-		AssetTag:     req.AssetTag,
-		Name:         req.Name,
-		CategoryID:   req.CategoryId,
-		Manufacturer: fromPtr(req.Manufacturer),
-		Model:        fromPtr(req.Model),
-		SerialNo:     fromPtr(req.SerialNo),
-		HomeLocation: fromPtr(req.HomeLocation),
-		Notes:        fromPtr(req.Notes),
-		AcquiredOn:   dateToTimePtr(req.AcquiredOn),
-	}, actorFrom(r))
+	actor := actorFrom(r)
+
+	// A device is created with its QR label in one transaction, so it can be
+	// scanned from the moment it exists and never sits without a credential.
+	var device catalogapi.DeviceSummary
+	err := db.NewTxManager(s.pool).Do(r.Context(), func(ctx context.Context) error {
+		var err error
+		device, err = s.catalog.CreateDevice(ctx, catalogapi.CreateDeviceParams{
+			AssetTag:     req.AssetTag,
+			Name:         req.Name,
+			CategoryID:   req.CategoryId,
+			Manufacturer: fromPtr(req.Manufacturer),
+			Model:        fromPtr(req.Model),
+			SerialNo:     fromPtr(req.SerialNo),
+			HomeLocation: fromPtr(req.HomeLocation),
+			Notes:        fromPtr(req.Notes),
+			AcquiredOn:   dateToTimePtr(req.AcquiredOn),
+		}, actor)
+		if err != nil {
+			return err
+		}
+		_, err = s.credentials.Issue(ctx, credentialsapi.IssueParams{
+			SubjectType: credentialsapi.SubjectDevice,
+			SubjectID:   device.ID,
+			Kind:        credentialsapi.KindQR,
+			IssuedBy:    actor,
+		})
+		return err
+	})
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
