@@ -61,9 +61,13 @@ describe("AppShell Navigation & Role Visibility", () => {
 
     // Admin-specific items
     expect(screen.getByText(ja.nav.audit)).toBeInTheDocument();
-    expect(screen.getByText(ja.nav.register)).toBeInTheDocument();
-    expect(screen.getByText(ja.nav.backfill)).toBeInTheDocument();
-    expect(screen.getByText(ja.nav.cardReaderTest)).toBeInTheDocument();
+
+    // Hidden for now
+    expect(screen.queryByText(ja.nav.register)).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.backfill)).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.credentials)).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.labels)).not.toBeInTheDocument();
+    expect(screen.queryByText(ja.nav.cardReaderTest)).not.toBeInTheDocument();
   });
 
   it("filters out settings and audit log for viewer role", () => {

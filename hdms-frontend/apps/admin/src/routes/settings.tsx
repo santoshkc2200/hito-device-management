@@ -6,14 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminAccountsPanel } from "@/components/admin-accounts-panel";
 import { PolicyPanel } from "@/components/settings/policy-panel";
 import { KiosksPanel } from "@/components/settings/kiosks-panel";
-import { TemplatesPanel } from "@/components/settings/templates-panel";
 import { DepartmentManagerPanel } from "@/components/settings/department-manager-panel";
 import { LanguagePanel } from "@/components/settings/language-panel";
 import { authenticatedRoute } from "./authenticated";
 import { useT } from "@/i18n";
 
 const settingsSearchSchema = z.object({
-  tab: z.enum(["policy", "kiosks", "templates", "departments", "admins", "language"]).optional(),
+  tab: z.enum(["policy", "kiosks", "departments", "admins", "language"]).optional(),
 });
 
 async function updateMyLocaleForPanel(body: { locale: Locale }) {
@@ -31,7 +30,7 @@ function SettingsPage() {
   const handleTabChange = (value: string) => {
     navigate({
       to: "/settings",
-      search: { tab: value as "policy" | "kiosks" | "templates" | "departments" | "admins" | "language" },
+      search: { tab: value as "policy" | "kiosks" | "departments" | "admins" | "language" },
       replace: true,
     });
   };
@@ -49,7 +48,6 @@ function SettingsPage() {
         <TabsList>
           <TabsTrigger value="policy">{t("settingsPage.tabPolicy")}</TabsTrigger>
           <TabsTrigger value="kiosks">{t("settingsPage.tabKiosks")}</TabsTrigger>
-          <TabsTrigger value="templates">{t("settingsPage.tabTemplates")}</TabsTrigger>
           <TabsTrigger value="departments">{t("settingsPage.tabDepartments")}</TabsTrigger>
           <TabsTrigger value="admins">{t("settingsPage.tabAdmins")}</TabsTrigger>
           <TabsTrigger value="language">{t("settingsPage.tabLanguage")}</TabsTrigger>
@@ -59,9 +57,6 @@ function SettingsPage() {
         </TabsContent>
         <TabsContent value="kiosks" className="mt-4">
           <KiosksPanel />
-        </TabsContent>
-        <TabsContent value="templates" className="mt-4">
-          <TemplatesPanel />
         </TabsContent>
         <TabsContent value="departments" className="mt-4">
           <DepartmentManagerPanel />

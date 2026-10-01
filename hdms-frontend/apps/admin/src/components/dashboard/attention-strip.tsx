@@ -168,12 +168,6 @@ export function AttentionStrip({
                 </p>
               </div>
             </div>
-            <Link to="/credentials" className="self-end sm:self-center shrink-0">
-              <Button size="sm" variant="outline" className="h-8 border-rose-300 bg-white dark:bg-rose-950 dark:border-rose-800 text-rose-900 dark:text-rose-200">
-                <CreditCard className="size-3.5 mr-1" />
-                {t("dashboard.attention.manageCards")}
-              </Button>
-            </Link>
           </CardContent>
         </Card>
       )}
@@ -198,12 +192,6 @@ export function AttentionStrip({
                 </p>
               </div>
             </div>
-            <Link to="/register" className="self-end sm:self-center shrink-0">
-              <Button size="sm" className="h-8 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-700 dark:hover:bg-amber-600">
-                <UserPlus className="size-3.5 mr-1" />
-                {t("dashboard.attention.registerBorrower")}
-              </Button>
-            </Link>
           </CardContent>
         </Card>
       )}
@@ -228,11 +216,6 @@ export function AttentionStrip({
                 </p>
               </div>
             </div>
-            <Link to="/credentials" className="self-end sm:self-center shrink-0">
-              <Button size="sm" variant="outline" className="h-8">
-                {t("dashboard.attention.generateStock")}
-              </Button>
-            </Link>
           </CardContent>
         </Card>
       )}
@@ -263,12 +246,6 @@ export function AttentionStrip({
                 </p>
               </div>
             </div>
-            <Link to="/backfill" className="self-end sm:self-center shrink-0">
-              <Button size="sm" variant="outline" className="h-8">
-                <FileSpreadsheet className="size-3.5 mr-1" />
-                {t("dashboard.attention.recordPaperSheet")}
-              </Button>
-            </Link>
           </CardContent>
         </Card>
       )}

@@ -245,12 +245,11 @@ describe("Settings Panels", () => {
       });
     });
 
-    it("displays hardware diagnostic tool banner", async () => {
+    it("hides the hardware diagnostic tool banner", async () => {
       renderWithClient(<KiosksPanel />);
 
       await waitFor(() => {
-        expect(screen.getByText(ja.kiosksPanel.scannerDiagnosticHeading)).toBeInTheDocument();
-        expect(screen.getByText(ja.kiosksPanel.launchDiagnosticTool)).toBeInTheDocument();
+        expect(screen.queryByText(ja.kiosksPanel.scannerDiagnosticHeading)).not.toBeInTheDocument();
       });
     });
 

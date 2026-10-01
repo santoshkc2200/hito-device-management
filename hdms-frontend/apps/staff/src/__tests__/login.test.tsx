@@ -4,12 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import { LoginPage } from "@/routes/login";
 
 describe("staff login", () => {
-  it("offers Microsoft sign-in and an employee-number form on the same screen", () => {
+  it("offers an employee-number form and hides Microsoft sign-in", () => {
     render(<LoginPage />);
-    expect(screen.getByRole("link", { name: /continue with microsoft/i })).toHaveAttribute(
-      "href",
-      "/v1/staff/auth/microsoft/start",
-    );
+    expect(screen.queryByRole("link", { name: /continue with microsoft/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/employee number/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
   });

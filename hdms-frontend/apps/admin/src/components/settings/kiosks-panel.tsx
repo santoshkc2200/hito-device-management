@@ -4,7 +4,6 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { toast } from "sonner";
-import { Link } from "@tanstack/react-router";
 import {
   listKiosks,
   createKiosk,
@@ -49,7 +48,6 @@ import { useRole } from "@/lib/use-role";
 import {
   MoreHorizontal,
   Plus,
-  Radio,
   RefreshCw,
   Key,
   QrCode,
@@ -356,25 +354,6 @@ export function KiosksPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Hardware Diagnostic Banner */}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-5 shadow-2xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground text-sm">{t("kiosksPanel.scannerDiagnosticHeading")}</span>
-            <Badge variant="secondary" className="font-mono text-[10px] uppercase">
-              {t("kiosksPanel.hardwareToolBadge")}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground max-w-xl">{t("kiosksPanel.scannerDiagnosticDescription")}</p>
-        </div>
-        <Link to="/card-reader-test">
-          <Button size="sm" variant="outline" className="gap-2">
-            <Radio className="size-4 text-primary" />
-            {t("kiosksPanel.launchDiagnosticTool")}
-          </Button>
-        </Link>
-      </div>
-
       {/* Kiosks Table Card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">

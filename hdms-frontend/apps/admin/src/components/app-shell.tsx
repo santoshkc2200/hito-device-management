@@ -7,17 +7,12 @@ import {
   CalendarClock,
   DatabaseBackup,
   FileCheck2,
-  FileSpreadsheet,
   FileText,
-  IdCardLanyard,
   LayoutDashboard,
   LogOut,
-  Radio,
   Settings,
   ShieldAlert,
-  Tags,
   Users as UsersIcon,
-  UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,8 +56,6 @@ export function AppShell() {
         name: t("nav.groups.daily"),
         items: [
           { to: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
-          { to: "/backfill", label: t("nav.backfill"), icon: FileSpreadsheet, minRole: "technician" },
-          { to: "/register", label: t("nav.register"), icon: UserPlus, minRole: "technician" },
         ],
       },
       {
@@ -87,9 +80,6 @@ export function AppShell() {
         items: [
           { to: "/settings", label: t("nav.settings"), icon: Settings, minRole: "admin" },
           { to: "/backups", label: t("nav.backups"), icon: DatabaseBackup, minRole: "admin" },
-          { to: "/credentials", label: t("nav.credentials"), icon: IdCardLanyard, minRole: "technician" },
-          { to: "/labels", label: t("nav.labels"), icon: Tags, minRole: "technician" },
-          { to: "/card-reader-test", label: t("nav.cardReaderTest"), icon: Radio, minRole: "technician" },
         ],
       },
     ],

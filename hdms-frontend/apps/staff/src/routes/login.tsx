@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n";
-import { loginWithPassword, microsoftSignInUrl } from "@/lib/auth";
+import { loginWithPassword } from "@/lib/auth";
 import { useLocalizedResolver } from "@/lib/localized-resolver";
 import { queryClient } from "@/lib/query-client";
 import { rootRoute } from "./root";
@@ -118,22 +118,6 @@ export function LoginPage({ onSubmit, error: errorProp }: LoginPageProps = {}) {
           <h1 className="mt-1 text-2xl font-semibold text-card-foreground">
             {t("login.title")}
           </h1>
-        </div>
-
-        {/* Microsoft single sign-on */}
-        <div className="mb-6">
-          <Button asChild variant="outline" className="w-full">
-            <a href={microsoftSignInUrl()}>{t("login.microsoftSignIn")}</a>
-          </Button>
-        </div>
-
-        <div className="relative mb-6 flex items-center justify-center text-xs uppercase">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
-          </div>
-          <span className="relative bg-card px-2 text-muted-foreground">
-            {t("login.orDivider")}
-          </span>
         </div>
 
         <form onSubmit={form.handleSubmit(handleSubmit)}>

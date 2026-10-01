@@ -18,7 +18,6 @@ import {
   Printer,
   RotateCw,
   Tag,
-  Upload,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -32,7 +31,6 @@ import {
   useTextSortingFn,
 } from "@/components/data-table";
 import { DeviceForm } from "@/components/device-form";
-import { DeviceImportDialog } from "@/components/device-import-dialog";
 import { DeviceLabelSheetDialog } from "@/components/device-label-sheet-dialog";
 import { deviceStatusTone, labelize, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -352,7 +350,6 @@ export function DevicesPage() {
   const navigate = useNavigate({ from: devicesRoute.fullPath });
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [labelSheetOpen, setLabelSheetOpen] = useState(false);
   const [labelDevices, setLabelDevices] = useState<Device[]>([]);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
@@ -473,14 +470,6 @@ export function DevicesPage() {
             <CategoryManagerDialog />
           </RoleGate>
           <RoleGate minRole="technician">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setImportOpen(true)}
-            >
-              <Upload className="size-4" data-icon="inline-start" />
-              {t("devices.importCsv")}
-            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -661,15 +650,6 @@ export function DevicesPage() {
         onOpenChange={setLabelSheetOpen}
       />
 
-      {/* CSV Import Wizard */}
-      <DeviceImportDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onPrintLabels={(imported) => {
-          setLabelDevices(imported);
-          setLabelSheetOpen(true);
-        }}
-      />
     </div>
   );
 }

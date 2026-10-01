@@ -401,7 +401,6 @@ describe("Phase 4.7 — Dashboard", () => {
           translate(catalogues, "ja", "dashboard.attention.unregisteredScansTitle", { count: 5 })
         )
       ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: new RegExp(ja.dashboard.attention.registerBorrower, "i") })).toBeInTheDocument();
 
       // 3. Low stock
       expect(screen.getByTestId("attention-low-stock")).toBeInTheDocument();
