@@ -154,6 +154,18 @@ jobs:
         working-directory: hdms-frontend
         run: pnpm audit --audit-level=high
 
+  deploy-scripts:
+    name: deploy scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: shellcheck
+        run: shellcheck deploy/production/*.sh
+
+      - name: install.sh tests
+        run: bash deploy/production/install_test.sh
+
   e2e:
     name: e2e
     runs-on: ubuntu-latest
