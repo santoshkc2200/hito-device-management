@@ -453,6 +453,13 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     expect(screen.getByRole("button", { name: /reprint/i })).toBeInTheDocument();
   });
 
+  it("offers no issue button on a device panel, even when it has no credentials", async () => {
+    renderPanel({ subjectType: "device", credentials: [] });
+
+    expect(await screen.findByText(/no credential issued/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /issue/i })).not.toBeInTheDocument();
+  });
+
   it("passes axe accessibility checks", async () => {
     vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
       data: { items: mockUserCredentials },

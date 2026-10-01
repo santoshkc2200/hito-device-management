@@ -379,7 +379,7 @@ export function CredentialsPanel({
       await invalidate();
       setIssueOpen(false);
       setRevealToken(data?.token);
-      toast.success(subjectType === "user" ? t("credentialsPanel.cardIssued") : t("credentialsPanel.credentialIssued"));
+      toast.success(t("credentialsPanel.cardIssued"));
     },
     onError: () => toast.error(t("credentialsPanel.issueFailed")),
   });
@@ -460,10 +460,12 @@ export function CredentialsPanel({
               {t("credentialsPanel.bindBlankCard")}
             </Button>
           )}
-          <Button size="sm" variant={hasActive ? "outline" : "default"} onClick={() => setIssueOpen(true)}>
-            <Plus className="size-4" data-icon="inline-start" />
-            {subjectType === "user" ? t("credentialsPanel.issueNewCard") : t("credentialsPanel.issueCredential")}
-          </Button>
+          {subjectType === "user" && (
+            <Button size="sm" variant={hasActive ? "outline" : "default"} onClick={() => setIssueOpen(true)}>
+              <Plus className="size-4" data-icon="inline-start" />
+              {t("credentialsPanel.issueNewCard")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -490,18 +492,18 @@ export function CredentialsPanel({
                 : t("credentialsPanel.noCredentialIssuedHint")}
             </p>
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            {subjectType === "user" && (
+          {subjectType === "user" && (
+            <div className="flex items-center gap-2 mt-2">
               <Button size="sm" variant="outline" onClick={() => setBindOpen(true)}>
                 <LinkIcon className="size-4" data-icon="inline-start" />
                 {t("credentialsPanel.bindBlankCard")}
               </Button>
-            )}
-            <Button size="sm" onClick={() => setIssueOpen(true)}>
-              <Plus className="size-4" data-icon="inline-start" />
-              {subjectType === "user" ? t("credentialsPanel.issueCard") : t("credentialsPanel.issueCredential")}
-            </Button>
-          </div>
+              <Button size="sm" onClick={() => setIssueOpen(true)}>
+                <Plus className="size-4" data-icon="inline-start" />
+                {t("credentialsPanel.issueCard")}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -517,18 +519,18 @@ export function CredentialsPanel({
                   ? t("credentialsPanel.allRevokedHintUser")
                   : t("credentialsPanel.allRevokedHintDevice")}
               </p>
-              <div className="flex items-center gap-2 mt-3">
-                {subjectType === "user" && (
+              {subjectType === "user" && (
+                <div className="flex items-center gap-2 mt-3">
                   <Button size="sm" variant="outline" onClick={() => setBindOpen(true)}>
                     <LinkIcon className="size-4" data-icon="inline-start" />
                     {t("credentialsPanel.bindBlankCard")}
                   </Button>
-                )}
-                <Button size="sm" onClick={() => setIssueOpen(true)}>
-                  <Plus className="size-4" data-icon="inline-start" />
-                  {subjectType === "user" ? t("credentialsPanel.issueNewCard") : t("credentialsPanel.issueCredential")}
-                </Button>
-              </div>
+                  <Button size="sm" onClick={() => setIssueOpen(true)}>
+                    <Plus className="size-4" data-icon="inline-start" />
+                    {t("credentialsPanel.issueNewCard")}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -702,7 +704,7 @@ export function CredentialsPanel({
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {subjectType === "user" ? t("credentialsPanel.issueNewCardTitle") : t("credentialsPanel.issueNewCredentialTitle")}
+              {t("credentialsPanel.issueNewCardTitle")}
             </DialogTitle>
             <DialogDescription>{t("credentialsPanel.issueDialogDescription")}</DialogDescription>
           </DialogHeader>
