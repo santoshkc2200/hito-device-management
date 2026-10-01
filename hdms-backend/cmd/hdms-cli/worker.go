@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -20,6 +21,103 @@ import (
 )
 
 const workerTick = time.Minute
+
+// Worker modes, as /recovery/api/status reports them.
+const (
+	modeStarting            = "starting"
+	modeDatabaseUnavailable = "database_unavailable"
+	modeReady               = "ready"
+)
+
+// dbRetry is the wait between attempts to reach and migrate the database.
+const dbRetry = 30 * time.Second
+
+var errRestoreRunning = errors.New("worker: a restore is running; the database is left alone until it ends")
+
+// startup is the worker's path to a usable database. Until Connect succeeds
+// the worker runs no jobs and writes no heartbeat, but its HTTP listener —
+// and so the recovery page — stays up whatever state the database is in.
+type startup struct {
+	Every time.Duration
+	// Kick retries at once; a finished restore uses it.
+	Kick chan struct{}
+	// Prepare runs before every attempt: it resumes or unwinds an
+	// interrupted restore. An error is retried like a connection error.
+	Prepare func(ctx context.Context) error
+	// Blocked reports a restore in progress; no attempt is made meanwhile.
+	Blocked func() bool
+	// Connect migrates, opens the pool and provisions hdms_app.
+	Connect func(ctx context.Context) (*db.Pool, error)
+	Logger  *slog.Logger
+
+	current atomic.Value // string
+}
+
+func (s *startup) mode() string {
+	if m, ok := s.current.Load().(string); ok {
+		return m
+	}
+	return modeStarting
+}
+
+func (s *startup) kick() {
+	select {
+	case s.Kick <- struct{}{}:
+	default:
+	}
+}
+
+func (s *startup) run(ctx context.Context) (*db.Pool, error) {
+	for {
+		pool, err := s.attempt(ctx)
+		if err == nil {
+			s.current.Store(modeReady)
+			return pool, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		s.current.Store(modeDatabaseUnavailable)
+		s.Logger.Error("worker: database unavailable; the recovery page stays up", "error", err, "retry_in", s.Every)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-s.Kick:
+		case <-time.After(s.Every):
+		}
+	}
+}
+
+func (s *startup) attempt(ctx context.Context) (*db.Pool, error) {
+	if s.Prepare != nil {
+		if err := s.Prepare(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if s.Blocked != nil && s.Blocked() {
+		return nil, errRestoreRunning
+	}
+	return s.Connect(ctx)
+}
+
+// connectWorkerDB migrates as the owner, opens the pool and gives hdms_app
+// its login. Any failure is retried by startup.
+func connectWorkerDB(ctx context.Context, cfg config.Config, ownerURL string) (*db.Pool, error) {
+	if err := db.Migrate(ctx, ownerURL); err != nil {
+		return nil, err
+	}
+	pool, err := db.Open(ctx, ownerURL)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.AppDBPassword != "" {
+		if err := db.ProvisionAppRole(ctx, pool.Pool, cfg.AppDBPassword); err != nil {
+			pool.Close()
+			return nil, err
+		}
+	}
+	return pool, nil
+}
 
 // workerDeps are the parts of the job table that need the database: the
 // backup's live schedule and the executor-backed backup and verify runs.
@@ -75,8 +173,7 @@ func (s liveSchedule) Latest(now time.Time) time.Time {
 	return c.JobSchedule(s.loc).Latest(now)
 }
 
-// runWorker migrates as the owner, gives hdms_app its login, then runs the
-// scheduled jobs until SIGTERM. The heartbeat file is first written only
+// runWorker serves its HTTP listener at once, then waits for a usable database (migrating as the owner and giving hdms_app its login), then runs the scheduled jobs until SIGTERM. The heartbeat file is first written only
 // after startup succeeds, so compose starts the API once the schema exists.
 func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 	fs := flag.NewFlagSet("worker", flag.ContinueOnError)
@@ -100,6 +197,11 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	r, err := resticFor(cfg)
+	if err != nil {
+		return err
+	}
+
 	// The internal listener starts before the database is touched: it needs
 	// only the filesystem, and later plans serve recovery from it while the
 	// database is broken.
@@ -121,25 +223,24 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 	}()
 
 	ownerURL := cfg.WorkerDatabaseURL()
-	if err := db.Migrate(ctx, ownerURL); err != nil {
-		return err
+	start := &startup{
+		Every:  dbRetry,
+		Kick:   make(chan struct{}, 1),
+		Logger: slog.Default(),
+		Connect: func(ctx context.Context) (*db.Pool, error) {
+			return connectWorkerDB(ctx, cfg, ownerURL)
+		},
 	}
-	pool, err := db.Open(ctx, ownerURL)
+	pool, err := start.run(ctx)
 	if err != nil {
+		if ctx.Err() != nil {
+			slog.Info("worker: stopped before the database was ready")
+			return nil
+		}
 		return err
 	}
 	defer pool.Close()
 
-	if cfg.AppDBPassword != "" {
-		if err := db.ProvisionAppRole(ctx, pool.Pool, cfg.AppDBPassword); err != nil {
-			return err
-		}
-	}
-
-	r, err := resticFor(cfg)
-	if err != nil {
-		return err
-	}
 	exec := &backup.Executor{
 		Pool:         pool,
 		DatabaseURL:  ownerURL,

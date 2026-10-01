@@ -65,7 +65,7 @@ services:
       - ${HDMS_BACKUP_NAS_HOST_PATH:-./.dev-backups}:/mnt/nas
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_started
 
   caddy:
     image: caddy:2-alpine@sha256:ad27e531c8b286ff153c0e6e16587a1583e4111bb58c4d83bd73d6d3ef0a0ce1

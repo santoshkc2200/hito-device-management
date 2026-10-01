@@ -16,12 +16,12 @@
 #   with X-Forwarded-For overwritten to the peer IP (THR-01).
 # - The database port is NOT published: only api reaches db:5432 on the
 #   compose network. Every service has resource limits, restart policy and
-#   a healthcheck; startup order is gated on health, not on sleep.
+#   a healthcheck; services start without waiting on each other's health, so a broken database cannot take the recovery page down with it (spec 2026-09-30-guided-backup-and-disaster-recovery).
 # - HDMS_ENV=production and HDMS_RATE_LIMIT=on are enforced here
 #   (environment overrides any env file), so the fail-closed checks in
 #   internal/platform/config cannot be softened by a stale secrets file.
 # - Migrations run in the worker at start, as the database owner, under the
-#   goose advisory lock; the API starts only after the worker is healthy and
+#   goose advisory lock; the API waits for the database itself (/v1/readyz) and
 #   connects as the restricted hdms_app role (HDMS_MIGRATE_ON_START=false).
 # - The worker runs every scheduled job (backup, reminders, expiry,
 #   retention …) — the deploy/systemd timers are for non-Docker installs.
@@ -86,9 +86,9 @@ services:
       - ${HDMS_BACKUP_NAS_HOST_PATH:-hdms-prod-nas-unset}:/mnt/nas
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
-      # The heartbeat is written only after migrations succeed, then every 30s.
+      # The heartbeat is written once the database is migrated, then every 30s; until then the worker serves only its HTTP listener.
       test: ["CMD-SHELL", "test -n \"$$(find /tmp/hdms-worker-alive -mmin -3 2>/dev/null)\""]
       interval: 15s
       timeout: 5s
@@ -138,9 +138,9 @@ services:
       - ${HDMS_TLS_KEY_HOST_PATH:-/etc/ssl/private/hdms.hospital.key}:/etc/ssl/private/hdms.hospital.key:ro
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_started
       worker:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1:8443/v1/healthz | grep -q '\"status\":\"ok\"'"]
       interval: 10s
@@ -177,7 +177,9 @@ services:
       - ${HDMS_TLS_KEY_HOST_PATH:-/etc/ssl/private/hdms.hospital.key}:/etc/ssl/private/hdms.hospital.key:ro
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
+      worker:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null --no-check-certificate https://127.0.0.1:443/v1/healthz || wget -q -O /dev/null --no-check-certificate https://127.0.0.1:8443/v1/healthz || exit 1"]
       interval: 15s
