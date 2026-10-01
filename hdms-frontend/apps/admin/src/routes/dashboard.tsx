@@ -126,7 +126,11 @@ function DashboardPage() {
         kiosks={dashboard.kiosks}
         lastPaperEntry={dashboard.lastPaperEntry}
         paperBacklogHours={dashboard.paperBacklogHours}
-        backup={isAdmin && backupQuery.data ? { lastSuccessAt: backupQuery.data.lastSuccessAt ?? null } : undefined}
+        backup={
+          isAdmin && backupQuery.data
+            ? { lastSuccessAt: backupQuery.data.lastSuccessAt ?? null, recoveryKeyStatus: backupQuery.data.recoveryKey.status }
+            : undefined
+        }
       />
 
       {/* 4 Stat Tiles */}

@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LoadingState } from "@/components/states";
 import { useT } from "@/i18n";
 import { formatBytes, formatDateTime, WORKER_STALE_MS } from "./format";
+import { RecoveryKeyCard } from "./recovery-key-card";
 import { useBackupRequest } from "./use-backup-request";
 
 const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -115,6 +116,8 @@ export function OverviewTab() {
       </Card>
 
       <ScheduleCard schedule={cfg.schedule} />
+
+      <RecoveryKeyCard state={cfg.recoveryKey} localPath={cfg.local.path} />
 
       <Card>
         <CardHeader>
