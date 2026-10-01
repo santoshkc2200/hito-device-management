@@ -1496,7 +1496,8 @@ export type GetReadyzData = {
 
 export type GetReadyzErrors = {
     /**
-     * A dependency is unavailable.
+     * Not ready. Problem type `not-ready` when the database is down or its schema is not current; `maintenance` (with `Retry-After: 15`) while a restore holds maintenance mode. Clients showing a maintenance notice poll here and clear it on the first 200.
+     *
      */
     503: Problem;
 };
