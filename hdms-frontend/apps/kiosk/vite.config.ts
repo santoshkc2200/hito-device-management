@@ -37,6 +37,9 @@ export const pwaOptions = {
   workbox: {
     globPatterns: ["**/*.{js,css,html,ico,png,svg,wasm}"],
     navigateFallback: "index.html",
+    // The kiosk's scope is "/": without this, its fallback would answer
+    // navigations to the other apps, the recovery page included.
+    navigateFallbackDenylist: [/^\/(admin|staff|recovery)(\/|$)/],
     runtimeCaching: [
       {
         urlPattern: /\/v1\/.*/,
