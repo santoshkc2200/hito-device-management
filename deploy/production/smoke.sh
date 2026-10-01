@@ -1,5 +1,5 @@
 #!/bin/sh
-# Production smoke check (Phase 5.3a): /v1/healthz, /v1/readyz, a login and a scan.
+# Production smoke check (Phase 5.3a): /v1/healthz, /v1/readyz, /recovery, a login and a scan.
 #
 # Usage:
 #   HDMS_BASE_URL=https://hdms.hospital.local \
@@ -32,6 +32,13 @@ pass "GET /v1/healthz"
 ready=$(curl -ksS -m 10 "${BASE}/v1/readyz") || fail "GET /v1/readyz unreachable"
 echo "${ready}" | grep -q '"status":"ok"' || echo "${ready}" | grep -q '"status": "ok"' || fail "/v1/readyz not ready: ${ready}"
 pass "GET /v1/readyz"
+
+recovery=$(curl -ksS -m 10 "${BASE}/recovery/api/status") || fail "GET /recovery/api/status unreachable"
+echo "${recovery}" | grep -q '"database"' || fail "/recovery/api/status body unexpected: ${recovery}"
+pass "GET /recovery/api/status"
+
+curl -ksS -m 10 "${BASE}/recovery/" | grep -q '<title>HDMS Recovery</title>' || fail "/recovery/ does not serve the recovery page"
+pass "GET /recovery/"
 
 if [ -z "${ADMIN_EMAIL}" ] || [ -z "${ADMIN_PASSWORD}" ]; then
   echo "smoke: SKIP login/scan (set HDMS_ADMIN_EMAIL + HDMS_ADMIN_PASSWORD for full check)"

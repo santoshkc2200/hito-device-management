@@ -21,7 +21,8 @@ import { useScanRouter } from "../lib/scan";
 import { playFeedbackSound } from "../lib/audio";
 import { getOutcomeFeedback, outcomeSoundKey } from "../lib/feedback-config";
 import { useConnectivity, onKioskReconnect, resetConnectivityForTesting } from "../lib/connectivity";
-import { resetScanSequence } from "../lib/api";
+import { abortActiveSessionRequests, resetScanSequence } from "../lib/api";
+import { isUnderMaintenance, subscribeMaintenance } from "@hdms/ui";
 
 export interface UseKioskSessionOptions {
   actor?: SessionMachineActor;
@@ -126,6 +127,17 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     });
   }, [actor]);
 
+  // A restore is about to rewind the data: drop whatever session is open.
+  // The server-side session expires on its own, and nothing is queued.
+  React.useEffect(() => {
+    return subscribeMaintenance(() => {
+      if (!isUnderMaintenance()) return;
+      abortActiveSessionRequests();
+      clearSessionId();
+      actor.send({ type: "RESET" });
+    });
+  }, [actor]);
+
   const lastOutcome = snapshot.context.lastOutcome;
   const lastProblem = snapshot.context.lastProblem;
 
@@ -191,7 +203,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   // Handle hardware scan and camera scan routing
   const handleScan = React.useCallback(
     async (token: string, source: ScanSource = "scanner") => {
-      if (!isScanningRef.current) return;
+      if (!isScanningRef.current || isUnderMaintenance()) return;
 
       try {
         const result = await executeScan({
@@ -214,6 +226,8 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
         if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
           return;
         }
+        // The maintenance screen is already up; this is not a refusal.
+        if (isUnderMaintenance()) return;
         setIsOutcomeDismissed(false);
         const problem = await parseProblem(err);
         actor.send({ type: "SET_PROBLEM", problem });
@@ -284,6 +298,8 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
         if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
           return;
         }
+        // The maintenance screen is already up; this is not a refusal.
+        if (isUnderMaintenance()) return;
         const problem = await parseProblem(err);
         actor.send({ type: "SET_PROBLEM", problem });
       }

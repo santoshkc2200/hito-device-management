@@ -26,9 +26,19 @@ https://localhost:8443 {
 		respond 204
 	}
 
-	reverse_proxy api:8443 {
-		transport http {
-			tls_insecure_skip_verify
+	# Recovery API (plan 3b): straight to the worker, as in production. The
+	# recovery Vite server (:5176) proxies /recovery/api here.
+	handle /recovery/api/* {
+		reverse_proxy worker:8090 {
+			header_up X-Forwarded-For {http.request.remote.host}
+		}
+	}
+
+	handle {
+		reverse_proxy api:8443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
 		}
 	}
 }

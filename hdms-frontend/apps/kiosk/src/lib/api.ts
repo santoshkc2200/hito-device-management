@@ -7,6 +7,7 @@ import {
   getSessionId,
 } from "./kiosk-config";
 import { recordRequestFailure, recordRequestSuccess } from "./connectivity";
+import { isMaintenanceResponse, reportMaintenance } from "@hdms/ui";
 
 export const REQUEST_TIMEOUT_MS = 8000;
 export const MAX_RETRY_COUNT = 3;
@@ -158,6 +159,13 @@ export async function resilientFetch(
       clearTimeout(timeoutId);
       if (abortListener && externalSignal) {
         externalSignal.removeEventListener("abort", abortListener);
+      }
+
+      // A restore is running: not worth retrying and not a connectivity
+      // failure. The maintenance screen takes over until /v1/readyz is 200.
+      if (await isMaintenanceResponse(response)) {
+        reportMaintenance();
+        return response;
       }
 
       // Check if status is 5xx or 408/429

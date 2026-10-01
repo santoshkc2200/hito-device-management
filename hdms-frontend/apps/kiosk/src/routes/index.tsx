@@ -9,10 +9,12 @@ import { SuccessScreen } from "@/screens/success-screen";
 import { BlockedScreen } from "@/screens/blocked-screen";
 import { OfflineScreen } from "@/screens/offline-screen";
 import { PairingScreen } from "@/screens/pairing-screen";
+import { MaintenanceScreen } from "@/screens/maintenance-screen";
 import { CameraOverlay } from "@/components/camera-overlay";
 import { DiagnosticsModal } from "@/components/diagnostics-modal";
 import { AttendantModal } from "@/components/attendant-modal";
 import { LocaleProvider, DEFAULT_LOCALE } from "@hdms/i18n";
+import { useMaintenance } from "@hdms/ui";
 import { getKioskConfig, isKioskPaired, subscribeKioskConfig } from "@/lib/kiosk-config";
 import { useScreenWakeLock } from "@/lib/wake-lock";
 import { useDeferredServiceWorkerUpdate } from "@/lib/sw-update";
@@ -53,6 +55,8 @@ export function KioskApp() {
     close,
     cancel,
   } = useKioskSession();
+
+  const underMaintenance = useMaintenance();
 
   // Re-anchoring the provider on every return to idle is the reset: whatever
   // language the last person selected is discarded with their session.
@@ -106,8 +110,14 @@ export function KioskApp() {
 
   return (
     <LocaleProvider key={localeEpoch} locale={defaultLocale}>
-      {/* 1. Offline Mode Display */}
-      {isOffline ? (
+      {/* 0. Maintenance outranks everything, offline included */}
+      {underMaintenance ? (
+        <MaintenanceScreen
+          kioskName={kioskName}
+          supportCode={context.supportCode}
+          onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+        />
+      ) : isOffline ? (
         <OfflineScreen
           kioskName={kioskName}
           supportCode={context.supportCode}

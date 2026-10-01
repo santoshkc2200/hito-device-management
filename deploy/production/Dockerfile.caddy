@@ -1,7 +1,7 @@
 # Production Caddy image (Phase 5.3a): reverse proxy + baked frontend assets.
 #
-# Multi-stage: the builder compiles the three Vite apps with their production
-# base paths (/ kiosk, /admin console, /staff PWA), and the runtime copies
+# Multi-stage: the builder compiles the four Vite apps with their production
+# base paths (/ kiosk, /admin console, /staff PWA, /recovery page), and the runtime copies
 # only the static dist output into the stock Caddy image. No source, no
 # toolchain, no bind-mounts — what ships is what was built.
 #
@@ -37,6 +37,8 @@ RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} pnpm --filter kiosk build
 RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} VITE_BASE_PATH=/admin/ pnpm --filter admin build
 # Staff PWA at /staff: subpath base; the generated client defaults to /v1.
 RUN VITE_BASE_PATH=/staff/ pnpm --filter staff build
+# Recovery page at /recovery: subpath base; it calls only /recovery/api.
+RUN VITE_BASE_PATH=/recovery/ pnpm --filter recovery build
 
 # Runtime: stock Caddy, pinned by index digest (same pin as dev compose).
 FROM caddy:2-alpine@sha256:ad27e531c8b286ff153c0e6e16587a1583e4111bb58c4d83bd73d6d3ef0a0ce1
@@ -44,4 +46,5 @@ FROM caddy:2-alpine@sha256:ad27e531c8b286ff153c0e6e16587a1583e4111bb58c4d83bd73d
 COPY --from=frontend-builder /src/hdms-frontend/apps/kiosk/dist /srv/kiosk
 COPY --from=frontend-builder /src/hdms-frontend/apps/admin/dist /srv/admin
 COPY --from=frontend-builder /src/hdms-frontend/apps/staff/dist /srv/staff
+COPY --from=frontend-builder /src/hdms-frontend/apps/recovery/dist /srv/recovery
 COPY deploy/production/Caddyfile /etc/caddy/Caddyfile

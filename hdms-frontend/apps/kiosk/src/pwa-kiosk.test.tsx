@@ -220,4 +220,18 @@ describe("PWA and Kiosk Mode (Phase 3.7)", () => {
     expect(v1RouteCache).toBeDefined();
     expect(v1RouteCache?.handler).toBe("NetworkOnly");
   });
+
+  it("leavesOtherAppsNavigationsAlone", () => {
+    // Scope is "/", so without a denylist a browser that once opened the
+    // kiosk would be shown the kiosk at /admin, /staff and — when it matters
+    // most — /recovery.
+    const denylist: RegExp[] = pwaOptions.workbox.navigateFallbackDenylist ?? [];
+    const denied = (path: string) => denylist.some((re) => re.test(path));
+    for (const path of ["/recovery", "/recovery/", "/admin/backups", "/staff/devices"]) {
+      expect(denied(path), path).toBe(true);
+    }
+    for (const path of ["/", "/index.html", "/recoveryx"]) {
+      expect(denied(path), path).toBe(false);
+    }
+  });
 });

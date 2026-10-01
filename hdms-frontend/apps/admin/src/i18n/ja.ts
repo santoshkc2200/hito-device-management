@@ -1739,6 +1739,12 @@ export const ja = {
     development: "開発 — テスト用・本番ではありません",
     staging: "ステージング — 検証用・本番ではありません",
   },
+  maintenance: {
+    title: "HDMS はメンテナンス中です",
+    body: "バックアップからデータを復旧しています。終わるまで、キオスクと職員用アプリにもメンテナンス中の案内が表示されます。",
+    recheck: "メンテナンスが終わると、このページは自動的に元に戻ります。",
+    openBackups: "バックアップを開く",
+  },
   backups: {
     subtitle: "データベースのバックアップ：スケジュール、コピー先、検証、履歴。",
     tabs: { overview: "概要", destinations: "保存先", snapshots: "バックアップ一覧", history: "履歴" },

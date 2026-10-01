@@ -6,3 +6,5 @@ export * from "./success-screen";
 export * from "./blocked-screen";
 export * from "./offline-screen";
 export * from "./pairing-screen";
+export * from "./maintenance-screen";
+

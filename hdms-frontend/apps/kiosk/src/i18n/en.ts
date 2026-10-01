@@ -181,6 +181,12 @@ export const en = {
     workingOfflinePending: "Working offline — {count} transactions pending",
     workingOfflinePendingSingular: "Working offline — 1 transaction pending",
   },
+  maintenance: {
+    badge: "Maintenance",
+    title: "Under maintenance",
+    subtitle: "HDMS is under maintenance. This kiosk will resume by itself shortly.",
+    notice: "Checking automatically for the end of maintenance.",
+  },
   pairing: {
     title: "This iPad is not yet paired",
     subtitle: "Ask an administrator for a 6-digit pairing code from the Admin Console.",

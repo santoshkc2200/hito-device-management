@@ -57,7 +57,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
         "503":
-          description: A dependency is unavailable.
+          description: >
+            Not ready. Problem type `not-ready` when the database is down or
+            its schema is not current; `maintenance` (with `Retry-After: 15`)
+            while a restore holds maintenance mode. Clients showing a
+            maintenance notice poll here and clear it on the first 200.
           content:
             application/problem+json:
               schema:

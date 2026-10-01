@@ -38,8 +38,7 @@ func MaintenanceGate(pool *db.Pool, now func() time.Time) httpx.Middleware {
 				next.ServeHTTP(w, r)
 				return
 			}
-			w.Header().Set("Retry-After", "15")
-			httpx.WriteProblem(w, r, httpx.NewProblem("maintenance", "Under maintenance", http.StatusServiceUnavailable))
+			writeMaintenance(w, r)
 		})
 	}
 }
@@ -67,4 +66,12 @@ func (g *maintenanceGate) active(ctx context.Context) bool {
 		g.on = m.On
 	}
 	return g.on
+}
+
+// writeMaintenance is the one maintenance answer, from the gate and from
+// /v1/readyz alike. Clients key their notice on the problem type and ask
+// /v1/readyz again after Retry-After.
+func writeMaintenance(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Retry-After", "15")
+	httpx.WriteProblem(w, r, httpx.NewProblem("maintenance", "Under maintenance", http.StatusServiceUnavailable))
 }

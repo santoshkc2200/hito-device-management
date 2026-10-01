@@ -143,4 +143,9 @@ export const ja: StaffCatalogue = {
     development: "開発 — テスト用・本番ではありません",
     staging: "ステージング — 検証用・本番ではありません",
   },
+  maintenance: {
+    title: "HDMS はメンテナンス中です",
+    body: "バックアップからデータを復旧しています。数分後にもう一度お試しください。",
+    recheck: "メンテナンスが終わると、このページは自動的に元に戻ります。",
+  },
 };

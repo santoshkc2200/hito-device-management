@@ -352,4 +352,29 @@ describe("5.1c Replay Engine", () => {
     const finalPending = await getPendingCount(KIOSK_ID);
     expect(finalPending).toBe(0);
   });
+
+  it("holdsQueuedItemsWhileTheServerIsUnderMaintenance", async () => {
+    await enqueueQueueItem({
+      kioskId: KIOSK_ID,
+      request: {
+        method: "POST",
+        url: "/v1/sessions/return",
+        body: JSON.stringify({ deviceId: "DEV-M", action: "return" }),
+      },
+    });
+    const mockFetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ type: "https://hdms.hito.local/errors/maintenance", title: "Under maintenance", status: 503 }),
+        { status: 503, headers: { "Content-Type": "application/problem+json" } },
+      ),
+    );
+
+    const result = await replayQueue({ kioskId: KIOSK_ID, fetchFn: mockFetch as any });
+
+    expect(result.quarantined).toBe(0);
+    expect(result.succeeded).toBe(0);
+    expect(result.remaining).toBe(1);
+    expect(await getPendingQueueItems(KIOSK_ID)).toHaveLength(1);
+  });
 });
+

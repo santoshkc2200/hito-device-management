@@ -44,6 +44,28 @@
 		}
 	}
 
+	# Recovery page (plan 3b). The worker answers /recovery/api/* whatever
+	# state the API and the database are in. Only /recovery/api/* goes to
+	# the worker — never /internal/*, which is the API's alone. The worker's
+	# unlock rate limit keys on the first X-Forwarded-For hop, so it is
+	# replaced with the TCP peer here exactly as for the API (THR-01).
+	handle /recovery/api/* {
+		reverse_proxy worker:8090 {
+			header_up X-Forwarded-For {http.request.remote.host}
+			header_up X-Real-IP {http.request.remote.host}
+		}
+	}
+
+	redir /recovery /recovery/ 308
+
+	# Recovery app at /recovery (built with VITE_BASE_PATH=/recovery/).
+	handle /recovery/* {
+		root * /srv/recovery
+		uri strip_prefix /recovery
+		try_files {path} /index.html
+		file_server
+	}
+
 	# Admin console at /admin (built with VITE_BASE_PATH=/admin/).
 	handle /admin/* {
 		root * /srv/admin

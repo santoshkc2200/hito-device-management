@@ -4,21 +4,29 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hito-hospital/hdms/internal/apiserver"
+	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/test/testdb"
 )
 
-func readyzStatus(t *testing.T, pool *db.Pool) int {
+func readyz(t *testing.T, pool *db.Pool) *httptest.ResponseRecorder {
 	t.Helper()
 	srv := apiserver.New(pool, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "test", apiserver.BackupConsoleConfig{})
 	rec := httptest.NewRecorder()
 	srv.GetReadyz(rec, httptest.NewRequest(http.MethodGet, "/v1/readyz", nil))
-	return rec.Code
+	return rec
+}
+
+func readyzStatus(t *testing.T, pool *db.Pool) int {
+	t.Helper()
+	return readyz(t, pool).Code
 }
 
 // The API starts with the database down and becomes ready once a migrated
@@ -64,5 +72,34 @@ func TestSchemaCurrentRejectsAnOlderVersion(t *testing.T) {
 	}
 	if err := db.SchemaCurrent(ctx, pool.Pool); err == nil {
 		t.Fatal("SchemaCurrent accepted a database one migration behind")
+	}
+}
+
+// Every client showing the maintenance notice asks /v1/readyz every 15
+// seconds; it must say "maintenance" for as long as a restore holds the
+// switch, and 200 the moment it lets go.
+func TestReadyzReportsMaintenance(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	if got := readyzStatus(t, pool); got != http.StatusOK {
+		t.Fatalf("readyz before maintenance = %d, want 200", got)
+	}
+
+	if err := backup.SetMaintenance(ctx, pool.Pool, true, "restore"); err != nil {
+		t.Fatal(err)
+	}
+	rec := readyz(t, pool)
+	var problem struct{ Type string }
+	_ = json.Unmarshal(rec.Body.Bytes(), &problem)
+	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") != "15" || !strings.HasSuffix(problem.Type, "/maintenance") {
+		t.Fatalf("readyz during maintenance = %d, type %q, Retry-After %q; want 503, …/maintenance, 15",
+			rec.Code, problem.Type, rec.Header().Get("Retry-After"))
+	}
+
+	if err := backup.SetMaintenance(ctx, pool.Pool, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := readyzStatus(t, pool); got != http.StatusOK {
+		t.Fatalf("readyz after maintenance = %d, want 200", got)
 	}
 }

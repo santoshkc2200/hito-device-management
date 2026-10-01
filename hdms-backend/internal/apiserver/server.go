@@ -108,9 +108,11 @@ func (s *Server) GetHealthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.HealthStatusStatusOk, Environment: &env})
 }
 
-// GetReadyz is ready when the database answers and carries this build's
-// schema. A database that is down, empty or mid-restore is "not ready";
-// /v1/healthz still reports the process itself.
+// GetReadyz is ready when the database answers, carries this build's schema
+// and no restore holds maintenance mode. A database that is down, empty or
+// mid-restore is "not ready"; /v1/healthz still reports the process itself.
+// During a restore every client shows its maintenance notice and asks here
+// every 15 seconds: a 200 is how it learns the restore is over.
 func (s *Server) GetReadyz(w http.ResponseWriter, r *http.Request) {
 	if err := s.pool.HealthCheck(r.Context()); err != nil {
 		httpx.WriteProblem(w, r, httpx.NewProblem("not-ready", "Dependency unavailable", http.StatusServiceUnavailable))
@@ -118,6 +120,15 @@ func (s *Server) GetReadyz(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := db.SchemaCurrent(r.Context(), s.pool.Pool); err != nil {
 		httpx.WriteProblem(w, r, httpx.NewProblem("not-ready", "Database schema not current", http.StatusServiceUnavailable))
+		return
+	}
+	m, err := backup.GetMaintenance(r.Context(), s.pool.Pool)
+	if err != nil {
+		httpx.WriteProblem(w, r, httpx.NewProblem("not-ready", "Dependency unavailable", http.StatusServiceUnavailable))
+		return
+	}
+	if m.On {
+		writeMaintenance(w, r)
 		return
 	}
 	writeJSON(w, http.StatusOK, gen.HealthStatus{Status: gen.HealthStatusStatusOk})
