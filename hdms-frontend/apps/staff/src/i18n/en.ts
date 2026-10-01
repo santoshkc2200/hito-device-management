@@ -31,6 +31,10 @@ export const en = {
   },
   myQr: {
     alt: "Your QR code",
+    altBarcode: "Your barcode",
+    codeType: "Code type",
+    barcode: "Barcode",
+    qr: "QR code",
     instructions: "Hold this up to the kiosk scanner",
   },
   home: {

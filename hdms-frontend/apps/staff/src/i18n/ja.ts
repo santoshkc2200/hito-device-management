@@ -33,6 +33,10 @@ export const ja: StaffCatalogue = {
   },
   myQr: {
     alt: "あなたのQRコード",
+    altBarcode: "あなたのバーコード",
+    codeType: "コード種別",
+    barcode: "バーコード",
+    qr: "QRコード",
     instructions: "キオスクのスキャナーにかざしてください",
   },
   home: {
