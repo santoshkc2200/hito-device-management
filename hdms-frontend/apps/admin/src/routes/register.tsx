@@ -16,6 +16,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ScanInput } from "@/components/scan-input";
 import {
   Select,
   SelectContent,
@@ -30,7 +31,7 @@ import { useT } from "@/i18n";
 import { useEnvironment } from "@hdms/ui";
 
 const registerSchema = zCreateUserRequest.extend({
-  employeeNo: z.string().min(1, "validation.employeeNoRequired"),
+  employeeNo: z.string().trim().min(1, "validation.employeeNoRequired"),
   fullName: z.string().min(1, "validation.fullNameRequired"),
   email: z.string().email("validation.emailInvalid").optional().or(z.literal("")),
 });
@@ -418,7 +419,7 @@ function RegisterBorrowerForm() {
             </Field>
             <Field data-invalid={!!form.formState.errors.employeeNo}>
               <FieldLabel htmlFor="employeeNo">{t("users.columnEmployeeNo")}</FieldLabel>
-              <Input id="employeeNo" className="font-identifier" {...form.register("employeeNo")} />
+              <ScanInput id="employeeNo" className="font-identifier" {...form.register("employeeNo")} />
               {form.formState.errors.employeeNo ? (
                 <FieldError>{form.formState.errors.employeeNo.message}</FieldError>
               ) : (

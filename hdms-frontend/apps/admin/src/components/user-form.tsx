@@ -12,6 +12,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ScanInput } from "@/components/scan-input";
 import { useLocalizedResolver } from "@/lib/localized-resolver";
 import {
   Select,
@@ -23,7 +24,7 @@ import {
 import { useT } from "@/i18n";
 
 const userSchema = zCreateUserRequest.extend({
-  employeeNo: z.string().min(1, "validation.employeeNoRequired"),
+  employeeNo: z.string().trim().min(1, "validation.employeeNoRequired"),
   fullName: z.string().min(1, "validation.fullNameRequired"),
   email: z.string().email("validation.emailInvalid").optional().or(z.literal("")),
 });
@@ -89,7 +90,7 @@ export function UserForm({
         <div className="grid grid-cols-2 gap-3">
           <Field data-invalid={!!form.formState.errors.employeeNo}>
             <FieldLabel htmlFor="employeeNo">{t("users.columnEmployeeNo")}</FieldLabel>
-            <Input
+            <ScanInput
               id="employeeNo"
               className="font-identifier"
               autoFocus
