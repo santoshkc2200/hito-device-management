@@ -120,17 +120,22 @@ The recovery page says "The database server is not running", and
 
    ```bash
    sudo $DC stop db
+   sudo mkdir -p /var/backups
    sudo tar -C "$(sudo docker volume inspect -f '{{.Mountpoint}}' hdms-production_hdms-prod-db-data)" \
      -czf "/var/backups/hdms-damaged-db-$(date +%Y%m%d).tgz" .
+   sudo chmod 600 /var/backups/hdms-damaged-db-*.tgz
+   ls -l /var/backups/hdms-damaged-db-*.tgz
    ```
 
+   Go on only when `ls` lists the file. Step 3 deletes the damaged files.
 3. Reset the database volume and start again. The database server starts
-   empty, with the same passwords:
+   empty, with the same passwords, and the restarted worker prepares it:
 
    ```bash
    sudo $DC rm -sf db
    sudo docker volume rm hdms-production_hdms-prod-db-data
    sudo $DC up -d
+   sudo $DC restart worker
    ```
 
 4. Within a minute the recovery page shows "HDMS database is empty". The
