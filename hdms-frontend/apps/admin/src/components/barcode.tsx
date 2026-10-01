@@ -6,6 +6,17 @@ import { useEffect, useRef } from "react";
 // choice for small items, not a stored credential kind.
 export type Symbology = "qrcode" | "code128" | "datamatrix";
 
+// Linear codes need an explicit bar height (mm); 2D codes must not get one or
+// bwip-js stretches the modules.
+export function barcodeOptions(text: string, symbology: Symbology) {
+  return {
+    bcid: symbology,
+    text,
+    includetext: false,
+    ...(symbology === "code128" ? { height: 15 } : {}),
+  };
+}
+
 export function Barcode({
   value,
   symbology = "qrcode",
@@ -24,10 +35,8 @@ export function Barcode({
     if (!canvas || !value) return;
     try {
       bwipjs.toCanvas(canvas, {
-        bcid: symbology,
-        text: value,
+        ...barcodeOptions(value, symbology),
         scale,
-        includetext: false,
         backgroundcolor: "FFFFFF",
       });
     } catch (err) {
@@ -40,9 +49,5 @@ export function Barcode({
 }
 
 export function barcodeSvg(value: string, symbology: Symbology = "qrcode"): string {
-  return bwipjs.toSVG({
-    bcid: symbology,
-    text: value,
-    includetext: false,
-  });
+  return bwipjs.toSVG(barcodeOptions(value, symbology));
 }

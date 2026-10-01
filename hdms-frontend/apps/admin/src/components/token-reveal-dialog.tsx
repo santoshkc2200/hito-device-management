@@ -1,6 +1,6 @@
 import bwipjs from "bwip-js/browser";
 import { Download, Printer } from "lucide-react";
-import { barcodeSvg } from "@/components/barcode";
+import { barcodeOptions, barcodeSvg, type Symbology } from "@/components/barcode";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,7 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DeviceStickerLabel, StaffCardLabel } from "@/components/label-templates";
+import { SymbologyToggle } from "@/components/symbology-toggle";
 import { useT } from "@/i18n";
+import { useCodeSymbology } from "@/lib/code-symbology";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -23,14 +25,14 @@ function downloadBlob(blob: Blob, filename: string) {
 
 // PNG/SVG export of an individual code, for pasting into other documents
 // (docs/05-credentials-and-labeling.md) — independent of the print path.
-function exportPng(token: string) {
+function exportPng(token: string, symbology: Symbology) {
   const canvas = document.createElement("canvas");
-  bwipjs.toCanvas(canvas, { bcid: "qrcode", text: token, scale: 6, includetext: false });
+  bwipjs.toCanvas(canvas, { ...barcodeOptions(token, symbology), scale: 6 });
   canvas.toBlob((blob) => blob && downloadBlob(blob, `${token}.png`));
 }
 
-function exportSvg(token: string) {
-  const svg = barcodeSvg(token, "qrcode");
+function exportSvg(token: string, symbology: Symbology) {
+  const svg = barcodeSvg(token, symbology);
   downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `${token}.svg`);
 }
 
@@ -53,6 +55,7 @@ export function TokenRevealDialog({
   subject: TokenRevealSubject;
 }) {
   const t = useT();
+  const [symbology] = useCodeSymbology();
   if (!token) return null;
 
   return (
@@ -61,6 +64,9 @@ export function TokenRevealDialog({
         <DialogHeader>
           <DialogTitle>{t("tokenRevealDialog.title")}</DialogTitle>
         </DialogHeader>
+        <div className="flex justify-center">
+          <SymbologyToggle />
+        </div>
         <style>{`@page { size: ${subject.type === "device" ? "60mm 30mm" : "85.6mm 54mm"}; margin: 0; }`}</style>
         <div className="print-area flex justify-center py-2">
           {subject.type === "device" ? (
@@ -69,6 +75,7 @@ export function TokenRevealDialog({
               name={subject.name}
               model={subject.model}
               token={token}
+              symbology={symbology}
               widthMm={60}
               heightMm={30}
             />
@@ -78,17 +85,18 @@ export function TokenRevealDialog({
               employeeNo={subject.employeeNo}
               department={subject.department}
               token={token}
+              symbology={symbology}
             />
           )}
         </div>
         <p data-testid="revealed-token" className="text-center font-identifier text-xs text-muted-foreground">{token}</p>
         <DialogFooter className="gap-2 sm:justify-center">
-          <Button variant="outline" onClick={() => exportPng(token)}>
+          <Button variant="outline" onClick={() => exportPng(token, symbology)}>
             <Download className="size-4" data-icon="inline-start" />
             {/* i18n-allow-literal: PNG is a file-format acronym, not translatable prose */}
             PNG
           </Button>
-          <Button variant="outline" onClick={() => exportSvg(token)}>
+          <Button variant="outline" onClick={() => exportSvg(token, symbology)}>
             <Download className="size-4" data-icon="inline-start" />
             {/* i18n-allow-literal: SVG is a file-format acronym, not translatable prose */}
             SVG

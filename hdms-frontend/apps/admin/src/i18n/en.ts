@@ -1016,6 +1016,9 @@ export const en: AdminMessages = {
   },
   labelTemplates: {
     organizationName: "Hito Hospital",
+    codeType: "Code type",
+    codeTypeQr: "QR code",
+    codeTypeBarcode: "Barcode",
     blankCardInstruction: "Present at the equipment desk to register",
   },
   registerSlip: {

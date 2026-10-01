@@ -1019,6 +1019,9 @@ export const ja = {
   },
   labelTemplates: {
     organizationName: "Hito Hospital",
+    codeType: "コード種別",
+    codeTypeQr: "QRコード",
+    codeTypeBarcode: "バーコード",
     blankCardInstruction: "登録するには機器管理窓口へお越しください",
   },
   registerSlip: {

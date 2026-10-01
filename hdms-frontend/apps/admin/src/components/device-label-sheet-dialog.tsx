@@ -5,7 +5,9 @@ import { useEffect } from "react";
 import { DeviceStickerLabel, LabelSheet } from "@/components/label-templates";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SymbologyToggle } from "@/components/symbology-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCodeSymbology } from "@/lib/code-symbology";
 import { useLabelSheetSettings } from "@/lib/label-settings";
 import { useT } from "@/i18n";
 
@@ -37,6 +39,7 @@ export function DeviceLabelSheetDialog({
 }) {
   const t = useT();
   const [settings] = useLabelSheetSettings();
+  const [symbology] = useCodeSymbology();
 
   // A manual one-shot mutation, not a query: reprinting increments
   // printed_count server-side, so this must run exactly once per dialog
@@ -76,6 +79,7 @@ export function DeviceLabelSheetDialog({
                   .join(" ")}
           </DialogDescription>
         </DialogHeader>
+        <SymbologyToggle />
         {mutation.isPending ? (
           <Skeleton className="h-64 w-full" />
         ) : (
@@ -88,6 +92,7 @@ export function DeviceLabelSheetDialog({
                   name={device.name}
                   model={device.model}
                   token={token!}
+                  symbology={symbology}
                   widthMm={settings.labelWidthMm}
                   heightMm={settings.labelHeightMm}
                 />

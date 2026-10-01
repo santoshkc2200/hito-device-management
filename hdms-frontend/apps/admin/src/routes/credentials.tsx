@@ -27,8 +27,10 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SymbologyToggle } from "@/components/symbology-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/i18n";
+import { useCodeSymbology } from "@/lib/code-symbology";
 import { cardSheetSettings } from "@/lib/label-settings";
 import { authenticatedRoute } from "./authenticated";
 
@@ -267,6 +269,7 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
 
 function CredentialsPage() {
   const t = useT();
+  const [symbology] = useCodeSymbology();
   const queryClient = useQueryClient();
   const [count, setCount] = useState(10);
   const [kind, setKind] = useState<CredentialKind>("qr");
@@ -302,7 +305,8 @@ function CredentialsPage() {
               {t("credentials.batchSubtitle", { count: batch.length })}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <SymbologyToggle />
             <Button variant="outline" onClick={() => setBatch(null)}>
               {t("credentials.done")}
             </Button>
@@ -315,7 +319,7 @@ function CredentialsPage() {
         <div className="overflow-auto rounded-xl border border-border bg-secondary/50 p-6">
           <LabelSheet settings={cardSheetSettings}>
             {batch.map((token) => (
-              <BlankCardLabel key={token} token={token} />
+              <BlankCardLabel key={token} token={token} symbology={symbology} />
             ))}
           </LabelSheet>
         </div>

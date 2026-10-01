@@ -5,8 +5,10 @@ import { RegisterSlip } from "@/components/register-slip";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { SymbologyToggle } from "@/components/symbology-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/i18n";
+import { useCodeSymbology } from "@/lib/code-symbology";
 import { defaultLabelSheetSettings, useLabelSheetSettings } from "@/lib/label-settings";
 import { authenticatedRoute } from "./authenticated";
 
@@ -38,6 +40,7 @@ function SettingsField({
 function SheetSettingsTab() {
   const t = useT();
   const [settings, setSettings] = useLabelSheetSettings();
+  const [symbology] = useCodeSymbology();
   const previewCount = settings.columns * Math.min(settings.rows, 3);
 
   return (
@@ -100,6 +103,7 @@ function SheetSettingsTab() {
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium">{t("labelsPage.previewHint")}</p>
+          <SymbologyToggle />
           <Button size="sm" onClick={() => window.print()}>
             <Printer className="size-4" data-icon="inline-start" />
             {t("labelsPage.printTestSheet")}
@@ -114,6 +118,7 @@ function SheetSettingsTab() {
                 name="Dell Latitude"
                 model="5420"
                 token={SAMPLE_TOKENS[i % SAMPLE_TOKENS.length]!}
+                symbology={symbology}
                 widthMm={settings.labelWidthMm}
                 heightMm={settings.labelHeightMm}
               />

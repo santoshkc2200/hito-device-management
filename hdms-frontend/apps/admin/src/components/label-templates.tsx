@@ -24,10 +24,33 @@ export function DeviceStickerLabel({
   heightMm?: number;
 }) {
   const t = useT();
+  const frame = {
+    width: widthMm ? `${widthMm}mm` : "50mm",
+    height: heightMm ? `${heightMm}mm` : "25mm",
+  };
+  if (symbology === "code128") {
+    // Code 128 is wide and short where QR is square: barcode on top, text
+    // beneath, rendered at a higher scale so the bars stay crisp when shrunk
+    // to the label width. The organization line is dropped to keep the
+    // barcode readable on a 25mm-tall label.
+    return (
+      <div
+        className="label-template flex flex-col justify-center gap-0.5 overflow-hidden border border-dashed border-border bg-white p-1.5 text-black"
+        style={frame}
+      >
+        <Barcode value={token} symbology={symbology} scale={4} className="h-auto min-h-0 w-full" />
+        <div className="flex items-baseline justify-between gap-1 leading-tight">
+          <div className="truncate font-identifier text-[10px] font-bold">{assetTag}</div>
+          <div className="truncate text-[7px]">{[name, model].filter(Boolean).join(" · ")}</div>
+        </div>
+        <div className="truncate font-identifier text-[6px] text-neutral-500">{token}</div>
+      </div>
+    );
+  }
   return (
     <div
       className="label-template flex items-center gap-2 overflow-hidden border border-dashed border-border bg-white p-1.5 text-black"
-      style={{ width: widthMm ? `${widthMm}mm` : "50mm", height: heightMm ? `${heightMm}mm` : "25mm" }}
+      style={frame}
     >
       <Barcode value={token} symbology={symbology} scale={2} className="h-full shrink-0" />
       <div className="flex min-w-0 flex-col justify-center gap-0.5 leading-tight">
@@ -47,11 +70,13 @@ export function StaffCardLabel({
   employeeNo,
   department,
   token,
+  symbology = "qrcode",
 }: {
   fullName: string;
   employeeNo: string;
   department?: string;
   token: string;
+  symbology?: Symbology;
 }) {
   const t = useT();
   return (
@@ -62,7 +87,12 @@ export function StaffCardLabel({
       <div className="text-[10px] font-medium tracking-widest text-neutral-500 uppercase">
         {t("labelTemplates.organizationName")}
       </div>
-      <Barcode value={token} symbology="qrcode" scale={3} />
+      <Barcode
+        value={token}
+        symbology={symbology}
+        scale={symbology === "code128" ? 4 : 3}
+        className={symbology === "code128" ? "h-auto w-64" : undefined}
+      />
       <div className="text-sm font-semibold">{fullName}</div>
       <div className="font-identifier text-xs">{employeeNo}</div>
       {department && <div className="text-[10px] text-neutral-500">{department}</div>}
@@ -73,7 +103,7 @@ export function StaffCardLabel({
 // Blank card stock — a real, printable credential with nobody bound to it
 // yet (INV-12); the physical card that fills the drawer at the equipment
 // desk (docs/05).
-export function BlankCardLabel({ token }: { token: string }) {
+export function BlankCardLabel({ token, symbology = "qrcode" }: { token: string; symbology?: Symbology }) {
   const t = useT();
   return (
     <div
@@ -83,7 +113,12 @@ export function BlankCardLabel({ token }: { token: string }) {
       <div className="text-[10px] font-medium tracking-widest text-neutral-500 uppercase">
         {t("labelTemplates.organizationName")}
       </div>
-      <Barcode value={token} symbology="qrcode" scale={3} />
+      <Barcode
+        value={token}
+        symbology={symbology}
+        scale={symbology === "code128" ? 4 : 3}
+        className={symbology === "code128" ? "h-auto w-64" : undefined}
+      />
       <div className="text-[9px] text-neutral-500">{t("labelTemplates.blankCardInstruction")}</div>
       <div className="font-identifier text-[9px]">{token}</div>
     </div>

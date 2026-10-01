@@ -5,7 +5,9 @@ import { useEffect } from "react";
 import { LabelSheet, StaffCardLabel } from "@/components/label-templates";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SymbologyToggle } from "@/components/symbology-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCodeSymbology } from "@/lib/code-symbology";
 import { cardSheetSettings } from "@/lib/label-settings";
 import { useT } from "@/i18n";
 
@@ -39,6 +41,7 @@ export function UserCardSheetDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useT();
+  const [symbology] = useCodeSymbology();
 
   // A manual one-shot mutation, not a query: every reveal writes an audit
   // event, so this must run exactly once per dialog open, never silently
@@ -80,6 +83,7 @@ export function UserCardSheetDialog({
                     .join(" ")}
           </DialogDescription>
         </DialogHeader>
+        <SymbologyToggle />
         {mutation.isPending ? (
           <Skeleton className="h-64 w-full" />
         ) : (
@@ -92,6 +96,7 @@ export function UserCardSheetDialog({
                   employeeNo={user.employeeNo}
                   department={user.departmentId ? departmentName.get(user.departmentId) : undefined}
                   token={token!}
+                  symbology={symbology}
                 />
               ))}
             </LabelSheet>
