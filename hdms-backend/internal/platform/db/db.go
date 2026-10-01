@@ -43,6 +43,21 @@ func Open(ctx context.Context, databaseURL string) (*Pool, error) {
 	return &Pool{Pool: pool}, nil
 }
 
+// OpenLazy builds the pool without connecting. The API uses it so it can
+// start, and answer /v1/healthz, while the database is down or being
+// restored; /v1/readyz says when queries can succeed.
+func OpenLazy(databaseURL string) (*Pool, error) {
+	poolCfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("db: parse config: %w", err)
+	}
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	if err != nil {
+		return nil, fmt.Errorf("db: open pool: %w", err)
+	}
+	return &Pool{Pool: pool}, nil
+}
+
 // MustOpen is Open for the composition root, which cannot proceed without a
 // database and should fail loudly at startup rather than later.
 func MustOpen(ctx context.Context, databaseURL string) *Pool {

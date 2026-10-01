@@ -26,7 +26,10 @@ type Worker struct {
 	// Pending, when set, runs one on-demand request (a console "Back up
 	// now", "Test", "Verify") and reports whether it did. Requests go first:
 	// a person is waiting on them, and nobody waits on a scheduled job.
-	Pending     func(ctx context.Context) bool
+	Pending func(ctx context.Context) bool
+	// Paused, when it returns true, skips the tick entirely: a restore is
+	// swapping the database out from under every job and request.
+	Paused      func() bool
 	LastStarted func(ctx context.Context, names []string) (map[string]time.Time, error)
 	Logger      *slog.Logger
 
@@ -35,6 +38,9 @@ type Worker struct {
 
 // Tick runs the first due job and returns its name, or "" when nothing ran.
 func (w *Worker) Tick(ctx context.Context, now time.Time) string {
+	if w.Paused != nil && w.Paused() {
+		return ""
+	}
 	if w.attempted == nil {
 		w.attempted = map[string]time.Time{}
 	}

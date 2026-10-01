@@ -373,3 +373,25 @@ func PruneOldBackups(dir string, now time.Time) (kept, deleted []string, err err
 	}
 	return keep, deleted, nil
 }
+
+// SnapshotDatabase takes one local snapshot of databaseURL and applies no
+// retention. A restore's safety backup uses it: --keep-daily keeps one
+// snapshot per day, so forgetting after a safety snapshot could remove the
+// very snapshot from this morning that the restore is about to read.
+func SnapshotDatabase(ctx context.Context, r Restic, backupDir, databaseURL string) (string, error) {
+	unlock, err := lockBackupDir(backupDir, false)
+	if err != nil {
+		return "", err
+	}
+	defer unlock() //nolint:errcheck
+	local := LocalRepo(backupDir)
+	if err := EnsureRepo(ctx, r, local, nil); err != nil {
+		return "", err
+	}
+	opts := Options{DatabaseURL: databaseURL, Restic: r, Dump: DumpCustomStream}
+	sum, _, err := opts.snapshotLocally(ctx, local)
+	if err != nil {
+		return "", err
+	}
+	return sum.SnapshotID, nil
+}

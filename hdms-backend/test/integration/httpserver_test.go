@@ -155,6 +155,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		// endpoint in production while this suite stayed green.
 		httpx.WithLogging(discardLogger),
 		httpx.WithRecovery(discardLogger),
+		apiserver.MaintenanceGate(pool, time.Now),
 		staffAuthSvc.Middleware,
 		authSvc.Middleware,
 		// After the auth middleware, as in cmd/hdms-api, so keys are scoped

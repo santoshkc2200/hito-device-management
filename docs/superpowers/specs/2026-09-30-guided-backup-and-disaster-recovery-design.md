@@ -213,8 +213,16 @@ restore (the 09-30 spec's plan 4) later, which becomes UI on top of it.
 
 Steps and failure handling are those of the 09-30 spec (safety backup, restore
 into a scratch database, validate, maintenance on, copy forward, swap by rename,
-catch-up migrate, maintenance off), with two changes:
+maintenance off), with these changes:
 
+- **Migrate the scratch database before copying into it.** A `migrate_scratch`
+  step follows `restore_scratch` and also re-applies the `hdms_app` grants
+  (`pg_restore --no-privileges` drops them). Copy-forward then sees one schema
+  on both sides, and the 09-30 spec's post-swap migrate step is gone.
+- **Steps after the swap never unwind.** A failed `maintenance_off` (after three
+  tries) or audit record leaves the restore completed with a warning.
+- **Database names carry the live name:** `<live>_restore_<ts>`,
+  `<live>_before_<ts>`, `<live>_rolledback_<ts>`.
 - **State lives in a file.** The current step, snapshot, source, scratch and
   previous database names are written to `/var/backups/hdms/restore-state.json`
   (atomic write-rename) before each step starts. On start the worker reads it and
@@ -224,8 +232,9 @@ catch-up migrate, maintenance off), with two changes:
   since it now lands first) is written into the restored database once the
   restore finishes, and the state file is then reduced to "previous database
   kept: <name>" until discarded.
-- **Live unreadable ⇒ skip what needs it.** When the live database cannot be
-  read (connection or schema check fails), the engine skips the safety backup,
+- **Live unreadable ⇒ skip what needs it.** When the live database is damaged
+  (missing, unreachable or schema not current) or empty (no admin account — a
+  freshly installed server), the engine skips the safety backup,
   maintenance mode and copy-forward — there is nothing to save or freeze — and
   swaps the scratch database in, keeping the damaged one as `hdms_before_<ts>`
   if it exists. When live is readable, the full safety net applies.
@@ -237,6 +246,9 @@ one.
 Undo swaps back as the 09-30 spec's rollback does. **Discard** of the kept
 database stays a console action (plan 4 of the 09-30 spec); until then it is
 dropped by IT per the runbook.
+
+Undo is offered only when the replaced database was working; a damaged or empty
+one stays kept for IT but is never swapped back.
 
 Unlock attempts (IP, outcome) and restore steps are logged by the worker. After a
 successful restore they are written as audit events into the restored database
@@ -399,9 +411,11 @@ retention, enabled) is unchanged.
 2. **Recovery key** — bundle format, table, API create/replace/confirm, console
    card and sheet, attention items, worker writes bundles to repositories,
    `hdms-cli recovery unwrap`.
-3. **Recovery page and engine** — startup decoupling (worker, API, caddy),
-   restore engine with state file, recovery routes, `apps/recovery`, caddy
-   routes.
+3. **Recovery page and engine**, in two halves:
+   - **3a** — startup decoupling (worker, API, compose), restore engine with
+     state file, maintenance gate in the API, `/recovery/api/*` on the worker.
+   - **3b** — `apps/recovery`, caddy routes, and the kiosk / staff / admin
+     maintenance notices (moved forward from the 09-30 spec's restore plan).
 4. **Install and runbook** — `install.sh`, `disaster-recovery.md`,
    `production-deployment.md` updates.
 

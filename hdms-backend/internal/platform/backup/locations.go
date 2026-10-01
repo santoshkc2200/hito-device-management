@@ -386,3 +386,41 @@ func validFolderName(name string) bool {
 	}
 	return !strings.ContainsAny(name, "/\\\x00")
 }
+
+// IsRecoverySource reports whether dir is something a restore can read: an
+// HDMS repository with its recovery bundle beside it.
+func IsRecoverySource(dir string) bool {
+	if !hasRepo(dir) {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(dir, RecoveryBundleFile))
+	return err == nil
+}
+
+// FindRepoFolders lists the recovery sources under root, root included, up
+// to depth levels down. Dot-folders and symlinks are skipped, as Browse
+// skips them, and a found source is not searched further.
+func FindRepoFolders(root string, depth int) []string {
+	var out []string
+	level := []string{root}
+	for d := 0; d <= depth && len(level) > 0; d++ {
+		var next []string
+		for _, dir := range level {
+			if IsRecoverySource(dir) {
+				out = append(out, dir)
+				continue
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+			for _, e := range entries {
+				if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+					next = append(next, filepath.Join(dir, e.Name()))
+				}
+			}
+		}
+		level = next
+	}
+	return out
+}

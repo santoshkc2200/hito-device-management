@@ -66,26 +66,21 @@ func run() error {
 		}
 	}()
 
-	// In production the worker migrates as the owner before the API starts
-	// (compose orders api after a healthy worker); the API's hdms_app role
-	// cannot run DDL.
-	if cfg.MigrateOnStart {
-		if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
-			return err
-		}
-	}
-
-	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	// The pool is lazy so the API starts, and /v1/healthz answers, while the
+	// database is down or being restored (spec 2026-09-30, "Startup that
+	// survives a broken database"). /v1/readyz reports when it is usable.
+	pool, err := db.OpenLazy(cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 
-	if cfg.Env == "production" {
-		if err := pool.VerifyProductionPrivileges(ctx); err != nil {
-			return err
+	errCh := make(chan error, 2)
+	go func() {
+		if err := awaitDatabase(ctx, pool, cfg, logger); err != nil {
+			errCh <- err
 		}
-	}
+	}()
 
 	// Module composition root — the one place in the codebase that knows
 	// every module exists (docs/02-architecture.md).
@@ -220,6 +215,8 @@ func run() error {
 		httpx.WithSecurityHeaders(),
 		httpx.WithLogging(logger),
 		httpx.WithRecovery(logger),
+		// Before auth: during a restore no session lookup reaches the database.
+		apiserver.MaintenanceGate(pool, time.Now),
 		httpx.WithCORS(cfg.CORSAllowedOrigins),
 		staffAuthSvc.Middleware,
 		authSvc.Middleware,
@@ -236,7 +233,6 @@ func run() error {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("hdms-api listening", "addr", cfg.HTTPAddr)
 		err := server.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
@@ -255,4 +251,35 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return server.Shutdown(shutdownCtx)
+}
+
+// awaitDatabase waits until the database answers, then runs the checks that
+// used to block startup. A failed check still stops the API: running as the
+// owner role (INV-8) is never acceptable, only starting early is.
+func awaitDatabase(ctx context.Context, pool *db.Pool, cfg config.Config, logger *slog.Logger) error {
+	for {
+		err := pool.HealthCheck(ctx)
+		if err == nil {
+			break
+		}
+		logger.Warn("database not reachable yet; retrying", "error", err)
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(5 * time.Second):
+		}
+	}
+	// In production the worker migrates as the owner; hdms_app cannot run DDL.
+	if cfg.MigrateOnStart {
+		if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
+			return err
+		}
+	}
+	if cfg.Env == "production" {
+		if err := pool.VerifyProductionPrivileges(ctx); err != nil {
+			return err
+		}
+	}
+	logger.Info("database reachable")
+	return nil
 }
