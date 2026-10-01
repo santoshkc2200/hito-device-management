@@ -137,6 +137,8 @@ var RequiredRoles = map[string]string{
 	"GET /v1/backup/locations":               "admin",
 	"POST /v1/backup/locations/folders":      "admin",
 	"POST /v1/backup/locations/check":        "admin",
+	"POST /v1/backup/recovery-key":           "admin",
+	"POST /v1/backup/recovery-key/confirm":   "admin",
 	"GET /v1/kiosks":                         "admin",
 	"POST /v1/kiosks":                        "admin",
 	"GET /v1/kiosks/{id}":                    "admin",

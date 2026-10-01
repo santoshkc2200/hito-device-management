@@ -39,6 +39,9 @@ type BackupConsoleConfig struct {
 	// Locations reaches the worker's folder routes. Nil means no worker is
 	// configured; every location call then reports the worker unavailable.
 	Locations *backup.LocationClient
+	// RecoverySecrets are the four secrets a recovery bundle seals. The API
+	// holds them already; they are never returned by any endpoint.
+	RecoverySecrets backup.RecoverySecrets
 }
 
 // Server implements gen.ServerInterface.

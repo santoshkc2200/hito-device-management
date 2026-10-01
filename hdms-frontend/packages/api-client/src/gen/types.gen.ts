@@ -57,6 +57,7 @@ export type BackupConfig = {
     workerSeenAt?: string;
     local: BackupLocalRepo;
     allowedRoots: Array<string>;
+    recoveryKey: BackupRecoveryKeyState;
 };
 
 export type BackupDestination = {
@@ -174,6 +175,29 @@ export type BackupLocationCheck = {
     freeBytes: number;
     neededBytes: number;
     checks: Array<BackupLocationCheckItem>;
+};
+
+export type BackupRecoveryKeyState = {
+    /**
+     * outdated: the running secrets no longer match the stored bundle; print a new sheet.
+     */
+    status: 'missing' | 'unconfirmed' | 'ready' | 'outdated';
+    createdAt?: string;
+    createdBy?: string;
+    confirmedAt?: string;
+};
+
+export type BackupReauth = {
+    password: string;
+    totpCode: string;
+};
+
+export type BackupRecoveryKeyIssued = {
+    /**
+     * 28 characters in seven groups of four. Shown once.
+     */
+    key: string;
+    createdAt: string;
 };
 
 export type Problem = {
@@ -4528,6 +4552,56 @@ export type CheckBackupLocationResponses = {
 };
 
 export type CheckBackupLocationResponse = CheckBackupLocationResponses[keyof CheckBackupLocationResponses];
+
+export type CreateBackupRecoveryKeyData = {
+    body: BackupReauth;
+    path?: never;
+    query?: never;
+    url: '/backup/recovery-key';
+};
+
+export type CreateBackupRecoveryKeyErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateBackupRecoveryKeyError = CreateBackupRecoveryKeyErrors[keyof CreateBackupRecoveryKeyErrors];
+
+export type CreateBackupRecoveryKeyResponses = {
+    /**
+     * Created. Print it now; it cannot be shown again.
+     */
+    201: BackupRecoveryKeyIssued;
+};
+
+export type CreateBackupRecoveryKeyResponse = CreateBackupRecoveryKeyResponses[keyof CreateBackupRecoveryKeyResponses];
+
+export type ConfirmBackupRecoveryKeyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/backup/recovery-key/confirm';
+};
+
+export type ConfirmBackupRecoveryKeyErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ConfirmBackupRecoveryKeyError = ConfirmBackupRecoveryKeyErrors[keyof ConfirmBackupRecoveryKeyErrors];
+
+export type ConfirmBackupRecoveryKeyResponses = {
+    /**
+     * OK.
+     */
+    200: BackupRecoveryKeyState;
+};
+
+export type ConfirmBackupRecoveryKeyResponse = ConfirmBackupRecoveryKeyResponses[keyof ConfirmBackupRecoveryKeyResponses];
 
 export type RunBackupNowData = {
     body?: never;

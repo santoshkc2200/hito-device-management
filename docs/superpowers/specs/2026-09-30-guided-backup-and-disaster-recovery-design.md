@@ -97,8 +97,8 @@ Database passwords are not included; a rebuilt server generates new ones.
 
 ### Format
 
-- 128 random bits, Crockford base32 (no `I`, `L`, `O`, `U`), plus one check
-  character: 27 characters shown as `XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX`. Input is
+- 128 random bits, Crockford base32 (no `I`, `L`, `O`, `U`), plus two check
+  characters (10 bits of SHA-256): 28 characters shown as `XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX`. Input is
   case-insensitive and ignores spaces and hyphens; a typo is rejected by the
   check character before any decryption is tried.
 - The **key bundle** is the four secrets as JSON (`{"version":1,"secrets":{…},
@@ -109,11 +109,7 @@ Database passwords are not included; a rebuilt server generates new ones.
 
 ### Where it lives
 
-- The worker writes the bundle as `hdms-recovery.bin` (mode `0600`) at the root
-  of every restic repository: the local repository and every destination. It is
-  (re)written after each successful backup to a repository whose bundle is
-  missing or stale. restic ignores unknown files at the repository root; plan 2
-  verifies this against `restic check` and `restic copy` before relying on it.
+- The worker writes the bundle as `hdms-recovery.bin` (mode `0600`) **beside** every repository — `<HDMS_BACKUP_DIR>/hdms-recovery.bin` next to `<HDMS_BACKUP_DIR>/repo`, and `<destination folder>/hdms-recovery.bin` next to `<destination folder>/repo` — on every backup and destination test. restic never sees it.
 - The database stores only the **sealed** bundle (ciphertext, harmless without
   the key), a fingerprint of the four secrets it contains, and when the sheet was
   confirmed printed. The plaintext key is never stored anywhere; new destinations
@@ -172,7 +168,7 @@ forwards `/recovery/api/*` to `worker:8090`.
 2. **Where are your backups?**
    - *This server* — the local repository.
    - *Network drive or external disk* — browses `/mnt/nas` and lists folders
-     that contain an HDMS repository (detected by `config` plus
+     that contain an HDMS repository (detected by `repo/config` plus
      `hdms-recovery.bin`).
    - When the database is readable, each configured path destination by name.
    - Cloud is out of scope until the cloud-accounts plan.
@@ -432,7 +428,6 @@ TLS and host-name setup in `install.sh`. SMB/NFS mounting from inside HDMS.
 | Recovery sheet lost | Console nags until confirmed; replace issues a new one while the server is healthy; backup key still in the password manager per the existing runbook |
 | Recovery sheet stolen | Equivalent to the backup key leaking today; replace the key, which invalidates the old bundle on the next backup to each location |
 | Brute force on `/recovery` | 128-bit key, check character, per-IP and global rate limits |
-| restic rejects the extra file at the repository root | Verified first in plan 2; fallback is a sibling `<target>.recovery` file under the same allowed root |
 | Restoring with mismatched secrets | Blocked by the fingerprint comparison before restore starts |
 | Worker crash mid-restore on a broken database | State file on the backup volume, not in the database; resume or unwind on start |
 | A "network" copy that is really local | `same_disk` / `not_connected` hard failures |

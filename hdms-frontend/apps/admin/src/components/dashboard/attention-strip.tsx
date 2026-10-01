@@ -5,6 +5,7 @@ import {
   CreditCard,
   DatabaseBackup,
   FileSpreadsheet,
+  KeyRound,
   MonitorSmartphone,
   ShieldAlert,
   UserPlus,
@@ -23,7 +24,7 @@ interface AttentionStripProps {
   kiosks?: Kiosk[];
   lastPaperEntry?: BackfillLastEntry;
   paperBacklogHours?: number;
-  backup?: { lastSuccessAt?: string | null };
+  backup?: { lastSuccessAt?: string | null; recoveryKeyStatus?: "missing" | "unconfirmed" | "ready" | "outdated" };
 }
 
 function timeSince(date: Date, t: ReturnType<typeof useT>): { hours: number; days: number; text: string } {
@@ -51,6 +52,11 @@ export function AttentionStrip({
     backup !== undefined &&
     Boolean(backup.lastSuccessAt) &&
     Date.now() - new Date(backup.lastSuccessAt as string).getTime() > BACKUP_STALE_MS;
+
+  // An unconfirmed key counts as not printed: nobody has shown it exists on paper.
+  const recoveryKeyMissing =
+    backup?.recoveryKeyStatus === "missing" || backup?.recoveryKeyStatus === "unconfirmed";
+  const recoveryKeyOutdated = backup?.recoveryKeyStatus === "outdated";
 
   const revokedScans = turnedAwayCounts.find((t) => t.resolvedType === "revoked");
   const unboundScans = turnedAwayCounts.find((t) => t.resolvedType === "unbound");
@@ -90,6 +96,8 @@ export function AttentionStrip({
   const hasAnyAttention =
     backupNever ||
     backupStale ||
+    recoveryKeyMissing ||
+    recoveryKeyOutdated ||
     Boolean(revokedScans && revokedScans.totalScans > 0) ||
     totalUnregisteredScans > 0 ||
     isLowStock ||
@@ -114,6 +122,22 @@ export function AttentionStrip({
             </div>
             <Button asChild variant="outline" size="sm">
               <Link to="/backups">{t("dashboard.attention.backupStaleAction")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {(recoveryKeyMissing || recoveryKeyOutdated) && (
+        <Card className="border-destructive/40">
+          <CardContent className="flex items-center justify-between gap-3 py-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="size-4 text-destructive" />
+              <span className="text-sm font-medium">
+                {recoveryKeyOutdated ? t("dashboard.attention.recoveryKeyOutdatedTitle") : t("dashboard.attention.recoveryKeyMissingTitle")}
+              </span>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/backups">{t("dashboard.attention.recoveryKeyAction")}</Link>
             </Button>
           </CardContent>
         </Card>

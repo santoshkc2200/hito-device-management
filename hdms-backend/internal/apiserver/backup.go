@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hito-hospital/hdms/internal/modules/audit/auditapi"
+	"github.com/hito-hospital/hdms/internal/platform/auth"
 	"github.com/hito-hospital/hdms/internal/platform/backup"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
@@ -42,6 +44,8 @@ func (s *Server) writeBackupError(w http.ResponseWriter, r *http.Request, err er
 		httpx.WriteProblem(w, r, httpx.NewProblem("worker-unavailable", "Backup worker not responding", http.StatusServiceUnavailable))
 	case errors.Is(err, backup.ErrDestinationNotFound), errors.Is(err, backup.ErrRequestNotFound), errors.Is(err, backup.ErrLocationNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("not-found", "Not found", http.StatusNotFound))
+	case errors.Is(err, backup.ErrNoRecoveryKey):
+		httpx.WriteProblem(w, r, httpx.NewProblem("not-found", "No recovery key has been created", http.StatusNotFound))
 	default:
 		s.writeServiceError(w, r, err)
 	}
@@ -172,6 +176,10 @@ func (s *Server) backupConfig(r *http.Request) (gen.BackupConfig, error) {
 		size := snaps[0].SizeBytes
 		out.Local.LatestSizeBytes = &size
 		out.Local.VerifiedAt = snaps[0].VerifiedAt
+	}
+	out.RecoveryKey, err = s.recoveryKeyState(ctx)
+	if err != nil {
+		return gen.BackupConfig{}, err
 	}
 	return out, nil
 }
@@ -491,4 +499,88 @@ func (s *Server) CheckBackupLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, mapLocationCheck(check))
+}
+
+func mapRecoveryKeyState(rec *backup.RecoveryKeyRecord, current backup.RecoverySecrets) gen.BackupRecoveryKeyState {
+	out := gen.BackupRecoveryKeyState{Status: gen.BackupRecoveryKeyStateStatus(backup.RecoveryKeyStatus(rec, current))}
+	if rec != nil {
+		out.CreatedAt = &rec.CreatedAt
+		out.CreatedBy = strPtr(rec.CreatedBy)
+		out.ConfirmedAt = rec.ConfirmedAt
+	}
+	return out
+}
+
+func (s *Server) recoveryKeyState(ctx context.Context) (gen.BackupRecoveryKeyState, error) {
+	rec, err := backup.GetRecoveryKey(ctx, s.pool.Pool)
+	if errors.Is(err, backup.ErrNoRecoveryKey) {
+		return mapRecoveryKeyState(nil, s.backupCfg.RecoverySecrets), nil
+	}
+	if err != nil {
+		return gen.BackupRecoveryKeyState{}, err
+	}
+	return mapRecoveryKeyState(&rec, s.backupCfg.RecoverySecrets), nil
+}
+
+// CreateBackupRecoveryKey issues a new recovery key after re-authentication.
+// The key leaves the server in this one response and is never stored.
+func (s *Server) CreateBackupRecoveryKey(w http.ResponseWriter, r *http.Request) {
+	body, ok := decodeJSON[gen.BackupReauth](w, r)
+	if !ok {
+		return
+	}
+	admin, ok := auth.AdminFromContext(r.Context())
+	if !ok {
+		httpx.WriteProblem(w, r, httpx.NewProblem("unauthorized", "Unauthorized", http.StatusUnauthorized))
+		return
+	}
+	if err := s.auth.ReauthenticateAdmin(r.Context(), admin.ID, body.Password, body.TotpCode); err != nil {
+		switch {
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			// 422, not 401: the console treats 401 as an expired session.
+			httpx.WriteProblem(w, r, httpx.NewProblem("reauth-failed", "Password or code is incorrect", http.StatusUnprocessableEntity))
+		default:
+			s.writeServiceError(w, r, err)
+		}
+		return
+	}
+	secrets := s.backupCfg.RecoverySecrets
+	if !secrets.Complete() {
+		p := httpx.NewProblem("backup-key-missing", "HDMS_BACKUP_ENC_KEY and the other secrets must be set before a recovery key can be made", http.StatusConflict)
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+	key, err := backup.NewRecoveryKey()
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	bundle, err := backup.SealRecoveryBundle(key, secrets, time.Now())
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	_, prevErr := backup.GetRecoveryKey(r.Context(), s.pool.Pool)
+	rec, err := backup.SaveRecoveryKey(r.Context(), s.pool.Pool, bundle, secrets.Fingerprint(), actorFrom(r))
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	action := "backup.recovery_key.replaced"
+	if errors.Is(prevErr, backup.ErrNoRecoveryKey) {
+		action = "backup.recovery_key.created"
+	}
+	s.recordBackupAudit(r, action, "backup:recovery_key", map[string]any{"createdAt": rec.CreatedAt})
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusCreated, gen.BackupRecoveryKeyIssued{Key: key.String(), CreatedAt: rec.CreatedAt})
+}
+
+func (s *Server) ConfirmBackupRecoveryKey(w http.ResponseWriter, r *http.Request) {
+	rec, err := backup.ConfirmRecoveryKey(r.Context(), s.pool.Pool, time.Now())
+	if err != nil {
+		s.writeBackupError(w, r, err)
+		return
+	}
+	s.recordBackupAudit(r, "backup.recovery_key.confirmed", "backup:recovery_key", nil)
+	writeJSON(w, http.StatusOK, mapRecoveryKeyState(&rec, s.backupCfg.RecoverySecrets))
 }

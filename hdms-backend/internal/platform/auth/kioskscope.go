@@ -73,6 +73,8 @@ var KioskDeniedOperations = map[string]struct{}{
 	"GET /v1/backup/locations":               {},
 	"POST /v1/backup/locations/folders":      {},
 	"POST /v1/backup/locations/check":        {},
+	"POST /v1/backup/recovery-key":           {},
+	"POST /v1/backup/recovery-key/confirm":   {},
 
 	// Backfill
 	"POST /v1/backfill":           {},
