@@ -172,7 +172,7 @@ function RecoveryKeyDialog({ localPath, onClose }: { localPath: string; onClose:
             <p className="text-sm font-medium text-destructive">{t("backups.recoveryKey.sheetOnce")}</p>
             <div className="print-area register-slip flex flex-col gap-3 rounded-md border p-4">
               <h2 className="text-lg font-semibold">{t("backups.recoveryKey.sheetTitle")}</h2>
-              <p className="font-identifier text-2xl tracking-wider break-all">{issued.key}</p>
+              <p className="font-identifier text-2xl tracking-wider">{issued.key}</p>
               <p className="text-sm">{t("backups.recoveryKey.sheetSite", { site: window.location.host })}</p>
               <p className="text-sm">{t("backups.recoveryKey.sheetCreated", { date: formatDateTime(issued.createdAt, locale) })}</p>
               <div className="text-sm">
