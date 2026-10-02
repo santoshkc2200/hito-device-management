@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,6 +86,8 @@ func (c LocationCheck) FailedCodes() []string {
 
 type LocationRoot struct {
 	Path      string `json:"path"`
+	Name      string `json:"name"`
+	HostPath  string `json:"hostPath,omitempty"`
 	Connected bool   `json:"connected"`
 }
 
@@ -105,22 +108,27 @@ type LocationListing struct {
 }
 
 // Locator answers the destination wizard's questions about the worker's
-// filesystem: which allowed roots are connected drives, which folders they
+// filesystem: which drives in the drives folder are connected, which folders they
 // hold, and whether a folder can take backups. It runs in the worker, the only
 // container that mounts destinations.
 type Locator struct {
 	BackupDir    string
 	AllowedRoots []string
+	// DrivesHostPath is where the drives folder is on the host
+	// (HDMS_BACKUP_DRIVES_HOST_PATH). Display only: it names each drive's real
+	// location for the console and is never opened. Empty means unknown.
+	DrivesHostPath string
 	// DeviceOf and FreeBytes default to stat(2) and statfs(2). Tests replace
 	// them because every temporary directory sits on one device.
 	DeviceOf  func(path string) (uint64, error)
 	FreeBytes func(path string) (int64, error)
 }
 
-// Roots lists the allowed roots a destination can live under. The root that
-// holds the server's own backup directory is left out: it is not somewhere
-// else. A root is connected when it is on a different device from the backup
-// directory; compose's fallback volume for an unset share is not.
+// Roots lists the drives a destination can live on: each folder directly
+// inside an allowed root (the drives folder). The root holding the server's
+// own backup directory is left out: it is not somewhere else. Dot-folders,
+// files and symlinks are not drives. A drive is connected when it is on a
+// different device from the backup directory; an empty mount point is not.
 func (l *Locator) Roots() []LocationRoot {
 	server := resolvedOrClean(l.BackupDir)
 	roots := []LocationRoot{}
@@ -128,13 +136,53 @@ func (l *Locator) Roots() []LocationRoot {
 		if strings.TrimSpace(raw) == "" {
 			continue
 		}
-		root := resolvedOrClean(raw)
-		if isRelUnder(root, server) {
+		dir := resolvedOrClean(raw)
+		if isRelUnder(dir, server) {
 			continue
 		}
-		roots = append(roots, LocationRoot{Path: root, Connected: l.separateFromServer(root)})
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			slog.Warn("backup: cannot list drives", "dir", dir, "error", err)
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
+			p := filepath.Join(dir, e.Name())
+			roots = append(roots, LocationRoot{Path: p, Name: e.Name(), HostPath: l.hostPathOf(e.Name()), Connected: l.separateFromServer(p)})
+		}
 	}
 	return roots
+}
+
+func (l *Locator) hostPathOf(name string) string {
+	if l.DrivesHostPath == "" {
+		return ""
+	}
+	return strings.TrimRight(l.DrivesHostPath, `/\`) + "/" + name
+}
+
+// driveOf returns the drive holding p — the allowed root joined with p's
+// first path element below it — or "" when p is outside every root or is a
+// root itself. Each root is compared as configured and resolved.
+func (l *Locator) driveOf(p string) string {
+	for _, raw := range l.AllowedRoots {
+		if strings.TrimSpace(raw) == "" {
+			continue
+		}
+		for _, root := range []string{filepath.Clean(raw), resolvedOrClean(raw)} {
+			if !isRelUnder(root, p) {
+				continue
+			}
+			rel, err := filepath.Rel(root, p)
+			if err != nil || rel == "." {
+				return ""
+			}
+			return filepath.Join(root, strings.SplitN(rel, string(filepath.Separator), 2)[0])
+		}
+	}
+	return ""
 }
 
 // Browse lists the subfolders of path. An empty path lists only the roots.
@@ -145,9 +193,13 @@ func (l *Locator) Browse(path string) (LocationListing, error) {
 	if path == "" {
 		return out, nil
 	}
-	resolved, root, err := l.resolve(path)
+	resolved, _, err := l.resolve(path)
 	if err != nil {
 		return LocationListing{}, err
+	}
+	drive := l.driveOf(resolved)
+	if drive == "" {
+		return LocationListing{}, fmt.Errorf("%w: %s", ErrPathNotAllowed, resolved)
 	}
 	entries, err := os.ReadDir(resolved)
 	if err != nil {
@@ -161,7 +213,7 @@ func (l *Locator) Browse(path string) (LocationListing, error) {
 		out.Folders = append(out.Folders, Folder{Name: e.Name(), Path: p, HasBackup: hasRepo(p)})
 	}
 	out.Path = resolved
-	if resolved != root {
+	if resolved != drive {
 		out.Parent = filepath.Dir(resolved)
 	}
 	return out, nil
@@ -175,6 +227,9 @@ func (l *Locator) CreateFolder(parent, name string) (Folder, error) {
 	resolved, _, err := l.resolve(parent)
 	if err != nil {
 		return Folder{}, err
+	}
+	if l.driveOf(resolved) == "" {
+		return Folder{}, fmt.Errorf("%w: %s", ErrPathNotAllowed, resolved)
 	}
 	p := filepath.Join(resolved, name)
 	if err := os.Mkdir(p, 0o750); err != nil {
@@ -211,7 +266,8 @@ func (l *Locator) Check(path string) LocationCheck {
 		return finish()
 	}
 	add(CheckAllowed, StatusPass, "")
-	if !l.separateFromServer(root) {
+	drive := l.driveOf(filepath.Clean(path))
+	if drive == "" || !l.separateFromServer(drive) {
 		add(CheckConnected, StatusFail, CodeNotConnected)
 		return finish()
 	}

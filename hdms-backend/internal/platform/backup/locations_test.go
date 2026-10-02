@@ -10,9 +10,10 @@ import (
 	"testing"
 )
 
-// testLocator builds a server backup area and a "nas" root inside a temp dir.
-// Every temp dir sits on one device, so DeviceOf stands in for a real mount:
-// the server area is device 1, everything else device 2.
+// testLocator builds a server backup area and a drives folder holding one
+// drive, "usb", inside a temp dir. Every temp dir sits on one device, so
+// DeviceOf stands in for real mounts: the server area and the drives folder
+// itself are device 1 (as /mnt on a server's root disk), the drive device 2.
 func testLocator(t *testing.T) (l *Locator, server, nas string) {
 	t.Helper()
 	base, err := filepath.EvalSymlinks(t.TempDir())
@@ -21,7 +22,8 @@ func testLocator(t *testing.T) (l *Locator, server, nas string) {
 	}
 	serverRoot := filepath.Join(base, "backups")
 	server = filepath.Join(serverRoot, "hdms")
-	nas = filepath.Join(base, "nas")
+	drives := filepath.Join(base, "drives")
+	nas = filepath.Join(drives, "usb")
 	for _, d := range []string{server, nas} {
 		if err := os.MkdirAll(d, 0o750); err != nil {
 			t.Fatal(err)
@@ -29,12 +31,12 @@ func testLocator(t *testing.T) (l *Locator, server, nas string) {
 	}
 	l = &Locator{
 		BackupDir:    server,
-		AllowedRoots: []string{serverRoot, nas},
+		AllowedRoots: []string{serverRoot, drives},
 		DeviceOf: func(p string) (uint64, error) {
-			if isRelUnder(serverRoot, p) {
-				return 1, nil
+			if isRelUnder(nas, p) {
+				return 2, nil
 			}
-			return 2, nil
+			return 1, nil
 		},
 		FreeBytes: func(string) (int64, error) { return 1 << 40, nil },
 	}
@@ -66,18 +68,58 @@ func results(c LocationCheck) map[string]string {
 	return m
 }
 
-func TestRootsListOnlyDestinationsAndReportConnection(t *testing.T) {
+func TestRootsListEachDrive(t *testing.T) {
 	l, _, nas := testLocator(t)
-
-	roots := l.Roots()
-	if len(roots) != 1 || roots[0].Path != nas || !roots[0].Connected {
-		t.Fatalf("roots = %+v, want only %s, connected (the server's own backup area is not offered)", roots, nas)
+	drives := filepath.Dir(nas)
+	mkdir(t, filepath.Join(drives, "empty-mount")) // a mount point with nothing mounted
+	mkdir(t, filepath.Join(drives, ".Trashes"))
+	writeFile(t, filepath.Join(drives, "notes.txt"), 1)
+	if err := os.Symlink("/", filepath.Join(drives, "Macintosh HD")); err != nil {
+		t.Fatal(err)
 	}
 
-	// No share mounted: compose's fallback volume shares the server's device.
-	l.DeviceOf = func(string) (uint64, error) { return 1, nil }
-	if roots := l.Roots(); len(roots) != 1 || roots[0].Connected {
-		t.Fatalf("unmounted root reported connected: %+v", roots)
+	got := l.Roots()
+	want := []LocationRoot{
+		{Path: filepath.Join(drives, "empty-mount"), Name: "empty-mount", Connected: false},
+		{Path: nas, Name: "usb", Connected: true},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Roots() = %+v, want %+v (server area, dot-folders, files and symlinks are not drives)", got, want)
+	}
+
+	l.DrivesHostPath = "/Volumes/"
+	if got := l.Roots(); got[1].HostPath != "/Volumes/usb" {
+		t.Fatalf("HostPath = %q, want /Volumes/usb", got[1].HostPath)
+	}
+}
+
+func TestRootsSkipsAnUnreadableDrivesFolder(t *testing.T) {
+	l, _, nas := testLocator(t)
+	l.AllowedRoots = append(l.AllowedRoots, filepath.Join(filepath.Dir(nas), "missing"))
+	if got := l.Roots(); len(got) != 1 || got[0].Path != nas {
+		t.Fatalf("Roots() = %+v, want only %s", got, nas)
+	}
+}
+
+func TestCheckDrivesFolderItselfIsNotADrive(t *testing.T) {
+	l, _, nas := testLocator(t)
+	r := results(l.Check(filepath.Dir(nas)))
+	if r[CheckAllowed] != "pass/" || r[CheckConnected] != "fail/not_connected" {
+		t.Fatalf("Check(drives folder) = %v, want allowed pass, connected fail/not_connected", r)
+	}
+}
+
+func TestBrowseAndCreateFolderStayInsideADrive(t *testing.T) {
+	l, _, nas := testLocator(t)
+	drives := filepath.Dir(nas)
+	if _, err := l.Browse(drives); !errors.Is(err, ErrPathNotAllowed) {
+		t.Errorf("Browse(drives folder) err = %v, want ErrPathNotAllowed", err)
+	}
+	if _, err := l.CreateFolder(drives, "fake-drive"); !errors.Is(err, ErrPathNotAllowed) {
+		t.Errorf("CreateFolder(drives folder) err = %v, want ErrPathNotAllowed", err)
+	}
+	if _, err := os.Stat(filepath.Join(drives, "fake-drive")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("fake-drive was created: %v", err)
 	}
 }
 
