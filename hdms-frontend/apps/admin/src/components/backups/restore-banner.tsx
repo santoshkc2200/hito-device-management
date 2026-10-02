@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/i18n";
 import { formatDateTime } from "./format";
-import { RestoreConfirmDialog, restoreProblemKey } from "./restore-confirm-dialog";
+import { restoreProblemKey } from "./problem";
+import { RestoreConfirmDialog } from "./restore-confirm-dialog";
 import { RestoreSteps } from "./restore-steps";
 import { restoreQueryKey, useRestore } from "./use-restore";
 

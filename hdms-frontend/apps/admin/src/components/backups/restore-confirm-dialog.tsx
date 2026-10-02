@@ -8,29 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
 import { formatDateTime } from "./format";
-import { problemIs } from "./problem";
+import { restoreProblemKey } from "./problem";
 import { restoreQueryKey } from "./use-restore";
 
 const CONFIRM_WORD = "RESTORE";
-
-// Problem type → backups.restore.problems key.
-const PROBLEM_KEYS: Record<string, string> = {
-  "reauth-failed": "reauthFailed",
-  "account-locked": "accountLocked",
-  "restore-running": "restoreRunning",
-  "nothing-to-undo": "nothingToUndo",
-  "nothing-to-discard": "nothingToDiscard",
-  "database-server-down": "databaseServerDown",
-  "restore-source-unsupported": "sourceUnsupported",
-  "repository-unreadable": "repositoryUnreadable",
-  "worker-unavailable": "workerUnavailable",
-  "not-found": "notFound",
-};
-
-export function restoreProblemKey(err: unknown): string {
-  const hit = Object.keys(PROBLEM_KEYS).find((type) => problemIs(err, type));
-  return `backups.restore.problems.${hit ? PROBLEM_KEYS[hit] : "failed"}`;
-}
 
 type Props =
   | { mode: "restore"; repo: string; snapshot: BackupSnapshot; onClose: () => void }
