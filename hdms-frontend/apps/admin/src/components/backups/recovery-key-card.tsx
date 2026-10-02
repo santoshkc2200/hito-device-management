@@ -17,7 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
 import { formatDateTime } from "./format";
-import { problemIs } from "./problem";
+
+type Problem = { type?: string };
+const problemIs = (err: unknown, type: string) => (err as Problem | null)?.type?.endsWith(`/${type}`) ?? false;
 
 const TONE: Record<BackupRecoveryKeyState["status"], "default" | "secondary" | "destructive" | "outline"> = {
   missing: "destructive",

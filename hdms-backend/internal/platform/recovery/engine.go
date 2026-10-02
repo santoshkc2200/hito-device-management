@@ -24,14 +24,10 @@ var (
 	// could sign in after the restore.
 	ErrRestoredWithoutAdmins = errors.New("recovery: the backup holds no administrator account")
 	errInterrupted           = errors.New("recovery: interrupted by a worker restart")
-	ErrNothingToDiscard      = errors.New("recovery: there is no kept database to discard")
 )
 
 // maxIdentifier is Postgres's identifier limit in bytes.
 const maxIdentifier = 63
-
-// RequesterRecoveryKey names restores asked for through /recovery.
-const RequesterRecoveryKey = "recovery-key"
 
 // Ops are the database and repository operations a restore is made of. The
 // engine decides their order, persists progress and unwinds; PGOps does the
@@ -58,13 +54,11 @@ type Request struct {
 	SnapshotTakenAt time.Time
 	UnlockIP        string
 	UnlockedAt      time.Time
-	RequestedBy     string
 }
 
 type UndoRequest struct {
-	UnlockIP    string
-	UnlockedAt  time.Time
-	RequestedBy string
+	UnlockIP   string
+	UnlockedAt time.Time
 }
 
 // Engine runs one restore or undo at a time in the background and keeps its
@@ -158,8 +152,7 @@ func (e *Engine) Start(req Request) (State, error) {
 		Source: req.Source, SnapshotID: req.SnapshotID, SnapshotTakenAt: req.SnapshotTakenAt,
 		LiveState: live, LiveDB: e.LiveDB,
 		IncomingDB: e.LiveDB + "_restore_" + ts, OutgoingDB: e.LiveDB + "_before_" + ts,
-		CopySince: req.SnapshotTakenAt, UnlockIP: req.UnlockIP, UnlockedAt: req.UnlockedAt,
-		RequestedBy: req.RequestedBy, StartedAt: now,
+		CopySince: req.SnapshotTakenAt, UnlockIP: req.UnlockIP, UnlockedAt: req.UnlockedAt, StartedAt: now,
 	})
 }
 
@@ -190,8 +183,7 @@ func (e *Engine) Undo(req UndoRequest) (State, error) {
 		LiveState: live, LiveDB: e.LiveDB,
 		IncomingDB: prev.OutgoingDB, OutgoingDB: e.LiveDB + "_rolledback_" + stamp(now),
 		CopySince: since, UndoOf: prev.ID,
-		UnlockIP: req.UnlockIP, UnlockedAt: req.UnlockedAt,
-		RequestedBy: req.RequestedBy, StartedAt: now,
+		UnlockIP: req.UnlockIP, UnlockedAt: req.UnlockedAt, StartedAt: now,
 	})
 }
 
@@ -213,42 +205,6 @@ func (e *Engine) canUndoLocked(ctx context.Context) bool {
 	return err == nil && ok
 }
 
-// canDiscardLocked: the last run completed and the database it kept still
-// exists. The live name is never discardable, whatever the state file says.
-func (e *Engine) canDiscardLocked(ctx context.Context) bool {
-	st := e.st
-	if !e.has || e.running || st.Phase != PhaseCompleted || st.OutgoingDB == "" || st.OutgoingDB == e.LiveDB {
-		return false
-	}
-	ok, err := e.Ops.Exists(ctx, st.OutgoingDB)
-	return err == nil && ok
-}
-
-// Discard drops the database the last restore or undo kept, which ends
-// the chance to undo it. The state file then forgets the name.
-func (e *Engine) Discard(by string) (State, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.activeLocked() {
-		return State{}, ErrRestoreActive
-	}
-	if !e.canDiscardLocked(e.Base) {
-		return State{}, ErrNothingToDiscard
-	}
-	st := e.st
-	if err := e.Ops.Drop(e.Base, st.OutgoingDB); err != nil {
-		return State{}, err
-	}
-	e.Logger.Info("recovery: kept database discarded", "database", st.OutgoingDB, "by", by)
-	now := e.Now().UTC()
-	st.OutgoingDB, st.DiscardedAt = "", &now
-	e.st = st
-	if err := WriteState(e.StatePath, st); err != nil {
-		return st, err
-	}
-	return st, nil
-}
-
 // View is the recovery page's picture of the last run, or nil.
 func (e *Engine) View(ctx context.Context) *View {
 	e.mu.Lock()
@@ -258,7 +214,6 @@ func (e *Engine) View(ctx context.Context) *View {
 	}
 	v := viewOf(e.st)
 	v.CanUndo = e.canUndoLocked(ctx)
-	v.CanDiscard = e.canDiscardLocked(ctx)
 	return &v
 }
 

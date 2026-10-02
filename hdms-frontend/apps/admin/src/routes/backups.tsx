@@ -1,13 +1,12 @@
 import { createRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DestinationsTab } from "@/components/backups/destinations-tab";
-import { HistoryTab } from "@/components/backups/history-tab";
 import { OverviewTab } from "@/components/backups/overview-tab";
-import { RestoreBanner } from "@/components/backups/restore-banner";
+import { DestinationsTab } from "@/components/backups/destinations-tab";
 import { SnapshotsTab } from "@/components/backups/snapshots-tab";
-import { useT } from "@/i18n";
+import { HistoryTab } from "@/components/backups/history-tab";
 import { RoleGate } from "@/lib/use-role";
+import { useT } from "@/i18n";
 import { authenticatedRoute } from "./authenticated";
 
 type BackupTab = "overview" | "destinations" | "snapshots" | "history";
@@ -22,7 +21,6 @@ export function BackupsPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t("nav.backups")}</h1>
           <p className="text-sm text-muted-foreground">{t("backups.subtitle")}</p>
         </div>
-        <RestoreBanner />
         <Tabs value={tab} onValueChange={(v) => setTab(v as BackupTab)}>
           <TabsList>
             <TabsTrigger value="overview">{t("backups.tabs.overview")}</TabsTrigger>

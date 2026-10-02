@@ -16,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -41,43 +40,11 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
-	"github.com/hito-hospital/hdms/internal/platform/recovery"
 	"github.com/hito-hospital/hdms/internal/platform/settings"
 	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 	"github.com/hito-hospital/hdms/test/testdb"
 	"github.com/pquerna/otp/totp"
 )
-
-// stubRestoreWorker stands in for the worker's /internal/restore routes: it
-// answers with the status and body a test sets and records every call.
-type stubRestoreWorker struct {
-	mu     sync.Mutex
-	status int
-	body   string
-	calls  []string
-}
-
-func (s *stubRestoreWorker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	raw, _ := io.ReadAll(r.Body)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.calls = append(s.calls, r.Method+" "+r.URL.Path+" "+string(raw))
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(s.status)
-	_, _ = io.WriteString(w, s.body)
-}
-
-func (s *stubRestoreWorker) answer(status int, body string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.status, s.body = status, body
-}
-
-func (s *stubRestoreWorker) callLog() []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return append([]string(nil), s.calls...)
-}
 
 // testHarness wires the real apiServer, the real auth middleware and
 // request-ID/recovery middleware against a fresh testdb, and exposes an
@@ -109,7 +76,6 @@ type testHarness struct {
 	handler           http.Handler
 	apiServer         *apiserver.Server
 	workerServer      *httptest.Server
-	restoreWorker     *stubRestoreWorker
 	adminPassword     string
 	adminTOTPSecret   string
 	recoverySecrets   backup.RecoverySecrets
@@ -167,13 +133,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		},
 		FreeBytes: func(string) (int64, error) { return 1 << 40, nil },
 	}
-	restoreWorker := &stubRestoreWorker{status: http.StatusOK, body: `{"restore":null}`}
-	workerRoutes := http.NewServeMux()
-	workerRoutes.Handle("/internal/locations", locator.InternalHandler())
-	workerRoutes.Handle("/internal/locations/", locator.InternalHandler())
-	workerRoutes.Handle("/internal/restore", restoreWorker)
-	workerRoutes.Handle("/internal/restore/", restoreWorker)
-	workerServer := httptest.NewServer(workerRoutes)
+	workerServer := httptest.NewServer(locator.InternalHandler())
 	t.Cleanup(workerServer.Close)
 	recoverySecrets := backup.NewRecoverySecrets(random32(t), pepper, credEncKey, totpEncKey)
 	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, nil, notifSvc, resSvc, "test", apiserver.BackupConsoleConfig{
@@ -181,7 +141,6 @@ func newTestHarness(t *testing.T) *testHarness {
 		// location check is the only owner of that rule.
 		BackupDir: "/var/backups/hdms", Location: time.UTC,
 		Locations:       backup.NewLocationClient(workerServer.URL),
-		Restore:         recovery.NewClient(workerServer.URL),
 		RecoverySecrets: recoverySecrets,
 	})
 	mux := http.NewServeMux()
@@ -230,7 +189,6 @@ func newTestHarness(t *testing.T) *testHarness {
 		pool:            pool,
 		apiServer:       srv,
 		workerServer:    workerServer,
-		restoreWorker:   restoreWorker,
 		recoverySecrets: recoverySecrets,
 	}
 

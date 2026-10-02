@@ -216,51 +216,6 @@ export const zBackupRecoveryKeyIssued = z.object({
     createdAt: z.iso.datetime()
 });
 
-export const zBackupRestoreInput = z.object({
-    repo: z.string(),
-    snapshotId: z.string(),
-    confirmation: z.enum(['RESTORE']),
-    password: z.string(),
-    totpCode: z.string()
-});
-
-export const zBackupRestoreConfirm = z.object({
-    confirmation: z.enum(['RESTORE']),
-    password: z.string(),
-    totpCode: z.string()
-});
-
-export const zBackupRestore = z.object({
-    kind: z.enum(['restore', 'undo']),
-    phase: z.enum([
-        'running',
-        'completed',
-        'failed'
-    ]),
-    step: z.string(),
-    steps: z.array(z.string()),
-    sourceKind: z.enum([
-        'local',
-        'folder',
-        'destination'
-    ]),
-    sourceName: z.string().optional(),
-    snapshotTakenAt: z.iso.datetime(),
-    startedAt: z.iso.datetime(),
-    finishedAt: z.iso.datetime().optional(),
-    error: z.string().optional(),
-    warning: z.string().optional(),
-    canUndo: z.boolean(),
-    canDiscard: z.boolean(),
-    discardedAt: z.iso.datetime().optional()
-});
-
-export const zBackupRestoreStatus = z.object({
-    maintenance: z.boolean(),
-    workerAvailable: z.boolean(),
-    restore: zBackupRestore.optional()
-});
-
 export const zProblem = z.object({
     type: z.url(),
     title: z.string(),
@@ -2548,35 +2503,6 @@ export const zListBackupRunsQuery = z.object({
  * OK.
  */
 export const zListBackupRunsResponse = zBackupRunList;
-
-/**
- * OK.
- */
-export const zGetBackupRestoreResponse = zBackupRestoreStatus;
-
-export const zStartBackupRestoreBody = zBackupRestoreInput;
-
-/**
- * Started; poll GET /backup/restore.
- */
-export const zStartBackupRestoreResponse = zBackupRestoreStatus;
-
-export const zUndoBackupRestoreBody = zBackupRestoreConfirm;
-
-/**
- * Started; poll GET /backup/restore.
- */
-export const zUndoBackupRestoreResponse = zBackupRestoreStatus;
-
-/**
- * Discarded.
- */
-export const zDiscardBackupRestoreResponse = zBackupRestoreStatus;
-
-/**
- * Maintenance is off.
- */
-export const zEndBackupMaintenanceResponse = zBackupRestoreStatus;
 
 export const zGetKioskPath = z.object({
     id: z.string()
