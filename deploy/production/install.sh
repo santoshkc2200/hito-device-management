@@ -3,6 +3,7 @@
 #
 #   sudo deploy/production/install.sh             fresh install
 #   sudo deploy/production/install.sh --restore   new server, data from backups
+#   sudo deploy/production/install.sh --restore --cloud=google   ... from Google Drive
 #
 # Run as root from the repository checkout (/opt/hdms). It writes
 # /etc/hdms/hdms.env (mode 0600) and starts the stack. The host name and the
@@ -32,7 +33,7 @@ work=""
 env_tmp=""
 # Answers and secrets, filled in by the steps below (ask assigns by name).
 site_addr="" tz="" smtp_host="" smtp_port="" smtp_user="" smtp_password="" smtp_from="" smtp_reply=""
-source_dir="" service_uid="" service_gid=""
+source_dir="" service_uid="" service_gid="" drives_real="" cloud=""
 backup_enc_key="" token_pepper="" credential_enc_key="" totp_enc_key=""
 
 say() { printf '%s\n' "$*" >&2; }
@@ -43,13 +44,16 @@ die() {
 
 usage() {
 	cat <<'EOF'
-Usage: install.sh [--restore] [--force]
+Usage: install.sh [--restore [--cloud=google|onedrive]] [--force]
 
   (no option)  Fresh install: generate every secret, write /etc/hdms/hdms.env
                and start HDMS.
   --restore    New server for an existing HDMS: read the secrets out of the
                backups with the recovery key, write /etc/hdms/hdms.env, start
                HDMS, then finish in the browser at https://<host>/recovery.
+  --cloud=google|onedrive
+               With --restore: the backups are in Google Drive or OneDrive.
+               Signs in on this terminal and downloads them first.
   --force      Replace an existing /etc/hdms/hdms.env (the old file is kept
                beside it).
 EOF
@@ -155,10 +159,38 @@ find_sources() {
 	done
 }
 
-choose_source() {
-	local drives_real folder list count choice
+# resolve_drives sets drives_real: the drives folder with symlinks resolved,
+# which is where the worker sees everything under /drives.
+resolve_drives() {
 	[ -d "$drives_host_path" ] || die "the drives folder $drives_host_path does not exist on this server; create it or set HDMS_BACKUP_DRIVES_HOST_PATH"
 	drives_real=$(cd "$drives_host_path" && pwd -P)
+}
+
+# select_source LIST sets source_dir to the one folder in LIST (one per line),
+# asking when there are several.
+select_source() {
+	local list=$1 count choice
+	count=$(printf '%s\n' "$list" | wc -l | tr -d ' ')
+	if [ "$count" = 1 ]; then
+		source_dir=$list
+	else
+		echo "Found $count backup folders:"
+		printf '%s\n' "$list" | awk '{ printf "  %d) %s\n", NR, $0 }'
+		while :; do
+			ask choice "Which one (1-$count)"
+			if [[ $choice =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "$count" ]; then
+				break
+			fi
+			say "  Enter a number from 1 to $count."
+		done
+		source_dir=$(printf '%s\n' "$list" | sed -n "${choice}p")
+	fi
+	echo "Using the backups in $source_dir"
+}
+
+choose_source() {
+	local folder list
+	resolve_drives
 	echo
 	echo "Where are the backups? Mount the network drive or external disk under"
 	echo "$drives_real on this server first, or copy the backup folder there."
@@ -181,24 +213,45 @@ choose_source() {
 			say "  No HDMS backups found in $folder or two folders below it (looked for repo/config next to hdms-recovery.bin)."
 			continue
 		fi
-		count=$(printf '%s\n' "$list" | wc -l | tr -d ' ')
-		if [ "$count" = 1 ]; then
-			source_dir=$list
-		else
-			echo "Found $count backup folders:"
-			printf '%s\n' "$list" | awk '{ printf "  %d) %s\n", NR, $0 }'
-			while :; do
-				ask choice "Which one (1-$count)"
-				if [[ $choice =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "$count" ]; then
-					break
-				fi
-				say "  Enter a number from 1 to $count."
-			done
-			source_dir=$(printf '%s\n' "$list" | sed -n "${choice}p")
-		fi
-		echo "Using the backups in $source_dir"
+		select_source "$list"
 		return 0
 	done
+}
+
+# download_cloud PROVIDER signs in to Google Drive or OneDrive on this
+# terminal and copies the HDMS backup folder into the drives folder, where
+# the rest of --restore treats it like any other folder of backups.
+download_cloud() {
+	local provider=$1 client_id client_secret="" tenant="" folder dest ids list
+	resolve_drives
+	echo
+	echo "The backups are in ${provider//_/ }. Use the OAuth client ID that HDMS was set up with"
+	echo "(docs/runbooks/cloud-backup.md, step 1)."
+	ask client_id "OAuth client ID"
+	if [ "$provider" = google_drive ]; then
+		while :; do
+			ask_hidden client_secret "OAuth client secret (not shown)"
+			[ -n "$client_secret" ] && break
+			say "  Google needs the client secret."
+		done
+	else
+		ask tenant "Directory (tenant) ID, or common" common
+	fi
+	ask folder "Folder name in the cloud drive" hdms-backups
+	dest="$drives_real/cloud-restore"
+	ids=$(docker run --rm --entrypoint sh "$worker_image" -c 'echo "$(id -u):$(id -g)"' </dev/null)
+	mkdir -p "$dest"
+	chown "$ids" "$dest" || die "could not give the HDMS worker ownership of $dest"
+	# The client secret reaches the worker image on stdin, never in a command line.
+	# shellcheck disable=SC2086 # tenant is empty for Google and a single word otherwise
+	if ! printf '%s\n' "$client_secret" | docker run --rm -i -v "$dest:/download" --entrypoint hdms-cli "$worker_image" \
+		cloud fetch --provider "$provider" --client-id "$client_id" ${tenant:+--tenant $tenant} --folder "$folder" --to /download; then
+		die "downloading the backups failed; see the messages above, then run install.sh --restore --cloud=... again"
+	fi
+	client_secret=""
+	list=$(find_sources "$dest")
+	[ -n "$list" ] || die "nothing that looks like HDMS backups was downloaded into $dest"
+	select_source "$list"
 }
 
 # worker_can_use: the worker runs as its own user and must read the bundle and
@@ -434,6 +487,8 @@ main() {
 	for arg in "$@"; do
 		case $arg in
 		--restore) mode=restore ;;
+		--cloud=google) cloud=google_drive ;;
+		--cloud=onedrive) cloud=onedrive ;;
 		--force) force=yes ;;
 		-h | --help)
 			usage
@@ -446,12 +501,21 @@ main() {
 		esac
 	done
 
+	if [ -n "$cloud" ] && [ "$mode" != restore ]; then
+		usage >&2
+		exit 2
+	fi
+
 	check_prerequisites
 	work=$(mktemp -d)
 	trap cleanup EXIT
 	if [ "$mode" = restore ]; then
 		build_worker_image
-		choose_source
+		if [ -n "$cloud" ]; then
+			download_cloud "$cloud"
+		else
+			choose_source
+		fi
 		ensure_worker_access
 		unlock_secrets
 	else

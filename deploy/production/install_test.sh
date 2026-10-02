@@ -41,6 +41,17 @@ case "$*" in
 	printf '%s\n' 'HDMS_BACKUP_ENC_KEY=b4ckup+Key/=' 'HDMS_TOKEN_PEPPER=0123abcd' \
 		'HDMS_CREDENTIAL_ENC_KEY=cred+Key/=' 'HDMS_TOTP_ENC_KEY=totp+Key/='
 	;;
+*"cloud fetch"*)
+	IFS= read -r secret || true
+	printf '%s\n' "$secret" >>"$STUB_STATE/cloud.stdin"
+	if [ -f "$STUB_STATE/cloud-fails" ]; then
+		echo "hdms-cli: sign-in was declined" >&2
+		exit 1
+	fi
+	host=$(printf '%s\n' "$*" | sed -n 's/.*-v \([^ ]*\):\/download.*/\1/p')
+	mkdir -p "$host/hdms-backups/repo/locks"
+	touch "$host/hdms-backups/repo/config" "$host/hdms-backups/hdms-recovery.bin"
+	;;
 *'id -u'*) echo "100:101" ;;
 *'test -r'*) [ -f "$STUB_STATE/access-ok" ] ;;
 *)
@@ -302,6 +313,41 @@ check "restore: five wrong keys stop" exits_with 1
 check "restore: the stop says why" says "stopped after 5 attempts"
 check "restore: the sixth key is never tried" [ "$(wc -l <"$state/unwrap.stdin" | tr -d ' ')" = 5 ]
 check "restore: no env file after five wrong keys" [ ! -e "$env_file" ]
+
+# --- restore from the cloud ---------------------------------------------------
+fresh_state
+touch "$state/access-ok"
+run_install "$(printf '%s\n' client-id-123 'g-secret-xyz' hdms-backups "$good_key")
+$settings" --restore --cloud=google
+check "cloud restore exits 0" exits_with 0
+check "cloud restore: the client secret reaches the worker on stdin" has_line "$state/cloud.stdin" "g-secret-xyz"
+check "cloud restore: the client secret is never in a docker command line" lacks "$state/docker.log" "g-secret-xyz"
+check "cloud restore: fetch names the provider, client and folder" \
+	grep -qF -- "cloud fetch --provider google_drive --client-id client-id-123 --folder hdms-backups --to /download" "$state/docker.log"
+check "cloud restore: downloads into the drives folder" grep -qF -- "-v $drives_real/cloud-restore:/download" "$state/docker.log"
+check "cloud restore: the downloaded folder is unwrapped like any other" \
+	grep -qF -- "-v $drives_real/cloud-restore/hdms-backups:/restore-src:ro" "$state/docker.log"
+check "cloud restore: the recovery key still decides the secrets" has_line "$env_file" "HDMS_BACKUP_ENC_KEY='b4ckup+Key/='"
+
+fresh_state
+touch "$state/access-ok"
+run_install "$(printf '%s\n' client-id-456 contoso.onmicrosoft.com hdms-backups "$good_key")
+$settings" --restore --cloud=onedrive
+check "onedrive restore exits 0" exits_with 0
+check "onedrive restore: the tenant is passed" \
+	grep -qF -- "--provider onedrive --client-id client-id-456 --tenant contoso.onmicrosoft.com" "$state/docker.log"
+check "onedrive restore: no client secret is asked for" [ "$(cat "$state/cloud.stdin")" = "" ]
+
+fresh_state
+touch "$state/cloud-fails"
+run_install "$(printf '%s\n' client-id-123 'g-secret-xyz' hdms-backups)" --restore --cloud=google
+check "a failed cloud download stops" exits_with 1
+check "a failed cloud download says so" says "downloading the backups failed"
+check "no env file after a failed cloud download" [ ! -e "$env_file" ]
+
+fresh_state
+run_install "" --cloud=google
+check "--cloud without --restore is refused" exits_with 2
 
 echo
 if [ "$failures" -gt 0 ]; then
