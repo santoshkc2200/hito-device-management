@@ -71,6 +71,12 @@ export type BackupDestination = {
     id: string;
     name: string;
     target: string;
+    /**
+     * lan, google_drive or onedrive
+     */
+    provider: string;
+    cloudAccountId?: string;
+    folder?: string;
     enabled: boolean;
     retentionVersions: number;
     initializedAt?: string;
@@ -82,11 +88,55 @@ export type BackupDestinationList = {
     items: Array<BackupDestination>;
 };
 
+/**
+ * Give either target (a folder on a connected drive), or cloudAccountId with folder.
+ */
 export type BackupDestinationInput = {
     name: string;
-    target: string;
+    target?: string;
+    cloudAccountId?: string;
+    folder?: string;
     enabled?: boolean;
     retentionVersions: number;
+};
+
+export type BackupCloudProvider = 'google_drive' | 'onedrive';
+
+export type BackupCloudAccount = {
+    id: string;
+    provider: BackupCloudProvider;
+    name: string;
+    clientId: string;
+    tenant: string;
+    accountEmail?: string;
+    status: 'pending' | 'connected' | 'expired' | 'revoked';
+    lastError?: string;
+    connectedAt?: string;
+};
+
+export type BackupCloudAccountList = {
+    items: Array<BackupCloudAccount>;
+};
+
+export type BackupCloudAccountInput = {
+    provider: BackupCloudProvider;
+    name: string;
+    clientId: string;
+    /**
+     * Required for Google Drive.
+     */
+    clientSecret?: string;
+    /**
+     * OneDrive directory (tenant) ID; default common.
+     */
+    tenant?: string;
+};
+
+export type BackupCloudSignIn = {
+    id: string;
+    userCode: string;
+    verificationUri: string;
+    expiresAt: string;
 };
 
 export type BackupDestinationUpdate = {
@@ -4471,15 +4521,6 @@ export type TestBackupDestinationData = {
     url: '/backup/destinations/{id}/test';
 };
 
-export type TestBackupDestinationErrors = {
-    /**
-     * Error.
-     */
-    default: Problem;
-};
-
-export type TestBackupDestinationError = TestBackupDestinationErrors[keyof TestBackupDestinationErrors];
-
 export type TestBackupDestinationResponses = {
     /**
      * Queued.
@@ -4488,6 +4529,137 @@ export type TestBackupDestinationResponses = {
 };
 
 export type TestBackupDestinationResponse = TestBackupDestinationResponses[keyof TestBackupDestinationResponses];
+
+export type ListBackupCloudAccountsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/backup/cloud-accounts';
+};
+
+export type ListBackupCloudAccountsErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ListBackupCloudAccountsError = ListBackupCloudAccountsErrors[keyof ListBackupCloudAccountsErrors];
+
+export type ListBackupCloudAccountsResponses = {
+    /**
+     * OK.
+     */
+    200: BackupCloudAccountList;
+};
+
+export type ListBackupCloudAccountsResponse = ListBackupCloudAccountsResponses[keyof ListBackupCloudAccountsResponses];
+
+export type CreateBackupCloudAccountData = {
+    body: BackupCloudAccountInput;
+    path?: never;
+    query?: never;
+    url: '/backup/cloud-accounts';
+};
+
+export type CreateBackupCloudAccountErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type CreateBackupCloudAccountError = CreateBackupCloudAccountErrors[keyof CreateBackupCloudAccountErrors];
+
+export type CreateBackupCloudAccountResponses = {
+    /**
+     * Sign-in started. Show the code; poll the account until it is connected.
+     */
+    201: BackupCloudSignIn;
+};
+
+export type CreateBackupCloudAccountResponse = CreateBackupCloudAccountResponses[keyof CreateBackupCloudAccountResponses];
+
+export type DeleteBackupCloudAccountData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/backup/cloud-accounts/{id}';
+};
+
+export type DeleteBackupCloudAccountErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type DeleteBackupCloudAccountError = DeleteBackupCloudAccountErrors[keyof DeleteBackupCloudAccountErrors];
+
+export type DeleteBackupCloudAccountResponses = {
+    /**
+     * Deleted.
+     */
+    204: void;
+};
+
+export type DeleteBackupCloudAccountResponse = DeleteBackupCloudAccountResponses[keyof DeleteBackupCloudAccountResponses];
+
+export type GetBackupCloudAccountData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/backup/cloud-accounts/{id}';
+};
+
+export type GetBackupCloudAccountErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type GetBackupCloudAccountError = GetBackupCloudAccountErrors[keyof GetBackupCloudAccountErrors];
+
+export type GetBackupCloudAccountResponses = {
+    /**
+     * OK.
+     */
+    200: BackupCloudAccount;
+};
+
+export type GetBackupCloudAccountResponse = GetBackupCloudAccountResponses[keyof GetBackupCloudAccountResponses];
+
+export type ReconnectBackupCloudAccountData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/backup/cloud-accounts/{id}/reconnect';
+};
+
+export type ReconnectBackupCloudAccountErrors = {
+    /**
+     * Error.
+     */
+    default: Problem;
+};
+
+export type ReconnectBackupCloudAccountError = ReconnectBackupCloudAccountErrors[keyof ReconnectBackupCloudAccountErrors];
+
+export type ReconnectBackupCloudAccountResponses = {
+    /**
+     * Sign-in restarted.
+     */
+    200: BackupCloudSignIn;
+};
+
+export type ReconnectBackupCloudAccountResponse = ReconnectBackupCloudAccountResponses[keyof ReconnectBackupCloudAccountResponses];
 
 export type ListBackupLocationsData = {
     body?: never;

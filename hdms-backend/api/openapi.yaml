@@ -2372,6 +2372,77 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BackupRequest" }
+  /backup/cloud-accounts:
+    get:
+      operationId: listBackupCloudAccounts
+      summary: Google Drive and OneDrive sign-ins used for backup copies.
+      tags: [backup]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupCloudAccountList" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: createBackupCloudAccount
+      summary: Register an OAuth client and start the device sign-in.
+      tags: [backup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupCloudAccountInput" }
+      responses:
+        "201":
+          description: Sign-in started. Show the code; poll the account until it is connected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupCloudSignIn" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/cloud-accounts/{id}:
+    get:
+      operationId: getBackupCloudAccount
+      summary: Return the account, asking the provider once if a sign-in is waiting and due.
+      tags: [backup]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupCloudAccount" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    delete:
+      operationId: deleteBackupCloudAccount
+      summary: Forget the sign-in. Refused while a destination uses it.
+      tags: [backup]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "204":
+          description: Deleted.
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/cloud-accounts/{id}/reconnect:
+    post:
+      operationId: reconnectBackupCloudAccount
+      summary: Restart the sign-in for an expired or revoked account.
+      tags: [backup]
+      parameters:
+        - $ref: "#/components/parameters/IDParam"
+      responses:
+        "200":
+          description: Sign-in restarted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupCloudSignIn" }
         default:
           $ref: "#/components/responses/ProblemResponse"
 
@@ -2948,11 +3019,14 @@ components:
 
     BackupDestination:
       type: object
-      required: [id, name, target, enabled, retentionVersions]
+      required: [id, name, target, provider, enabled, retentionVersions]
       properties:
         id: { type: string }
         name: { type: string }
         target: { type: string }
+        provider: { type: string, description: "lan, google_drive or onedrive" }
+        cloudAccountId: { type: string }
+        folder: { type: string }
         enabled: { type: boolean }
         retentionVersions: { type: integer }
         initializedAt: { type: string, format: date-time }
@@ -2967,12 +3041,58 @@ components:
 
     BackupDestinationInput:
       type: object
-      required: [name, target, retentionVersions]
+      description: Give either target (a folder on a connected drive), or cloudAccountId with folder.
+      required: [name, retentionVersions]
       properties:
         name: { type: string, minLength: 1, maxLength: 100 }
         target: { type: string }
+        cloudAccountId: { type: string }
+        folder: { type: string }
         enabled: { type: boolean, default: true }
         retentionVersions: { type: integer, minimum: 1, maximum: 100 }
+
+    BackupCloudProvider:
+      type: string
+      enum: [google_drive, onedrive]
+
+    BackupCloudAccount:
+      type: object
+      required: [id, provider, name, clientId, tenant, status]
+      properties:
+        id: { type: string }
+        provider: { $ref: "#/components/schemas/BackupCloudProvider" }
+        name: { type: string }
+        clientId: { type: string }
+        tenant: { type: string }
+        accountEmail: { type: string }
+        status: { type: string, enum: [pending, connected, expired, revoked] }
+        lastError: { type: string }
+        connectedAt: { type: string, format: date-time }
+
+    BackupCloudAccountList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/BackupCloudAccount" } }
+
+    BackupCloudAccountInput:
+      type: object
+      required: [provider, name, clientId]
+      properties:
+        provider: { $ref: "#/components/schemas/BackupCloudProvider" }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        clientId: { type: string, minLength: 1, maxLength: 300 }
+        clientSecret: { type: string, maxLength: 300, description: "Required for Google Drive." }
+        tenant: { type: string, maxLength: 100, description: "OneDrive directory (tenant) ID; default common." }
+
+    BackupCloudSignIn:
+      type: object
+      required: [id, userCode, verificationUri, expiresAt]
+      properties:
+        id: { type: string }
+        userCode: { type: string }
+        verificationUri: { type: string }
+        expiresAt: { type: string, format: date-time }
 
     BackupDestinationUpdate:
       type: object
