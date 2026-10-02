@@ -23,10 +23,14 @@ type Destination struct {
 	Provider          string // "lan" | "google_drive" | "onedrive" — labelling only
 	Enabled           bool
 	RetentionVersions int
-	InitializedAt     *time.Time
-	LastOkAt          *time.Time
-	LastError         string
-	UpdatedAt         time.Time
+	// CloudAccountID and Folder are set for Google Drive and OneDrive
+	// destinations; the repository then lives at <Folder>/repo in that drive.
+	CloudAccountID *uuid.UUID
+	Folder         string
+	InitializedAt  *time.Time
+	LastOkAt       *time.Time
+	LastError      string
+	UpdatedAt      time.Time
 }
 
 // LoadEnabledDestinations returns the destinations a run should fan out to.
@@ -56,6 +60,11 @@ func LoadAllDestinations(ctx context.Context, pool *db.Pool) ([]Destination, err
 }
 
 func mapDestination(r backupstore.BackupDestination) Destination {
+	var account *uuid.UUID
+	if r.CloudAccountID.Valid {
+		id := uuid.UUID(r.CloudAccountID.Bytes)
+		account = &id
+	}
 	return Destination{
 		ID:                r.ID,
 		Name:              r.Name,
@@ -64,6 +73,8 @@ func mapDestination(r backupstore.BackupDestination) Destination {
 		Provider:          r.Provider,
 		Enabled:           r.Enabled,
 		RetentionVersions: int(r.RetentionVersions),
+		CloudAccountID:    account,
+		Folder:            pgtypeconv.TextString(r.Folder),
 		InitializedAt:     pgtypeconv.TimePtr(r.InitializedAt),
 		LastOkAt:          pgtypeconv.TimePtr(r.LastOkAt),
 		LastError:         pgtypeconv.TextString(r.LastError),

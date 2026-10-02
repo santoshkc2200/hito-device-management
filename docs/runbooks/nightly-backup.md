@@ -81,23 +81,8 @@ To prevent an administrative console compromise from directing backups to arbitr
 
 ## How IT configures cloud accounts (Google Drive / OneDrive)
 
-Cloud storage destinations route through `rclone`. HDMS stores no cloud credentials, OAuth secrets, or refresh tokens in its database:
-
-1. Log into the host as root and switch to the `hdms` system user:
-   ```bash
-   sudo -u hdms -i
-   ```
-2. Run rclone's interactive configuration:
-   ```bash
-   rclone config
-   ```
-3. Create a new remote (for example, named `gdrive-hospital` or `onedrive-backup`) following standard OAuth authorization.
-4. Test the remote connection:
-   ```bash
-   rclone lsd gdrive-hospital:
-   ```
-5. In the admin console (**Backups → Destinations**), create a destination specifying the kind `rclone` and the target string `remote:path` (e.g. `gdrive-hospital:hdms-backups`). Note that cloud destinations arrive with the next release.
-6. If the rclone configuration is stored in a non-standard path rather than `~/.config/rclone/rclone.conf`, set `HDMS_RCLONE_CONFIG` in `/etc/hdms/hdms.env`.
+Google Drive and OneDrive destinations are connected in the console, not with `rclone config`. See
+[cloud-backup.md](cloud-backup.md). `HDMS_RCLONE_CONFIG` now applies only to hand-configured legacy `rclone` destinations.
 
 ## Run it by hand (safe mid-day, safe twice)
 
@@ -173,7 +158,7 @@ Check `detail.stage` in the failure row to isolate the issue:
 4. **`prune_legacy` stage:** Deleting an expired legacy `.dump.gz.enc` file failed. Check permissions on `${HDMS_BACKUP_DIR}`.
 5. **Destination failures (`detail.destinations`):**
    - For `kind = 'path'`: Verify the LAN share is mounted, reachable, writable by the worker, and lives inside the drives folder.
-   - For `kind = 'rclone'`: Test the remote directly using `sudo -u hdms rclone lsd <remote>:`. Check if cloud tokens need re-authentication via `rclone config reconnect <remote>:`.
+   - For `kind = 'rclone'`: Test the remote directly using `sudo -u hdms rclone lsd <remote>:`. For a cloud account, open Backups → Destinations and press **Reconnect** (see cloud-backup.md, section 3).
 6. **Missing-key error naming `HDMS_BACKUP_ENC_KEY`:** Check `/etc/hdms/hdms.env`. If the key was lost, restore it from the hospital password manager. Never generate a new key over an existing repository.
 
 Escalate to the infrastructure on-call lead if two consecutive manual runs fail.

@@ -322,3 +322,35 @@ func mustDBURL(t *testing.T, dsn, name string) string {
 	}
 	return u
 }
+
+func TestRecoveryRestoreKeepsCloudAccountsAndTheirDestinations(t *testing.T) {
+	f := newRecoveryFixture(t)
+	ctx := context.Background()
+
+	// Connected after the snapshot was taken, so only the live database has it.
+	live := connectTo(t, f.liveURL)
+	const account = "11111111-1111-4111-8111-111111111111"
+	if _, err := live.Exec(ctx,
+		`INSERT INTO backup_cloud_accounts (id, provider, name, client_id, token_enc, status, updated_by)
+		 VALUES ('`+account+`', 'google_drive', 'Hospital Drive', 'cid', $1, 'connected', 'test')`, []byte{1, 2, 3}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := live.Exec(ctx,
+		`INSERT INTO backup_destinations (id, name, kind, target, provider, enabled, retention_versions, updated_by, cloud_account_id, folder)
+		 VALUES ('22222222-2222-4222-8222-222222222222', 'Drive', 'rclone', 'cloud:`+account+`/hdms-backups', 'google_drive', true, 2, 'test', '`+account+`', 'hdms-backups')`); err != nil {
+		t.Fatal(err)
+	}
+	_ = live.Close(ctx)
+
+	st := f.restore(t)
+	if st.Phase != recovery.PhaseCompleted || st.Warning != "" {
+		t.Fatalf("restore state = %+v", st)
+	}
+	back := connectTo(t, f.liveURL)
+	if n := countOf(t, back, `SELECT count(*) FROM backup_cloud_accounts WHERE id = '`+account+`' AND status = 'connected' AND length(token_enc) = 3`); n != 1 {
+		t.Fatalf("cloud account after restore: %d row(s), want 1 with its token", n)
+	}
+	if n := countOf(t, back, `SELECT count(*) FROM backup_destinations WHERE cloud_account_id = '`+account+`' AND folder = 'hdms-backups'`); n != 1 {
+		t.Fatalf("cloud destination after restore: %d row(s), want 1", n)
+	}
+}

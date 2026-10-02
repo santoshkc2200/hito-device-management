@@ -65,7 +65,7 @@ func TestHTTPBackupDestinationsAndRequests(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "NAS", Target: target, RetentionVersions: 2})
+	resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "NAS", Target: strPtr(target), RetentionVersions: 2})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create status = %d", resp.StatusCode)
 	}
@@ -74,11 +74,11 @@ func TestHTTPBackupDestinationsAndRequests(t *testing.T) {
 		t.Fatalf("enabled should default to true: %+v", d)
 	}
 
-	resp = h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Etc", Target: "/etc", RetentionVersions: 2})
+	resp = h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Etc", Target: strPtr("/etc"), RetentionVersions: 2})
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("outside roots status = %d, want 422", resp.StatusCode)
 	}
-	resp = h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Dup", Target: target, RetentionVersions: 2})
+	resp = h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Dup", Target: strPtr(target), RetentionVersions: 2})
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("duplicate status = %d, want 409", resp.StatusCode)
 	}
@@ -191,7 +191,7 @@ func TestHTTPBackupLocations(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(busy, "notes.txt"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Busy", Target: busy, RetentionVersions: 3}); resp.StatusCode != http.StatusUnprocessableEntity {
+	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Busy", Target: strPtr(busy), RetentionVersions: 3}); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("busy folder create status = %d, want 422", resp.StatusCode)
 	}
 
@@ -203,7 +203,7 @@ func TestHTTPBackupLocations(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(reuse, "repo", "config"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Reuse", Target: reuse, RetentionVersions: 3}); resp.StatusCode != http.StatusCreated {
+	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "Reuse", Target: strPtr(reuse), RetentionVersions: 3}); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("existing-repo create status = %d, want 201", resp.StatusCode)
 	}
 
@@ -232,7 +232,7 @@ func TestHTTPBackupLocationsWorkerDown(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil || !strings.HasSuffix(problem.Type, "worker-unavailable") {
 		t.Fatalf("problem = %+v, %v", problem, err)
 	}
-	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "NAS", Target: target, RetentionVersions: 3}); resp.StatusCode != http.StatusServiceUnavailable {
+	if resp := h.post(t, "/v1/backup/destinations", gen.BackupDestinationInput{Name: "NAS", Target: strPtr(target), RetentionVersions: 3}); resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("create with worker down status = %d, want 503 (fail closed)", resp.StatusCode)
 	}
 }

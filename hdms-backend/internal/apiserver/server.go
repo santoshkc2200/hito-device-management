@@ -43,6 +43,9 @@ type BackupConsoleConfig struct {
 	// Locations reaches the worker's folder routes. Nil means no worker is
 	// configured; every location call then reports the worker unavailable.
 	Locations *backup.LocationClient
+	// Cloud signs in to and stores Google Drive and OneDrive accounts. Nil
+	// means cloud backup is not configured; its endpoints then answer 503.
+	Cloud *backup.CloudService
 	// RecoverySecrets are the four secrets a recovery bundle seals. The API
 	// holds them already; they are never returned by any endpoint.
 	RecoverySecrets backup.RecoverySecrets

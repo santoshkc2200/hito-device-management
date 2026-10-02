@@ -92,7 +92,7 @@ func catalogueForFlag(flagVal string) *i18n.Catalogue {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|worker|backup|snapshots|verify|restore|recovery unwrap|reconcile|retention|overdue-scan|weekly-digest|directory-sync|reservation-expiry|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
+	fmt.Fprintln(os.Stderr, "usage: hdms-cli [--locale ja|en] <seed|migrate|worker|backup|snapshots|verify|restore|recovery unwrap|cloud fetch|reconcile|retention|overdue-scan|weekly-digest|directory-sync|reservation-expiry|admin bootstrap|admin set-password|admin unlock|import devices|import users|export machine|export scenarios|kiosk register|kiosk rotate|kiosk pairing-code>")
 }
 
 func run(cmd string, args []string, cat *i18n.Catalogue) error {
@@ -101,6 +101,9 @@ func run(cmd string, args []string, cat *i18n.Catalogue) error {
 	}
 	if cmd == "recovery" {
 		return runRecovery(args, os.Stdin, os.Stdout)
+	}
+	if cmd == "cloud" {
+		return runCloud(context.Background(), args, os.Stdin, os.Stderr)
 	}
 
 	ctx := context.Background()

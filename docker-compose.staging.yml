@@ -38,6 +38,8 @@ services:
       - type: bind
         source: ${HDMS_BACKUP_DRIVES_HOST_PATH:-./.staging-drives}
         target: /drives
+    tmpfs:
+      - /tmp:mode=1777
 
   api:
     env_file: !override

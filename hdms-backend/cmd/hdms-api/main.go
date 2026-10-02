@@ -172,12 +172,18 @@ func run() error {
 
 	sseHub := events.NewSSEHub(pool, bus, logger)
 	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc, notificationSvc, reservationsSvc, cfg.Env, apiserver.BackupConsoleConfig{
-		BackupDir:       cfg.BackupDir,
-		AllowedRoots:    cfg.BackupAllowedRoots,
-		DrivesDir:       cfg.BackupDrivesDir,
-		DrivesHostPath:  cfg.BackupDrivesHostPath,
-		Location:        time.Local,
-		Locations:       backup.NewLocationClient(cfg.WorkerURL),
+		BackupDir:      cfg.BackupDir,
+		AllowedRoots:   cfg.BackupAllowedRoots,
+		DrivesDir:      cfg.BackupDrivesDir,
+		DrivesHostPath: cfg.BackupDrivesHostPath,
+		Location:       time.Local,
+		Locations:      backup.NewLocationClient(cfg.WorkerURL),
+		Cloud: &backup.CloudService{
+			Q:    pool.Pool,
+			Key:  cfg.CredentialEncKey,
+			Flow: &backup.DeviceFlow{},
+			Now:  time.Now,
+		},
 		RecoverySecrets: backup.NewRecoverySecrets(cfg.BackupEncKey, cfg.TokenPepper, cfg.CredentialEncKey, cfg.TOTPSecretEncKey),
 	})
 

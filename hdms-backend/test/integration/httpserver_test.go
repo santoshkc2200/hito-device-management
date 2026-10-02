@@ -141,6 +141,7 @@ func newTestHarness(t *testing.T) *testHarness {
 		// location check is the only owner of that rule.
 		BackupDir: "/var/backups/hdms", Location: time.UTC,
 		Locations:       backup.NewLocationClient(workerServer.URL),
+		Cloud:           newTestCloud(t, pool, credEncKey),
 		RecoverySecrets: recoverySecrets,
 	})
 	mux := http.NewServeMux()

@@ -52,6 +52,9 @@ export const zBackupDestination = z.object({
     id: z.string(),
     name: z.string(),
     target: z.string(),
+    provider: z.string(),
+    cloudAccountId: z.string().optional(),
+    folder: z.string().optional(),
     enabled: z.boolean(),
     retentionVersions: z.int(),
     initializedAt: z.iso.datetime().optional(),
@@ -63,11 +66,54 @@ export const zBackupDestinationList = z.object({
     items: z.array(zBackupDestination)
 });
 
+/**
+ * Give either target (a folder on a connected drive), or cloudAccountId with folder.
+ */
 export const zBackupDestinationInput = z.object({
     name: z.string().min(1).max(100),
-    target: z.string(),
+    target: z.string().optional(),
+    cloudAccountId: z.string().optional(),
+    folder: z.string().optional(),
     enabled: z.boolean().optional().default(true),
     retentionVersions: z.int().gte(1).lte(100)
+});
+
+export const zBackupCloudProvider = z.enum(['google_drive', 'onedrive']);
+
+export const zBackupCloudAccount = z.object({
+    id: z.string(),
+    provider: zBackupCloudProvider,
+    name: z.string(),
+    clientId: z.string(),
+    tenant: z.string(),
+    accountEmail: z.string().optional(),
+    status: z.enum([
+        'pending',
+        'connected',
+        'expired',
+        'revoked'
+    ]),
+    lastError: z.string().optional(),
+    connectedAt: z.iso.datetime().optional()
+});
+
+export const zBackupCloudAccountList = z.object({
+    items: z.array(zBackupCloudAccount)
+});
+
+export const zBackupCloudAccountInput = z.object({
+    provider: zBackupCloudProvider,
+    name: z.string().min(1).max(100),
+    clientId: z.string().min(1).max(300),
+    clientSecret: z.string().max(300).optional(),
+    tenant: z.string().max(100).optional()
+});
+
+export const zBackupCloudSignIn = z.object({
+    id: z.string(),
+    userCode: z.string(),
+    verificationUri: z.string(),
+    expiresAt: z.iso.datetime()
 });
 
 export const zBackupDestinationUpdate = z.object({
@@ -2429,6 +2475,45 @@ export const zTestBackupDestinationPath = z.object({
  * Queued.
  */
 export const zTestBackupDestinationResponse = zBackupRequest;
+
+/**
+ * OK.
+ */
+export const zListBackupCloudAccountsResponse = zBackupCloudAccountList;
+
+export const zCreateBackupCloudAccountBody = zBackupCloudAccountInput;
+
+/**
+ * Sign-in started. Show the code; poll the account until it is connected.
+ */
+export const zCreateBackupCloudAccountResponse = zBackupCloudSignIn;
+
+export const zDeleteBackupCloudAccountPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Deleted.
+ */
+export const zDeleteBackupCloudAccountResponse = z.void();
+
+export const zGetBackupCloudAccountPath = z.object({
+    id: z.string()
+});
+
+/**
+ * OK.
+ */
+export const zGetBackupCloudAccountResponse = zBackupCloudAccount;
+
+export const zReconnectBackupCloudAccountPath = z.object({
+    id: z.string()
+});
+
+/**
+ * Sign-in restarted.
+ */
+export const zReconnectBackupCloudAccountResponse = zBackupCloudSignIn;
 
 export const zListBackupLocationsQuery = z.object({
     path: z.string().optional()

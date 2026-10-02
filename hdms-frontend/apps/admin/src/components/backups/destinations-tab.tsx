@@ -29,9 +29,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
+import { CloudAccountsSection } from "./cloud-accounts-section";
+import { destinationLocation } from "./cloud-format";
 import { DestinationWizard } from "./destination-wizard";
 import { formatDateTime } from "./format";
-import { realLocation } from "./real-location";
 import { useBackupConfig } from "./use-backup-config";
 import { useBackupRequest } from "./use-backup-request";
 
@@ -102,7 +103,11 @@ export function DestinationsTab() {
       columnHelper.accessor("target", {
         id: "target",
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("backups.destinations.columns.target")} />,
-        cell: ({ row }) => <span className="font-identifier text-xs">{realLocation(row.original.target, config)}</span>,
+        cell: ({ row }) => (
+          <span className="font-identifier text-xs">
+            {destinationLocation(row.original, config, (p) => t(`backups.cloud.providers.${p}` as never))}
+          </span>
+        ),
       }),
       columnHelper.accessor("retentionVersions", {
         id: "retentionVersions",
@@ -179,6 +184,8 @@ export function DestinationsTab() {
         emptyExplanation={t("backups.destinations.description")}
       />
 
+      <CloudAccountsSection />
+
       {adding && <DestinationWizard onClose={() => setAdding(false)} />}
       {editing && <EditDestinationDialog destination={editing} onClose={() => setEditing(null)} />}
 
@@ -253,7 +260,7 @@ function EditDestinationDialog({ destination, onClose }: { destination: BackupDe
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="dest-target">{t("backups.destinations.form.target")}</Label>
-            <Input id="dest-target" value={realLocation(destination.target, config)} disabled />
+            <Input id="dest-target" value={destinationLocation(destination, config, (p) => t(`backups.cloud.providers.${p}` as never))} disabled />
             <p className="text-xs text-muted-foreground">{t("backups.destinations.form.targetFixed")}</p>
           </div>
           <div className="flex flex-col gap-1.5">

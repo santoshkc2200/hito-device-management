@@ -29,7 +29,8 @@ func (s *Server) backupLoc() *time.Location {
 func (s *Server) writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, backup.ErrInvalidSchedule), errors.Is(err, backup.ErrInvalidDestination),
-		errors.Is(err, backup.ErrPathNotAllowed), errors.Is(err, backup.ErrInvalidFolderName):
+		errors.Is(err, backup.ErrPathNotAllowed), errors.Is(err, backup.ErrInvalidFolderName),
+		errors.Is(err, backup.ErrInvalidCloudAccount):
 		p := httpx.NewProblem("validation-error", "Validation error", http.StatusUnprocessableEntity)
 		p.Detail = err.Error()
 		httpx.WriteProblem(w, r, p)
@@ -44,10 +45,21 @@ func (s *Server) writeBackupError(w http.ResponseWriter, r *http.Request, err er
 		httpx.WriteProblem(w, r, httpx.NewProblem("drive-not-connected", "The drive is not connected", http.StatusConflict))
 	case errors.Is(err, backup.ErrWorkerUnavailable):
 		httpx.WriteProblem(w, r, httpx.NewProblem("worker-unavailable", "Backup worker not responding", http.StatusServiceUnavailable))
-	case errors.Is(err, backup.ErrDestinationNotFound), errors.Is(err, backup.ErrRequestNotFound), errors.Is(err, backup.ErrLocationNotFound):
+	case errors.Is(err, backup.ErrDestinationNotFound), errors.Is(err, backup.ErrRequestNotFound), errors.Is(err, backup.ErrLocationNotFound),
+		errors.Is(err, backup.ErrCloudAccountNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("not-found", "Not found", http.StatusNotFound))
 	case errors.Is(err, backup.ErrNoRecoveryKey):
 		httpx.WriteProblem(w, r, httpx.NewProblem("not-found", "No recovery key has been created", http.StatusNotFound))
+	case errors.Is(err, backup.ErrCloudAccountInUse):
+		httpx.WriteProblem(w, r, httpx.NewProblem("cloud-account-in-use", "A destination still uses this account", http.StatusConflict))
+	case errors.Is(err, backup.ErrCloudAccountNotConnected):
+		httpx.WriteProblem(w, r, httpx.NewProblem("cloud-account-not-connected", "The account is not connected", http.StatusConflict))
+	case errors.Is(err, backup.ErrProviderRejected):
+		p := httpx.NewProblem("cloud-provider-rejected", "The provider rejected the request", http.StatusUnprocessableEntity)
+		p.Detail = err.Error()
+		httpx.WriteProblem(w, r, p)
+	case errors.Is(err, backup.ErrProviderUnreachable):
+		httpx.WriteProblem(w, r, httpx.NewProblem("cloud-provider-unreachable", "Cannot reach the sign-in provider", http.StatusBadGateway))
 	default:
 		s.writeServiceError(w, r, err)
 	}
@@ -124,6 +136,7 @@ func mapBackupDestination(d backup.Destination) gen.BackupDestination {
 		Id:                d.ID.String(),
 		Name:              d.Name,
 		Target:            d.Target,
+		Provider:          d.Provider,
 		Enabled:           d.Enabled,
 		RetentionVersions: d.RetentionVersions,
 		InitializedAt:     d.InitializedAt,
@@ -131,6 +144,10 @@ func mapBackupDestination(d backup.Destination) gen.BackupDestination {
 	}
 	if d.LastError != "" {
 		out.LastError = strPtr(d.LastError)
+	}
+	if d.CloudAccountID != nil {
+		out.CloudAccountId = strPtr(d.CloudAccountID.String())
+		out.Folder = strPtr(d.Folder)
 	}
 	return out
 }
@@ -244,9 +261,22 @@ func (s *Server) CreateBackupDestination(w http.ResponseWriter, r *http.Request)
 	if body.Enabled != nil {
 		enabled = *body.Enabled
 	}
+	hasPath := body.Target != nil && *body.Target != ""
+	hasCloud := body.CloudAccountId != nil
+	if hasPath == hasCloud || (hasCloud && (body.Folder == nil || *body.Folder == "")) {
+		p := httpx.NewProblem("validation-error", "Validation error", http.StatusUnprocessableEntity)
+		p.Detail = "give either target, or cloudAccountId with folder"
+		httpx.WriteProblem(w, r, p)
+		return
+	}
+	if hasCloud {
+		s.createCloudBackupDestination(w, r, body, enabled)
+		return
+	}
+	target := *body.Target
 	// The wizard already checked the folder; check again so the rules hold
 	// for any caller, and so a folder that changed since is caught.
-	check, err := s.backupCfg.Locations.Check(r.Context(), body.Target)
+	check, err := s.backupCfg.Locations.Check(r.Context(), target)
 	if err != nil {
 		s.writeBackupError(w, r, err)
 		return
@@ -258,7 +288,7 @@ func (s *Server) CreateBackupDestination(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	d, err := backup.CreateDestination(r.Context(), s.pool, backup.DestinationInput{
-		Name: body.Name, Target: body.Target, Enabled: enabled, RetentionVersions: body.RetentionVersions,
+		Name: body.Name, Target: target, Enabled: enabled, RetentionVersions: body.RetentionVersions,
 	}, actorFrom(r))
 	if err != nil {
 		s.writeBackupError(w, r, err)

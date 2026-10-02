@@ -14,7 +14,7 @@ import (
 // restore must not roll them back. They are copied whole from the outgoing
 // database. Inserts run in this order (parents first), deletes in reverse.
 var replaceTables = []string{
-	"backup_schedule", "backup_destinations", "backup_requests", "backup_snapshots",
+	"backup_schedule", "backup_cloud_accounts", "backup_destinations", "backup_requests", "backup_snapshots",
 	"backup_recovery_key", "system_state", "job_runs", "restore_history",
 }
 
