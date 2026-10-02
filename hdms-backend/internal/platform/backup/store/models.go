@@ -628,6 +628,29 @@ type AuditEvent struct {
 	RequestID pgtype.Text        `json:"request_id"`
 }
 
+type BackupCloudAccount struct {
+	ID               uuid.UUID          `json:"id"`
+	Provider         string             `json:"provider"`
+	Name             string             `json:"name"`
+	ClientID         string             `json:"client_id"`
+	ClientSecretEnc  []byte             `json:"client_secret_enc"`
+	Tenant           string             `json:"tenant"`
+	TokenEnc         []byte             `json:"token_enc"`
+	AccountEmail     pgtype.Text        `json:"account_email"`
+	DriveID          pgtype.Text        `json:"drive_id"`
+	DriveType        pgtype.Text        `json:"drive_type"`
+	DeviceCodeEnc    []byte             `json:"device_code_enc"`
+	DeviceIntervalS  pgtype.Int4        `json:"device_interval_s"`
+	DeviceNextPollAt pgtype.Timestamptz `json:"device_next_poll_at"`
+	DeviceExpiresAt  pgtype.Timestamptz `json:"device_expires_at"`
+	Status           string             `json:"status"`
+	LastError        pgtype.Text        `json:"last_error"`
+	ConnectedAt      pgtype.Timestamptz `json:"connected_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy        string             `json:"updated_by"`
+}
+
 type BackupDestination struct {
 	ID                uuid.UUID          `json:"id"`
 	Name              string             `json:"name"`
@@ -642,6 +665,49 @@ type BackupDestination struct {
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 	UpdatedBy         string             `json:"updated_by"`
+	CloudAccountID    pgtype.UUID        `json:"cloud_account_id"`
+	Folder            pgtype.Text        `json:"folder"`
+}
+
+type BackupRecoveryKey struct {
+	ID                 int16              `json:"id"`
+	Bundle             []byte             `json:"bundle"`
+	SecretsFingerprint string             `json:"secrets_fingerprint"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	CreatedBy          string             `json:"created_by"`
+	ConfirmedAt        pgtype.Timestamptz `json:"confirmed_at"`
+}
+
+type BackupRequest struct {
+	ID            uuid.UUID          `json:"id"`
+	Kind          string             `json:"kind"`
+	DestinationID pgtype.UUID        `json:"destination_id"`
+	RequestedBy   string             `json:"requested_by"`
+	RequestedAt   pgtype.Timestamptz `json:"requested_at"`
+	StartedAt     pgtype.Timestamptz `json:"started_at"`
+	FinishedAt    pgtype.Timestamptz `json:"finished_at"`
+	Outcome       pgtype.Text        `json:"outcome"`
+	Detail        []byte             `json:"detail"`
+}
+
+type BackupSchedule struct {
+	ID              int16              `json:"id"`
+	Enabled         bool               `json:"enabled"`
+	Mode            string             `json:"mode"`
+	IntervalMinutes int32              `json:"interval_minutes"`
+	TimeLocal       string             `json:"time_local"`
+	Weekday         int16              `json:"weekday"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy       string             `json:"updated_by"`
+}
+
+type BackupSnapshot struct {
+	RepoKey     string             `json:"repo_key"`
+	SnapshotID  string             `json:"snapshot_id"`
+	TakenAt     pgtype.Timestamptz `json:"taken_at"`
+	SizeBytes   int64              `json:"size_bytes"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	RefreshedAt pgtype.Timestamptz `json:"refreshed_at"`
 }
 
 type Credential struct {
@@ -848,6 +914,22 @@ type Reservation struct {
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
+type RestoreHistory struct {
+	ID               uuid.UUID          `json:"id"`
+	Kind             string             `json:"kind"`
+	Source           string             `json:"source"`
+	SnapshotID       pgtype.Text        `json:"snapshot_id"`
+	SnapshotTakenAt  pgtype.Timestamptz `json:"snapshot_taken_at"`
+	SafetySnapshotID pgtype.Text        `json:"safety_snapshot_id"`
+	PreviousDbName   pgtype.Text        `json:"previous_db_name"`
+	LiveState        string             `json:"live_state"`
+	State            string             `json:"state"`
+	UndoOf           pgtype.UUID        `json:"undo_of"`
+	StartedAt        pgtype.Timestamptz `json:"started_at"`
+	FinishedAt       pgtype.Timestamptz `json:"finished_at"`
+	RequestedBy      string             `json:"requested_by"`
+}
+
 type ScanEvent struct {
 	ID           uuid.UUID          `json:"id"`
 	SessionID    uuid.UUID          `json:"session_id"`
@@ -938,6 +1020,14 @@ type StaffSession struct {
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	LastSeenAt       pgtype.Timestamptz `json:"last_seen_at"`
 	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
+}
+
+type SystemState struct {
+	ID                int16              `json:"id"`
+	WorkerSeenAt      pgtype.Timestamptz `json:"worker_seen_at"`
+	Maintenance       bool               `json:"maintenance"`
+	MaintenanceReason pgtype.Text        `json:"maintenance_reason"`
+	MaintenanceSince  pgtype.Timestamptz `json:"maintenance_since"`
 }
 
 type User struct {

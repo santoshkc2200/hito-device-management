@@ -1,30 +1,36 @@
 -- name: ListDestinations :many
 SELECT id, name, kind, target, provider, enabled, retention_versions,
-       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+       cloud_account_id, folder
 FROM backup_destinations
 ORDER BY name;
 
 -- name: ListEnabledDestinations :many
 SELECT id, name, kind, target, provider, enabled, retention_versions,
-       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+       cloud_account_id, folder
 FROM backup_destinations
 WHERE enabled
 ORDER BY name;
 
 -- name: GetDestination :one
 SELECT id, name, kind, target, provider, enabled, retention_versions,
-       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+       cloud_account_id, folder
 FROM backup_destinations
 WHERE id = $1;
 
 -- name: CreateDestination :one
 INSERT INTO backup_destinations (
-    id, name, kind, target, provider, enabled, retention_versions, updated_by
+    id, name, kind, target, provider, enabled, retention_versions, updated_by,
+    cloud_account_id, folder
 ) VALUES (
-    @id, @name, @kind, @target, @provider, @enabled, @retention_versions, @updated_by
+    @id, @name, @kind, @target, @provider, @enabled, @retention_versions, @updated_by,
+    @cloud_account_id, @folder
 )
 RETURNING id, name, kind, target, provider, enabled, retention_versions,
-          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by;
+          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+          cloud_account_id, folder;
 
 -- name: UpdateDestination :one
 UPDATE backup_destinations
@@ -35,7 +41,8 @@ SET name               = @name,
     updated_by         = @updated_by
 WHERE id = @id
 RETURNING id, name, kind, target, provider, enabled, retention_versions,
-          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by;
+          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+          cloud_account_id, folder;
 
 -- name: DeleteDestination :exec
 DELETE FROM backup_destinations WHERE id = $1;

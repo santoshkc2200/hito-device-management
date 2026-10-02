@@ -9,27 +9,33 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createDestination = `-- name: CreateDestination :one
 INSERT INTO backup_destinations (
-    id, name, kind, target, provider, enabled, retention_versions, updated_by
+    id, name, kind, target, provider, enabled, retention_versions, updated_by,
+    cloud_account_id, folder
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    $9, $10
 )
 RETURNING id, name, kind, target, provider, enabled, retention_versions,
-          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+          cloud_account_id, folder
 `
 
 type CreateDestinationParams struct {
-	ID                uuid.UUID `json:"id"`
-	Name              string    `json:"name"`
-	Kind              string    `json:"kind"`
-	Target            string    `json:"target"`
-	Provider          string    `json:"provider"`
-	Enabled           bool      `json:"enabled"`
-	RetentionVersions int32     `json:"retention_versions"`
-	UpdatedBy         string    `json:"updated_by"`
+	ID                uuid.UUID   `json:"id"`
+	Name              string      `json:"name"`
+	Kind              string      `json:"kind"`
+	Target            string      `json:"target"`
+	Provider          string      `json:"provider"`
+	Enabled           bool        `json:"enabled"`
+	RetentionVersions int32       `json:"retention_versions"`
+	UpdatedBy         string      `json:"updated_by"`
+	CloudAccountID    pgtype.UUID `json:"cloud_account_id"`
+	Folder            pgtype.Text `json:"folder"`
 }
 
 func (q *Queries) CreateDestination(ctx context.Context, arg CreateDestinationParams) (BackupDestination, error) {
@@ -42,6 +48,8 @@ func (q *Queries) CreateDestination(ctx context.Context, arg CreateDestinationPa
 		arg.Enabled,
 		arg.RetentionVersions,
 		arg.UpdatedBy,
+		arg.CloudAccountID,
+		arg.Folder,
 	)
 	var i BackupDestination
 	err := row.Scan(
@@ -58,6 +66,8 @@ func (q *Queries) CreateDestination(ctx context.Context, arg CreateDestinationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.CloudAccountID,
+		&i.Folder,
 	)
 	return i, err
 }
@@ -73,7 +83,8 @@ func (q *Queries) DeleteDestination(ctx context.Context, id uuid.UUID) error {
 
 const getDestination = `-- name: GetDestination :one
 SELECT id, name, kind, target, provider, enabled, retention_versions,
-       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+       cloud_account_id, folder
 FROM backup_destinations
 WHERE id = $1
 `
@@ -95,13 +106,16 @@ func (q *Queries) GetDestination(ctx context.Context, id uuid.UUID) (BackupDesti
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.CloudAccountID,
+		&i.Folder,
 	)
 	return i, err
 }
 
 const listDestinations = `-- name: ListDestinations :many
 SELECT id, name, kind, target, provider, enabled, retention_versions,
-       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+       cloud_account_id, folder
 FROM backup_destinations
 ORDER BY name
 `
@@ -129,6 +143,8 @@ func (q *Queries) ListDestinations(ctx context.Context) ([]BackupDestination, er
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.UpdatedBy,
+			&i.CloudAccountID,
+			&i.Folder,
 		); err != nil {
 			return nil, err
 		}
@@ -142,7 +158,8 @@ func (q *Queries) ListDestinations(ctx context.Context) ([]BackupDestination, er
 
 const listEnabledDestinations = `-- name: ListEnabledDestinations :many
 SELECT id, name, kind, target, provider, enabled, retention_versions,
-       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+       initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+       cloud_account_id, folder
 FROM backup_destinations
 WHERE enabled
 ORDER BY name
@@ -171,6 +188,8 @@ func (q *Queries) ListEnabledDestinations(ctx context.Context) ([]BackupDestinat
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.UpdatedBy,
+			&i.CloudAccountID,
+			&i.Folder,
 		); err != nil {
 			return nil, err
 		}
@@ -221,7 +240,8 @@ SET name               = $1,
     updated_by         = $4
 WHERE id = $5
 RETURNING id, name, kind, target, provider, enabled, retention_versions,
-          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by
+          initialized_at, last_ok_at, last_error, created_at, updated_at, updated_by,
+          cloud_account_id, folder
 `
 
 type UpdateDestinationParams struct {
@@ -255,6 +275,8 @@ func (q *Queries) UpdateDestination(ctx context.Context, arg UpdateDestinationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.CloudAccountID,
+		&i.Folder,
 	)
 	return i, err
 }
