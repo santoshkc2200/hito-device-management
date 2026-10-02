@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
 import { formatBytes } from "./format";
+import { realLocation } from "./real-location";
+import { useBackupConfig } from "./use-backup-config";
 import { useBackupRequest } from "./use-backup-request";
 
 type Step = "where" | "folder" | "check" | "details" | "saving";
@@ -87,7 +89,11 @@ function WorkerOrLoadError({ error }: { error: unknown }) {
   const t = useT();
   return (
     <p className="text-sm text-destructive">
-      {problemIs(error, "worker-unavailable") ? t("backups.wizard.workerDown") : t("backups.wizard.loadFailed")}
+      {problemIs(error, "worker-unavailable")
+        ? t("backups.wizard.workerDown")
+        : problemIs(error, "drive-not-connected")
+          ? t("backups.wizard.driveNotConnected")
+          : t("backups.wizard.loadFailed")}
     </p>
   );
 }
@@ -101,6 +107,7 @@ function WhereStep({ onPick, onCancel }: { onPick: (root: BackupLocationRoot) =>
     <>
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-medium">{t("backups.wizard.where.heading")}</h3>
+        <p className="text-xs text-muted-foreground">{t("backups.wizard.where.drive")}</p>
         {query.isPending && <Loader2 className="size-4 animate-spin" />}
         {query.isError && <WorkerOrLoadError error={query.error} />}
         {query.isSuccess && roots.length === 0 && <p className="text-sm text-muted-foreground">{t("backups.wizard.where.noRoots")}</p>}
@@ -114,8 +121,8 @@ function WhereStep({ onPick, onCancel }: { onPick: (root: BackupLocationRoot) =>
             >
               <HardDrive className="size-5 shrink-0" />
               <span className="flex flex-1 flex-col">
-                <span className="whitespace-normal">{t("backups.wizard.where.drive")}</span>
-                <span className="font-identifier text-xs text-muted-foreground">{r.path}</span>
+                <span className="whitespace-normal font-medium">{r.name}</span>
+                <span className="font-identifier text-xs text-muted-foreground">{r.hostPath ?? r.path}</span>
               </span>
               <Badge variant={r.connected ? "default" : "outline"}>
                 {r.connected ? t("backups.wizard.where.connected") : t("backups.wizard.where.notConnected")}
@@ -150,6 +157,7 @@ function FolderStep({
 }) {
   const t = useT();
   const queryClient = useQueryClient();
+  const { data: config } = useBackupConfig();
   const query = useLocations(path);
   const [newName, setNewName] = useState("hdms-backups"); // i18n-allow-literal: suggested folder name, not prose
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +176,7 @@ function FolderStep({
     onError: (err: unknown) => {
       if (problemIs(err, "folder-exists")) setError(t("backups.wizard.folder.exists"));
       else if (problemIs(err, "folder-not-writable")) setError(t("backups.wizard.folder.notWritable"));
+      else if (problemIs(err, "drive-not-connected")) setError(t("backups.wizard.driveNotConnected"));
       else if (problemIs(err, "worker-unavailable")) setError(t("backups.wizard.workerDown"));
       else setError(t("backups.wizard.folder.invalidName"));
     },
@@ -182,7 +191,7 @@ function FolderStep({
         <h3 className="text-sm font-medium">{t("backups.wizard.folder.heading")}</h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{t("backups.wizard.folder.current")}</span>
-          <span className="font-identifier text-xs break-all">{path}</span>
+          <span className="font-identifier text-xs break-all">{realLocation(path, config)}</span>
         </div>
         {query.isError && <WorkerOrLoadError error={query.error} />}
         <div className="flex max-h-60 flex-col gap-1 overflow-y-auto rounded-md border p-1">
@@ -258,6 +267,7 @@ function CheckLine({ item, free, needed }: { item: BackupLocationCheckItem; free
 
 function CheckStep({ path, onBack, onNext }: { path: string; onBack: () => void; onNext: () => void }) {
   const t = useT();
+  const { data: config } = useBackupConfig();
   const query = useQuery({
     queryKey: ["backup", "locations", "check", path],
     gcTime: 0,
@@ -273,7 +283,7 @@ function CheckStep({ path, onBack, onNext }: { path: string; onBack: () => void;
     <>
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-medium">{t("backups.wizard.check.heading")}</h3>
-        <span className="font-identifier text-xs break-all">{path}</span>
+        <span className="font-identifier text-xs break-all">{realLocation(path, config)}</span>
         {query.isFetching && (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />

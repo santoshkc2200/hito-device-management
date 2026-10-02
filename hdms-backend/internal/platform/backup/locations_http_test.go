@@ -63,6 +63,12 @@ func TestLocationClientMapsErrors(t *testing.T) {
 	if _, err := c.CreateFolder(ctx, nas, "taken"); !errors.Is(err, ErrFolderExists) {
 		t.Errorf("exists err = %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(nas, "f.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Browse(ctx, filepath.Join(nas, "f.txt")); !errors.Is(err, ErrDriveNotConnected) {
+		t.Errorf("browse not-a-directory err = %v", err)
+	}
 	// An outside path is a check result, not a transport error.
 	if check, err := c.Check(ctx, "/etc"); err != nil || check.OK {
 		t.Errorf("check outside = %+v, %v", check, err)

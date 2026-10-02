@@ -117,6 +117,8 @@ export const zVerifyBackupsRequest = z.object({
 
 export const zBackupLocationRoot = z.object({
     path: z.string(),
+    name: z.string(),
+    hostPath: z.string().optional(),
     connected: z.boolean()
 });
 
@@ -199,7 +201,8 @@ export const zBackupConfig = z.object({
     lastSuccessAt: z.iso.datetime().optional(),
     workerSeenAt: z.iso.datetime().optional(),
     local: zBackupLocalRepo,
-    allowedRoots: z.array(z.string()),
+    drivesDir: z.string(),
+    drivesHostPath: z.string().optional(),
     recoveryKey: zBackupRecoveryKeyState
 });
 

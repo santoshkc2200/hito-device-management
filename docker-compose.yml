@@ -31,6 +31,8 @@ services:
       HDMS_RATE_LIMIT: "off"
       HDMS_HTTP_ADDR: ":8443"
       HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms}:${POSTGRES_PASSWORD:-hdms}@db:5432/${POSTGRES_DB:-hdms}?sslmode=disable
+      HDMS_BACKUP_DRIVES_DIR: /drives
+      HDMS_BACKUP_DRIVES_HOST_PATH: ${HDMS_BACKUP_DRIVES_HOST_PATH:-/Volumes}
       HDMS_TLS_CERT_FILE: /certs/localhost.pem
       HDMS_TLS_KEY_FILE: /certs/localhost-key.pem
     volumes:
@@ -55,14 +57,16 @@ services:
       HDMS_ENV: development
       HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms}:${POSTGRES_PASSWORD:-hdms}@db:5432/${POSTGRES_DB:-hdms}?sslmode=disable
       HDMS_BACKUP_DIR: /var/backups/hdms
-      HDMS_BACKUP_ALLOWED_ROOTS: /var/backups:/mnt/nas
+      HDMS_BACKUP_DRIVES_DIR: /drives
+      HDMS_BACKUP_DRIVES_HOST_PATH: ${HDMS_BACKUP_DRIVES_HOST_PATH:-/Volumes}
       TZ: ${TZ:-Asia/Tokyo}
     volumes:
       - hdms-dev-backups:/var/backups/hdms
-      # Host folder for a second backup copy: add a destination at /mnt/nas/hdms
-      # in the admin console and it appears here on the Mac. Docker creates the
-      # folder if it is missing.
-      - ${HDMS_BACKUP_NAS_HOST_PATH:-./.dev-backups}:/mnt/nas
+      # Every disk and network share mounted on the Mac appears under /Volumes,
+      # so the admin console lists it as a drive without a restart.
+      - type: bind
+        source: ${HDMS_BACKUP_DRIVES_HOST_PATH:-/Volumes}
+        target: /drives
     depends_on:
       db:
         condition: service_started

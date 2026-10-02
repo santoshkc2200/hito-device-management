@@ -339,3 +339,32 @@ func TestMigrateOnStart(t *testing.T) {
 		}
 	}
 }
+
+func TestBackupDrivesConfig(t *testing.T) {
+	for k, v := range validProductionEnv() {
+		t.Setenv(k, v)
+	}
+	t.Setenv("HDMS_BACKUP_ALLOWED_ROOTS", "/etc") // removed variable: must be ignored
+	t.Setenv("HDMS_BACKUP_DRIVES_DIR", "/drives")
+	t.Setenv("HDMS_BACKUP_DRIVES_HOST_PATH", "/mnt")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if cfg.BackupDrivesDir != "/drives" || cfg.BackupDrivesHostPath != "/mnt" {
+		t.Fatalf("drives = %q on host %q", cfg.BackupDrivesDir, cfg.BackupDrivesHostPath)
+	}
+	if len(cfg.BackupAllowedRoots) != 1 || cfg.BackupAllowedRoots[0] != "/drives" {
+		t.Fatalf("BackupAllowedRoots = %v, want [/drives] only", cfg.BackupAllowedRoots)
+	}
+
+	t.Setenv("HDMS_BACKUP_DRIVES_DIR", "")
+	cfg, err = config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if len(cfg.BackupAllowedRoots) != 0 {
+		t.Fatalf("BackupAllowedRoots = %v, want empty: no drives folder refuses every path destination", cfg.BackupAllowedRoots)
+	}
+}

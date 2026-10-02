@@ -20,6 +20,7 @@ template="$repo/deploy/production/production.env.example"
 env_file=${HDMS_PROD_ENV_FILE:-/etc/hdms/hdms.env}
 cert_file=${HDMS_TLS_CERT_HOST_PATH:-/etc/ssl/certs/hdms.hospital.crt}
 key_file=${HDMS_TLS_KEY_HOST_PATH:-/etc/ssl/private/hdms.hospital.key}
+drives_host_path=${HDMS_BACKUP_DRIVES_HOST_PATH:-/mnt}
 # compose.yaml sets `name: hdms-production`; the volume names follow from it.
 db_volume=hdms-production_hdms-prod-db-data
 worker_image=hdms-install-worker
@@ -31,7 +32,7 @@ work=""
 env_tmp=""
 # Answers and secrets, filled in by the steps below (ask assigns by name).
 site_addr="" tz="" smtp_host="" smtp_port="" smtp_user="" smtp_password="" smtp_from="" smtp_reply=""
-source_dir="" nas_host_path="" service_uid="" service_gid=""
+source_dir="" service_uid="" service_gid=""
 backup_enc_key="" token_pepper="" credential_enc_key="" totp_enc_key=""
 
 say() { printf '%s\n' "$*" >&2; }
@@ -143,7 +144,7 @@ build_worker_image() {
 
 # find_sources ROOT prints each folder from ROOT down to two levels below it
 # that holds an HDMS repository beside its recovery bundle — the same search
-# the recovery page runs under /mnt/nas. Dot-folders and symlinks are skipped.
+# the recovery page runs under each drive. Dot-folders and symlinks are skipped.
 find_sources() {
 	local dir
 	{ find "$1" -maxdepth 2 \( -path "$1/*" -name '.*' -prune \) -o -type d -print 2>/dev/null || true; } |
@@ -155,10 +156,12 @@ find_sources() {
 }
 
 choose_source() {
-	local folder list count choice
+	local drives_real folder list count choice
+	[ -d "$drives_host_path" ] || die "the drives folder $drives_host_path does not exist on this server; create it or set HDMS_BACKUP_DRIVES_HOST_PATH"
+	drives_real=$(cd "$drives_host_path" && pwd -P)
 	echo
-	echo "Where are the backups? Mount the network drive or external disk on this"
-	echo "server first, or copy the backup folder onto it."
+	echo "Where are the backups? Mount the network drive or external disk under"
+	echo "$drives_real on this server first, or copy the backup folder there."
 	while :; do
 		ask folder "Folder holding the HDMS backups"
 		if [ ! -d "$folder" ]; then
@@ -166,6 +169,13 @@ choose_source() {
 			continue
 		fi
 		folder=$(cd "$folder" && pwd -P)
+		case $folder/ in
+		"$drives_real"/*/*) ;;
+		*)
+			say "  $folder is not inside $drives_real. Mount or copy the backups under $drives_real, then try again."
+			continue
+			;;
+		esac
 		list=$(find_sources "$folder")
 		if [ -z "$list" ]; then
 			say "  No HDMS backups found in $folder or two folders below it (looked for repo/config next to hdms-recovery.bin)."
@@ -186,8 +196,6 @@ choose_source() {
 			done
 			source_dir=$(printf '%s\n' "$list" | sed -n "${choice}p")
 		fi
-		# The worker sees this folder as /mnt/nas and finds the backups there.
-		nas_host_path=$folder
 		echo "Using the backups in $source_dir"
 		return 0
 	done
@@ -363,10 +371,8 @@ write_env_file() {
 		HDMS_SMTP_REPLY_ADDRESS "$smtp_reply"
 		HDMS_UID "$service_uid"
 		HDMS_GID "$service_gid"
+		HDMS_BACKUP_DRIVES_HOST_PATH "$drives_host_path"
 	)
-	if [ "$mode" = restore ]; then
-		settings+=(HDMS_BACKUP_NAS_HOST_PATH "$nas_host_path")
-	fi
 
 	dir=$(dirname "$env_file")
 	mkdir -p "$dir"

@@ -221,23 +221,18 @@ sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.
 
 To replicate backups to a hospital network share (NFS or SMB/CIFS):
 
-1. Mount the network share on the host server:
+1. Mount the network share on the host in its own folder inside `/mnt`:
    ```bash
-   sudo mkdir -p /mnt/hospital-nas/hdms
+   sudo mkdir -p /mnt/hospital-nas
    # Example NFS mount in /etc/fstab:
-   # nas.hospital.local:/volume1/hdms-backups /mnt/hospital-nas/hdms nfs defaults 0 0
-   sudo mount /mnt/hospital-nas/hdms
+   # nas.hospital.local:/volume1/hdms-backups /mnt/hospital-nas nfs defaults 0 0
+   sudo mount /mnt/hospital-nas
    ```
    The worker writes as user ID 100, so the share must give that user read and write access.
-2. In `/etc/hdms/hdms.env`, uncomment and set:
-   ```bash
-   HDMS_BACKUP_NAS_HOST_PATH=/mnt/hospital-nas/hdms
-   ```
-3. Restart the worker service:
-   ```bash
-   sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env up -d worker
-   ```
-4. For backup destination management, see [docs/runbooks/nightly-backup.md](nightly-backup.md).
+2. No env change or restart: the worker mounts `/mnt` as its drives folder
+   (`HDMS_BACKUP_DRIVES_HOST_PATH`, set by `install.sh`), and the admin console
+   lists `hospital-nas` as a drive.
+3. For backup destination management, see [docs/runbooks/nightly-backup.md](nightly-backup.md).
 
 ---
 

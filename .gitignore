@@ -49,5 +49,5 @@ hdms-frontend/blob-report/
 .playwright/
 .zcode/
 
-# Dev backup copy mounted at /mnt/nas in the worker container
-/.dev-backups/
+# Local staging drives folder
+/.staging-drives/

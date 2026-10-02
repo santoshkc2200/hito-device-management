@@ -35,7 +35,11 @@ import (
 type BackupConsoleConfig struct {
 	BackupDir    string
 	AllowedRoots []string
-	Location     *time.Location
+	// DrivesDir and DrivesHostPath tell the console where the drives folder
+	// is in the worker and on the host, so it can show real locations.
+	DrivesDir      string
+	DrivesHostPath string
+	Location       *time.Location
 	// Locations reaches the worker's folder routes. Nil means no worker is
 	// configured; every location call then reports the worker unavailable.
 	Locations *backup.LocationClient

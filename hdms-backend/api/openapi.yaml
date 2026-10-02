@@ -2934,7 +2934,7 @@ components:
 
     BackupConfig:
       type: object
-      required: [schedule, local, allowedRoots, recoveryKey]
+      required: [schedule, local, drivesDir, recoveryKey]
       properties:
         schedule: { $ref: "#/components/schemas/BackupSchedule" }
         nextRunAt: { type: string, format: date-time, description: "Absent when the schedule is off." }
@@ -2942,7 +2942,8 @@ components:
         lastSuccessAt: { type: string, format: date-time }
         workerSeenAt: { type: string, format: date-time }
         local: { $ref: "#/components/schemas/BackupLocalRepo" }
-        allowedRoots: { type: array, items: { type: string } }
+        drivesDir: { type: string, description: "Folder in the worker holding one folder per drive (/drives). Empty when none is configured." }
+        drivesHostPath: { type: string, description: "Where drivesDir is on the server, for display. Absent when unknown." }
         recoveryKey: { $ref: "#/components/schemas/BackupRecoveryKeyState" }
 
     BackupDestination:
@@ -3017,10 +3018,12 @@ components:
 
     BackupLocationRoot:
       type: object
-      required: [path, connected]
+      required: [path, name, connected]
       properties:
         path: { type: string }
-        connected: { type: boolean, description: "False when no drive is mounted there (same disk as the server)." }
+        name: { type: string, description: "The drive's folder name, e.g. the USB volume label." }
+        hostPath: { type: string, description: "Where the drive is on the server, for display. Absent when unknown." }
+        connected: { type: boolean, description: "False when nothing is mounted there (same disk as the server)." }
 
     BackupFolder:
       type: object

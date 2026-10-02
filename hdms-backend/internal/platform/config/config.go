@@ -68,9 +68,15 @@ type Config struct {
 	BackupDir    string // 5.4a: nightly backup target (HDMS_BACKUP_DIR, default /var/backups/hdms)
 	BackupEncKey []byte // 5.4a: 32 raw bytes, AES-256-GCM key for backup encryption (HDMS_BACKUP_ENC_KEY); nil when unconfigured — the backup command fails closed, the API does not require it to boot
 
-	// BackupAllowedRoots limits where a path destination may point
-	// (HDMS_BACKUP_ALLOWED_ROOTS, colon-separated). Destination paths are
-	// administrator input; an empty list rejects every path destination.
+	// BackupDrivesDir is the folder inside the container holding one folder
+	// per drive (HDMS_BACKUP_DRIVES_DIR, /drives in compose). Unset, no drive
+	// is offered and every path destination is refused.
+	BackupDrivesDir string
+	// BackupDrivesHostPath is where BackupDrivesDir is on the host
+	// (HDMS_BACKUP_DRIVES_HOST_PATH). Display only; never opened.
+	BackupDrivesHostPath string
+	// BackupAllowedRoots limits where a path destination may point. It is
+	// derived: the drives folder when set, else empty (rejects every path).
 	BackupAllowedRoots []string
 
 	// WorkerHTTPAddr is where the worker serves its internal routes
@@ -158,7 +164,11 @@ func Load() (Config, error) {
 	// file), never in the backup target itself.
 	cfg.BackupDir = getenvDefault("HDMS_BACKUP_DIR", "/var/backups/hdms")
 	cfg.BackupEncKey = getenvOptionalBase64Key32("HDMS_BACKUP_ENC_KEY", &errs)
-	cfg.BackupAllowedRoots = splitAndTrim(os.Getenv("HDMS_BACKUP_ALLOWED_ROOTS"), ":")
+	cfg.BackupDrivesDir = strings.TrimSpace(os.Getenv("HDMS_BACKUP_DRIVES_DIR"))
+	cfg.BackupDrivesHostPath = strings.TrimSpace(os.Getenv("HDMS_BACKUP_DRIVES_HOST_PATH"))
+	if cfg.BackupDrivesDir != "" {
+		cfg.BackupAllowedRoots = []string{cfg.BackupDrivesDir}
+	}
 	cfg.WorkerHTTPAddr = getenvDefault("HDMS_WORKER_ADDR", ":8090")
 	cfg.WorkerURL = getenvDefault("HDMS_WORKER_URL", "http://worker:8090")
 	cfg.ResticBinary = getenvDefault("HDMS_RESTIC_BIN", "restic")
@@ -335,7 +345,8 @@ func (c Config) LogEffective(logger *slog.Logger) {
 		slog.Any("metrics_allow_cidrs", c.MetricsAllowCIDRs),
 		slog.String("backup_dir", c.BackupDir),
 		slog.String("backup_enc_key", "[REDACTED]"),
-		slog.String("backup_allowed_roots", strings.Join(c.BackupAllowedRoots, ":")),
+		slog.String("backup_drives_dir", c.BackupDrivesDir),
+		slog.String("backup_drives_host_path", c.BackupDrivesHostPath),
 		slog.String("worker_url", c.WorkerURL),
 		slog.String("restic_binary", c.ResticBinary),
 		slog.String("rclone_config", c.RcloneConfig),

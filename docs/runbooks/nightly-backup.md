@@ -21,7 +21,7 @@ Prerequisites on the host:
 ## From the admin console
 
 - Admin → **Backups**. Overview shows last result, next run, **Back up now**, and the schedule (every N minutes 15–720, daily, or weekly, in the server's `TZ`).
-- **Destinations**: add a network-drive folder (must be under `HDMS_BACKUP_ALLOWED_ROOTS`, i.e. `/var/backups` or `/mnt/nas` in the container; IT mounts the share at `HDMS_BACKUP_NAS_HOST_PATH` first — see `production-deployment.md` §11), then **Test**. A failed test shows the reason on the row.
+- **Destinations**: pick a drive and folder in the wizard (drives are the disks and network shares mounted inside the server's drives folder, `/mnt` by default — see "Connecting a drive"), then **Test**. A failed test shows the reason on the row.
 - **Backups**: stored backups per location, with **Verify now**. A daily verify also runs at 04:30.
 - **History**: last 20 backup and verify runs with per-destination results.
 - "Backup worker not responding" means the `worker` container is down: `docker compose … ps worker`, `… logs worker`.
@@ -71,13 +71,12 @@ Legacy single-file backups remain strictly at the top level of `${HDMS_BACKUP_DI
 - **Keep previous keys:** When rotating keys, **retain the previous key** in the password manager. Pre-cutover legacy `.dump.gz.enc` files remain encrypted under the key active when they were taken.
 - **`HDMS_TOKEN_PEPPER` separation:** The HMAC pepper for credential tokens is stored separately outside the database. Even if an attacker obtains a fully decrypted database backup, credentials cannot be resolved or minted without `HDMS_TOKEN_PEPPER`.
 
-## Path destinations and `HDMS_BACKUP_ALLOWED_ROOTS`
+## Path destinations and the drives folder
 
 To prevent an administrative console compromise from directing backups to arbitrary host directories, path destinations are strictly constrained:
 
-- `HDMS_BACKUP_ALLOWED_ROOTS` defines a colon-separated allowlist of absolute filesystem roots (e.g. `HDMS_BACKUP_ALLOWED_ROOTS=/var/backups:/mnt`).
-- An empty or unset `HDMS_BACKUP_ALLOWED_ROOTS` fails closed: every path destination is rejected.
-- LAN storage shares (NFS, SMB/CIFS) must be mounted at the OS level by hospital IT under one of the allowed roots (for example, `/mnt/hospital-nas/hdms`) before adding them in the console.
+- Path destinations must live inside a drive in the drives folder: the worker sees the host's `HDMS_BACKUP_DRIVES_HOST_PATH` (default `/mnt`) as `/drives`, and refuses anything outside it, symlinks resolved.
+- LAN shares (NFS, SMB/CIFS) are mounted at the OS level by hospital IT directly inside that folder (for example `/mnt/hospital-nas`).
 - HDMS validates that target paths exist, are directories, are writable, and do not escape allowed roots via directory traversal (`..`) or symlinks.
 
 ## How IT configures cloud accounts (Google Drive / OneDrive)
@@ -173,7 +172,7 @@ Check `detail.stage` in the failure row to isolate the issue:
 3. **`forget_local` stage:** Local pruning failed. Check for stale lock files in `${HDMS_BACKUP_DIR}/repo/locks`.
 4. **`prune_legacy` stage:** Deleting an expired legacy `.dump.gz.enc` file failed. Check permissions on `${HDMS_BACKUP_DIR}`.
 5. **Destination failures (`detail.destinations`):**
-   - For `kind = 'path'`: Verify the LAN share is mounted, reachable, writable by `hdms`, and satisfies `HDMS_BACKUP_ALLOWED_ROOTS`.
+   - For `kind = 'path'`: Verify the LAN share is mounted, reachable, writable by the worker, and lives inside the drives folder.
    - For `kind = 'rclone'`: Test the remote directly using `sudo -u hdms rclone lsd <remote>:`. Check if cloud tokens need re-authentication via `rclone config reconnect <remote>:`.
 6. **Missing-key error naming `HDMS_BACKUP_ENC_KEY`:** Check `/etc/hdms/hdms.env`. If the key was lost, restore it from the hospital password manager. Never generate a new key over an existing repository.
 
@@ -217,24 +216,26 @@ systemctl list-timers hdms-backup.timer
 
 Unit files: `deploy/systemd/hdms-backup.service`, `deploy/systemd/hdms-backup.timer`.
 
-## Connecting a network drive
+## Connecting a drive
 
-The admin console's **Backups → Destinations → Add destination** wizard only
-offers folders on a drive mounted into the worker at `/mnt/nas`. Until IT
-connects one, the wizard shows the drive as **Not connected** and points here.
+The admin console's **Backups → Destinations → Add destination** wizard lists
+every disk or network share mounted directly inside the server's drives folder
+(`/mnt` unless `HDMS_BACKUP_DRIVES_HOST_PATH` in `/etc/hdms/hdms.env` says
+otherwise), by name and real location. No env edit or restart is needed.
 
-1. Mount the share on the host (NFS or SMB), for example at `/srv/hdms-nas`,
-   and add it to `/etc/fstab` so it is mounted again after a reboot. The
-   worker writes as user ID 100, so the share must give that user read and
-   write access.
-2. Set `HDMS_BACKUP_NAS_HOST_PATH=/srv/hdms-nas` in `/etc/hdms/hdms.env`.
-3. Recreate the worker so it picks up the mount:
-   `sudo docker compose -f deploy/production/compose.yaml --env-file /etc/hdms/hdms.env up -d worker`
-4. Reopen the wizard; the drive now shows **Connected**.
+1. Mount the share or disk at its own folder inside the drives folder, for
+   example `/mnt/hospital-nas`, and add it to `/etc/fstab` so it is mounted
+   again after a reboot. The worker writes as user ID 100, so the share must
+   give that user read and write access.
+2. Reopen the wizard; the drive shows **Connected** with its location
+   (`/mnt/hospital-nas`).
 
-The wizard refuses a folder on the server's own disk (`same_disk`), because a
-copy there is lost together with the server. If it reports `same_disk` after
-step 3, the share did not mount: check `mount | grep /srv/hdms-nas` on the host.
+A folder inside the drives folder with nothing mounted shows **Not connected**:
+it is on the server's own disk, and a copy there is lost with the server. If a
+drive you mounted shows Not connected, check `mount | grep /mnt/hospital-nas`.
+
+On the macOS development machine the drives folder is `/Volumes`: plug in a
+disk and it appears in the wizard.
 
 The worker serves the wizard's folder checks on `HDMS_WORKER_ADDR` (default
 `:8090`) inside the compose network only; the API reaches it at

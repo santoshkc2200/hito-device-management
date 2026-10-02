@@ -253,7 +253,7 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 	// The listener starts before the database is touched: it needs only the
 	// filesystem, and it serves the recovery page whatever state the
 	// database is in.
-	locator := &backup.Locator{BackupDir: cfg.BackupDir, AllowedRoots: cfg.BackupAllowedRoots}
+	locator := &backup.Locator{BackupDir: cfg.BackupDir, AllowedRoots: cfg.BackupAllowedRoots, DrivesHostPath: cfg.BackupDrivesHostPath}
 	ln, err := net.Listen("tcp", cfg.WorkerHTTPAddr)
 	if err != nil {
 		return fmt.Errorf("worker: listen on %s: %w", cfg.WorkerHTTPAddr, err)

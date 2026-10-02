@@ -174,6 +174,8 @@ func run() error {
 	srv := apiserver.New(pool, authSvc, identitySvc, catalogSvc, credentialsSvc, lendingSvc, checkoutSvc, auditSvc, settingsSvc, sseHub, staffAuthSvc, staffOIDCSvc, notificationSvc, reservationsSvc, cfg.Env, apiserver.BackupConsoleConfig{
 		BackupDir:       cfg.BackupDir,
 		AllowedRoots:    cfg.BackupAllowedRoots,
+		DrivesDir:       cfg.BackupDrivesDir,
+		DrivesHostPath:  cfg.BackupDrivesHostPath,
 		Location:        time.Local,
 		Locations:       backup.NewLocationClient(cfg.WorkerURL),
 		RecoverySecrets: backup.NewRecoverySecrets(cfg.BackupEncKey, cfg.TokenPepper, cfg.CredentialEncKey, cfg.TOTPSecretEncKey),

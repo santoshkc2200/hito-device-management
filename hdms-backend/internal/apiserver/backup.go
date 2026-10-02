@@ -40,6 +40,8 @@ func (s *Server) writeBackupError(w http.ResponseWriter, r *http.Request, err er
 		httpx.WriteProblem(w, r, httpx.NewProblem("folder-exists", "A folder with that name already exists", http.StatusConflict))
 	case errors.Is(err, backup.ErrLocationNotWritable):
 		httpx.WriteProblem(w, r, httpx.NewProblem("folder-not-writable", "HDMS cannot write in this folder", http.StatusUnprocessableEntity))
+	case errors.Is(err, backup.ErrDriveNotConnected):
+		httpx.WriteProblem(w, r, httpx.NewProblem("drive-not-connected", "The drive is not connected", http.StatusConflict))
 	case errors.Is(err, backup.ErrWorkerUnavailable):
 		httpx.WriteProblem(w, r, httpx.NewProblem("worker-unavailable", "Backup worker not responding", http.StatusServiceUnavailable))
 	case errors.Is(err, backup.ErrDestinationNotFound), errors.Is(err, backup.ErrRequestNotFound), errors.Is(err, backup.ErrLocationNotFound):
@@ -140,12 +142,12 @@ func (s *Server) backupConfig(r *http.Request) (gen.BackupConfig, error) {
 		return gen.BackupConfig{}, err
 	}
 	out := gen.BackupConfig{
-		Schedule:     mapSchedule(sched),
-		AllowedRoots: s.backupCfg.AllowedRoots,
-		Local:        gen.BackupLocalRepo{Path: backup.LocalRepo(s.backupCfg.BackupDir).Location},
+		Schedule:  mapSchedule(sched),
+		DrivesDir: s.backupCfg.DrivesDir,
+		Local:     gen.BackupLocalRepo{Path: backup.LocalRepo(s.backupCfg.BackupDir).Location},
 	}
-	if out.AllowedRoots == nil {
-		out.AllowedRoots = []string{}
+	if s.backupCfg.DrivesHostPath != "" {
+		out.DrivesHostPath = strPtr(s.backupCfg.DrivesHostPath)
 	}
 	if next, ok := sched.NextAfter(time.Now(), s.backupLoc()); ok {
 		out.NextRunAt = &next
@@ -427,7 +429,11 @@ func mapLocationListing(l backup.LocationListing) gen.BackupLocationListing {
 		Folders: make([]gen.BackupFolder, 0, len(l.Folders)),
 	}
 	for _, root := range l.Roots {
-		out.Roots = append(out.Roots, gen.BackupLocationRoot{Path: root.Path, Connected: root.Connected})
+		r := gen.BackupLocationRoot{Path: root.Path, Name: root.Name, Connected: root.Connected}
+		if root.HostPath != "" {
+			r.HostPath = strPtr(root.HostPath)
+		}
+		out.Roots = append(out.Roots, r)
 	}
 	for _, f := range l.Folders {
 		out.Folders = append(out.Folders, gen.BackupFolder{Name: f.Name, Path: f.Path, HasBackup: f.HasBackup})

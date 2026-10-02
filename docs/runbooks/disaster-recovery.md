@@ -67,12 +67,13 @@ Then read [After a restore](#after-a-restore).
    firewall, DNS record pointing at the new address, TLS certificate, code in
    `/opt/hdms`). Stop before step 6.
 2. Make the backups visible on the new server, in one of three ways:
-   - **Network drive:** mount the share, for example at `/srv/hdms-nas`, and add
-     it to `/etc/fstab`
-     ([nightly-backup.md](nightly-backup.md), "Connecting a network drive").
+   - **Network drive:** mount the share in its own folder inside `/mnt`, for
+     example `/mnt/hospital-nas`, and add it to `/etc/fstab`
+     ([nightly-backup.md](nightly-backup.md), "Connecting a drive").
    - **External disk:** mount it, for example at `/mnt/hdms-disk`.
    - **Copied folder:** copy the backup folder (the one holding `repo` and
-     `hdms-recovery.bin`) onto the server with `cp -a`.
+     `hdms-recovery.bin`) into a folder inside `/mnt`, for example
+     `/mnt/restore/hdms-backups`, with `cp -a`.
 3. Run the installer and answer its questions:
 
    ```bash
@@ -80,8 +81,9 @@ Then read [After a restore](#after-a-restore).
    sudo deploy/production/install.sh --restore
    ```
 
-   - **Folder holding the HDMS backups:** the mount point or copied folder. It
-     searches two folders down and asks which one when it finds several.
+   - **Folder holding the HDMS backups:** the mount point or copied folder.
+     It must be inside /mnt; the installer refuses anything else. It searches two
+     folders down and asks which one when it finds several.
    - **"The HDMS worker runs as user ID 100 and cannot read and write …":**
      answer `y` for a disk or a copy. On a network drive that refuses, ask
      the drive's administrator to give user ID 100 read and write access to
@@ -98,10 +100,9 @@ Then read [After a restore](#after-a-restore).
    the page shows "HDMS database is empty"; that is expected.
 5. Once sign-in works, check that a kiosk scan resolves a badge (kiosks keep
    their pairing because the secrets came back with the backups).
-6. If the backups came from a **copied folder** or a temporary disk, point
-   `HDMS_BACKUP_NAS_HOST_PATH` in `/etc/hdms/hdms.env` at the real network
-   drive ([nightly-backup.md](nightly-backup.md), "Connecting a network
-   drive"); the installer set it to the folder you gave.
+6. If the backups came from a **copied folder** or a temporary disk, mount the
+   real network drive inside `/mnt` and add it as a destination in the admin
+   console ([nightly-backup.md](nightly-backup.md), "Connecting a drive").
 
 ## Database server will not start
 

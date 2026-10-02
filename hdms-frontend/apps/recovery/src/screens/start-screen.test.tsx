@@ -45,7 +45,7 @@ describe("StartScreen", () => {
     expect(local).toBeDisabled();
     expect(screen.getByTestId(`source-${nasSource.id}`)).toHaveTextContent("Ward NAS");
     expect(screen.getByTestId(`source-${usbSource.id}`)).toHaveTextContent("Network drive or external disk");
-    expect(screen.getByTestId(`source-${usbSource.id}`)).toHaveTextContent("/mnt/nas/usb/hdms");
+    expect(screen.getByTestId(`source-${usbSource.id}`)).toHaveTextContent("/drives/usb/hdms");
 
     await user.click(screen.getByTestId(`source-${usbSource.id}`));
     expect(onChoose).toHaveBeenCalledWith(usbSource);
