@@ -120,11 +120,7 @@ function DashboardPage() {
       {/* Attention Strip */}
       <AttentionStrip
         turnedAwayCounts={dashboard.turnedAwayCounts}
-        unboundCredentialCount={dashboard.unboundCredentialCount}
-        lowStockThreshold={dashboard.lowStockThreshold}
         kiosks={dashboard.kiosks}
-        lastPaperEntry={dashboard.lastPaperEntry}
-        paperBacklogHours={dashboard.paperBacklogHours}
         backup={
           isAdmin && backupQuery.data
             ? { lastSuccessAt: backupQuery.data.lastSuccessAt ?? null, recoveryKeyStatus: backupQuery.data.recoveryKey.status }

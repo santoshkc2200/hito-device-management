@@ -1,10 +1,8 @@
-import type { BackfillLastEntry, Kiosk, ScanRejectionSummary } from "@hdms/api-client";
+import type { Kiosk, ScanRejectionSummary } from "@hdms/api-client";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
-  CreditCard,
   DatabaseBackup,
-  FileSpreadsheet,
   KeyRound,
   MonitorSmartphone,
   ShieldAlert,
@@ -19,11 +17,7 @@ import { cn } from "@hdms/ui";
 
 interface AttentionStripProps {
   turnedAwayCounts?: ScanRejectionSummary[];
-  unboundCredentialCount?: number;
-  lowStockThreshold?: number;
   kiosks?: Kiosk[];
-  lastPaperEntry?: BackfillLastEntry;
-  paperBacklogHours?: number;
   backup?: { lastSuccessAt?: string | null; recoveryKeyStatus?: "missing" | "unconfirmed" | "ready" | "outdated" };
 }
 
@@ -39,11 +33,7 @@ function timeSince(date: Date, t: ReturnType<typeof useT>): { hours: number; day
 
 export function AttentionStrip({
   turnedAwayCounts = [],
-  unboundCredentialCount,
-  lowStockThreshold = 10,
   kiosks = [],
-  lastPaperEntry,
-  paperBacklogHours = 48,
   backup,
 }: AttentionStripProps) {
   const t = useT();
@@ -63,27 +53,6 @@ export function AttentionStrip({
   const unknownScans = turnedAwayCounts.find((t) => t.resolvedType === "unknown");
   const totalUnregisteredScans = (unboundScans?.totalScans || 0) + (unknownScans?.totalScans || 0);
 
-  const isLowStock =
-    typeof unboundCredentialCount === "number" &&
-    unboundCredentialCount < lowStockThreshold;
-
-  // Paper backlog check. A threshold of 0 means the hospital keeps no paper
-  // ledger, so the warning is off.
-  let isPaperBacklog = false;
-  let paperTimeText = t("dashboard.attention.noPaperRecordsFound");
-  if (paperBacklogHours > 0) {
-    if (lastPaperEntry?.recordedAt) {
-      const lastDate = new Date(lastPaperEntry.recordedAt);
-      const { hours, text } = timeSince(lastDate, t);
-      paperTimeText = text;
-      if (hours >= paperBacklogHours) {
-        isPaperBacklog = true;
-      }
-    } else {
-      isPaperBacklog = true;
-    }
-  }
-
   // Quiet kiosk check (active kiosks with lastSeenAt > 24 hours ago or missing)
   const quietKiosks = kiosks.filter((k) => {
     if (k.status !== "active") return false;
@@ -100,8 +69,6 @@ export function AttentionStrip({
     recoveryKeyOutdated ||
     Boolean(revokedScans && revokedScans.totalScans > 0) ||
     totalUnregisteredScans > 0 ||
-    isLowStock ||
-    isPaperBacklog ||
     quietKiosks.length > 0 ||
     kiosks.length > 0;
 
@@ -196,61 +163,7 @@ export function AttentionStrip({
         </Card>
       )}
 
-      {/* 3. Low blank card stock */}
-      {isLowStock && (
-        <Card
-          data-testid="attention-low-stock"
-          className="border-amber-200 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/20"
-        >
-          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
-                <CreditCard className="size-5" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">
-                  {t("dashboard.attention.lowStockTitle", { count: unboundCredentialCount })}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("dashboard.attention.lowStockDetail", { threshold: lowStockThreshold })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 4. Paper backlog warning */}
-      {isPaperBacklog && (
-        <Card
-          data-testid="attention-paper-backlog"
-          className="border-orange-200 bg-orange-50/40 dark:border-orange-900/40 dark:bg-orange-950/20"
-        >
-          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300">
-                <FileSpreadsheet className="size-5" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">
-                  {t("dashboard.attention.paperBacklogTitle", { time: paperTimeText })}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {lastPaperEntry
-                    ? t("dashboard.attention.paperBacklogDetail", {
-                        paperRef: lastPaperEntry.paperRef ?? t("dashboard.attention.paperRefDefault"),
-                        time: paperTimeText,
-                        recordedBy: lastPaperEntry.recordedBy ?? t("dashboard.attention.recordedByDefault"),
-                      })
-                    : t("dashboard.attention.paperBacklogEmpty")}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 5. Kiosk status strip */}
+      {/* 3. Kiosk status strip */}
       {kiosks.length > 0 && (
         <Card data-testid="kiosks-status-strip" className="bg-muted/20">
           <CardContent className="p-4">

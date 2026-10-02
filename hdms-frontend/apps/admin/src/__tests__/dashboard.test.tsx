@@ -275,20 +275,11 @@ describe("Phase 4.7 — Dashboard", () => {
   });
 
   describe("4.7c — Attention Strip", () => {
-    it("shows no paper backlog warning when the threshold is 0", () => {
-      render(<AttentionStrip kiosks={mockDashboardData.kiosks} lastPaperEntry={undefined} paperBacklogHours={0} />);
-      expect(screen.queryByTestId("attention-paper-backlog")).not.toBeInTheDocument();
-    });
-
-    it("renders revoked scan alert, unregistered scan CTA, low stock warning, paper backlog, and quiet kiosks", () => {
+    it("renders revoked scan alert, unregistered scan CTA, and quiet kiosks, but no low stock or paper backlog warning", () => {
       render(
         <AttentionStrip
           turnedAwayCounts={mockDashboardData.turnedAwayCounts}
-          unboundCredentialCount={mockDashboardData.unboundCredentialCount}
-          lowStockThreshold={mockDashboardData.lowStockThreshold}
           kiosks={mockDashboardData.kiosks}
-          lastPaperEntry={mockDashboardData.lastPaperEntry}
-          paperBacklogHours={mockDashboardData.paperBacklogHours}
         />
       );
 
@@ -308,22 +299,11 @@ describe("Phase 4.7 — Dashboard", () => {
         )
       ).toBeInTheDocument();
 
-      // 3. Low stock
-      expect(screen.getByTestId("attention-low-stock")).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          translate(catalogues, "ja", "dashboard.attention.lowStockTitle", { count: 4 })
-        )
-      ).toBeInTheDocument();
+      // 3. Low stock and paper backlog are not shown on the dashboard
+      expect(screen.queryByTestId("attention-low-stock")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("attention-paper-backlog")).not.toBeInTheDocument();
 
-      // 4. Paper backlog
-      expect(screen.getByTestId("attention-paper-backlog")).toBeInTheDocument();
-      const paperBacklogStem = ja.dashboard.attention.paperBacklogTitle.split("{time}")[0];
-      expect(
-        screen.getByText(new RegExp(paperBacklogStem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
-      ).toBeInTheDocument();
-
-      // 5. Kiosks & Quiet kiosk badge
+      // 4. Kiosks & Quiet kiosk badge
       expect(screen.getByTestId("kiosks-status-strip")).toBeInTheDocument();
       expect(screen.getByText("Emergency Ward Kiosk")).toBeInTheDocument();
       expect(screen.getByText("ICU Station Kiosk")).toBeInTheDocument();
