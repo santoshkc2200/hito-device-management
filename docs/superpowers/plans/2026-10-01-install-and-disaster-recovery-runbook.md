@@ -1318,7 +1318,7 @@ Run everything from the worktree root on the Mac. The drill builds every image i
 S=$(mktemp -d)        # scratch for cookies and the key
 docker run -d --privileged --name hdms-drill -p 9443:443 docker:dind
 until docker exec hdms-drill docker info >/dev/null 2>&1; do sleep 2; done
-docker exec hdms-drill apk add --no-cache bash curl openssl
+docker exec hdms-drill apk add --no-cache bash curl openssl shadow   # shadow: useradd/groupadd
 git archive --format=tar HEAD | docker exec -i hdms-drill sh -c 'mkdir -p /opt/hdms && tar -x -C /opt/hdms'
 # The main checkout's mkcert pair for "localhost", trusted by this Mac's browser.
 MAIN=$(git worktree list | head -1 | awk '{print $1}')
@@ -1360,11 +1360,12 @@ curl -ksS -b "$S/jar" -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/jso
 KEY=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["key"])' "$S/key.json")
 curl -ksS -b "$S/jar" -H "X-CSRF-Token: $CSRF" -X POST "$B/v1/backup/recovery-key/confirm"
 curl -ksS -b "$S/jar" -H "X-CSRF-Token: $CSRF" -X POST "$B/v1/backup/run"
-until docker exec hdms-drill sh -c "$DC exec -T worker hdms-cli snapshots" | grep -qE '^[0-9a-f]{8}'; do sleep 10; done
+# The worker's start-up backup already made a snapshot; wait for the bundle this run writes.
+until docker exec hdms-drill sh -c "$DC exec -T worker test -f /var/backups/hdms/hdms-recovery.bin"; do sleep 10; done
 docker exec hdms-drill sh -c "$DC exec -T worker ls -l /var/backups/hdms"
 ```
 
-Expected: `KIOSK` is non-empty; the key has seven groups of four; the backup lists one snapshot; `/var/backups/hdms` holds `repo` and `hdms-recovery.bin`.
+Expected: `KIOSK` is non-empty; the key has seven groups of four; the backup lists two snapshots (start-up and this run); `/var/backups/hdms` holds `repo` and `hdms-recovery.bin`.
 
 - [ ] **Step 4: Appendix A commands on the healthy server**
 
@@ -1453,3 +1454,16 @@ Add a "Changes made during execution" section at the end of this plan with the d
 git add docs/superpowers/plans/2026-10-01-install-and-disaster-recovery-runbook.md
 git commit -m "docs(plans): record the plan 4 drill"
 ```
+
+## Changes made during execution
+
+- **Tasks 1–2** were implemented by agy (gemini-3.8-flash-medium) as `a015849` and `d6f7ef6`; the files are byte-identical to the plan's blocks. Claude re-ran shellcheck, the 67 checks, the six mutation checks and Task 2's link and string checks.
+- **Task 3, Step 2 (plan bug, pre-existing in production).** The fresh install timed out: the api exited with `open /etc/ssl/private/hdms.hospital.key: permission denied`. The api image runs as uid 100, and production-deployment.md step 4 leaves the key `root:root 0600`, so the documented production stack could never start on Linux (staging on Docker Desktop hides it, because macOS file sharing ignores ownership). The user chose a dedicated host user. `install.sh` now creates the `hdms` system group and user (`groupadd --system`, `useradd --system --no-create-home --shell /usr/sbin/nologin`) before writing the env file, sets the key to `root:hdms 0640`, and writes `HDMS_UID`/`HDMS_GID`. `compose.yaml` runs the api as `${HDMS_UID:-100}:${HDMS_GID:-101}` (unset keeps the image user, as on staging), `production.env.example` documents both, and step 4 of production-deployment.md says what the installer does. `install_test.sh` gained 10 checks (8 failed first); two more mutation checks (key mode 0644, always running useradd) were caught. `getent`, `groupadd` and `useradd` are now prerequisites, and the drill installs `shadow` in the Alpine container.
+- **Task 3 drill, 2026-10-01/02 (Claude, after agy's job ended on a Gemini 503).** Run on the fix above. Every step gave the plan's expected result, except as noted here.
+  - Step 3: the worker's start-up backup had already made a snapshot before the recovery key existed, so the plan's wait loop finished before `hdms-recovery.bin` was written. The loop now waits for the bundle file.
+  - Step 6: output matched line for line: the user-ID-100 notice, then `chown` accepted (the copy became 100:101), the typo message, `Recovery key accepted.`, then the `/recovery` line.
+  - Step 7: polled within seconds of start, so the status said `damaged` (the worker was still starting) rather than `empty`; both take the same path. The restore finished in about 2 s with phase `completed`.
+  - Step 8: the first `smoke.sh` got a 401 because Docker Desktop's VM clock had drifted 15 minutes behind the Mac while the session was paused (TOTP failed). Once the clocks agreed: `smoke: PASS`, login and the kiosk token from before the loss.
+  - Step 9: listed one `hdms_prod_before_20261001t083419` and dropped it.
+  - Step 10 (runbook bugs): (a) `tar` failed because the host had no `/var/backups`, and the volume was then deleted with no copy. Step 2 now runs `mkdir -p /var/backups`, makes the tarball `0600` (it was world-readable), and checks it exists with `ls` before step 3 deletes anything. (b) After the reset the page stayed at "damaged": the worker migrates and provisions `hdms_app` only at start-up, so step 3 now also runs `restart worker`. With it the status became `empty` and `hdms_app` existed; the restore completed and `smoke: PASS`. The corrected step 2 commands were re-run in the drill and produced the file.
+  - Not a timed human drill: the images were cached in the drill container. The spec's timed drill, by someone who did not build this, is still open.
