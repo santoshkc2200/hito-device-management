@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { validateToken, parseToken, formatToken, toHalfWidth, TokenParseError } from "./token";
+import { canonicalScan, validateToken, parseToken, formatToken, toHalfWidth, TokenParseError } from "./token";
 
 interface FixtureCase {
   token: string;
@@ -81,5 +81,34 @@ describe("toHalfWidth", () => {
 
   it("leaves half-width and other text alone", () => {
     expect(toHalfWidth("HH-1001 あ")).toBe("HH-1001 あ");
+  });
+});
+
+describe("canonicalScan", () => {
+  const valid = fixture.find((c) => c.valid)!.token;
+
+  it("canonicalises an HDMS token", () => {
+    expect(canonicalScan(` ${valid.toLowerCase()} `)).toBe(formatToken(parseToken(valid)));
+  });
+
+  it("rejects a damaged HDMS token rather than treating it as foreign", () => {
+    const flipped = `${valid.slice(0, -1)}${valid.endsWith("Z") ? "Y" : "Z"}`;
+    expect(() => canonicalScan(flipped)).toThrow(TokenParseError);
+  });
+
+  it("passes an employee barcode through trimmed, case intact", () => {
+    expect(canonicalScan(" e-004217\n")).toBe("e-004217");
+    expect(canonicalScan("0012345678")).toBe("0012345678");
+  });
+
+  it("folds a full-width employee barcode to half-width", () => {
+    expect(canonicalScan("Ｅ００４２１７")).toBe("E004217");
+  });
+
+  it("rejects empty, spaced, non-ASCII and over-long values", () => {
+    for (const bad of ["  ", "E 123", "社員1234", "A".repeat(65)]) {
+      expect(() => canonicalScan(bad)).toThrow(TokenParseError);
+    }
+    expect(canonicalScan("A".repeat(64))).toBe("A".repeat(64));
   });
 });

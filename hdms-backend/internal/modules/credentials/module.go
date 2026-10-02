@@ -172,6 +172,10 @@ func (s *Service) mintToken(subjectType credentialsapi.SubjectType, kind credent
 		if v == "" {
 			return "", credentialsapi.ErrManualTokenRequired
 		}
+		// A value the kiosk would refuse to submit could never be scanned.
+		if !tokens.Scannable(v) {
+			return "", credentialsapi.ErrManualTokenInvalid
+		}
 		return v, nil
 	default:
 		return "", credentialsapi.ErrKindNotIssuableInV1
