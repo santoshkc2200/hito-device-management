@@ -7,7 +7,7 @@ import {
 import { useLocale } from "@hdms/i18n";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
-import { ShieldCheck } from "lucide-react";
+import { History, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { DataTable, DataTableColumnHeader, useDataTableColumns } from "@/components/data-table";
@@ -16,7 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT } from "@/i18n";
 import { formatBytes, formatDateTime } from "./format";
+import { RestoreConfirmDialog } from "./restore-confirm-dialog";
 import { useBackupRequest } from "./use-backup-request";
+import { useRestore } from "./use-restore";
 
 const columnHelper = createColumnHelper<BackupSnapshot>();
 
@@ -26,6 +28,8 @@ export function SnapshotsTab() {
   const [repo, setRepo] = useState("local");
   const [verifyId, setVerifyId] = useState<string | null>(null);
   const { request: verifyRequest, isRunning } = useBackupRequest(verifyId);
+  const { running: restoreRunning } = useRestore();
+  const [restoreTarget, setRestoreTarget] = useState<BackupSnapshot | null>(null);
 
   const destinationsQuery = useQuery({
     queryKey: ["backup", "destinations"],
@@ -82,8 +86,18 @@ export function SnapshotsTab() {
         cell: ({ row }) =>
           row.original.verifiedAt ? formatDateTime(row.original.verifiedAt, locale) : t("backups.snapshots.notVerified"),
       }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <span className="sr-only">{t("backups.restore.actions")}</span>,
+        cell: ({ row }) => (
+          <Button size="sm" variant="outline" disabled={restoreRunning} onClick={() => setRestoreTarget(row.original)}>
+            <History className="size-4" data-icon="inline-start" />
+            {t("backups.restore.button")}
+          </Button>
+        ),
+      }),
     ],
-    [t, locale]
+    [t, locale, restoreRunning]
   );
 
   return (
@@ -117,6 +131,9 @@ export function SnapshotsTab() {
         emptyTitle={t("backups.snapshots.empty")}
         emptyExplanation={t("backups.overview.localRetention")}
       />
+      {restoreTarget && (
+        <RestoreConfirmDialog mode="restore" repo={repo} snapshot={restoreTarget} onClose={() => setRestoreTarget(null)} />
+      )}
     </div>
   );
 }

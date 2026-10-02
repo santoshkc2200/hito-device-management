@@ -143,6 +143,19 @@ The recovery page says "The database server is not running", and
    administrator restores as in A.
 5. Delete `/var/backups/hdms-damaged-db-*.tgz` after a week of normal running.
 
+## Restore from the admin console (server healthy)
+
+When HDMS is running and an administrator can sign in, restore from
+**Backups → Backups**: choose the location, press **Restore** on the backup,
+type `RESTORE`, and enter your password and authenticator code. The banner at
+the top of the page shows each step. Kiosks show the maintenance notice for a
+few minutes; staff use the paper register meanwhile.
+
+You may be asked to sign in again when it finishes, with your password as it
+was on the date of the backup. **Roll back** on the banner returns to the data
+as it was before the restore. **End maintenance** appears only when a restore
+left maintenance mode on; use it once no restore is running.
+
 ## After a restore
 
 - **Kept databases.** A restore keeps the database it replaced, named
@@ -154,7 +167,9 @@ The recovery page says "The database server is not running", and
   ```
 
   Undo is offered only while the `_before_` database exists. After a week of
-  normal running, drop it (this ends Undo):
+  normal running, an administrator presses **Discard safety copy** on the
+  Backups page (this ends roll back). If the console cannot be reached, IT
+  drops it instead:
 
   ```bash
   sudo $DC exec db dropdb -U hdms_prod hdms_prod_before_20261001t020000
