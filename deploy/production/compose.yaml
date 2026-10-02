@@ -72,8 +72,11 @@ services:
     environment:
       HDMS_ENV: production
       HDMS_BACKUP_DIR: /var/backups/hdms
-      # /mnt/nas is the optional network-share mount below.
-      HDMS_BACKUP_ALLOWED_ROOTS: /var/backups:/mnt/nas
+      # Every disk or network share IT mounts under the drives folder
+      # (/mnt unless HDMS_BACKUP_DRIVES_HOST_PATH says otherwise) is offered
+      # in the admin console as a backup drive.
+      HDMS_BACKUP_DRIVES_DIR: /drives
+      HDMS_BACKUP_DRIVES_HOST_PATH: ${HDMS_BACKUP_DRIVES_HOST_PATH:-/mnt}
       # The worker serves no TLS, but it loads the same fail-closed production
       # config as the API, which refuses the localhost certificate defaults.
       HDMS_TLS_CERT_FILE: /etc/ssl/certs/hdms.hospital.crt
@@ -81,9 +84,12 @@ services:
       TZ: ${TZ:?TZ must be set in the env file, e.g. TZ=Asia/Tokyo}
     volumes:
       - hdms-prod-backups:/var/backups/hdms
-      # A host path mounted by hospital IT (NFS/SMB) when a LAN copy is wanted.
-      # Unset, this falls back to an empty named volume so compose stays valid.
-      - ${HDMS_BACKUP_NAS_HOST_PATH:-hdms-prod-nas-unset}:/mnt/nas
+      # rslave: a share mounted after the worker started still appears.
+      - type: bind
+        source: ${HDMS_BACKUP_DRIVES_HOST_PATH:-/mnt}
+        target: /drives
+        bind:
+          propagation: rslave
     depends_on:
       db:
         condition: service_started
@@ -134,7 +140,8 @@ services:
       # The worker migrates as the owner; hdms_app cannot run DDL.
       HDMS_MIGRATE_ON_START: "false"
       HDMS_BACKUP_DIR: /var/backups/hdms
-      HDMS_BACKUP_ALLOWED_ROOTS: /var/backups:/mnt/nas
+      HDMS_BACKUP_DRIVES_DIR: /drives
+      HDMS_BACKUP_DRIVES_HOST_PATH: ${HDMS_BACKUP_DRIVES_HOST_PATH:-/mnt}
       TZ: ${TZ:?TZ must be set in the env file, e.g. TZ=Asia/Tokyo}
     volumes:
       # Hospital PKI material, provisioned in 5.3b; read-only, never in git.
@@ -206,4 +213,3 @@ services:
 volumes:
   hdms-prod-db-data:
   hdms-prod-backups:
-  hdms-prod-nas-unset:

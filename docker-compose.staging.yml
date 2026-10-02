@@ -31,10 +31,13 @@ services:
     environment:
       HDMS_ENV: staging
       HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms_staging}:${POSTGRES_PASSWORD:-hdms_staging_secret}@db:5432/${POSTGRES_DB:-hdms_staging}?sslmode=disable
+      HDMS_BACKUP_DRIVES_HOST_PATH: ${HDMS_BACKUP_DRIVES_HOST_PATH:-./.staging-drives}
       TZ: ${TZ:-Asia/Tokyo}
     volumes: !override
       - hdms-staging-backups:/var/backups/hdms
-      - ${HDMS_BACKUP_NAS_HOST_PATH:-hdms-staging-nas-unset}:/mnt/nas
+      - type: bind
+        source: ${HDMS_BACKUP_DRIVES_HOST_PATH:-./.staging-drives}
+        target: /drives
 
   api:
     env_file: !override
@@ -44,6 +47,7 @@ services:
       HDMS_RATE_LIMIT: "on"
       HDMS_HTTP_ADDR: ":8443"
       HDMS_DATABASE_URL: postgres://${POSTGRES_USER:-hdms_staging}:${POSTGRES_PASSWORD:-hdms_staging_secret}@db:5432/${POSTGRES_DB:-hdms_staging}?sslmode=disable
+      HDMS_BACKUP_DRIVES_HOST_PATH: ${HDMS_BACKUP_DRIVES_HOST_PATH:-./.staging-drives}
       HDMS_MIGRATE_ON_START: "true"
       HDMS_TLS_CERT_FILE: /certs/localhost.pem
       HDMS_TLS_KEY_FILE: /certs/localhost-key.pem
@@ -66,4 +70,3 @@ services:
 volumes:
   hdms-staging-db-data:
   hdms-staging-backups:
-  hdms-staging-nas-unset:
