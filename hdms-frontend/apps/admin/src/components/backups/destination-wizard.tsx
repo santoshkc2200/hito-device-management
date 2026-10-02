@@ -89,7 +89,11 @@ function WorkerOrLoadError({ error }: { error: unknown }) {
   const t = useT();
   return (
     <p className="text-sm text-destructive">
-      {problemIs(error, "worker-unavailable") ? t("backups.wizard.workerDown") : t("backups.wizard.loadFailed")}
+      {problemIs(error, "worker-unavailable")
+        ? t("backups.wizard.workerDown")
+        : problemIs(error, "drive-not-connected")
+          ? t("backups.wizard.driveNotConnected")
+          : t("backups.wizard.loadFailed")}
     </p>
   );
 }
@@ -172,6 +176,7 @@ function FolderStep({
     onError: (err: unknown) => {
       if (problemIs(err, "folder-exists")) setError(t("backups.wizard.folder.exists"));
       else if (problemIs(err, "folder-not-writable")) setError(t("backups.wizard.folder.notWritable"));
+      else if (problemIs(err, "drive-not-connected")) setError(t("backups.wizard.driveNotConnected"));
       else if (problemIs(err, "worker-unavailable")) setError(t("backups.wizard.workerDown"));
       else setError(t("backups.wizard.folder.invalidName"));
     },

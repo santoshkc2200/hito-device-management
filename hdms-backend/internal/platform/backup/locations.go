@@ -16,6 +16,9 @@ var (
 	ErrLocationNotWritable = errors.New("backup: folder is not writable")
 	ErrInvalidFolderName   = errors.New("backup: invalid folder name")
 	ErrFolderExists        = errors.New("backup: folder already exists")
+	// ErrDriveNotConnected means the server lists a drive it cannot open, as
+	// Docker Desktop does for a disk mounted after it started.
+	ErrDriveNotConnected = errors.New("backup: drive not connected")
 )
 
 // Check names, in the order Check reports them.
@@ -128,7 +131,8 @@ type Locator struct {
 // inside an allowed root (the drives folder). The root holding the server's
 // own backup directory is left out: it is not somewhere else. Dot-folders,
 // files and symlinks are not drives. A drive is connected when it is on a
-// different device from the backup directory; an empty mount point is not.
+// different device from the backup directory and the server can open it; an
+// empty mount point is not.
 func (l *Locator) Roots() []LocationRoot {
 	server := resolvedOrClean(l.BackupDir)
 	roots := []LocationRoot{}
@@ -150,7 +154,7 @@ func (l *Locator) Roots() []LocationRoot {
 				continue
 			}
 			p := filepath.Join(dir, e.Name())
-			roots = append(roots, LocationRoot{Path: p, Name: e.Name(), HostPath: l.hostPathOf(e.Name()), Connected: l.separateFromServer(p)})
+			roots = append(roots, LocationRoot{Path: p, Name: e.Name(), HostPath: l.hostPathOf(e.Name()), Connected: l.connected(p)})
 		}
 	}
 	return roots
@@ -202,6 +206,9 @@ func (l *Locator) Browse(path string) (LocationListing, error) {
 		return LocationListing{}, fmt.Errorf("%w: %s", ErrPathNotAllowed, resolved)
 	}
 	entries, err := os.ReadDir(resolved)
+	if errors.Is(err, syscall.ENOTDIR) {
+		return LocationListing{}, fmt.Errorf("%w: %s", ErrDriveNotConnected, resolved)
+	}
 	if err != nil {
 		return LocationListing{}, fmt.Errorf("backup: list %s: %w", resolved, err)
 	}
@@ -238,6 +245,8 @@ func (l *Locator) CreateFolder(parent, name string) (Folder, error) {
 			return Folder{}, ErrFolderExists
 		case errors.Is(err, fs.ErrPermission):
 			return Folder{}, ErrLocationNotWritable
+		case errors.Is(err, syscall.ENOTDIR):
+			return Folder{}, fmt.Errorf("%w: %s", ErrDriveNotConnected, resolved)
 		}
 		return Folder{}, fmt.Errorf("backup: create folder %s: %w", p, err)
 	}
@@ -267,7 +276,7 @@ func (l *Locator) Check(path string) LocationCheck {
 	}
 	add(CheckAllowed, StatusPass, "")
 	drive := l.driveOf(filepath.Clean(path))
-	if drive == "" || !l.separateFromServer(drive) {
+	if drive == "" || !l.connected(drive) {
 		add(CheckConnected, StatusFail, CodeNotConnected)
 		return finish()
 	}
@@ -352,6 +361,23 @@ func (l *Locator) rootOf(p string) string {
 		}
 	}
 	return ""
+}
+
+// connected reports whether drive is mounted and the server can open it.
+// Opening a drive Docker Desktop cannot see into fails with "not a directory"
+// although stat calls it a directory.
+func (l *Locator) connected(drive string) bool {
+	if !l.separateFromServer(drive) {
+		return false
+	}
+	f, err := os.Open(drive) // #nosec G304 -- drive is an entry of an allowed root.
+	if errors.Is(err, syscall.ENOTDIR) {
+		return false
+	}
+	if err == nil {
+		_ = f.Close()
+	}
+	return true
 }
 
 // separateFromServer reports whether dir is on a different device from the

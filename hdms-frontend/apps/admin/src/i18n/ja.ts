@@ -1781,6 +1781,7 @@ export const ja = {
       close: "閉じる",
       workerDown: "バックアップ処理が応答していないため、ドライブを確認できません。IT担当者にHDMSの再起動を依頼してから、もう一度お試しください。",
       loadFailed: "ドライブの情報を読み込めませんでした。",
+      driveNotConnected: "このドライブはサーバーに接続されていません。ディスクを接続するか、IT担当者にネットワークドライブの接続を依頼してから、もう一度選んでください（手順書：nightly-backup.md「Connecting a drive」）。",
       where: {
         heading: "追加のコピーをどこに保存しますか？",
         drive: "このサーバーに接続されたディスクとネットワークドライブ",

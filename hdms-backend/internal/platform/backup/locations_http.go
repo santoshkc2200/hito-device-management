@@ -33,6 +33,7 @@ var locationErrorCodes = []struct {
 	{ErrLocationNotWritable, http.StatusUnprocessableEntity, CodeNotWritable},
 	{ErrInvalidFolderName, http.StatusUnprocessableEntity, "invalid_name"},
 	{ErrFolderExists, http.StatusConflict, "folder_exists"},
+	{ErrDriveNotConnected, http.StatusConflict, CodeNotConnected},
 	{errBadRequest, http.StatusBadRequest, "bad_request"},
 }
 

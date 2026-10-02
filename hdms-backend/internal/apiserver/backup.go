@@ -40,6 +40,8 @@ func (s *Server) writeBackupError(w http.ResponseWriter, r *http.Request, err er
 		httpx.WriteProblem(w, r, httpx.NewProblem("folder-exists", "A folder with that name already exists", http.StatusConflict))
 	case errors.Is(err, backup.ErrLocationNotWritable):
 		httpx.WriteProblem(w, r, httpx.NewProblem("folder-not-writable", "HDMS cannot write in this folder", http.StatusUnprocessableEntity))
+	case errors.Is(err, backup.ErrDriveNotConnected):
+		httpx.WriteProblem(w, r, httpx.NewProblem("drive-not-connected", "The drive is not connected", http.StatusConflict))
 	case errors.Is(err, backup.ErrWorkerUnavailable):
 		httpx.WriteProblem(w, r, httpx.NewProblem("worker-unavailable", "Backup worker not responding", http.StatusServiceUnavailable))
 	case errors.Is(err, backup.ErrDestinationNotFound), errors.Is(err, backup.ErrRequestNotFound), errors.Is(err, backup.ErrLocationNotFound):

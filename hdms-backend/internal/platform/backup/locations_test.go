@@ -307,6 +307,11 @@ func TestBrowse(t *testing.T) {
 	if _, err := l.Browse(filepath.Join(nas, "missing")); !errors.Is(err, ErrLocationNotFound) {
 		t.Errorf("Browse(missing) err = %v, want ErrLocationNotFound", err)
 	}
+	// A drive the server cannot open reports "not a directory" (Docker Desktop
+	// shows a disk mounted after it started this way); a file stands in for it.
+	if _, err := l.Browse(filepath.Join(nas, "f.txt")); !errors.Is(err, ErrDriveNotConnected) {
+		t.Errorf("Browse(not a directory) err = %v, want ErrDriveNotConnected", err)
+	}
 }
 
 func TestCreateFolder(t *testing.T) {
@@ -333,6 +338,10 @@ func TestCreateFolder(t *testing.T) {
 	}
 	if _, err := l.CreateFolder("/etc", "x"); !errors.Is(err, ErrPathNotAllowed) {
 		t.Fatalf("outside parent err = %v", err)
+	}
+	writeFile(t, filepath.Join(nas, "f.txt"), 1)
+	if _, err := l.CreateFolder(filepath.Join(nas, "f.txt"), "x"); !errors.Is(err, ErrDriveNotConnected) {
+		t.Fatalf("not-a-directory parent err = %v, want ErrDriveNotConnected", err)
 	}
 
 	if os.Geteuid() != 0 {

@@ -1778,6 +1778,7 @@ export const en: AdminMessages = {
       close: "Close",
       workerDown: "The backup worker is not responding, so drives cannot be checked. Ask IT to restart HDMS, then try again.",
       loadFailed: "Could not load the drive information.",
+      driveNotConnected: "This drive is not connected to the server. Plug in the disk or ask IT to connect the network drive, then choose it again (runbook: nightly-backup.md, “Connecting a drive”).",
       where: {
         heading: "Where should the extra copy go?",
         drive: "Disks and network drives connected to this server",
