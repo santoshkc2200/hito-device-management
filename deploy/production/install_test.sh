@@ -105,6 +105,7 @@ run_install() {
 	output=$(PATH="$stub_bin:$PATH" STUB_STATE="$state" STUB_GOOD_KEY="$good_key" STUB_UID="${uid:-0}" \
 		HDMS_PROD_ENV_FILE="$env_file" HDMS_TLS_CERT_HOST_PATH="$case_dir/certs/crt" \
 		HDMS_TLS_KEY_HOST_PATH="$case_dir/certs/key" \
+		HDMS_BACKUP_DRIVES_HOST_PATH="$drives" \
 		bash "$here/install.sh" "$@" <<<"$input" 2>&1)
 	status=$?
 	set -e
@@ -137,6 +138,10 @@ value_of() { sed -n "s/^$1='\(.*\)'\$/\1/p" "$env_file" 2>/dev/null || true; }
 # trailing newlines, so it is added back by hand).
 settings="$(printf '%s\n' hdms.example.org Europe/London smtp.example.org 587 hdms 'pa$s w #rd"x' hdms@example.org)"$'\n'
 
+drives="$tmp/drives"
+mkdir -p "$drives"
+drives_real=$(cd "$drives" && pwd -P)
+
 # --- fresh install ----------------------------------------------------------
 fresh_state
 run_install "$settings"
@@ -159,7 +164,8 @@ check "fresh: database passwords are 32 hex characters and differ" \
 check "fresh: owner URL carries the postgres password" has_line "$env_file" "HDMS_OWNER_DATABASE_URL='postgres://hdms_prod:$pg@db:5432/hdms_prod?sslmode=disable'"
 check "fresh: app URL carries the app password" has_line "$env_file" "HDMS_DATABASE_URL='postgres://hdms_app:$app@db:5432/hdms_prod?sslmode=disable'"
 check "fresh: no template placeholder left" lacks "$env_file" "change-me"
-check "fresh: network drive stays unset" has_line "$env_file" "# HDMS_BACKUP_NAS_HOST_PATH=/mnt/hospital-nas/hdms"
+check "fresh: drives folder is written" has_line "$env_file" "HDMS_BACKUP_DRIVES_HOST_PATH='$drives_real'"
+check "fresh: no network-drive setting left" lacks "$env_file" "HDMS_BACKUP_NAS_HOST_PATH"
 check "fresh: starts the stack with the env file" grep -qF "compose -f $here/compose.yaml --env-file $env_file up -d --build" "$state/docker.log"
 check "fresh: builds no separate worker image" lacks "$state/docker.log" "build --quiet"
 check "fresh: points at the first administrator" says "hdms-cli admin bootstrap"
@@ -223,18 +229,22 @@ make_source() {
 	mkdir -p "$1/repo/locks"
 	touch "$1/repo/config" "$1/hdms-recovery.bin"
 }
-nas="$tmp/nas"
+nas="$drives/nas"
 make_source "$nas/hdms-backups"
 make_source "$nas/.snapshot/hdms-backups" # a NAS snapshot copy: never offered
-mkdir -p "$tmp/empty"
+mkdir -p "$drives/empty"
+outside="$tmp/outside"
+make_source "$outside/hdms-backups"
 nas_real=$(cd "$nas" && pwd -P)
 
 fresh_state
 touch "$state/access-ok"
-run_install "$(printf '%s\n' "$tmp/nowhere" "$tmp/empty" "$nas" "$wrong_key" "$good_key")
+run_install "$(printf '%s\n' "$tmp/nowhere" "$outside" "$drives/empty" "$nas" "$wrong_key" "$good_key")
 $settings" --restore
 check "restore exits 0" exits_with 0
 check "restore: a missing folder is asked again" says "$tmp/nowhere is not a folder on this server"
+check "restore: a folder outside the drives folder is asked again" \
+	says "$outside is not inside $drives_real. Mount or copy the backups under $drives_real, then try again."
 check "restore: a folder without backups is asked again" says "No HDMS backups found"
 check "restore: the wrong key's reason is shown without the hdms-cli prefix" \
 	grep -qx "this recovery key does not open the backups in that folder; it may be from an older sheet" <<<"$output"
@@ -250,7 +260,7 @@ check "restore: backup key from the bundle" has_line "$env_file" "HDMS_BACKUP_EN
 check "restore: pepper from the bundle" has_line "$env_file" "HDMS_TOKEN_PEPPER='0123abcd'"
 check "restore: credential key from the bundle" has_line "$env_file" "HDMS_CREDENTIAL_ENC_KEY='cred+Key/='"
 check "restore: TOTP key from the bundle" has_line "$env_file" "HDMS_TOTP_ENC_KEY='totp+Key/='"
-check "restore: the worker sees the given folder as /mnt/nas" has_line "$env_file" "HDMS_BACKUP_NAS_HOST_PATH='$nas_real'"
+check "restore: the worker sees the drives folder" has_line "$env_file" "HDMS_BACKUP_DRIVES_HOST_PATH='$drives_real'"
 check "restore: database passwords are new" matches "$env_file" "^POSTGRES_PASSWORD='[0-9a-f]{32}'\$"
 check "restore: sends the admin to /recovery" says "Open https://hdms.example.org/recovery and enter the same recovery key."
 check "restore: removes the worker image afterwards" grep -qF "image rm hdms-install-worker" "$state/docker.log"
