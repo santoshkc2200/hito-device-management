@@ -88,12 +88,12 @@ describe("Add destination wizard", () => {
     } as any);
 
     const { user, dialog } = await openWizard();
-    await user.click(await within(dialog).findByRole("button", { name: byText(w.where.drive) }));
+    await user.click(await within(dialog).findByRole("button", { name: byText(root.name) }));
 
     expect(await within(dialog).findByText(w.folder.empty)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: w.folder.create }));
     await waitFor(() => expect(mkdir).toHaveBeenCalledWith({ body: { parent: "/drives/BackupSSD", name: "hdms-backups" } }));
-    expect(await within(dialog).findByText("/drives/BackupSSD/hdms-backups")).toBeInTheDocument();
+    expect(await within(dialog).findByText("/Volumes/BackupSSD/hdms-backups")).toBeInTheDocument();
 
     await pickCurrentFolder(user, dialog);
     expect(await within(dialog).findByText(w.check.ok)).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe("Add destination wizard", () => {
       error: { type: "https://hdms.local/problems/folder-exists", status: 409, title: "exists" },
     } as any);
     const { user, dialog } = await openWizard();
-    await user.click(await within(dialog).findByRole("button", { name: byText(w.where.drive) }));
+    await user.click(await within(dialog).findByRole("button", { name: byText(root.name) }));
     await user.click(await within(dialog).findByRole("button", { name: w.folder.create }));
     expect(await within(dialog).findByText(w.folder.exists)).toBeInTheDocument();
   });

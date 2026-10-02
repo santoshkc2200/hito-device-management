@@ -164,7 +164,7 @@ check "fresh: database passwords are 32 hex characters and differ" \
 check "fresh: owner URL carries the postgres password" has_line "$env_file" "HDMS_OWNER_DATABASE_URL='postgres://hdms_prod:$pg@db:5432/hdms_prod?sslmode=disable'"
 check "fresh: app URL carries the app password" has_line "$env_file" "HDMS_DATABASE_URL='postgres://hdms_app:$app@db:5432/hdms_prod?sslmode=disable'"
 check "fresh: no template placeholder left" lacks "$env_file" "change-me"
-check "fresh: drives folder is written" has_line "$env_file" "HDMS_BACKUP_DRIVES_HOST_PATH='$drives_real'"
+check "fresh: drives folder is written" has_line "$env_file" "HDMS_BACKUP_DRIVES_HOST_PATH='$drives'"
 check "fresh: no network-drive setting left" lacks "$env_file" "HDMS_BACKUP_NAS_HOST_PATH"
 check "fresh: starts the stack with the env file" grep -qF "compose -f $here/compose.yaml --env-file $env_file up -d --build" "$state/docker.log"
 check "fresh: builds no separate worker image" lacks "$state/docker.log" "build --quiet"
@@ -260,7 +260,7 @@ check "restore: backup key from the bundle" has_line "$env_file" "HDMS_BACKUP_EN
 check "restore: pepper from the bundle" has_line "$env_file" "HDMS_TOKEN_PEPPER='0123abcd'"
 check "restore: credential key from the bundle" has_line "$env_file" "HDMS_CREDENTIAL_ENC_KEY='cred+Key/='"
 check "restore: TOTP key from the bundle" has_line "$env_file" "HDMS_TOTP_ENC_KEY='totp+Key/='"
-check "restore: the worker sees the drives folder" has_line "$env_file" "HDMS_BACKUP_DRIVES_HOST_PATH='$drives_real'"
+check "restore: the worker sees the drives folder" has_line "$env_file" "HDMS_BACKUP_DRIVES_HOST_PATH='$drives'"
 check "restore: database passwords are new" matches "$env_file" "^POSTGRES_PASSWORD='[0-9a-f]{32}'\$"
 check "restore: sends the admin to /recovery" says "Open https://hdms.example.org/recovery and enter the same recovery key."
 check "restore: removes the worker image afterwards" grep -qF "image rm hdms-install-worker" "$state/docker.log"
@@ -283,7 +283,7 @@ run_install "$(printf '%s\n' "$nas" y)" --restore
 check "restore: a drive that refuses chown stops" exits_with 1
 check "restore: the stop explains the drive refused" says "a network drive may refuse chown"
 
-two="$tmp/two"
+two="$drives/two"
 make_source "$two/a"
 make_source "$two/b"
 two_real=$(cd "$two" && pwd -P)

@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// ErrPathNotAllowed reports a destination path outside every root listed in
-// HDMS_BACKUP_ALLOWED_ROOTS. Destination paths are administrator input, so a
+// ErrPathNotAllowed reports a destination path outside the drives folder
+// (HDMS_BACKUP_DRIVES_DIR). Destination paths are administrator input, so a
 // compromised console account must not be able to aim backups at an arbitrary
 // directory on the host.
 var ErrPathNotAllowed = errors.New("backup: destination path is not under an allowed root")
