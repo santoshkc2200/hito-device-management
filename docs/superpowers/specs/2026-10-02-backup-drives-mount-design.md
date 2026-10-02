@@ -177,3 +177,11 @@ Admin console:
 - Cloud destinations (still "coming soon").
 - Showing a NAS's network address (`smb://…`); the host mount point is shown.
 - Mounting or unmounting drives from the admin panel.
+
+## Spike results (2026-10-02)
+
+- Docker Desktop for Mac, `bind-propagation=rslave`: rejected → dev compose omits propagation
+- Hot-plugged volume visible without restart: yes
+- Device ids `/drives` vs `/drives/<vol>`: 46 / 46
+- Windows staging default: ./.staging-drives
+
