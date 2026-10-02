@@ -235,3 +235,9 @@ Result:                    [ ] PASS    [ ] FAIL
 Signature:                 ______________________________
 ================================================================================
 ```
+
+## Backups only in Google Drive or OneDrive
+
+If no disk or network copy survived, use `sudo deploy/production/install.sh --restore --cloud=google` (or
+`--cloud=onedrive`). It downloads the backup folder first, then follows the normal restore. Details and what to
+keep with the recovery sheet: [cloud-backup.md](cloud-backup.md), section 4.

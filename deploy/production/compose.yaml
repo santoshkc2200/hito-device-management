@@ -90,6 +90,10 @@ services:
         target: /drives
         bind:
           propagation: rslave
+    # The per-run rclone.conf holds live cloud tokens. A tmpfs /tmp means it
+    # never reaches the container's disk layer and vanishes with the container.
+    tmpfs:
+      - /tmp:mode=1777
     depends_on:
       db:
         condition: service_started
