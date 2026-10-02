@@ -213,7 +213,7 @@ func (h *Handler) startRestore(w http.ResponseWriter, r *http.Request, s session
 	}
 	st, err := h.Engine.Start(Request{
 		Source: s.source, SnapshotID: snaps[i].ID, SnapshotTakenAt: snaps[i].Time.UTC(),
-		UnlockIP: s.ip, UnlockedAt: s.unlockedAt,
+		UnlockIP: s.ip, UnlockedAt: s.unlockedAt, RequestedBy: RequesterRecoveryKey,
 	})
 	if !h.writeEngineError(w, err) {
 		return
@@ -242,7 +242,7 @@ func (h *Handler) undo(w http.ResponseWriter, r *http.Request, s session) {
 		writeError(w, http.StatusConflict, "keys_mismatch")
 		return
 	}
-	st, err := h.Engine.Undo(UndoRequest{UnlockIP: s.ip, UnlockedAt: s.unlockedAt})
+	st, err := h.Engine.Undo(UndoRequest{UnlockIP: s.ip, UnlockedAt: s.unlockedAt, RequestedBy: RequesterRecoveryKey})
 	if !h.writeEngineError(w, err) {
 		return
 	}

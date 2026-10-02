@@ -31,6 +31,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
 	"github.com/hito-hospital/hdms/internal/platform/observability"
+	"github.com/hito-hospital/hdms/internal/platform/recovery"
 	"github.com/hito-hospital/hdms/internal/platform/settings"
 	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -178,6 +179,7 @@ func run() error {
 		DrivesHostPath:  cfg.BackupDrivesHostPath,
 		Location:        time.Local,
 		Locations:       backup.NewLocationClient(cfg.WorkerURL),
+		Restore:         recovery.NewClient(cfg.WorkerURL),
 		RecoverySecrets: backup.NewRecoverySecrets(cfg.BackupEncKey, cfg.TokenPepper, cfg.CredentialEncKey, cfg.TOTPSecretEncKey),
 	})
 

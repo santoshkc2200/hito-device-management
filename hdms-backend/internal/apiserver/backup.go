@@ -528,6 +528,26 @@ func (s *Server) recoveryKeyState(ctx context.Context) (gen.BackupRecoveryKeySta
 	return mapRecoveryKeyState(&rec, s.backupCfg.RecoverySecrets), nil
 }
 
+// reauthenticate checks the signed-in admin's password and TOTP code again
+// and writes the problem when they are wrong. 422, not 401: the console
+// treats 401 as an expired session.
+func (s *Server) reauthenticate(w http.ResponseWriter, r *http.Request, password, totpCode string) bool {
+	admin, ok := auth.AdminFromContext(r.Context())
+	if !ok {
+		httpx.WriteProblem(w, r, httpx.NewProblem("unauthorized", "Unauthorized", http.StatusUnauthorized))
+		return false
+	}
+	if err := s.auth.ReauthenticateAdmin(r.Context(), admin.ID, password, totpCode); err != nil {
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			httpx.WriteProblem(w, r, httpx.NewProblem("reauth-failed", "Password or code is incorrect", http.StatusUnprocessableEntity))
+		} else {
+			s.writeServiceError(w, r, err)
+		}
+		return false
+	}
+	return true
+}
+
 // CreateBackupRecoveryKey issues a new recovery key after re-authentication.
 // The key leaves the server in this one response and is never stored.
 func (s *Server) CreateBackupRecoveryKey(w http.ResponseWriter, r *http.Request) {
@@ -535,19 +555,7 @@ func (s *Server) CreateBackupRecoveryKey(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	admin, ok := auth.AdminFromContext(r.Context())
-	if !ok {
-		httpx.WriteProblem(w, r, httpx.NewProblem("unauthorized", "Unauthorized", http.StatusUnauthorized))
-		return
-	}
-	if err := s.auth.ReauthenticateAdmin(r.Context(), admin.ID, body.Password, body.TotpCode); err != nil {
-		switch {
-		case errors.Is(err, auth.ErrInvalidCredentials):
-			// 422, not 401: the console treats 401 as an expired session.
-			httpx.WriteProblem(w, r, httpx.NewProblem("reauth-failed", "Password or code is incorrect", http.StatusUnprocessableEntity))
-		default:
-			s.writeServiceError(w, r, err)
-		}
+	if !s.reauthenticate(w, r, body.Password, body.TotpCode) {
 		return
 	}
 	secrets := s.backupCfg.RecoverySecrets

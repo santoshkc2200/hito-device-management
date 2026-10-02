@@ -2554,6 +2554,84 @@ paths:
         default:
           $ref: "#/components/responses/ProblemResponse"
 
+  /backup/restore:
+    get:
+      operationId: getBackupRestore
+      summary: The last restore or undo, whether maintenance mode is on, and whether the worker answers.
+      tags: [backup]
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRestoreStatus" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+    post:
+      operationId: startBackupRestore
+      summary: Replace the live data with a backup. A safety copy is kept for roll back.
+      tags: [backup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupRestoreInput" }
+      responses:
+        "202":
+          description: Started; poll GET /backup/restore.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRestoreStatus" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/restore/undo:
+    post:
+      operationId: undoBackupRestore
+      summary: Roll back the last restore to the kept safety copy.
+      tags: [backup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupRestoreConfirm" }
+      responses:
+        "202":
+          description: Started; poll GET /backup/restore.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRestoreStatus" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/restore/discard:
+    post:
+      operationId: discardBackupRestore
+      summary: Delete the database the last restore or roll back kept. Ends roll back.
+      tags: [backup]
+      responses:
+        "200":
+          description: Discarded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRestoreStatus" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
+  /backup/maintenance/end:
+    post:
+      operationId: endBackupMaintenance
+      summary: Emergency exit from maintenance mode. Refused while a restore runs.
+      tags: [backup]
+      responses:
+        "200":
+          description: Maintenance is off.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRestoreStatus" }
+        default:
+          $ref: "#/components/responses/ProblemResponse"
+
   # --- Kiosk management (4.10b) ---------------------------------------------
 
   /kiosks/{id}:
@@ -3102,6 +3180,53 @@ components:
         key: { type: string, description: "28 characters in seven groups of four. Shown once." }
         createdAt: { type: string, format: date-time }
 
+    BackupRestoreInput:
+      type: object
+      required: [repo, snapshotId, confirmation, password, totpCode]
+      properties:
+        repo: { type: string, description: '"local" or a destination id, as in GET /backup/snapshots' }
+        snapshotId: { type: string }
+        confirmation: { type: string, enum: [RESTORE] }
+        password: { type: string }
+        totpCode: { type: string }
+
+    BackupRestoreConfirm:
+      type: object
+      required: [confirmation, password, totpCode]
+      properties:
+        confirmation: { type: string, enum: [RESTORE] }
+        password: { type: string }
+        totpCode: { type: string }
+
+    BackupRestoreStatus:
+      type: object
+      required: [maintenance, workerAvailable]
+      properties:
+        maintenance: { type: boolean }
+        workerAvailable: { type: boolean }
+        restore: { $ref: "#/components/schemas/BackupRestore" }
+
+    BackupRestore:
+      type: object
+      required: [kind, phase, step, steps, sourceKind, snapshotTakenAt, startedAt, canUndo, canDiscard]
+      properties:
+        kind: { type: string, enum: [restore, undo] }
+        phase: { type: string, enum: [running, completed, failed] }
+        step:
+          type: string
+          description: "safety_backup | restore_scratch | migrate_scratch | validate | maintenance_on | copy_forward | swap | maintenance_off | record"
+        steps: { type: array, items: { type: string } }
+        sourceKind: { type: string, enum: [local, folder, destination] }
+        sourceName: { type: string }
+        snapshotTakenAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        error: { type: string, description: '"<step>_failed", "interrupted" or "no_admins"' }
+        warning: { type: string, description: '"<step>_failed" for a step after the swap; the restore stands' }
+        canUndo: { type: boolean }
+        canDiscard: { type: boolean }
+        discardedAt: { type: string, format: date-time }
+
     # RFC 9457 application/problem+json, the error shape for the whole API.
     # Registered types (docs/06-api-contract.md):
     # - invalid-token-format (400)
@@ -3128,6 +3253,13 @@ components:
     # - loan-not-found (404)
     # - loan-not-open (409)
     # - kiosk-not-found (404)
+    # - confirmation-required (422)
+    # - restore-running (409)
+    # - nothing-to-undo (409)
+    # - nothing-to-discard (409)
+    # - database-server-down (409)
+    # - restore-source-unsupported (422)
+    # - repository-unreadable (502)
     Problem:
       type: object
       required: [type, title, status]

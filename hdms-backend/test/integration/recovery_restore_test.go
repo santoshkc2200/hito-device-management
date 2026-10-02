@@ -322,3 +322,48 @@ func mustDBURL(t *testing.T, dsn, name string) string {
 	}
 	return u
 }
+
+func TestConsoleRestoreRecordsTheAdminAndDiscardDropsTheKeptDatabase(t *testing.T) {
+	f := newRecoveryFixture(t)
+	ctx := context.Background()
+	_, err := f.engine.Start(recovery.Request{
+		Source:     recovery.Source{ID: "local", Kind: recovery.SourceLocal, Folder: f.dir},
+		SnapshotID: f.snapshot.ID, SnapshotTakenAt: f.snapshot.Time.UTC(),
+		RequestedBy: "admin:console-test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.engine.Wait()
+	st, _ := f.engine.State()
+	if st.Phase != recovery.PhaseCompleted || st.Warning != "" {
+		t.Fatalf("restore state = %+v", st)
+	}
+
+	live := connectTo(t, f.liveURL)
+	if n := countOf(t, live, `SELECT count(*) FROM restore_history WHERE requested_by = 'admin:console-test'`); n != 1 {
+		t.Fatalf("history rows by the admin = %d, want 1", n)
+	}
+	if n := countOf(t, live, `SELECT count(*) FROM audit_events WHERE action = 'recovery.restore.completed' AND actor = 'admin:console-test'`); n != 1 {
+		t.Fatalf("completed events by the admin = %d, want 1", n)
+	}
+	if n := countOf(t, live, `SELECT count(*) FROM audit_events WHERE action = 'recovery.unlock'`); n != 0 {
+		t.Fatalf("unlock events = %d; a console restore has no unlock", n)
+	}
+	_ = live.Close(ctx)
+
+	kept := st.OutgoingDB
+	if _, err := f.engine.Discard("admin:console-test"); err != nil {
+		t.Fatal(err)
+	}
+	admin := connectTo(t, mustDBURL(t, f.liveURL, "postgres"))
+	if n := countOf(t, admin, `SELECT count(*) FROM pg_database WHERE datname = $1`, kept); n != 0 {
+		t.Fatalf("kept database %s still exists", kept)
+	}
+	if n := countOf(t, admin, `SELECT count(*) FROM pg_database WHERE datname = $1`, f.liveName); n != 1 {
+		t.Fatal("live database gone after discard")
+	}
+	if f.engine.CanUndo(ctx) {
+		t.Fatal("undo offered after discard")
+	}
+}

@@ -25,6 +25,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/events"
 	"github.com/hito-hospital/hdms/internal/platform/httpx"
 	"github.com/hito-hospital/hdms/internal/platform/httpx/gen"
+	"github.com/hito-hospital/hdms/internal/platform/recovery"
 	"github.com/hito-hospital/hdms/internal/platform/settings"
 	"github.com/hito-hospital/hdms/internal/platform/staffauth"
 )
@@ -43,6 +44,9 @@ type BackupConsoleConfig struct {
 	// Locations reaches the worker's folder routes. Nil means no worker is
 	// configured; every location call then reports the worker unavailable.
 	Locations *backup.LocationClient
+	// Restore reaches the worker's restore routes. Nil means no worker is
+	// configured; every restore call then reports the worker unavailable.
+	Restore *recovery.Client
 	// RecoverySecrets are the four secrets a recovery bundle seals. The API
 	// holds them already; they are never returned by any endpoint.
 	RecoverySecrets backup.RecoverySecrets

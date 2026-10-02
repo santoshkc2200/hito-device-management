@@ -88,25 +88,32 @@ func (s Source) Repo() backup.Repo {
 // is renamed to OutgoingDB. For a restore, IncomingDB is the scratch database
 // and OutgoingDB the kept previous one; for an undo, the other way round.
 type State struct {
-	ID               string     `json:"id"`
-	Kind             Kind       `json:"kind"`
-	Phase            Phase      `json:"phase"`
-	Step             Step       `json:"step"`
-	Steps            []Step     `json:"steps"`
-	Source           Source     `json:"source"`
-	SnapshotID       string     `json:"snapshotId,omitempty"`
-	SnapshotTakenAt  time.Time  `json:"snapshotTakenAt"`
-	LiveState        LiveState  `json:"liveState"`
-	LiveDB           string     `json:"liveDb"`
-	IncomingDB       string     `json:"incomingDb"`
-	OutgoingDB       string     `json:"outgoingDb"`
-	CopySince        time.Time  `json:"copySince"`
-	SafetySnapshotID string     `json:"safetySnapshotId,omitempty"`
-	UndoOf           string     `json:"undoOf,omitempty"`
-	UnlockIP         string     `json:"unlockIp,omitempty"`
-	UnlockedAt       time.Time  `json:"unlockedAt"`
-	StartedAt        time.Time  `json:"startedAt"`
-	FinishedAt       *time.Time `json:"finishedAt,omitempty"`
+	ID               string    `json:"id"`
+	Kind             Kind      `json:"kind"`
+	Phase            Phase     `json:"phase"`
+	Step             Step      `json:"step"`
+	Steps            []Step    `json:"steps"`
+	Source           Source    `json:"source"`
+	SnapshotID       string    `json:"snapshotId,omitempty"`
+	SnapshotTakenAt  time.Time `json:"snapshotTakenAt"`
+	LiveState        LiveState `json:"liveState"`
+	LiveDB           string    `json:"liveDb"`
+	IncomingDB       string    `json:"incomingDb"`
+	OutgoingDB       string    `json:"outgoingDb"`
+	CopySince        time.Time `json:"copySince"`
+	SafetySnapshotID string    `json:"safetySnapshotId,omitempty"`
+	UndoOf           string    `json:"undoOf,omitempty"`
+	UnlockIP         string    `json:"unlockIp,omitempty"`
+	UnlockedAt       time.Time `json:"unlockedAt"`
+	// RequestedBy is who asked: "recovery-key" for the recovery page,
+	// "admin:<id>" for the console. Empty in state files from before it
+	// existed, which were all the recovery page's.
+	RequestedBy string     `json:"requestedBy,omitempty"`
+	StartedAt   time.Time  `json:"startedAt"`
+	FinishedAt  *time.Time `json:"finishedAt,omitempty"`
+	// DiscardedAt: the kept database was dropped from the console; undo
+	// is no longer possible.
+	DiscardedAt *time.Time `json:"discardedAt,omitempty"`
 	// Error is a stable code: "<step>_failed", "interrupted" or "no_admins".
 	Error string `json:"error,omitempty"`
 	// Warning is a step after the swap that failed; the restore stands.
@@ -127,6 +134,8 @@ type View struct {
 	Error           string     `json:"error,omitempty"`
 	Warning         string     `json:"warning,omitempty"`
 	CanUndo         bool       `json:"canUndo"`
+	CanDiscard      bool       `json:"canDiscard"`
+	DiscardedAt     *time.Time `json:"discardedAt,omitempty"`
 }
 
 func viewOf(st State) View {
@@ -134,7 +143,8 @@ func viewOf(st State) View {
 		Kind: st.Kind, Phase: st.Phase, Step: st.Step, Steps: st.Steps,
 		SourceKind: st.Source.Kind, SourceName: st.Source.Name,
 		SnapshotTakenAt: st.SnapshotTakenAt, StartedAt: st.StartedAt, FinishedAt: st.FinishedAt,
-		Error: st.Error, Warning: st.Warning,
+		DiscardedAt: st.DiscardedAt,
+		Error:       st.Error, Warning: st.Warning,
 	}
 }
 
