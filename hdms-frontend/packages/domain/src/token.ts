@@ -205,7 +205,19 @@ function checkCharFor(payload: string): string {
  * character.
  */
 function normalize(raw: string): string {
-  let s = raw.trim().toUpperCase();
+  let s = toHalfWidth(raw).trim().toUpperCase();
   s = s.replace(/[IL]/g, "1").replace(/O/g, "0");
   return s;
+}
+
+/**
+ * Folds full-width ASCII (U+FF01–FF5E) and the ideographic space to their
+ * half-width forms. A scanner wedge typing into a Japanese IME set to
+ * full-width alphanumeric yields these ("ＨＨ－１００１"); no HDMS identifier
+ * is ever full-width, so the fold is always safe.
+ */
+export function toHalfWidth(s: string): string {
+  return s.replace(/[\uFF01-\uFF5E\u3000]/g, (c) =>
+    c === "\u3000" ? " " : String.fromCharCode(c.charCodeAt(0) - 0xfee0),
+  );
 }

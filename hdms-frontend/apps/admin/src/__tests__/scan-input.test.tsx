@@ -70,4 +70,28 @@ describe("ScanInput", () => {
     expect(onKeyDown).toHaveBeenCalled();
     expect(input).toHaveFocus();
   });
+
+  it("folds a full-width scan to half-width and reports the folded value", async () => {
+    const onChange = vi.fn((e: React.ChangeEvent<HTMLInputElement>) => e.target.value);
+    render(<ScanInput aria-label="id" onChange={onChange} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("id"));
+    await user.keyboard("ＨＨ－１００１");
+
+    expect(screen.getByLabelText("id")).toHaveValue("HH-1001");
+    expect(onChange.mock.results.at(-1)?.value).toBe("HH-1001");
+  });
+
+  it("folds text committed at the end of an IME composition", () => {
+    const seen: string[] = [];
+    render(<ScanInput aria-label="id" onChange={(e) => seen.push(e.target.value)} />);
+    const input = screen.getByLabelText("id") as HTMLInputElement;
+    fireEvent.compositionStart(input);
+    fireEvent.input(input, { target: { value: "ＨＨ１００１" }, isComposing: true });
+    expect(input).toHaveValue("ＨＨ１００１");
+    fireEvent.compositionEnd(input);
+
+    expect(input).toHaveValue("HH1001");
+    expect(seen.at(-1)).toBe("HH1001");
+  });
 });

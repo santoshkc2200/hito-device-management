@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { validateToken, parseToken, formatToken, TokenParseError } from "./token";
+import { validateToken, parseToken, formatToken, toHalfWidth, TokenParseError } from "./token";
 
 interface FixtureCase {
   token: string;
@@ -41,6 +41,14 @@ describe("parseToken", () => {
     expect(formatToken(token)).toBe(sampleValid);
   });
 
+  it("accepts a token scanned through a full-width IME", () => {
+    const fullWidth = [...sampleValid].map((c) =>
+      c === " " ? "\u3000" : /[!-~]/.test(c) ? String.fromCharCode(c.charCodeAt(0) + 0xfee0) : c,
+    ).join("");
+    expect(fullWidth).not.toBe(sampleValid);
+    expect(formatToken(parseToken(fullWidth))).toBe(sampleValid);
+  });
+
   it("is case-insensitive", () => {
     expect(validateToken(sampleValid.toLowerCase())).toBe(true);
   });
@@ -63,5 +71,15 @@ describe("parseToken", () => {
     const flipped =
       sampleValid.slice(0, 3) + flippedHint + sampleValid.slice(4);
     expect(validateToken(flipped)).toBe(true);
+  });
+});
+
+describe("toHalfWidth", () => {
+  it("folds full-width ASCII and the ideographic space", () => {
+    expect(toHalfWidth("ＨＨ－１００１\u3000ａ")).toBe("HH-1001 a");
+  });
+
+  it("leaves half-width and other text alone", () => {
+    expect(toHalfWidth("HH-1001 あ")).toBe("HH-1001 あ");
   });
 });
