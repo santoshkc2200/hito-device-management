@@ -131,6 +131,9 @@ func (d Destination) Resolve(allowedRoots []string) (Repo, error) {
 		}
 		return Repo{Location: filepath.Join(resolved, "repo")}, nil
 	case "rclone":
+		if d.CloudAccountID != nil {
+			return Repo{Location: "rclone:" + CloudRemote(*d.CloudAccountID) + ":" + d.Folder + "/repo"}, nil
+		}
 		target := strings.TrimSpace(d.Target)
 		if target == "" {
 			return Repo{}, fmt.Errorf("backup: destination %q: rclone target is empty", d.Name)

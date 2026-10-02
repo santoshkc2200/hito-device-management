@@ -77,7 +77,11 @@ type Options struct {
 	Destinations []Destination
 	// RecoveryBundle is the sealed recovery bundle to keep beside every
 	// repository. Nil when no recovery key has been created.
-	RecoveryBundle  []byte
+	RecoveryBundle []byte
+	// Cloud holds the rendered rclone config for cloud destinations. Nil when
+	// the caller has no session (the manual CLI); cloud destinations then
+	// fail with a plain message.
+	Cloud           *CloudSession
 	MetricsDir      string
 	Dump            DumpStreamer
 	LockNonBlocking bool
@@ -216,22 +220,29 @@ func (opts Options) fanOut(ctx context.Context, local Repo) []DestinationResult 
 }
 
 func (opts Options) copyTo(ctx context.Context, local Repo, d Destination, res *DestinationResult) error {
+	if err := opts.Cloud.Usable(d); err != nil {
+		return err
+	}
 	repo, err := d.Resolve(opts.AllowedRoots)
 	if err != nil {
 		return err
 	}
-	if err := EnsureRepo(ctx, opts.Restic, repo, &local); err != nil {
+	restic := opts.Restic
+	if d.CloudAccountID != nil {
+		restic = opts.Cloud.Apply(restic)
+	}
+	if err := EnsureRepo(ctx, restic, repo, &local); err != nil {
 		return err
 	}
-	if err := opts.Restic.Copy(ctx, repo, local); err != nil {
+	if err := restic.Copy(ctx, repo, local); err != nil {
 		return err
 	}
 	if opts.RecoveryBundle != nil {
-		if err := WriteRecoveryBundle(repo, opts.RecoveryBundle); err != nil {
+		if err := PutRecoveryBundle(ctx, opts.Cloud, d, repo, opts.RecoveryBundle); err != nil {
 			return err
 		}
 	}
-	forgot, err := opts.Restic.Forget(ctx, repo, RetentionPolicy{KeepLast: d.RetentionVersions})
+	forgot, err := restic.Forget(ctx, repo, RetentionPolicy{KeepLast: d.RetentionVersions})
 	if err != nil {
 		return err
 	}
@@ -308,6 +319,9 @@ func (opts Options) recordRun(ctx context.Context, started time.Time, rep RunRep
 }
 
 func (opts Options) recordDestinationOutcome(ctx context.Context, d Destination, res DestinationResult) {
+	if res.Outcome != OutcomeSuccess {
+		opts.Cloud.NoteFailure(ctx, d, res.Error)
+	}
 	if opts.Pool == nil {
 		return
 	}

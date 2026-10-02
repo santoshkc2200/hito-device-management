@@ -288,6 +288,7 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 		MetricsDir:   cfg.JobMetricsDir,
 		Now:          time.Now,
 		Logger:       slog.Default(),
+		Cloud:        &backup.CloudService{Q: pool.Pool, Key: cfg.CredentialEncKey, Now: time.Now},
 	}
 	deps := workerDeps{
 		BackupSchedule: liveSchedule{
