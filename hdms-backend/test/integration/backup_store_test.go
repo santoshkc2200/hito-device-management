@@ -23,7 +23,7 @@ func TestBackupDestinationsRoundTrip(t *testing.T) {
 		ID:                ids.NewUUID(),
 		Name:              "NAS",
 		Kind:              "path",
-		Target:            "/mnt/nas-backups",
+		Target:            "/drives/nas-backups",
 		Provider:          "lan",
 		Enabled:           true,
 		RetentionVersions: 2,

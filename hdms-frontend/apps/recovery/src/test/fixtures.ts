@@ -2,13 +2,13 @@ import { STEPS, type RestoreView, type Snapshot, type Source, type Status } from
 
 export const localSource: Source = { id: "local", kind: "local", folder: "/var/backups/hdms", hasRecoveryKey: true };
 export const nasSource: Source = {
-  id: "path:/mnt/nas/hdms-backups",
+  id: "path:/drives/WardNAS/hdms-backups",
   kind: "destination",
   name: "Ward NAS",
-  folder: "/mnt/nas/hdms-backups",
+  folder: "/drives/WardNAS/hdms-backups",
   hasRecoveryKey: true,
 };
-export const usbSource: Source = { id: "path:/mnt/nas/usb/hdms", kind: "folder", folder: "/mnt/nas/usb/hdms", hasRecoveryKey: true };
+export const usbSource: Source = { id: "path:/drives/usb/hdms", kind: "folder", folder: "/drives/usb/hdms", hasRecoveryKey: true };
 export const localWithoutKey: Source = { ...localSource, hasRecoveryKey: false };
 
 export const workingStatus: Status = { database: "working", worker: "ready", restoreRunning: false };

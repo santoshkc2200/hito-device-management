@@ -114,3 +114,16 @@ HDMS_DATABASE_URL="postgres://hdms_staging:staging-db-password-change-me@localho
   - 100 open overdue loans.
 - **Audit Log Events (~50 000):** Activity stream reflecting realistic operational volume.
 - **Database Statistics:** Runs `ANALYZE` across all tables to build PostgreSQL query planner statistics.
+
+---
+
+## Backup drives
+
+The staging worker lists backup drives from `HDMS_BACKUP_DRIVES_HOST_PATH`
+(default: `./.staging-drives`). Each folder directly inside it is a
+drive in **Backups → Add destination**. To drill with a USB disk, set
+`HDMS_BACKUP_DRIVES_HOST_PATH=D:/hdms-drives` in `.env.staging`, create one
+subfolder per drive, and run `task staging:up`.
+
+Destinations saved before 2026-10-02 point at `/mnt/nas` and no longer work.
+Delete them in **Backups → Destinations** and add them again.
