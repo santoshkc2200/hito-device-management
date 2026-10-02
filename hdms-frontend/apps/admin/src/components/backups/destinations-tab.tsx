@@ -31,6 +31,8 @@ import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
 import { DestinationWizard } from "./destination-wizard";
 import { formatDateTime } from "./format";
+import { realLocation } from "./real-location";
+import { useBackupConfig } from "./use-backup-config";
 import { useBackupRequest } from "./use-backup-request";
 
 const columnHelper = createColumnHelper<BackupDestination>();
@@ -87,6 +89,7 @@ export function DestinationsTab() {
     onError: () => toast.error(t("backups.errors.save")),
   });
 
+  const { data: config } = useBackupConfig();
   const data = useMemo(() => destinationsQuery.data ?? [], [destinationsQuery.data]);
 
   const columns = useDataTableColumns<BackupDestination>(
@@ -99,7 +102,7 @@ export function DestinationsTab() {
       columnHelper.accessor("target", {
         id: "target",
         header: ({ column }) => <DataTableColumnHeader column={column} title={t("backups.destinations.columns.target")} />,
-        cell: ({ row }) => <span className="font-identifier text-xs">{row.original.target}</span>,
+        cell: ({ row }) => <span className="font-identifier text-xs">{realLocation(row.original.target, config)}</span>,
       }),
       columnHelper.accessor("retentionVersions", {
         id: "retentionVersions",
@@ -148,7 +151,7 @@ export function DestinationsTab() {
         ),
       }),
     ],
-    [t, locale, test.mutate]
+    [t, locale, test.mutate, config]
   );
 
   return (
@@ -202,6 +205,7 @@ export function DestinationsTab() {
 function EditDestinationDialog({ destination, onClose }: { destination: BackupDestination; onClose: () => void }) {
   const t = useT();
   const queryClient = useQueryClient();
+  const { data: config } = useBackupConfig();
   const [name, setName] = useState(destination.name);
   const [retention, setRetention] = useState(String(destination.retentionVersions));
   const [enabled, setEnabled] = useState(destination.enabled);
@@ -249,7 +253,7 @@ function EditDestinationDialog({ destination, onClose }: { destination: BackupDe
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="dest-target">{t("backups.destinations.form.target")}</Label>
-            <Input id="dest-target" value={destination.target} disabled />
+            <Input id="dest-target" value={realLocation(destination.target, config)} disabled />
             <p className="text-xs text-muted-foreground">{t("backups.destinations.form.targetFixed")}</p>
           </div>
           <div className="flex flex-col gap-1.5">

@@ -26,7 +26,7 @@ describe("Recovery key card", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(apiClient, "listBackupDestinations").mockResolvedValue({
-      data: { items: [{ id: "d1", name: "Ward NAS", target: "/mnt/nas/hdms", enabled: true, retentionVersions: 3 }] },
+      data: { items: [{ id: "d1", name: "Ward NAS", target: "/drives/WardNAS/hdms", enabled: true, retentionVersions: 3 }] },
     } as any);
   });
 

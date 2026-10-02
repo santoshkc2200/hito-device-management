@@ -1,12 +1,10 @@
 import {
-  getBackupConfig,
   runBackupNow,
   updateBackupSchedule,
-  type BackupConfig,
   type BackupSchedule,
 } from "@hdms/api-client";
 import { useLocale } from "@hdms/i18n";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, DatabaseBackup, Play, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -21,6 +19,7 @@ import { LoadingState } from "@/components/states";
 import { useT } from "@/i18n";
 import { formatBytes, formatDateTime, WORKER_STALE_MS } from "./format";
 import { RecoveryKeyCard } from "./recovery-key-card";
+import { useBackupConfig } from "./use-backup-config";
 import { useBackupRequest } from "./use-backup-request";
 
 const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -35,15 +34,7 @@ export function outcomeTone(outcome?: string): "default" | "secondary" | "destru
 export function OverviewTab() {
   const t = useT();
   const { locale } = useLocale();
-  const configQuery = useQuery({
-    queryKey: ["backup", "config"],
-    queryFn: async () => {
-      const res = await getBackupConfig();
-      if (res.error) throw res.error;
-      return res.data as BackupConfig;
-    },
-    refetchInterval: 30_000,
-  });
+  const configQuery = useBackupConfig();
   const [requestId, setRequestId] = useState<string | null>(null);
   const { request, isRunning } = useBackupRequest(requestId);
 

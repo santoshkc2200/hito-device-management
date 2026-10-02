@@ -9,14 +9,14 @@ import { SnapshotsTab } from "@/components/backups/snapshots-tab";
 import { baseConfig, minutesAgo, renderWithClient } from "./backup-fixtures";
 
 const nas: apiClient.BackupDestination = {
-  id: "d1", name: "Ward NAS", target: "/mnt/nas/hdms", enabled: true, retentionVersions: 2,
-  lastError: "backup: stat destination path \"/mnt/nas/hdms\": no such file or directory",
+  id: "d1", name: "Ward NAS", target: "/drives/WardNAS/hdms", enabled: true, retentionVersions: 2,
+  lastError: "backup: stat destination path \"/drives/WardNAS/hdms\": no such file or directory",
 };
 
 describe("Destinations tab", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(apiClient, "getBackupConfig").mockResolvedValue({ data: baseConfig() } as any);
+    vi.spyOn(apiClient, "getBackupConfig").mockResolvedValue({ data: baseConfig({ drivesHostPath: "/mnt" }) } as any);
     vi.spyOn(apiClient, "listBackupDestinations").mockResolvedValue({ data: { items: [nas] } } as any);
   });
 
@@ -24,6 +24,11 @@ describe("Destinations tab", () => {
     renderWithClient(<DestinationsTab />);
     expect(await screen.findByText("Ward NAS")).toBeInTheDocument();
     expect(screen.getByText(/no such file or directory/)).toBeInTheDocument();
+  });
+
+  it("shows a destination's real location on the server", async () => {
+    renderWithClient(<DestinationsTab />);
+    expect(await screen.findByText("/mnt/WardNAS/hdms")).toBeInTheDocument();
   });
 
   it("queues a test for a row", async () => {

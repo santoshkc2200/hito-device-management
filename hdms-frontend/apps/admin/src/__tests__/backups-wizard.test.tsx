@@ -7,7 +7,7 @@ import { DestinationsTab } from "@/components/backups/destinations-tab";
 import { baseConfig, minutesAgo, renderWithClient } from "./backup-fixtures";
 
 const w = ja.backups.wizard;
-const root: apiClient.BackupLocationRoot = { path: "/mnt/nas", connected: true };
+const root: apiClient.BackupLocationRoot = { path: "/drives/BackupSSD", name: "BackupSSD", hostPath: "/Volumes/BackupSSD", connected: true };
 const CHECK_NAMES = ["allowed", "connected", "exists", "writable", "separate_disk", "contents", "space"] as const;
 
 function passAll(path: string): apiClient.BackupLocationCheck {
@@ -17,7 +17,7 @@ function passAll(path: string): apiClient.BackupLocationCheck {
   };
 }
 
-// Serves the drives-only listing, then the given folders under /mnt/nas.
+// Serves the drives-only listing, then the given folders under /drives/BackupSSD.
 function mockLocations(foldersAt: Record<string, apiClient.BackupFolder[]> = {}) {
   return vi.spyOn(apiClient, "listBackupLocations").mockImplementation((async (opts?: { query?: { path?: string } }) => {
     const path = opts?.query?.path;
@@ -44,24 +44,24 @@ async function pickCurrentFolder(user: ReturnType<typeof userEvent.setup>, dialo
 }
 
 async function goToCheck(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
-  await user.click(await within(dialog).findByRole("button", { name: byText(w.where.drive) }));
+  await user.click(await within(dialog).findByRole("button", { name: byText(root.name) }));
   await pickCurrentFolder(user, dialog);
 }
 
 describe("Add destination wizard", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(apiClient, "getBackupConfig").mockResolvedValue({ data: baseConfig() } as any);
+    vi.spyOn(apiClient, "getBackupConfig").mockResolvedValue({ data: baseConfig({ drivesHostPath: "/Volumes" }) } as any);
     vi.spyOn(apiClient, "listBackupDestinations").mockResolvedValue({ data: { items: [] } } as any);
   });
 
   it("blocks a drive that is not connected and says what to ask IT", async () => {
     vi.spyOn(apiClient, "listBackupLocations").mockResolvedValue({
-      data: { roots: [{ path: "/mnt/nas", connected: false }], folders: [] },
+      data: { roots: [{ path: "/drives/usb", name: "usb", connected: false }], folders: [] },
     } as any);
     const { dialog } = await openWizard();
     expect(await within(dialog).findByText(w.where.notConnectedHelp)).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: byText(w.where.drive) })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: byText("usb") })).toBeDisabled();
   });
 
   it("says the worker is down instead of showing an empty dialog", async () => {
@@ -73,7 +73,7 @@ describe("Add destination wizard", () => {
   });
 
   it("walks from drive to a saved, prepared destination", async () => {
-    const created: apiClient.BackupFolder = { name: "hdms-backups", path: "/mnt/nas/hdms-backups", hasBackup: false };
+    const created: apiClient.BackupFolder = { name: "hdms-backups", path: "/drives/BackupSSD/hdms-backups", hasBackup: false };
     mockLocations();
     const mkdir = vi.spyOn(apiClient, "createBackupLocationFolder").mockResolvedValue({ data: created } as any);
     const check = vi.spyOn(apiClient, "checkBackupLocation").mockResolvedValue({ data: passAll(created.path) } as any);
@@ -92,12 +92,12 @@ describe("Add destination wizard", () => {
 
     expect(await within(dialog).findByText(w.folder.empty)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: w.folder.create }));
-    await waitFor(() => expect(mkdir).toHaveBeenCalledWith({ body: { parent: "/mnt/nas", name: "hdms-backups" } }));
-    expect(await within(dialog).findByText("/mnt/nas/hdms-backups")).toBeInTheDocument();
+    await waitFor(() => expect(mkdir).toHaveBeenCalledWith({ body: { parent: "/drives/BackupSSD", name: "hdms-backups" } }));
+    expect(await within(dialog).findByText("/drives/BackupSSD/hdms-backups")).toBeInTheDocument();
 
     await pickCurrentFolder(user, dialog);
     expect(await within(dialog).findByText(w.check.ok)).toBeInTheDocument();
-    expect(check).toHaveBeenCalledWith({ body: { path: "/mnt/nas/hdms-backups" } });
+    expect(check).toHaveBeenCalledWith({ body: { path: "/drives/BackupSSD/hdms-backups" } });
     for (const name of CHECK_NAMES) expect(within(dialog).getByText(w.check.pass[name])).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: w.next }));
@@ -110,7 +110,7 @@ describe("Add destination wizard", () => {
     await user.click(within(dialog).getByRole("button", { name: w.details.save }));
 
     await waitFor(() => expect(create).toHaveBeenCalledWith({
-      body: { name: w.details.defaultName, target: "/mnt/nas/hdms-backups", retentionVersions: 3, enabled: true },
+      body: { name: w.details.defaultName, target: "/drives/BackupSSD/hdms-backups", retentionVersions: 3, enabled: true },
     }));
     await waitFor(() => expect(test).toHaveBeenCalledWith({ path: { id: "d9" } }));
     expect(await within(dialog).findByText(w.saving.ready)).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe("Add destination wizard", () => {
     mockLocations();
     vi.spyOn(apiClient, "checkBackupLocation").mockResolvedValue({
       data: {
-        ...passAll("/mnt/nas"), ok: false,
+        ...passAll("/drives/BackupSSD"), ok: false,
         checks: CHECK_NAMES.map((name) => (name === "separate_disk"
           ? { name, status: "fail" as const, code: "same_disk" as const }
           : { name, status: "pass" as const })),
@@ -137,9 +137,9 @@ describe("Add destination wizard", () => {
 
   it("turns the destination off when preparing the drive fails", async () => {
     mockLocations();
-    vi.spyOn(apiClient, "checkBackupLocation").mockResolvedValue({ data: passAll("/mnt/nas") } as any);
+    vi.spyOn(apiClient, "checkBackupLocation").mockResolvedValue({ data: passAll("/drives/BackupSSD") } as any);
     vi.spyOn(apiClient, "createBackupDestination").mockResolvedValue({
-      data: { id: "d9", name: w.details.defaultName, target: "/mnt/nas", enabled: true, retentionVersions: 3 },
+      data: { id: "d9", name: w.details.defaultName, target: "/drives/BackupSSD", enabled: true, retentionVersions: 3 },
     } as any);
     vi.spyOn(apiClient, "testBackupDestination").mockResolvedValue({
       data: { id: "r1", kind: "test", status: "pending", requestedAt: minutesAgo(0), destinationId: "d9" },
@@ -170,5 +170,28 @@ describe("Add destination wizard", () => {
     await user.click(await within(dialog).findByRole("button", { name: byText(w.where.drive) }));
     await user.click(await within(dialog).findByRole("button", { name: w.folder.create }));
     expect(await within(dialog).findByText(w.folder.exists)).toBeInTheDocument();
+  });
+
+  it("names each drive and shows where it really is on the server", async () => {
+    mockLocations();
+    const { dialog } = await openWizard();
+    const card = await within(dialog).findByRole("button", { name: byText("BackupSSD") });
+    expect(card).toHaveTextContent("/Volumes/BackupSSD");
+    expect(card).not.toHaveTextContent("/drives/BackupSSD");
+  });
+
+  it("shows the worker path when the host location is unknown", async () => {
+    vi.spyOn(apiClient, "listBackupLocations").mockResolvedValue({
+      data: { roots: [{ path: "/drives/usb", name: "usb", connected: true }], folders: [] },
+    } as any);
+    const { dialog } = await openWizard();
+    expect(await within(dialog).findByRole("button", { name: byText("usb") })).toHaveTextContent("/drives/usb");
+  });
+
+  it("shows the current folder's real location", async () => {
+    mockLocations();
+    const { user, dialog } = await openWizard();
+    await user.click(await within(dialog).findByRole("button", { name: byText(root.name) }));
+    expect(await within(dialog).findByText("/Volumes/BackupSSD")).toBeInTheDocument();
   });
 });
