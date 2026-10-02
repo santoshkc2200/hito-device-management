@@ -280,13 +280,17 @@ func (o *PGOps) Record(ctx context.Context, name string, st State) error {
 		}
 		undoOf = &id
 	}
+	by := st.RequestedBy
+	if by == "" {
+		by = RequesterRecoveryKey
+	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO restore_history (id, kind, source, snapshot_id, snapshot_taken_at, safety_snapshot_id,
 			previous_db_name, live_state, state, undo_of, started_at, requested_by)
-		VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), $8, 'completed', $9, $10, 'recovery-key')
+		VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), $8, 'completed', $9, $10, $11)
 		ON CONFLICT (id) DO NOTHING`,
 		st.ID, string(st.Kind), source, st.SnapshotID, st.SnapshotTakenAt, st.SafetySnapshotID,
-		st.OutgoingDB, string(st.LiveState), undoOf, st.StartedAt); err != nil {
+		st.OutgoingDB, string(st.LiveState), undoOf, st.StartedAt, by); err != nil {
 		return fmt.Errorf("recovery: record history: %w", err)
 	}
 	if undoOf != nil {
@@ -300,7 +304,10 @@ func (o *PGOps) Record(ctx context.Context, name string, st State) error {
 		at      time.Time
 		payload map[string]any
 	}
-	events := []event{{"recovery.unlock", st.UnlockedAt, map[string]any{"source": source}}}
+	var events []event
+	if !st.UnlockedAt.IsZero() {
+		events = append(events, event{"recovery.unlock", st.UnlockedAt, map[string]any{"source": source}})
+	}
 	if st.Kind == KindRestore {
 		events = append(events, event{"recovery.restore.completed", time.Now().UTC(), map[string]any{
 			"restoreId": st.ID, "source": source, "snapshotId": st.SnapshotID,
@@ -320,9 +327,9 @@ func (o *PGOps) Record(ctx context.Context, name string, st State) error {
 		id := uuid.NewSHA1(recordNamespace, []byte(st.ID+"/"+ev.action))
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO audit_events (id, at, actor, actor_ip, action, subject, payload)
-			VALUES ($1, $2, 'recovery-key', NULLIF($3, '')::inet, $4, 'recovery', $5)
+			VALUES ($1, $2, $6, NULLIF($3, '')::inet, $4, 'recovery', $5)
 			ON CONFLICT (id) DO NOTHING`,
-			id, at, st.UnlockIP, ev.action, ev.payload); err != nil {
+			id, at, st.UnlockIP, ev.action, ev.payload, by); err != nil {
 			return fmt.Errorf("recovery: audit %s: %w", ev.action, err)
 		}
 	}
