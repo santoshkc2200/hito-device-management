@@ -9,7 +9,7 @@ import { SnapshotsTab } from "@/components/backups/snapshots-tab";
 import { baseConfig, minutesAgo, renderWithClient } from "./backup-fixtures";
 
 const nas: apiClient.BackupDestination = {
-  id: "d1", name: "Ward NAS", target: "/drives/WardNAS/hdms", enabled: true, retentionVersions: 2,
+  id: "d1", name: "Ward NAS", target: "/drives/WardNAS/hdms", provider: "lan", enabled: true, retentionVersions: 2,
   lastError: "backup: stat destination path \"/drives/WardNAS/hdms\": no such file or directory",
 };
 

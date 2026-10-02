@@ -5,6 +5,7 @@ import {
   listBackupLocations,
   testBackupDestination,
   updateBackupDestination,
+  type BackupCloudAccount,
   type BackupLocationCheckItem,
   type BackupLocationRoot,
 } from "@hdms/api-client";
@@ -17,13 +18,20 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
+import { CloudConnectDialog } from "./cloud-connect-dialog";
+import { accountLabel, isCloudFolder } from "./cloud-format";
 import { formatBytes } from "./format";
 import { realLocation } from "./real-location";
 import { useBackupConfig } from "./use-backup-config";
 import { useBackupRequest } from "./use-backup-request";
+import { useCloudAccounts } from "./use-cloud-accounts";
 
-type Step = "where" | "folder" | "check" | "details" | "saving";
-const STEPS: Step[] = ["where", "folder", "check", "details", "saving"];
+type Step = "where" | "account" | "cloudFolder" | "folder" | "check" | "details" | "saving";
+const DRIVE_STEPS: Step[] = ["where", "folder", "check", "details", "saving"];
+const CLOUD_STEPS: Step[] = ["where", "account", "cloudFolder", "details", "saving"];
+
+/** What the destination will be created with: a folder on a drive, or a folder in a cloud account. */
+type DestinationTarget = { path: string } | { cloudAccountId: string; folder: string };
 
 type Problem = { type?: string; status?: number; detail?: string };
 const problemIs = (err: unknown, type: string) => (err as Problem | null)?.type?.endsWith(`/${type}`) ?? false;
@@ -42,9 +50,14 @@ function useLocations(path: string) {
 export function DestinationWizard({ onClose }: { onClose: () => void }) {
   const t = useT();
   const [step, setStep] = useState<Step>("where");
+  const [cloud, setCloud] = useState(false);
   const [root, setRoot] = useState<BackupLocationRoot | null>(null);
   const [path, setPath] = useState("");
+  const [account, setAccount] = useState<BackupCloudAccount | null>(null);
+  const [folder, setFolder] = useState("");
   const [saved, setSaved] = useState<{ id: string; name: string; retentionVersions: number; requestId: string } | null>(null);
+  const steps = cloud ? CLOUD_STEPS : DRIVE_STEPS;
+  const target: DestinationTarget = cloud && account ? { cloudAccountId: account.id, folder } : { path };
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -52,16 +65,40 @@ export function DestinationWizard({ onClose }: { onClose: () => void }) {
         <DialogHeader>
           <DialogTitle>{t("backups.wizard.title")}</DialogTitle>
           <p className="text-xs text-muted-foreground">
-            {t("backups.wizard.stepOf", { current: String(STEPS.indexOf(step) + 1), total: String(STEPS.length) })}
+            {t("backups.wizard.stepOf", { current: String(steps.indexOf(step) + 1), total: String(steps.length) })}
           </p>
         </DialogHeader>
         {step === "where" && (
           <WhereStep
             onCancel={onClose}
+            onPickCloud={() => {
+              setCloud(true);
+              setStep("account");
+            }}
             onPick={(r) => {
+              setCloud(false);
               setRoot(r);
               setPath(r.path);
               setStep("folder");
+            }}
+          />
+        )}
+        {step === "account" && (
+          <AccountStep
+            onBack={() => setStep("where")}
+            onPick={(a) => {
+              setAccount(a);
+              setStep("cloudFolder");
+            }}
+          />
+        )}
+        {step === "cloudFolder" && account && (
+          <CloudFolderStep
+            account={account}
+            onBack={() => setStep("account")}
+            onUse={(f) => {
+              setFolder(f);
+              setStep("details");
             }}
           />
         )}
@@ -71,8 +108,9 @@ export function DestinationWizard({ onClose }: { onClose: () => void }) {
         {step === "check" && <CheckStep path={path} onBack={() => setStep("folder")} onNext={() => setStep("details")} />}
         {step === "details" && (
           <DetailsStep
-            path={path}
-            onBack={() => setStep("check")}
+            target={target}
+            defaultName={cloud ? t("backups.wizard.cloud.defaultName") : t("backups.wizard.details.defaultName")}
+            onBack={() => setStep(cloud ? "cloudFolder" : "check")}
             onSaved={(s) => {
               setSaved(s);
               setStep("saving");
@@ -98,7 +136,7 @@ function WorkerOrLoadError({ error }: { error: unknown }) {
   );
 }
 
-function WhereStep({ onPick, onCancel }: { onPick: (root: BackupLocationRoot) => void; onCancel: () => void }) {
+function WhereStep({ onPick, onPickCloud, onCancel }: { onPick: (root: BackupLocationRoot) => void; onPickCloud: () => void; onCancel: () => void }) {
   const t = useT();
   const query = useLocations("");
   const roots = query.data?.roots ?? [];
@@ -131,10 +169,9 @@ function WhereStep({ onPick, onCancel }: { onPick: (root: BackupLocationRoot) =>
             {!r.connected && <p className="text-xs text-amber-700 dark:text-amber-400">{t("backups.wizard.where.notConnectedHelp")}</p>}
           </div>
         ))}
-        <Button variant="outline" className="h-auto justify-start gap-3 py-3" disabled>
+        <Button variant="outline" className="h-auto justify-start gap-3 py-3" onClick={onPickCloud}>
           <Cloud className="size-5 shrink-0" />
           <span className="flex-1 text-left">{t("backups.wizard.where.cloud")}</span>
-          <Badge variant="outline">{t("backups.wizard.where.comingSoon")}</Badge>
         </Button>
       </div>
       <DialogFooter>
@@ -316,17 +353,19 @@ function CheckStep({ path, onBack, onNext }: { path: string; onBack: () => void;
 }
 
 function DetailsStep({
-  path,
+  target,
+  defaultName,
   onBack,
   onSaved,
 }: {
-  path: string;
+  target: DestinationTarget;
+  defaultName: string;
   onBack: () => void;
   onSaved: (s: { id: string; name: string; retentionVersions: number; requestId: string }) => void;
 }) {
   const t = useT();
   const queryClient = useQueryClient();
-  const [name, setName] = useState(() => t("backups.wizard.details.defaultName"));
+  const [name, setName] = useState(defaultName);
   const [retention, setRetention] = useState("3");
   const [error, setError] = useState<string | null>(null);
   const retentionNumber = Number(retention);
@@ -334,7 +373,7 @@ function DetailsStep({
   const save = useMutation({
     mutationFn: async () => {
       const created = await createBackupDestination({
-        body: { name: name.trim(), target: path, retentionVersions: retentionNumber, enabled: true },
+        body: { name: name.trim(), ...("path" in target ? { target: target.path } : target), retentionVersions: retentionNumber, enabled: true },
       });
       if (created.error) throw created.error;
       const destination = created.data!;
@@ -435,6 +474,72 @@ function SavingStep({
       </p>
       <DialogFooter>
         <Button onClick={onClose}>{t("backups.wizard.close")}</Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+function AccountStep({ onBack, onPick }: { onBack: () => void; onPick: (account: BackupCloudAccount) => void }) {
+  const t = useT();
+  const accounts = useCloudAccounts();
+  const [connecting, setConnecting] = useState(false);
+  const usable = (accounts.data ?? []).filter((a) => a.status === "connected");
+  const providerLabel = (p: string) => t(`backups.cloud.providers.${p}` as never);
+
+  return (
+    <>
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-medium">{t("backups.wizard.cloud.accountHeading")}</h3>
+        <p className="text-xs text-muted-foreground">{t("backups.wizard.cloud.privacy")}</p>
+        {accounts.isPending && <Loader2 className="size-4 animate-spin" />}
+        {accounts.isSuccess && usable.length === 0 && <p className="text-sm text-muted-foreground">{t("backups.wizard.cloud.noAccounts")}</p>}
+        {usable.map((a) => (
+          <Button key={a.id} variant="outline" className="h-auto justify-start gap-3 py-3 text-left" onClick={() => onPick(a)}>
+            <Cloud className="size-5 shrink-0" />
+            <span className="flex flex-1 flex-col">
+              <span className="font-medium">{a.name}</span>
+              <span className="text-xs text-muted-foreground">{accountLabel(a, providerLabel)}</span>
+            </span>
+          </Button>
+        ))}
+        <Button variant="outline" onClick={() => setConnecting(true)}>{t("backups.wizard.cloud.connectNew")}</Button>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onBack}>{t("backups.wizard.back")}</Button>
+      </DialogFooter>
+      {connecting && (
+        <CloudConnectDialog
+          onClose={() => setConnecting(false)}
+          onConnected={(a) => {
+            setConnecting(false);
+            onPick(a);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function CloudFolderStep({ account, onBack, onUse }: { account: BackupCloudAccount; onBack: () => void; onUse: (folder: string) => void }) {
+  const t = useT();
+  const [folder, setFolder] = useState("hdms-backups"); // i18n-allow-literal: suggested folder name, not prose
+  const valid = isCloudFolder(folder);
+
+  return (
+    <>
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-medium">{t("backups.wizard.cloud.folderHeading")}</h3>
+        <p className="text-xs text-muted-foreground">{account.name}</p>
+        <p className="text-xs text-muted-foreground">{t("backups.wizard.cloud.folderHelp")}</p>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="wizard-cloud-folder">{t("backups.wizard.cloud.folderName")}</Label>
+          <Input id="wizard-cloud-folder" value={folder} aria-invalid={!valid} onChange={(e) => setFolder(e.target.value)} />
+          {!valid && <p className="text-sm text-destructive">{t("backups.wizard.cloud.invalidFolder")}</p>}
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onBack}>{t("backups.wizard.back")}</Button>
+        <Button onClick={() => onUse(folder.trim().replace(/^\/+|\/+$/g, ""))} disabled={!valid}>{t("backups.wizard.cloud.useThis")}</Button>
       </DialogFooter>
     </>
   );
