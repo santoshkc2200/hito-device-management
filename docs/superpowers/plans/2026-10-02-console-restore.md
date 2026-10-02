@@ -2348,3 +2348,8 @@ Run these one after another, not in parallel:
    - Press **Roll back**. The device must be back.
    - Press **Discard safety copy**. Confirm that `docker compose exec db psql -U hdms -d postgres -c '\l hdms_*'` no longer lists the `_rolledback_` database.
    - Check the audit log for `backup.restore.requested`, `recovery.restore.completed` (actor `admin:<id>`), `backup.restore.undo_requested` and `backup.restore.discarded`.
+
+## Changes made during execution
+
+- **Task 3: route classification was missing from the plan.** The auth middleware refuses any operation absent from `internal/platform/auth/roles.go` ("Unclassified operation", 403), and `kioskscope.go` must list it too. The five new operations were added as `"admin"` in `roles.go` and with no kiosk scope (`{}`) in `kioskscope.go`, next to the other backup routes (commit 1a8e324).
+- **Task 2: `Destination.Target` is the folder holding `repo`**, not the repository itself, so `TestConsoleSource` uses `Target: folder`, as the plan's check-first note allowed.
