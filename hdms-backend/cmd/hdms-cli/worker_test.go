@@ -230,7 +230,7 @@ func TestRecoveryStatusAnswersWhileTheDatabaseIsUnavailable(t *testing.T) {
 		Limiter: &recovery.Limiter{PerIP: 5, Total: 20, Now: time.Now},
 		Now:     time.Now, Logger: discard,
 	}
-	srv := httptest.NewServer(workerMux(http.NotFoundHandler(), api.Routes()))
+	srv := httptest.NewServer(workerMux(http.NotFoundHandler(), http.NotFoundHandler(), api.Routes()))
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -261,7 +261,7 @@ func TestRecoveryStatusAnswersWhileTheDatabaseIsUnavailable(t *testing.T) {
 func TestWorkerMuxKeepsInternalAndRecoveryApart(t *testing.T) {
 	internal := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
 	rec := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) })
-	srv := httptest.NewServer(workerMux(internal, rec))
+	srv := httptest.NewServer(workerMux(internal, http.NotFoundHandler(), rec))
 	defer srv.Close()
 	for path, want := range map[string]int{
 		"/internal/locations":  http.StatusTeapot,

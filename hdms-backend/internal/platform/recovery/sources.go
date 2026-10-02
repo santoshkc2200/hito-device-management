@@ -2,6 +2,8 @@ package recovery
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -65,4 +67,38 @@ func DiscoverSources(ctx context.Context, backupDir string, allowedRoots []strin
 func hasBundle(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, backup.RecoveryBundleFile))
 	return err == nil
+}
+
+var (
+	ErrSourceNotFound    = errors.New("recovery: no such backup location")
+	ErrSourceUnsupported = errors.New("recovery: restoring from a cloud destination is not available yet")
+)
+
+// ConsoleSource maps the console's repository key — "local" or a destination
+// id, as in backup_snapshots.repo_key — to a restore source. A path
+// destination's folder must still resolve inside the allowed roots.
+func ConsoleSource(ctx context.Context, repoKey, backupDir string, allowedRoots []string,
+	destinations func(context.Context) ([]backup.Destination, error)) (Source, error) {
+	if repoKey == backup.LocalRepoKey {
+		return Source{ID: SourceLocal, Kind: SourceLocal, Folder: backupDir, HasKey: hasBundle(backupDir)}, nil
+	}
+	ds, err := destinations(ctx)
+	if err != nil {
+		return Source{}, err
+	}
+	for _, d := range ds {
+		if d.ID.String() != repoKey {
+			continue
+		}
+		if d.Kind != "path" {
+			return Source{}, ErrSourceUnsupported
+		}
+		repo, err := d.Resolve(allowedRoots)
+		if err != nil {
+			return Source{}, fmt.Errorf("%w: %v", ErrSourceNotFound, err)
+		}
+		folder := filepath.Dir(repo.Location)
+		return Source{ID: "path:" + folder, Kind: SourceDestination, Name: d.Name, Folder: folder, HasKey: hasBundle(folder)}, nil
+	}
+	return Source{}, ErrSourceNotFound
 }

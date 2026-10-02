@@ -24,9 +24,12 @@ import (
 
 // workerMux serves the API-only /internal routes and the public recovery
 // API on one listener. caddy routes /recovery/api/* here and never /internal.
-func workerMux(internal, recoveryAPI http.Handler) http.Handler {
+func workerMux(locations, restore, recoveryAPI http.Handler) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/internal/", internal)
+	mux.Handle("/internal/locations", locations)
+	mux.Handle("/internal/locations/", locations)
+	mux.Handle("/internal/restore", restore)
+	mux.Handle("/internal/restore/", restore)
 	mux.Handle("/recovery/api/", recoveryAPI)
 	return mux
 }
@@ -250,6 +253,15 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 		Logger:  slog.Default(),
 	}
 
+	consoleRestore := &recovery.ConsoleHandler{
+		Engine: engine,
+		Source: func(ctx context.Context, repo string) (recovery.Source, error) {
+			return recovery.ConsoleSource(ctx, repo, cfg.BackupDir, cfg.BackupAllowedRoots, ops.Destinations)
+		},
+		Snapshots: recoveryAPI.Snapshots,
+		Logger:    slog.Default(),
+	}
+
 	// The listener starts before the database is touched: it needs only the
 	// filesystem, and it serves the recovery page whatever state the
 	// database is in.
@@ -258,7 +270,7 @@ func runWorker(ctx context.Context, cfg config.Config, args []string) error {
 	if err != nil {
 		return fmt.Errorf("worker: listen on %s: %w", cfg.WorkerHTTPAddr, err)
 	}
-	listener := &http.Server{Handler: workerMux(locator.InternalHandler(), recoveryAPI.Routes()), ReadHeaderTimeout: 5 * time.Second}
+	listener := &http.Server{Handler: workerMux(locator.InternalHandler(), consoleRestore.Routes(), recoveryAPI.Routes()), ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		if err := listener.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("worker: listener", "error", err)
