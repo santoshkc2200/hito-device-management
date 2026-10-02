@@ -14,7 +14,7 @@ export function baseConfig(overrides: Partial<apiClient.BackupConfig> = {}): api
     lastSuccessAt: minutesAgo(600),
     workerSeenAt: minutesAgo(1),
     local: { path: "/var/backups/hdms/repo", snapshotCount: 3, latestSizeBytes: 5_242_880 },
-    allowedRoots: ["/var/backups", "/mnt/nas"],
+    drivesDir: "/drives",
     recoveryKey: { status: "ready", createdAt: minutesAgo(10_000), confirmedAt: minutesAgo(9_990) },
     ...overrides,
   };

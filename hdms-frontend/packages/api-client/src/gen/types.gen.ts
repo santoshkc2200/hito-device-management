@@ -56,7 +56,14 @@ export type BackupConfig = {
     lastSuccessAt?: string;
     workerSeenAt?: string;
     local: BackupLocalRepo;
-    allowedRoots: Array<string>;
+    /**
+     * Folder in the worker holding one folder per drive (/drives). Empty when none is configured.
+     */
+    drivesDir: string;
+    /**
+     * Where drivesDir is on the server, for display. Absent when unknown.
+     */
+    drivesHostPath?: string;
     recoveryKey: BackupRecoveryKeyState;
 };
 
@@ -123,7 +130,15 @@ export type VerifyBackupsRequest = {
 export type BackupLocationRoot = {
     path: string;
     /**
-     * False when no drive is mounted there (same disk as the server).
+     * The drive's folder name, e.g. the USB volume label.
+     */
+    name: string;
+    /**
+     * Where the drive is on the server, for display. Absent when unknown.
+     */
+    hostPath?: string;
+    /**
+     * False when nothing is mounted there (same disk as the server).
      */
     connected: boolean;
 };

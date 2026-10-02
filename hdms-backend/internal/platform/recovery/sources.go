@@ -8,8 +8,8 @@ import (
 	"github.com/hito-hospital/hdms/internal/platform/backup"
 )
 
-// sourceSearchDepth: a share mounted at /mnt/nas usually holds the backups
-// one or two folders down (/mnt/nas/hdms-backups, /mnt/nas/it/hdms).
+// sourceSearchDepth: a drive usually holds the backups one or two folders
+// down (/drives/<nas>/hdms-backups, /drives/<nas>/it/hdms).
 const sourceSearchDepth = 2
 
 // DiscoverSources lists where a restore can read from: the server's own

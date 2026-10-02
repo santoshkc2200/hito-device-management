@@ -140,12 +140,12 @@ func (s *Server) backupConfig(r *http.Request) (gen.BackupConfig, error) {
 		return gen.BackupConfig{}, err
 	}
 	out := gen.BackupConfig{
-		Schedule:     mapSchedule(sched),
-		AllowedRoots: s.backupCfg.AllowedRoots,
-		Local:        gen.BackupLocalRepo{Path: backup.LocalRepo(s.backupCfg.BackupDir).Location},
+		Schedule:  mapSchedule(sched),
+		DrivesDir: s.backupCfg.DrivesDir,
+		Local:     gen.BackupLocalRepo{Path: backup.LocalRepo(s.backupCfg.BackupDir).Location},
 	}
-	if out.AllowedRoots == nil {
-		out.AllowedRoots = []string{}
+	if s.backupCfg.DrivesHostPath != "" {
+		out.DrivesHostPath = strPtr(s.backupCfg.DrivesHostPath)
 	}
 	if next, ok := sched.NextAfter(time.Now(), s.backupLoc()); ok {
 		out.NextRunAt = &next
@@ -427,7 +427,11 @@ func mapLocationListing(l backup.LocationListing) gen.BackupLocationListing {
 		Folders: make([]gen.BackupFolder, 0, len(l.Folders)),
 	}
 	for _, root := range l.Roots {
-		out.Roots = append(out.Roots, gen.BackupLocationRoot{Path: root.Path, Connected: root.Connected})
+		r := gen.BackupLocationRoot{Path: root.Path, Name: root.Name, Connected: root.Connected}
+		if root.HostPath != "" {
+			r.HostPath = strPtr(root.HostPath)
+		}
+		out.Roots = append(out.Roots, r)
 	}
 	for _, f := range l.Folders {
 		out.Folders = append(out.Folders, gen.BackupFolder{Name: f.Name, Path: f.Path, HasBackup: f.HasBackup})
