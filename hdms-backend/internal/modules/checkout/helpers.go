@@ -40,7 +40,7 @@ func borrowTargets(session checkoutstore.ScanSession, in machine.Input) (deviceI
 // race (executeConcurrentBorrowLoss).
 func rejectTargetFor(session checkoutstore.ScanSession, in machine.Input) (machine.SessionState, bool) {
 	if in.Kind == machine.KindUser {
-		return machine.Idle, true
+		return machine.Ready, true
 	}
 	return machine.SessionState(session.State), false
 }

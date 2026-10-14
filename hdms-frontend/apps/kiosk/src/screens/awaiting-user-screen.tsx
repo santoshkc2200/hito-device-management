@@ -3,8 +3,9 @@ import type { SessionDevice } from "@hdms/api-client";
 import { Button } from "@/components/ui/button";
 import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
+import { FinishButton, type FinishButtonProps } from "@/components/finish-button";
 
-export interface AwaitingUserScreenProps {
+export interface AwaitingUserScreenProps extends FinishButtonProps {
   pendingDevice: SessionDevice | null;
   expiresAt: string | null;
   kioskName?: string;
@@ -25,6 +26,8 @@ export function AwaitingUserScreen({
   scannerReady = true,
   scannerFresh = true,
   onCancel,
+  onFinish,
+  isFinishing,
   onToggleCamera,
   onOpenDiagnostics,
   onOpenManualEntry,
@@ -125,7 +128,8 @@ export function AwaitingUserScreen({
         )}
 
         {/* Cancellation and Primary Action Row */}
-        <div className="w-full pt-4">
+        <div className="w-full space-y-3 pt-4">
+          <FinishButton onFinish={onFinish} isFinishing={isFinishing} />
           <Button
             type="button"
             variant="outline"

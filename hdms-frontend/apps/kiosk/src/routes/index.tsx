@@ -10,6 +10,7 @@ import { BlockedScreen } from "@/screens/blocked-screen";
 import { OfflineScreen } from "@/screens/offline-screen";
 import { PairingScreen } from "@/screens/pairing-screen";
 import { MaintenanceScreen } from "@/screens/maintenance-screen";
+import { SessionSummaryScreen } from "@/screens/session-summary-screen";
 import { CameraOverlay } from "@/components/camera-overlay";
 import { DiagnosticsModal } from "@/components/diagnostics-modal";
 import { AttendantModal } from "@/components/attendant-modal";
@@ -54,20 +55,28 @@ export function KioskApp() {
     returnLoan,
     close,
     cancel,
+    transactions,
+    sessionUser,
+    finish,
+    isFinished,
+    isFinishing,
   } = useKioskSession();
 
   const underMaintenance = useMaintenance();
+  const finishProps = { onFinish: () => void finish(), isFinishing };
 
   // Re-anchoring the provider on every return to idle is the reset: whatever
   // language the last person selected is discarded with their session.
   const [localeEpoch, setLocaleEpoch] = React.useState(0);
   const previousState = React.useRef(state);
+  const previousReview = React.useRef(isFinished);
   React.useEffect(() => {
-    if (previousState.current !== "idle" && state === "idle") {
+    if (state === "idle" && !isFinishing && !isFinished && (previousState.current !== "idle" || previousReview.current)) {
       setLocaleEpoch((n) => n + 1);
     }
     previousState.current = state;
-  }, [state]);
+    previousReview.current = isFinished;
+  }, [state, isFinishing, isFinished]);
 
   const config = getKioskConfig();
   const defaultLocale = config?.defaultLocale ?? DEFAULT_LOCALE;
@@ -117,8 +126,11 @@ export function KioskApp() {
           supportCode={context.supportCode}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
         />
+      ) : isFinished ? (
+        <SessionSummaryScreen transactions={transactions} user={sessionUser} kioskName={kioskName} onClose={() => void close()} />
       ) : isOffline ? (
         <OfflineScreen
+          {...(transactions.length > 0 || context.user ? finishProps : {})}
           kioskName={kioskName}
           supportCode={context.supportCode}
           onToggleCamera={openCameraFallback}
@@ -128,6 +140,7 @@ export function KioskApp() {
       ) : outcomeView.type === "success" && outcomeView.outcome ? (
         /* 2. Success Outcome Screen */
         <SuccessScreen
+          {...finishProps}
           kind={outcomeView.outcome.kind}
           device={outcomeView.outcome.device ?? context.pendingDevice}
           dueAt={outcomeView.outcome.dueAt}
@@ -149,6 +162,7 @@ export function KioskApp() {
       ) : outcomeView.type === "blocked" ? (
         /* 3. Blocked / Refusal Outcome Screen */
         <BlockedScreen
+          {...finishProps}
           message={outcomeView.message}
           problem={outcomeView.problem}
           onDismiss={dismissOutcome}
@@ -165,6 +179,7 @@ export function KioskApp() {
         <>
           {state === "idle" && (
             <IdleScreen
+              {...(transactions.length > 0 ? finishProps : {})}
               kioskName={kioskName}
               supportCode={context.supportCode}
               scannerReady={scannerReady}
@@ -179,6 +194,7 @@ export function KioskApp() {
 
           {state === "awaiting_user" && (
             <AwaitingUserScreen
+              {...finishProps}
               kioskName={kioskName}
               supportCode={context.supportCode}
               scannerReady={scannerReady}
@@ -194,6 +210,7 @@ export function KioskApp() {
 
           {(state === "awaiting_device" || state === "ready") && (
             <AwaitingDeviceScreen
+              {...finishProps}
               kioskName={kioskName}
               supportCode={context.supportCode}
               scannerReady={scannerReady}

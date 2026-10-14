@@ -166,6 +166,9 @@ func TestConcurrentBorrowReturnsHolderInMessage(t *testing.T) {
 	}
 
 	// The message must mention the winner
+	if loserResult.Outcome.Device == nil || loserResult.Outcome.Device.ID != deviceID {
+		t.Fatalf("concurrent borrow refusal must identify the attempted device: %+v", loserResult.Outcome)
+	}
 	combinedMsg := loserResult.Message.Title + " " + loserResult.Message.Detail
 	if !strings.Contains(combinedMsg, winningUserName) {
 		t.Errorf("loser message %q does not contain winner name %q", combinedMsg, winningUserName)

@@ -105,7 +105,7 @@ func (s *Service) executeBorrow(
 							Detail: "You have overdue items that must be returned before borrowing new equipment.",
 							Tone:   checkoutapi.ToneWarning,
 						}
-						return checkoutapi.Outcome{Kind: checkoutapi.OutcomeRejected}, msg, newSession, nil
+						return s.rejectedOutcome(ctx, deviceID), msg, newSession, nil
 					}
 				}
 			}
@@ -241,7 +241,7 @@ func (s *Service) executeConcurrentBorrowLoss(
 	}
 	observability.ObserveTransaction("borrow", params.Source, "rejected")
 	msg := s.renderMessage(ctx, reject, map[string]any{"borrowedAt": existing.BorrowedAt})
-	return checkoutapi.Outcome{Kind: checkoutapi.OutcomeRejected}, msg, newSession, nil
+	return s.rejectedOutcome(ctx, existing.DeviceID), msg, newSession, nil
 }
 
 // executeReturn closes the loan on the target device, sets it available,
@@ -387,7 +387,27 @@ func (s *Service) executeRejectOrNoop(
 		return checkoutapi.Outcome{}, checkoutapi.Message{}, checkoutstore.ScanSession{}, err
 	}
 	msg := s.renderMessage(ctx, decision, nil)
-	return checkoutapi.Outcome{Kind: kind}, msg, newSession, nil
+	outcome := checkoutapi.Outcome{Kind: kind}
+	if kind == checkoutapi.OutcomeRejected {
+		deviceID := in.DeviceID
+		if deviceID == "" && in.Kind == machine.KindUser && decision.NextState == machine.Ready {
+			deviceID = pgtypeconv.UUIDString(session.PendingDevice)
+		}
+		outcome = s.rejectedOutcome(ctx, deviceID)
+	}
+	return outcome, msg, newSession, nil
+}
+
+// Every known-device refusal carries its identity into the session summary,
+// including policy refusals and the losing side of a concurrent borrow.
+func (s *Service) rejectedOutcome(ctx context.Context, deviceID string) checkoutapi.Outcome {
+	outcome := checkoutapi.Outcome{Kind: checkoutapi.OutcomeRejected}
+	if deviceID != "" {
+		if device, err := s.deps.Devices.LookupDevice(ctx, deviceID); err == nil {
+			outcome.Device = &checkoutapi.DeviceView{ID: device.ID, AssetTag: device.AssetTag, Name: device.Name}
+		}
+	}
+	return outcome
 }
 
 func (s *Service) executeExpire(ctx context.Context, q *checkoutstore.Queries, session checkoutstore.ScanSession) (checkoutapi.Outcome, checkoutapi.Message, checkoutstore.ScanSession, error) {
@@ -411,7 +431,8 @@ func (s *Service) persistSession(
 ) (checkoutstore.ScanSession, error) {
 	newUserID := session.UserID
 	if decision.Action == machine.ActionSetUser ||
-		((decision.Action == machine.ActionBorrow || decision.Action == machine.ActionReturn) && in.Kind == machine.KindUser) {
+		(in.Kind == machine.KindUser && decision.NextState == machine.Ready &&
+			(decision.Action == machine.ActionBorrow || decision.Action == machine.ActionReturn || decision.Action == machine.ActionReject)) {
 		uid, err := pgtypeconv.UUID(in.UserID)
 		if err != nil {
 			return checkoutstore.ScanSession{}, fmt.Errorf("checkout: invalid resolved user id: %w", err)

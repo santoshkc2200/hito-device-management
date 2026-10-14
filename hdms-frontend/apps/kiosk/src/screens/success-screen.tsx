@@ -14,6 +14,8 @@ export interface SuccessScreenProps {
   dueAt?: string | null;
   itemCount?: number;
   onDone: () => void;
+  onFinish?: () => void;
+  isFinishing?: boolean;
   onScanAnother?: () => void;
   kioskName?: string;
   supportCode?: string | null;
@@ -34,6 +36,8 @@ export function SuccessScreen({
   dueAt,
   itemCount = 1,
   onDone,
+  onFinish,
+  isFinishing = false,
   onScanAnother,
   kioskName = "HDMS Kiosk",
   supportCode = "KIOSK-01",
@@ -229,9 +233,10 @@ export function SuccessScreen({
               size="lg"
               data-testid="done-success-button"
               className="min-h-16 flex-1 text-xl font-bold bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
-              onClick={onDone}
+              onClick={onFinish ?? onDone}
+              disabled={isFinishing}
             >
-              {t("common.done")}
+              {t(isFinishing ? "summary.finishing" : onFinish ? "common.finish" : "common.done")}
             </Button>
           </div>
         </div>

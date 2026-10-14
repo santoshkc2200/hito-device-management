@@ -17,8 +17,27 @@ holds:
 
 The insight that collapses all the branching: **a session has at most one user
 but a stream of devices.** Once the user is known, every subsequent device scan
-resolves immediately against them. If a device arrives first, it waits in
-`pendingDevice` for exactly one user scan, then resolves.
+resolves immediately against them. The first valid user stays identified until
+the session ends; additional resolved user cards do not switch users.
+
+The server keeps the latest device in `pendingDevice`. The kiosk also retains an
+ordered list of every device scanned before identification. The valid user scan
+resolves the latest pending device; the kiosk submits the remaining devices
+sequentially against that same user. Each outcome updates its original row, so
+the final summary follows scan order. Barcodes and QR codes use this same flow.
+
+The kiosk retains successful transactions, refusals, unreadable codes, and request
+failures. **Finish** stops accepting scans, waits for accepted work, and displays
+an itemized summary with Borrowed, Returned, or Failed and the failure reason.
+Devices still awaiting a user become Failed without performing a transaction.
+**Close session** clears the summary and prepares the kiosk for the next user.
+Finish reviews transactions that already happened; it does not defer checkout.
+
+If recovery finds a user identified while saved pending devices have no confirmed
+result, those rows display an unconfirmed-result failure and direct the borrower
+to an attendant. They are never blindly rescanned, because a fresh device scan
+could reverse a transaction that committed before its response was lost. An
+expired or invalid saved session discards its local ledger before another starts.
 
 That single asymmetry handles every ordering the requirement describes, plus
 multi-item borrowing, with one machine.
@@ -30,8 +49,8 @@ multi-item borrowing, with one machine.
 | `idle` | Nothing scanned. Waiting. | "Scan your card or a device" |
 | `awaiting_user` | A device was scanned first. Needs a user. | "Device: Dell Latitude 5420 — now scan your ID card" |
 | `awaiting_device` | A user was scanned first. Needs a device. | "Hello Dr. Sharma — scan a device" |
-| `ready` | A transaction just completed; user still identified, ready for more | "✓ Borrowed. Scan another device or tap Done" |
-| `completed` | Session closed by the user tapping Done | Thank-you, auto-returns to `idle` |
+| `ready` | A transaction just completed; user still identified, ready for more | "✓ Borrowed. Scan another device or tap Finish" |
+| `completed` | Session closed after reviewing the Finish summary | Returns to `idle` |
 | `expired` | Inactivity timeout | Returns to `idle` |
 | `cancelled` | Explicitly cancelled | Returns to `idle` |
 
@@ -57,13 +76,13 @@ multi-item borrowing, with one machine.
 |---|---|---|---|
 | User | active **and** pending device is `available` | **BORROW** | `ready` |
 | User | active **and** pending device is on loan **to this user** | **RETURN** | `ready` |
-| User | active **and** pending device is on loan **to someone else** | Reject: "Held by Dr. Karki since 14 Aug. Please see the desk." Clear pending. | `idle` |
+| User | active **and** pending device is on loan **to someone else** | Reject: "Held by Dr. Karki since 14 Aug. Please see the desk." Clear pending; retain identified user. | `ready` |
 | User | active **and** pending device is reserved **for this user** | **COLLECT** — an ordinary borrow; the reservation is marked collected | `ready` |
-| User | active **and** pending device is reserved **for someone else** | Reject: "Reserved for Dr. X from 14:00." Clear pending. | `idle` |
-| User | suspended | Reject; clear pending | `idle` |
-| Device | a *different* device | Replace `pendingDevice` with the new one (assume mis-scan / changed mind) | `awaiting_user` |
+| User | active **and** pending device is reserved **for someone else** | Reject: "Reserved for Dr. X from 14:00." Clear pending; retain identified user. | `ready` |
+| User | suspended / archived | Reject; retain pending devices for a valid card | `awaiting_user` |
+| Device | a *different* device | Replace server `pendingDevice`; retain both devices in the kiosk's ordered list | `awaiting_user` |
 | Device | the *same* device within 3 s | Ignore as duplicate trigger | `awaiting_user` |
-| Unbound / unknown / revoked token | — | Reject with the same guidance as from `idle`; the pending device is released | `idle` |
+| Unbound / unknown / revoked token | — | Reject with the same guidance as from `idle`; retain pending devices | `awaiting_user` |
 | Timeout | 45 s | Discard | `expired` → `idle` |
 
 ### From `awaiting_device` / `ready` (user is known)
@@ -79,8 +98,9 @@ multi-item borrowing, with one machine.
 | Device | reserved, window **not** in force and no pre-window entered | Unchanged — an ordinary walk-up borrow | `ready` |
 | Device | same device within 3 s | Ignore as duplicate trigger | unchanged |
 | User | the *same* user | Ignore | unchanged |
-| User | a *different* active user | Close the current session, open a new one with that user | `awaiting_device` |
-| Tap "Done" | — | Close | `completed` → `idle` |
+| User | a *different* resolved user, including inactive users | Ignore; retain the first user | unchanged |
+| Tap "Finish" | — | Stop scans; show all results after accepted requests finish | Summary |
+| Tap "Close session" | After Finish | Close and clear local results | `completed` → `idle` |
 | Timeout | 25 s after last activity | Close | `expired` → `idle` |
 
 ### Reservations (Phase 6.4)
@@ -332,12 +352,12 @@ Phase 2 must cover every cell. Written as a table-driven Go test over
 | device same as pending, <3 s | dup | dup | dup | dup |
 | device reserved → session user | hold | replace pending | collect (borrow) | collect (borrow) |
 | device reserved → other user | hold | replace pending | reject | reject |
-| user active | set user | resolve pending | switch user | switch user |
-| user suspended | reject | reject | reject | reject |
-| user archived | reject | reject | reject | reject |
-| unbound card | reject+guide | reject+guide, release | reject+guide | reject+guide |
-| unknown token | reject+guide+log | reject+guide+log, release | reject+guide+log | reject+guide+log |
-| revoked credential | reject+log | reject+log, release | reject+log | reject+log |
+| user active | set user | resolve pending | ignore card | ignore card |
+| user suspended | reject | reject, retain pending | ignore card | ignore card |
+| user archived | reject | reject, retain pending | ignore card | ignore card |
+| unbound card | reject+guide | reject+guide, retain pending | reject+guide | reject+guide |
+| unknown token | reject+guide+log | reject+guide+log, retain pending | reject+guide+log | reject+guide+log |
+| revoked credential | reject+log | reject+log, retain pending | reject+log | reject+log |
 | timeout | — | expire | expire | expire |
 
 Plus concurrency cases, which must be integration tests against real Postgres:

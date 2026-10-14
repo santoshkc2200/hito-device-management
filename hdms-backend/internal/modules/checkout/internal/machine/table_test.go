@@ -51,11 +51,11 @@ func TestMatrix(t *testing.T) {
 		{AwaitingUser, ClassDeviceOnLoanOtherUser, ActionReplacePending, AwaitingUser},
 		{AwaitingUser, ClassDeviceUnavailable, ActionReject, AwaitingUser},
 		{AwaitingUser, ClassDeviceDuplicate, ActionDuplicate, AwaitingUser},
-		{AwaitingUser, ClassUserSuspended, ActionReject, Idle},
-		{AwaitingUser, ClassUserArchived, ActionReject, Idle},
-		{AwaitingUser, ClassUnbound, ActionReject, Idle},
-		{AwaitingUser, ClassUnknown, ActionReject, Idle},
-		{AwaitingUser, ClassRevoked, ActionReject, Idle},
+		{AwaitingUser, ClassUserSuspended, ActionReject, AwaitingUser},
+		{AwaitingUser, ClassUserArchived, ActionReject, AwaitingUser},
+		{AwaitingUser, ClassUnbound, ActionReject, AwaitingUser},
+		{AwaitingUser, ClassUnknown, ActionReject, AwaitingUser},
+		{AwaitingUser, ClassRevoked, ActionReject, AwaitingUser},
 		{AwaitingUser, ClassTimeout, ActionExpire, Idle},
 
 		// awaiting_device and ready share rules
@@ -64,10 +64,10 @@ func TestMatrix(t *testing.T) {
 		{AwaitingDevice, ClassDeviceOnLoanOtherUser, ActionReject, AwaitingDevice},
 		{AwaitingDevice, ClassDeviceUnavailable, ActionReject, AwaitingDevice},
 		{AwaitingDevice, ClassDeviceDuplicate, ActionDuplicate, AwaitingDevice},
-		{AwaitingDevice, ClassUserActive, ActionSwitchUser, AwaitingDevice},
+		{AwaitingDevice, ClassUserActive, ActionNone, AwaitingDevice},
 		{AwaitingDevice, ClassUserSame, ActionNone, AwaitingDevice},
-		{AwaitingDevice, ClassUserSuspended, ActionReject, AwaitingDevice},
-		{AwaitingDevice, ClassUserArchived, ActionReject, AwaitingDevice},
+		{AwaitingDevice, ClassUserSuspended, ActionNone, AwaitingDevice},
+		{AwaitingDevice, ClassUserArchived, ActionNone, AwaitingDevice},
 		{AwaitingDevice, ClassUnbound, ActionReject, AwaitingDevice},
 		{AwaitingDevice, ClassUnknown, ActionReject, AwaitingDevice},
 		{AwaitingDevice, ClassRevoked, ActionReject, AwaitingDevice},
@@ -78,10 +78,10 @@ func TestMatrix(t *testing.T) {
 		{Ready, ClassDeviceOnLoanOtherUser, ActionReject, Ready},
 		{Ready, ClassDeviceUnavailable, ActionReject, Ready},
 		{Ready, ClassDeviceDuplicate, ActionDuplicate, Ready},
-		{Ready, ClassUserActive, ActionSwitchUser, AwaitingDevice},
+		{Ready, ClassUserActive, ActionNone, Ready},
 		{Ready, ClassUserSame, ActionNone, Ready},
-		{Ready, ClassUserSuspended, ActionReject, Ready},
-		{Ready, ClassUserArchived, ActionReject, Ready},
+		{Ready, ClassUserSuspended, ActionNone, Ready},
+		{Ready, ClassUserArchived, ActionNone, Ready},
 		{Ready, ClassUnbound, ActionReject, Ready},
 		{Ready, ClassUnknown, ActionReject, Ready},
 		{Ready, ClassRevoked, ActionReject, Ready},
@@ -105,15 +105,15 @@ func TestMatrix(t *testing.T) {
 	}
 }
 
-func TestPendingDeviceReleasedOnRefusal(t *testing.T) {
+func TestPendingDeviceRetainedOnInvalidCard(t *testing.T) {
 	for _, class := range []InputClass{ClassUnbound, ClassUnknown, ClassRevoked, ClassUserSuspended, ClassUserArchived} {
 		t.Run(string(class), func(t *testing.T) {
 			d := Decide(AwaitingUser, Snapshot{PendingDeviceID: "dev-1"}, inputFor(class))
-			if d.NextState != Idle {
-				t.Errorf("NextState = %q, want idle", d.NextState)
+			if d.NextState != AwaitingUser {
+				t.Errorf("NextState = %q, want awaiting_user", d.NextState)
 			}
-			if !d.ClearPending {
-				t.Error("ClearPending = false, want true — a refusal from awaiting_user must release the pending device")
+			if d.ClearPending {
+				t.Error("invalid card must retain the pending device")
 			}
 		})
 	}
@@ -163,8 +163,8 @@ func TestResolvePendingAgainstUser(t *testing.T) {
 	t.Run("holder is someone else is a rejection", func(t *testing.T) {
 		d := Decide(AwaitingUser, Snapshot{PendingDeviceID: "dev-1", PendingDeviceStatus: "on_loan", PendingDeviceHolderID: "user-2"},
 			Input{Kind: KindUser, UserID: "user-1", UserStatus: "active"})
-		if d.Action != ActionReject || d.NextState != Idle || !d.ClearPending {
-			t.Errorf("Decision = %+v, want Action=reject NextState=idle ClearPending=true", d)
+		if d.Action != ActionReject || d.NextState != Ready || !d.ClearPending {
+			t.Errorf("Decision = %+v, want Action=reject NextState=ready ClearPending=true", d)
 		}
 		if d.MessageKey != MsgDeviceHeldByOther {
 			t.Errorf("MessageKey = %q, want %q", d.MessageKey, MsgDeviceHeldByOther)

@@ -60,7 +60,7 @@ const (
 func (c InputClass) String() string { return string(c) }
 
 // Version is bumped whenever the machine table definition or timeouts change.
-const Version = "1.1.0"
+const Version = "1.2.0"
 
 // Timeout constants (docs/04 Timeouts table) for the machine and kiosk countdown timers.
 // IdleTimeoutMs is not part of that table (idle has no on-screen countdown);

@@ -1,8 +1,9 @@
 import { BookOpen, RefreshCw, WifiOff } from "lucide-react";
 import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
+import { FinishButton, type FinishButtonProps } from "@/components/finish-button";
 
-export interface OfflineScreenProps {
+export interface OfflineScreenProps extends FinishButtonProps {
   kioskName?: string;
   supportCode?: string | null;
   onToggleCamera?: () => void;
@@ -16,6 +17,8 @@ export function OfflineScreen({
   onToggleCamera,
   onOpenDiagnostics,
   onOpenManualEntry,
+  onFinish,
+  isFinishing,
 }: OfflineScreenProps) {
   const t = useTranslator();
 
@@ -103,6 +106,7 @@ export function OfflineScreen({
           </div>
         </div>
 
+        {onFinish && <div className="w-full max-w-lg"><FinishButton onFinish={onFinish} isFinishing={isFinishing} /></div>}
         {/* Quiet footer notice */}
         <div className="w-full max-w-lg pt-2 text-xs text-muted-foreground">
           <p>{t("offline.reconnectingNotice")}</p>

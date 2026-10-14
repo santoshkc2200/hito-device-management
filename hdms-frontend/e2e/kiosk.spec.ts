@@ -275,7 +275,9 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     await simulateScan(page, dev3.token);
     await expect(page.getByTestId("success-screen")).toBeVisible({ timeout: 5_000 });
     await page.getByTestId("done-success-button").click();
-    await page.getByTestId("done-session-button").click();
+    await expect(page.getByTestId("session-summary-screen")).toBeVisible();
+    await expect(page.getByRole("listitem")).toHaveCount(3);
+    await page.getByTestId("close-session-button").click();
 
     // Returned to idle
     await expect(page.getByTestId("idle-prompt")).toBeVisible({ timeout: 5_000 });

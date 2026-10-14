@@ -8,11 +8,13 @@ patience.
 
 1. **Zero learning curve.** A borrower must succeed without instruction. There is
    no login, no menu, no mode to choose.
-2. **Zero taps in the normal path.** Two scans, auto-confirmed. Taps appear only
-   for exceptions and for returning an item without scanning it.
+2. **Scanning performs transactions automatically.** Scan the first valid user
+   card and any number of devices in either order, then tap Finish to review all
+   successful and failed attempts. Tap Close session after reviewing the results.
 3. **Readable from a metre away.** Counter-mounted iPad, person standing.
-4. **The screen must clear itself.** The next person must not see the last
-   person's name and loans.
+4. **Clear personal information at session boundaries.** An active session clears
+   on inactivity. The Finish summary stays visible until Close session clears it
+   for the next person.
 5. **Never show a browser error.** A blank white page or a Safari error page is a
    total failure of the product.
 6. **The kiosk only borrows and returns.** It cannot register a user, and its API
@@ -193,7 +195,7 @@ token or an asset tag / employee number. Every use is audited and counted.
 │   └─────────────────────────────────────────┘             │
 │                                                           │
 │            → Scan a device to borrow or return            │
-│                                    [ Done ]        ◔ 21s  │
+│                                  [ Finish ]        ◔ 21s  │
 └───────────────────────────────────────────────────────────┘
 
 ┌───────────────────────────────────────────────────────────┐
@@ -203,7 +205,7 @@ token or an asset tag / employee number. Every use is audited and counted.
 │           LAPTOP-07 · Dell Latitude 5420                  │
 │              Please return by tomorrow, 9:00              │
 │                                                           │
-│      Scan another device, or tap Done      [ Done ]       │
+│      Scan another device, or tap Finish    [ Finish ]     │
 └───────────────────────────────────────────────────────────┘
 
 ### Return by panel (borrow success)

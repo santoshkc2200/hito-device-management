@@ -201,11 +201,11 @@ func GenerateScenarios() []Scenario {
 			},
 			Expected: []ScenarioExpected{
 				{Action: ActionHoldDevice, State: AwaitingUser},
-				{Action: ActionReject, State: Idle},
+				{Action: ActionReject, State: Ready},
 			},
 		},
 		Scenario{
-			Name:         "6 — Unregistered person, device scanned first -> paper fallback",
+			Name:         "6 — Unregistered card leaves devices pending for a valid card",
 			InitialState: Idle,
 			Inputs: []ScenarioInput{
 				{Class: ClassDeviceAvailable, Kind: KindDevice, DeviceID: "PENDRIVE-11", DeviceStatus: "available"},
@@ -213,7 +213,7 @@ func GenerateScenarios() []Scenario {
 			},
 			Expected: []ScenarioExpected{
 				{Action: ActionHoldDevice, State: AwaitingUser},
-				{Action: ActionReject, State: Idle},
+				{Action: ActionReject, State: AwaitingUser},
 			},
 		},
 		Scenario{
@@ -286,7 +286,7 @@ func GenerateScenarios() []Scenario {
 							},
 						},
 						Expected: []ScenarioExpected{
-							{Action: ActionReject, State: Idle},
+							{Action: ActionReject, State: Ready},
 						},
 					},
 				)

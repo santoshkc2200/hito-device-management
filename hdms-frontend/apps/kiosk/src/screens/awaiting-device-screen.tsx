@@ -23,6 +23,8 @@ export interface AwaitingDeviceScreenProps {
   scannerFresh?: boolean;
   onReturnLoan: (loanId: string) => void;
   onClose: () => void;
+  onFinish?: () => void;
+  isFinishing?: boolean;
   onToggleCamera?: () => void;
   onOpenDiagnostics?: () => void;
   onOpenManualEntry?: () => void;
@@ -38,6 +40,8 @@ export function AwaitingDeviceScreen({
   scannerFresh = true,
   onReturnLoan,
   onClose,
+  onFinish,
+  isFinishing = false,
   onToggleCamera,
   onOpenDiagnostics,
   onOpenManualEntry,
@@ -281,9 +285,10 @@ export function AwaitingDeviceScreen({
             size="lg"
             data-testid="done-session-button"
             className="min-h-16 w-full text-xl font-bold bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
-            onClick={onClose}
+            onClick={onFinish ?? onClose}
+            disabled={isFinishing}
           >
-            {t("common.done")}
+            {t(isFinishing ? "summary.finishing" : onFinish ? "common.finish" : "common.done")}
           </Button>
         </div>
       </div>

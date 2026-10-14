@@ -3,8 +3,9 @@ import { IdCard, QrCode, ScanLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
+import { FinishButton, type FinishButtonProps } from "@/components/finish-button";
 
-export interface IdleScreenProps {
+export interface IdleScreenProps extends FinishButtonProps {
   kioskName?: string;
   supportCode?: string | null;
   scannerReady?: boolean;
@@ -23,6 +24,8 @@ export function IdleScreen({
   scannerFresh = true,
   isScanning = false,
   onStartScanning,
+  onFinish,
+  isFinishing,
   onStartCamera,
   onOpenDiagnostics,
   onOpenManualEntry,
@@ -139,6 +142,7 @@ export function IdleScreen({
           </div>
         </div>
 
+        {onFinish && <div className="w-full max-w-lg"><FinishButton onFinish={onFinish} isFinishing={isFinishing} /></div>}
         {/* Subtle Wake Hint if Scanner is Idle */}
         {!isScanning && !scannerFresh && scannerReady && (
           <div

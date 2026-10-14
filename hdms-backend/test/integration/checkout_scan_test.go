@@ -283,8 +283,11 @@ func TestScenario5_DeviceHeldBySomeoneElse_Rejected(t *testing.T) {
 	if r.Outcome.Kind != checkoutapi.OutcomeRejected {
 		t.Fatalf("outcome.Kind = %q, want rejected", r.Outcome.Kind)
 	}
-	if r.Session.State != checkoutapi.StateIdle || r.Session.PendingDevice != nil {
-		t.Fatalf("session after rejection = %+v, want idle with no pendingDevice", r.Session)
+	if r.Session.State != checkoutapi.StateReady || r.Session.PendingDevice != nil || r.Session.User == nil || r.Session.User.ID != otherUser {
+		t.Fatalf("session after rejection = %+v, want ready for identified user with no pendingDevice", r.Session)
+	}
+	if r.Outcome.Device == nil || r.Outcome.Device.ID != deviceID {
+		t.Fatalf("rejected outcome must name the attempted device: %+v", r.Outcome)
 	}
 	// docs/04 scenario 5 and FR-23: the message has to say who has it, from
 	// which department, and since when. The device is the *pending* one
@@ -301,7 +304,7 @@ func TestScenario5_DeviceHeldBySomeoneElse_Rejected(t *testing.T) {
 	}
 }
 
-func TestScenario6_UnknownToken_ReleasesPendingDevice(t *testing.T) {
+func TestScenario6_UnknownToken_RetainsPendingDevice(t *testing.T) {
 	pool := testdb.New(t)
 	svc := newScanCheckoutService(t, pool, clock.System{})
 	ctx := context.Background()
@@ -316,8 +319,8 @@ func TestScenario6_UnknownToken_ReleasesPendingDevice(t *testing.T) {
 	if r.Outcome.Kind != checkoutapi.OutcomeRejected {
 		t.Fatalf("outcome.Kind = %q, want rejected", r.Outcome.Kind)
 	}
-	if r.Session.State != checkoutapi.StateIdle || r.Session.PendingDevice != nil {
-		t.Fatalf("session after unknown token = %+v, want idle with pending device released", r.Session)
+	if r.Session.State != checkoutapi.StateAwaitingUser || r.Session.PendingDevice == nil || r.Session.PendingDevice.ID != deviceID {
+		t.Fatalf("session after unknown token = %+v, want awaiting_user with pending device retained", r.Session)
 	}
 
 	var status string

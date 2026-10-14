@@ -148,12 +148,12 @@
       },
       {
         "action": "reject",
-        "state": "idle"
+        "state": "ready"
       }
     ]
   },
   {
-    "name": "6 — Unregistered person, device scanned first -> paper fallback",
+    "name": "6 — Unregistered card leaves devices pending for a valid card",
     "initialState": "idle",
     "inputs": [
       {
@@ -174,7 +174,7 @@
       },
       {
         "action": "reject",
-        "state": "idle"
+        "state": "awaiting_user"
       }
     ]
   },
@@ -661,7 +661,7 @@
     "expected": [
       {
         "action": "reject",
-        "state": "idle"
+        "state": "ready"
       }
     ]
   },
@@ -723,7 +723,7 @@
     "expected": [
       {
         "action": "reject",
-        "state": "idle"
+        "state": "ready"
       }
     ]
   },
@@ -742,7 +742,7 @@
     "expected": [
       {
         "action": "reject",
-        "state": "idle"
+        "state": "awaiting_user"
       }
     ]
   },
@@ -761,7 +761,7 @@
     "expected": [
       {
         "action": "reject",
-        "state": "idle"
+        "state": "awaiting_user"
       }
     ]
   },
@@ -778,7 +778,7 @@
     "expected": [
       {
         "action": "reject",
-        "state": "idle"
+        "state": "awaiting_user"
       }
     ]
   },
@@ -795,7 +795,7 @@
     "expected": [
       {
         "action": "reject",
-        "state": "idle"
+        "state": "awaiting_user"
       }
     ]
   },
@@ -812,7 +812,7 @@
     "expected": [
       {
         "action": "reject",
-        "state": "idle"
+        "state": "awaiting_user"
       }
     ]
   },
@@ -979,7 +979,7 @@
     ],
     "expected": [
       {
-        "action": "switch_user",
+        "action": "none",
         "state": "awaiting_device"
       }
     ]
@@ -1015,7 +1015,7 @@
     ],
     "expected": [
       {
-        "action": "reject",
+        "action": "none",
         "state": "awaiting_device"
       }
     ]
@@ -1033,7 +1033,7 @@
     ],
     "expected": [
       {
-        "action": "reject",
+        "action": "none",
         "state": "awaiting_device"
       }
     ]
@@ -1248,8 +1248,8 @@
     ],
     "expected": [
       {
-        "action": "switch_user",
-        "state": "awaiting_device"
+        "action": "none",
+        "state": "ready"
       }
     ]
   },
@@ -1284,7 +1284,7 @@
     ],
     "expected": [
       {
-        "action": "reject",
+        "action": "none",
         "state": "ready"
       }
     ]
@@ -1302,7 +1302,7 @@
     ],
     "expected": [
       {
-        "action": "reject",
+        "action": "none",
         "state": "ready"
       }
     ]

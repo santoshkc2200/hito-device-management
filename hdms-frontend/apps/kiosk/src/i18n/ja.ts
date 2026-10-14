@@ -2,6 +2,7 @@ import type { KioskCatalogue } from "./en";
 
 export const ja: KioskCatalogue = {
   common: {
+    finish: "終了",
     kioskName: "HDMS Kiosk",
     hospitalSystem: "病院機器管理システム",
     kioskApplianceSetup: "キオスク端末セットアップ",
@@ -17,6 +18,23 @@ export const ja: KioskCatalogue = {
     incidentCode: "インシデント: {code}",
     close: "閉じる",
     unlock: "ロック解除",
+  },
+  summary: {
+    title: "取引結果",
+    counts: "{total}件 · 成功 {successful}件 · 失敗 {failed}件",
+    transactions: "このセッションの取引",
+    item: "項目 {number}",
+    borrowed: "貸出完了",
+    returned: "返却完了",
+    failed: "失敗",
+    pending: "処理待ち",
+    finishing: "処理中…",
+    userRequired: "利用者が確認できなかったため、この機器の取引は実行されませんでした。",
+    unconfirmed: "取引結果を確認できませんでした。再スキャンする前に担当者に機器の状態を確認してください。",
+    sessionExpired: "取引の完了前にセッションの有効期限が切れました。",
+    failureUnknown: "取引を完了できませんでした。",
+    empty: "このセッションには機器の取引がありません。",
+    closeSession: "セッションを閉じる",
   },
   header: {
     scannerReady: "スキャナー準備完了",

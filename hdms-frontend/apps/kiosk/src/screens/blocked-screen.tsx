@@ -7,8 +7,9 @@ import { useLocale } from "@hdms/i18n";
 import { useTranslator } from "@/i18n";
 import { renderSessionMessage } from "@/lib/session-message";
 import { ScreenFrame } from "./screen-frame";
+import { FinishButton, type FinishButtonProps } from "@/components/finish-button";
 
-export interface BlockedScreenProps {
+export interface BlockedScreenProps extends FinishButtonProps {
   message?: SessionMessage | null;
   problem?: KioskProblem | null;
   onDismiss: () => void;
@@ -25,6 +26,8 @@ export function BlockedScreen({
   message,
   problem,
   onDismiss,
+  onFinish,
+  isFinishing,
   kioskName = "HDMS Kiosk",
   supportCode = "KIOSK-01",
   scannerReady = true,
@@ -162,6 +165,7 @@ export function BlockedScreen({
           >
             {t("common.ok")}
           </Button>
+          <FinishButton onFinish={onFinish} isFinishing={isFinishing} />
         </div>
       </div>
     </ScreenFrame>

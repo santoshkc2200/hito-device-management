@@ -141,7 +141,7 @@ func resolvePendingAgainstUser() Rule {
 					}
 				}
 				return Decision{
-					Action: ActionReject, NextState: Idle, ClearPending: true,
+					Action: ActionReject, NextState: Ready, ClearPending: true,
 					MessageKey: MsgDeviceReserved, MessageArgs: args,
 				}
 			}
@@ -151,7 +151,7 @@ func resolvePendingAgainstUser() Rule {
 			case ActionReturn:
 				return Decision{Action: ActionReturn, NextState: Ready, ClearPending: true, MessageKey: MsgReturned, MessageArgs: args}
 			default: // ActionReject: pending device is held by someone else
-				return Decision{Action: ActionReject, NextState: Idle, ClearPending: true, MessageKey: MsgDeviceHeldByOther, MessageArgs: args}
+				return Decision{Action: ActionReject, NextState: Ready, ClearPending: true, MessageKey: MsgDeviceHeldByOther, MessageArgs: args}
 			}
 		},
 	}
@@ -162,6 +162,16 @@ func resolvePendingAgainstUser() Rule {
 // together throughout). self is the state a "no state change" cell
 // resolves to: each caller passes its own SessionState so "unchanged"
 // means what it says for that state specifically.
+// Once identified, a session belongs to that user until it ends. Additional
+// resolved cards are ignored, including cards belonging to inactive users.
+func ignoreUser(self SessionState) Rule {
+	return Rule{Action: ActionNone, Target: self, decide: func(snap Snapshot, in Input) Decision {
+		args := baseArgs(snap, in)
+		args["userId"] = snap.UserID
+		return Decision{Action: ActionNone, NextState: self, MessageKey: MsgUserIdentified, MessageArgs: args}
+	}}
+}
+
 func liveUserRules(self SessionState) map[InputClass]Rule {
 	return map[InputClass]Rule{
 		ClassDeviceAvailable:       static(ActionBorrow, Ready, false, MsgBorrowed),
@@ -173,10 +183,10 @@ func liveUserRules(self SessionState) map[InputClass]Rule {
 		// the reason and the time, never a bare "unavailable".
 		ClassDeviceReservedBySelf:  collectReservation(self),
 		ClassDeviceReservedByOther: static(ActionReject, self, false, MsgDeviceReserved),
-		ClassUserActive:            static(ActionSwitchUser, AwaitingDevice, false, MsgUserIdentified),
-		ClassUserSame:              static(ActionNone, self, false, MsgUserIdentified),
-		ClassUserSuspended:         static(ActionReject, self, false, MsgUserSuspended),
-		ClassUserArchived:          static(ActionReject, self, false, MsgUserArchived),
+		ClassUserActive:            ignoreUser(self),
+		ClassUserSame:              ignoreUser(self),
+		ClassUserSuspended:         ignoreUser(self),
+		ClassUserArchived:          ignoreUser(self),
 		ClassUnbound:               static(ActionReject, self, false, MsgUnbound),
 		ClassUnknown:               static(ActionReject, self, false, MsgUnknown),
 		ClassRevoked:               static(ActionReject, self, false, MsgRevoked),
@@ -248,12 +258,12 @@ var table = map[SessionState]map[InputClass]Rule{
 		ClassUserActive: resolvePendingAgainstUser(),
 		// Unreachable: awaiting_user has no session user yet either.
 		ClassUserSame:      resolvePendingAgainstUser(),
-		ClassUserSuspended: static(ActionReject, Idle, true, MsgUserSuspended),
-		ClassUserArchived:  static(ActionReject, Idle, true, MsgUserArchived),
-		// Unbound/unknown/revoked release the pending device.
-		ClassUnbound: static(ActionReject, Idle, true, MsgUnbound),
-		ClassUnknown: static(ActionReject, Idle, true, MsgUnknown),
-		ClassRevoked: static(ActionReject, Idle, true, MsgRevoked),
+		ClassUserSuspended: static(ActionReject, AwaitingUser, false, MsgUserSuspended),
+		ClassUserArchived:  static(ActionReject, AwaitingUser, false, MsgUserArchived),
+		// A failed card leaves pending devices available for the next valid card.
+		ClassUnbound: static(ActionReject, AwaitingUser, false, MsgUnbound),
+		ClassUnknown: static(ActionReject, AwaitingUser, false, MsgUnknown),
+		ClassRevoked: static(ActionReject, AwaitingUser, false, MsgRevoked),
 		ClassTimeout: static(ActionExpire, Idle, true, MsgExpired), // 45s
 	},
 

@@ -380,6 +380,9 @@ func TestPolicyChangeTakesEffectOnNextCheckoutWithoutRestart(t *testing.T) {
 	if scan4.Outcome.Kind != checkoutapi.OutcomeRejected {
 		t.Fatalf("scan dev2 outcome = %s, want rejected (when blockOnOverdue=true and user has overdue loan)", scan4.Outcome.Kind)
 	}
+	if scan4.Outcome.Device == nil || scan4.Outcome.Device.ID != dev2.ID {
+		t.Fatalf("overdue refusal must identify the attempted device: %+v", scan4.Outcome)
+	}
 }
 
 // TestKioskManagementLifecycle tests 4.10b kiosk endpoints:

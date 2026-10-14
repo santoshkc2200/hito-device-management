@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useSyncExternalStore } from "react";
 import { createActor } from "xstate";
-import type { ScanSource, Outcome, SessionMessage } from "@hdms/api-client";
+import type { ScanSource, Outcome, SessionMessage, SessionUser, Session } from "@hdms/api-client";
 import { CameraSource } from "@hdms/scan";
 import type { SessionState } from "@hdms/domain";
 import {
@@ -16,13 +16,14 @@ import {
   type SetDueDateResult,
 } from "./session-machine";
 import { getKioskConfig, getSessionId, clearSessionId } from "../lib/kiosk-config";
-import { parseProblem, type KioskProblem } from "../lib/problem";
+import { parseProblem, fromProblemJson, type KioskProblem } from "../lib/problem";
 import { useScanRouter } from "../lib/scan";
 import { playFeedbackSound } from "../lib/audio";
 import { getOutcomeFeedback, outcomeSoundKey } from "../lib/feedback-config";
 import { useConnectivity, onKioskReconnect, resetConnectivityForTesting } from "../lib/connectivity";
 import { abortActiveSessionRequests, resetScanSequence } from "../lib/api";
 import { isUnderMaintenance, subscribeMaintenance } from "@hdms/ui";
+import { restoreTransactions, saveTransactions, type SessionTransaction, type PendingScan } from "../lib/session-transactions";
 
 export interface UseKioskSessionOptions {
   actor?: SessionMachineActor;
@@ -81,9 +82,69 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const [isOutcomeDismissed, setIsOutcomeDismissed] = React.useState(false);
   const [isScanning, setIsScanning] = React.useState(false);
   const isScanningRef = React.useRef(false);
+  const [saved] = React.useState(() => restoreTransactions(getSessionId()));
+  const [transactions, setTransactions] = React.useState(saved.transactions);
+  const transactionsRef = React.useRef(saved.transactions);
+  const pendingRef = React.useRef<PendingScan[]>(saved.pending);
+  const nextRowId = React.useRef(Math.max(0, ...saved.transactions.map((row) => row.id)) + 1);
+  const queueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const generationRef = React.useRef(0);
+  const serverSessionIdRef = React.useRef(getSessionId());
+  const finishingRef = React.useRef(false);
+  const [isFinishing, setIsFinishing] = React.useState(false);
+  const [isFinished, setIsFinished] = React.useState(false);
+  const [sessionUser, setSessionUser] = React.useState<SessionUser | null>(null);
+
+  const updateTransactions = React.useCallback((update: (rows: SessionTransaction[]) => SessionTransaction[]) => {
+    transactionsRef.current = update(transactionsRef.current);
+    setTransactions(transactionsRef.current);
+    saveTransactions(actor.getSnapshot().context.sessionId, transactionsRef.current, pendingRef.current);
+  }, [actor]);
+
+  const clearTransactions = React.useCallback(() => {
+    generationRef.current += 1;
+    serverSessionIdRef.current = null;
+    pendingRef.current = [];
+    finishingRef.current = false;
+    setIsFinished(false);
+    setIsFinishing(false);
+    setSessionUser(null);
+    updateTransactions(() => []);
+    saveTransactions(null, [], []);
+  }, [updateTransactions]);
+
+  const markPendingUnconfirmed = React.useCallback(() => {
+    // A resumed session may have committed the last card/device request.
+    // A fresh scan toggles custody, so never replay an uncertain operation.
+    pendingRef.current = [];
+    updateTransactions((rows) => rows.map((row) => row.status === "pending" ? { ...row, status: "failed", failureReason: "result-unconfirmed" } : row));
+  }, [updateTransactions]);
+
+  const reconcileSession = React.useCallback((session: Session | null) => {
+    if (session) {
+      serverSessionIdRef.current = session.id;
+      setSessionUser(session.user ?? null);
+      actor.send({ type: "RESTORE_SESSION", session });
+      if (session.user && pendingRef.current.length) markPendingUnconfirmed();
+    } else {
+      actor.send({ type: "RESET" });
+      clearTransactions();
+    }
+  }, [actor, markPendingUnconfirmed, clearTransactions]);
+
+  const resumeSession = React.useCallback((sessionId: string) => {
+    const generation = generationRef.current;
+    const task = queueRef.current.then(async () => {
+      if (generation !== generationRef.current || finishingRef.current) return;
+      const session = await executeResume({ sessionId });
+      if (generation === generationRef.current && !finishingRef.current) reconcileSession(session);
+    });
+    queueRef.current = task.catch(() => {});
+    return task;
+  }, [reconcileSession]);
 
   const startScanning = React.useCallback(async () => {
-    if (isScanningRef.current) return;
+    if (isScanningRef.current || finishingRef.current) return;
 
     isScanningRef.current = true;
     setIsScanning(true);
@@ -111,21 +172,23 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
     previousStateRef.current = state;
   }, [state, startScanning, stopScanning]);
 
+  const ledgerStateRef = React.useRef(state);
+  React.useEffect(() => {
+    if (ledgerStateRef.current !== "idle" && state === "idle" && !snapshot.context.lastOutcome && !finishingRef.current) {
+      clearTransactions();
+    }
+    ledgerStateRef.current = state;
+  }, [state, snapshot.context.lastOutcome, clearTransactions]);
+
   // Resync session on reconnect from offline
   React.useEffect(() => {
     return onKioskReconnect(() => {
       const storedSessionId = getSessionId();
       if (storedSessionId) {
-        void executeResume({ sessionId: storedSessionId }).then((session) => {
-          if (session) {
-            actor.send({ type: "RESTORE_SESSION", session });
-          } else {
-            actor.send({ type: "RESET" });
-          }
-        });
+        void resumeSession(storedSessionId);
       }
     });
-  }, [actor]);
+  }, [resumeSession]);
 
   // A restore is about to rewind the data: drop whatever session is open.
   // The server-side session expires on its own, and nothing is queued.
@@ -135,8 +198,9 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
       abortActiveSessionRequests();
       clearSessionId();
       actor.send({ type: "RESET" });
+      clearTransactions();
     });
-  }, [actor]);
+  }, [actor, clearTransactions]);
 
   const lastOutcome = snapshot.context.lastOutcome;
   const lastProblem = snapshot.context.lastProblem;
@@ -187,54 +251,136 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   React.useEffect(() => {
     const storedSessionId = getSessionId();
     if (storedSessionId && state === "idle") {
-      void executeResume({ sessionId: storedSessionId }).then((session) => {
-        if (session) {
-          actor.send({ type: "RESTORE_SESSION", session });
-        }
-      });
+      void resumeSession(storedSessionId);
     }
-  }, [actor, state]);
+  }, [resumeSession, state]);
 
   // Foreground visibility reconciliation
   React.useEffect(() => {
-    return setupVisibilityReconciliation(actor);
-  }, [actor]);
+    const generation = generationRef.current;
+    const sessionId = snapshot.context.sessionId;
+    return setupVisibilityReconciliation({ send: (event) => {
+      if (generation !== generationRef.current || finishingRef.current || actor.getSnapshot().context.sessionId !== sessionId) return;
+      if (event.type === "RESTORE_SESSION") reconcileSession(event.session as Session);
+      else if (event.type === "RESET") reconcileSession(null);
+      else actor.send(event);
+    } }, resumeSession);
+  }, [actor, reconcileSession, resumeSession, snapshot.context.sessionId]);
 
-  // Handle hardware scan and camera scan routing
-  const handleScan = React.useCallback(
-    async (token: string, source: ScanSource = "scanner") => {
-      if (!isScanningRef.current || isUnderMaintenance()) return;
+  React.useEffect(() => () => {
+    // Responses belonging to an unmounted kiosk must not update its ledger.
+    generationRef.current += 1;
+    isScanningRef.current = false;
+  }, []);
 
+  // Both scan sources share a queue. Read the actor at execution time so a
+  // fast second scan uses the session created by the first one.
+  const processScan = React.useCallback(
+    async function processQueuedScan(token: string, source: ScanSource, generation: number, pendingRowId?: number): Promise<void> {
+      if (generation !== generationRef.current || isUnderMaintenance()) return;
+      const before = actor.getSnapshot().context;
+      const latestPending = pendingRowId === undefined && !before.user ? pendingRef.current.at(-1) : undefined;
       try {
+        if (!before.sessionId && serverSessionIdRef.current && !before.lastOutcome && finishingRef.current) {
+          throw fromProblemJson({ type: "https://hdms/problems/session-expired", title: "session-expired", status: 410 });
+        }
         const result = await executeScan({
-          sessionId: snapshot.context.sessionId,
+          sessionId: before.sessionId ?? serverSessionIdRef.current,
           kioskId,
           token,
           source,
-          preferredDueAt: snapshot.context.preferredDueAt,
+          preferredDueAt: before.preferredDueAt,
         });
+        if (generation !== generationRef.current || isUnderMaintenance()) return;
+        serverSessionIdRef.current = result.session.id;
         setIsOutcomeDismissed(false);
         actor.send({ type: "APPLY_SCAN_RESULT", result });
-        if (
-          result.session.state === "idle" ||
-          (result.session.state as string) === "closed" ||
-          result.session.state === "completed"
-        ) {
-          void stopScanning();
+        if (result.session.user) setSessionUser(result.session.user);
+        const resolvedPending = latestPending && result.outcome.device?.id === latestPending.device.id;
+        if (result.session.user && !before.user && latestPending && !resolvedPending) markPendingUnconfirmed();
+
+        if (result.outcome.kind === "device_pending" && result.outcome.device) {
+          // Repeated scans of a pending device are one attempt, even when
+          // scanned through a different barcode/QR credential.
+          const existing = pendingRef.current.find((pending) => pending.device.id === result.outcome.device!.id);
+          const pending = { rowId: existing?.rowId ?? nextRowId.current++, token, source, device: result.outcome.device };
+          pendingRef.current = [...pendingRef.current.filter((item) => item.rowId !== pending.rowId), pending];
+          updateTransactions((rows) => existing ? rows : [...rows, { id: pending.rowId, device: pending.device, status: "pending" }]);
+        } else if (["borrowed", "returned", "reservation_collected", "rejected"].includes(result.outcome.kind)) {
+          const rowId = pendingRowId ?? (result.session.user && !before.user && resolvedPending ? latestPending?.rowId : undefined);
+          const device = result.outcome.device ?? (rowId === undefined ? null : transactionsRef.current.find((row) => row.id === rowId)?.device);
+          const row: SessionTransaction = {
+            id: rowId ?? nextRowId.current++, device,
+            status: result.outcome.kind === "rejected" ? "failed" : result.outcome.kind === "returned" ? "returned" : "borrowed",
+            message: result.message, dueAt: result.outcome.dueAt, loanId: result.outcome.loanId,
+          };
+          if (rowId !== undefined) pendingRef.current = pendingRef.current.filter((pending) => pending.rowId !== rowId);
+          updateTransactions((rows) => rowId === undefined ? [...rows, row] : rows.map((old) => old.id === rowId ? row : old));
+        }
+
+        // The server resolves the latest pending device on the card scan.
+        // Resolve the rest through the same authoritative API, one by one.
+        if (result.session.user && pendingRef.current.length > 0 && pendingRowId === undefined) {
+          for (const pending of [...pendingRef.current]) {
+            await processQueuedScan(pending.token, pending.source, generation, pending.rowId);
+          }
         }
       } catch (err: any) {
-        if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
+        if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted") || typeof err === "string" && err.includes("Session terminated")) {
+          if (finishingRef.current && generation === generationRef.current && !isUnderMaintenance()) {
+            const rowId = pendingRowId ?? nextRowId.current++;
+            const row: SessionTransaction = { id: rowId, status: "failed", failureReason: "result-unconfirmed", device: transactionsRef.current.find((old) => old.id === rowId)?.device };
+            pendingRef.current = pendingRef.current.filter((pending) => pending.rowId !== rowId);
+            updateTransactions((rows) => pendingRowId === undefined ? [...rows, row] : rows.map((old) => old.id === rowId ? row : old));
+          }
           return;
         }
         // The maintenance screen is already up; this is not a refusal.
         if (isUnderMaintenance()) return;
+        if (generation !== generationRef.current) return;
         setIsOutcomeDismissed(false);
         const problem = await parseProblem(err);
         actor.send({ type: "SET_PROBLEM", problem });
+        const rowId = pendingRowId ?? nextRowId.current++;
+        const row: SessionTransaction = { id: rowId, status: "failed", problem, ...(problem.kind === "session-expired" ? { failureReason: "session-expired" } : {}), device: transactionsRef.current.find((old) => old.id === rowId)?.device };
+        pendingRef.current = pendingRef.current.filter((pending) => pending.rowId !== rowId);
+        updateTransactions((rows) => pendingRowId === undefined ? [...rows, row] : rows.map((old) => old.id === rowId ? row : old));
       }
     },
-    [actor, kioskId, snapshot.context.sessionId, snapshot.context.preferredDueAt, stopScanning]
+    [actor, kioskId, updateTransactions, markPendingUnconfirmed]
   );
+
+  const enqueue = React.useCallback((operation: (generation: number) => Promise<void>) => {
+    const generation = generationRef.current;
+    const task = queueRef.current.then(() => operation(generation));
+    queueRef.current = task.catch(() => {});
+    return task;
+  }, []);
+
+  const handleScan = React.useCallback((token: string, source: ScanSource = "scanner") => {
+    if (!isScanningRef.current || finishingRef.current || isUnderMaintenance()) return Promise.resolve();
+    return enqueue((generation) => processScan(token, source, generation));
+  }, [enqueue, processScan]);
+
+  const handleFinish = React.useCallback(async () => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setIsFinishing(true);
+    setIsCameraOpen(false);
+    const generation = generationRef.current;
+    await stopScanning();
+    let queue: Promise<void>;
+    do {
+      queue = queueRef.current;
+      await queue;
+    } while (queue !== queueRef.current);
+    if (generation !== generationRef.current) return;
+    pendingRef.current = [];
+    updateTransactions((rows) => rows.map((row) => row.status === "pending" ? { ...row, status: "failed", failureReason: "user-required" } : row));
+    setIsOutcomeDismissed(true);
+    setIsFinishing(false);
+    setIsFinished(true);
+  }, [stopScanning, updateTransactions, setIsCameraOpen]);
 
   // Subscribe to ScanRouter events
   React.useEffect(() => {
@@ -252,13 +398,21 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
         setScannerReady(true);
         setScannerFresh(true);
         void handleScan(event.scan.token, scanSource);
+      } else if (event.kind === "invalid" && isScanningRef.current && !finishingRef.current && !isUnderMaintenance()) {
+        void enqueue(async (generation) => {
+          if (generation !== generationRef.current) return;
+          const problem = fromProblemJson({ type: "https://hdms/problems/invalid-token-format", title: "invalid-token-format", status: 400 });
+          actor.send({ type: "SET_PROBLEM", problem });
+          setIsOutcomeDismissed(false);
+          updateTransactions((rows) => [...rows, { id: nextRowId.current++, status: "failed", problem }]);
+        });
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [subscribeScan, handleScan]);
+  }, [subscribeScan, handleScan, actor, enqueue, updateTransactions]);
 
   // Polling scanner freshness/readiness from router
   React.useEffect(() => {
@@ -283,47 +437,67 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   }, [getRouter]);
 
   const handleReturnLoan = React.useCallback(
-    async (loanId: string) => {
-      const sid = snapshot.context.sessionId;
-      if (!sid) return;
-      setIsOutcomeDismissed(false);
+    (loanId: string) => {
+      if (finishingRef.current || isUnderMaintenance()) return Promise.resolve();
+      const acceptedLoan = actor.getSnapshot().context.openLoans.find((item) => item.id === loanId);
+      return enqueue(async (generation) => {
+        const context = actor.getSnapshot().context;
+        const sid = context.sessionId ?? serverSessionIdRef.current;
+        if (!sid || generation !== generationRef.current) return;
+        const loan = context.openLoans.find((item) => item.id === loanId) ?? acceptedLoan;
+        const device = loan ? { id: loan.deviceId, name: loan.deviceName, assetTag: loan.assetTag } : null;
+        setIsOutcomeDismissed(false);
 
-      try {
-        const result = await executeReturnLoan({
-          sessionId: sid,
-          loanId,
-        });
-        actor.send({ type: "APPLY_SCAN_RESULT", result });
-      } catch (err: any) {
-        if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted")) {
-          return;
+        try {
+          if (!context.sessionId && !context.lastOutcome && finishingRef.current) {
+            throw fromProblemJson({ type: "https://hdms/problems/session-expired", title: "session-expired", status: 410 });
+          }
+          const result = await executeReturnLoan({ sessionId: sid, loanId });
+          if (generation !== generationRef.current || isUnderMaintenance()) return;
+          actor.send({ type: "APPLY_SCAN_RESULT", result });
+          if (result.outcome.kind !== "duplicate") {
+            updateTransactions((rows) => [...rows, {
+              id: nextRowId.current++, device: result.outcome.device ?? device,
+              status: result.outcome.kind === "returned" ? "returned" : "failed",
+              message: result.message, loanId,
+            }]);
+          }
+        } catch (err: any) {
+          if (isUnderMaintenance() || generation !== generationRef.current) return;
+          if (err?.name === "AbortError" || err?.message?.includes("abort") || err?.message?.includes("Aborted") || typeof err === "string" && err.includes("Session terminated")) {
+            if (finishingRef.current) updateTransactions((rows) => [...rows, { id: nextRowId.current++, status: "failed", device, failureReason: "result-unconfirmed" }]);
+            return;
+          }
+          const problem = await parseProblem(err);
+          actor.send({ type: "SET_PROBLEM", problem });
+          updateTransactions((rows) => [...rows, { id: nextRowId.current++, status: "failed", device, problem, ...(problem.kind === "session-expired" ? { failureReason: "session-expired" } : {}) }]);
         }
-        // The maintenance screen is already up; this is not a refusal.
-        if (isUnderMaintenance()) return;
-        const problem = await parseProblem(err);
-        actor.send({ type: "SET_PROBLEM", problem });
-      }
+      });
     },
-    [actor, snapshot.context.sessionId]
+    [actor, enqueue, updateTransactions]
   );
 
   const handleClose = React.useCallback(async () => {
-    const sid = snapshot.context.sessionId;
+    const sid = actor.getSnapshot().context.sessionId ?? serverSessionIdRef.current;
+    clearTransactions();
+    await stopScanning();
     if (sid) {
-      void executeClose({ sessionId: sid });
+      void executeClose({ sessionId: sid }).catch(() => {});
     }
     actor.send({ type: "CLOSE" });
     setIsOutcomeDismissed(true);
-  }, [actor, snapshot.context.sessionId]);
+  }, [actor, clearTransactions, stopScanning]);
 
   const handleCancel = React.useCallback(async () => {
-    const sid = snapshot.context.sessionId;
+    const sid = actor.getSnapshot().context.sessionId ?? serverSessionIdRef.current;
+    clearTransactions();
+    await stopScanning();
     if (sid) {
-      void executeCancel({ sessionId: sid });
+      void executeCancel({ sessionId: sid }).catch(() => {});
     }
     actor.send({ type: "CANCEL" });
     setIsOutcomeDismissed(true);
-  }, [actor, snapshot.context.sessionId]);
+  }, [actor, clearTransactions, stopScanning]);
 
   const dismissOutcome = React.useCallback(() => {
     setIsOutcomeDismissed(true);
@@ -331,13 +505,14 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
       clearSessionId();
       resetScanSequence();
     }
-  }, [snapshot, snapshot.context.sessionId]);
+  }, [snapshot]);
 
   const applyDueUpdate = React.useCallback(
     (update: Extract<SetDueDateResult, { ok: true }>) => {
       actor.send({ type: "LOAN_DUE_UPDATED", ...update });
+      updateTransactions((rows) => rows.map((row) => row.loanId === update.loanId ? { ...row, dueAt: update.dueAt } : row));
     },
-    [actor]
+    [actor, updateTransactions]
   );
 
   const cameraEnabled = config?.enabledSources?.includes("camera") ?? true;
@@ -372,7 +547,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
 
     const { lastOutcome: currentOutcome, lastMessage, lastProblem: currentProblem } = snapshot.context;
 
-    if (currentOutcome?.kind === "borrowed" || currentOutcome?.kind === "returned") {
+    if (currentOutcome?.kind === "borrowed" || currentOutcome?.kind === "returned" || currentOutcome?.kind === "reservation_collected") {
       return {
         type: "success",
         outcome: currentOutcome,
@@ -402,6 +577,11 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
 
   return {
     state,
+    transactions,
+    sessionUser,
+    isFinishing,
+    isFinished,
+    finish: handleFinish,
     context: snapshot.context,
     sessionId: snapshot.context.sessionId,
     applyDueUpdate,

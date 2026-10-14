@@ -748,7 +748,8 @@ export type SessionMachineActor = ActorRefFrom<typeof sessionMachine>;
  * and reconcile full session from server if app was hidden for > 30 seconds.
  */
 export function setupVisibilityReconciliation(
-  actor: { send: (event: SessionMachineEvent) => void }
+  actor: { send: (event: SessionMachineEvent) => void },
+  resume?: (sessionId: string) => Promise<void>
 ): () => void {
   if (typeof document === "undefined") {
     return () => {};
@@ -765,6 +766,10 @@ export function setupVisibilityReconciliation(
 
       const sid = getSessionId();
       if (hiddenDuration > 30000 && sid) {
+        if (resume) {
+          void resume(sid);
+          return;
+        }
         void executeResume({ sessionId: sid }).then((session) => {
           if (session) {
             actor.send({ type: "RESTORE_SESSION", session });
