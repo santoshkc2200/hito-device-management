@@ -245,7 +245,7 @@ describe("4.4c User Detail Page", () => {
     expect(screen.getByText(ja.userDetail.provenanceCsvImport)).toBeInTheDocument();
   });
 
-  it("shows 'no card issued' badge and no issue or bind action when user has no credentials", async () => {
+  it("shows the permanent employee code without requiring issued credentials", async () => {
     vi.spyOn(apiClient, "listCredentialsBySubject").mockResolvedValue({
       data: { items: [] },
       error: undefined,
@@ -253,14 +253,12 @@ describe("4.4c User Detail Page", () => {
 
     renderUserDetailPage("admin");
 
-    // The header badge and the CredentialsPanel empty-state heading both read
-    // "カード未発行" in Japanese (distinct wording in English, identical here).
-    expect((await screen.findAllByText(ja.userDetail.noCardIssued)).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(ja.credentialsPanel.noCardIssuedHint)).toBeInTheDocument();
+    expect(await screen.findByText(ja.credentialsPanel.permanentEmployeeCode)).toBeInTheDocument();
+    expect(screen.queryByText(ja.userDetail.noCardIssued)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /発行|紐付/ })).not.toBeInTheDocument();
   });
 
-  it("shows revoked state warning when all credentials are revoked", async () => {
+  it("shows the permanent employee code even when old credentials were revoked", async () => {
     vi.spyOn(apiClient, "listCredentialsBySubject").mockResolvedValue({
       data: { items: [mockRevokedCredential] },
       error: undefined,
@@ -268,7 +266,8 @@ describe("4.4c User Detail Page", () => {
 
     renderUserDetailPage("admin");
 
-    expect(await screen.findByText(ja.credentialsPanel.allRevoked)).toBeInTheDocument();
+    expect(await screen.findByText(ja.credentialsPanel.permanentEmployeeCode)).toBeInTheDocument();
+    expect(screen.queryByText(ja.credentialsPanel.allRevoked)).not.toBeInTheDocument();
   });
 
   it("renders currently held devices with links and overdue badge if overdue", async () => {

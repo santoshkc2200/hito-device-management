@@ -135,7 +135,7 @@ function RegisterBorrowerForm() {
     mutationFn: async (values: RegisterFormValues) => {
       const { data, error } = await registerUserWithCard({ body: values });
       if (error) throw error;
-      return { user: data!.user, token: data!.token };
+      return { user: data!.user, token: data!.user.employeeNo };
     },
     onSuccess: async ({ user, token }) => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });

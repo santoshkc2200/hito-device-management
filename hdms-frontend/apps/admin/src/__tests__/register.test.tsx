@@ -150,7 +150,7 @@ describe("4.4b Register borrower form", () => {
     expect(submitBtn).toBeDisabled();
   });
 
-  it("registers a borrower, issues a QR card automatically and offers to print it", async () => {
+  it("registers a borrower and prints the permanent employee number", async () => {
     const user = userEvent.setup();
     vi.spyOn(apiClient, "checkEmployeeNo").mockResolvedValue({
       data: { employeeNo: "HH-2401", available: true },
@@ -226,6 +226,7 @@ describe("4.4b Register borrower form", () => {
         })
       ).toBeInTheDocument();
     });
+    expect(await screen.findByTestId("revealed-token")).toHaveTextContent("HH-2401");
     await user.keyboard("{Escape}");
     expect(screen.getByText(ja.register.newCardGenerated)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: ja.register.printCard })).toBeInTheDocument();

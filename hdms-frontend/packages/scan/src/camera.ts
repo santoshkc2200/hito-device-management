@@ -3,12 +3,19 @@ import type { Scan, ScanSource } from "./types";
 
 /**
  * Standard barcode and 2D code formats recognized by HDMS Kiosk.
- * Strictly restricted to prevent wasted CPU cycles on irrelevant formats.
+ * Includes the 1D formats used on existing employee ID cards.
  */
 export const CAMERA_SUPPORTED_FORMATS = [
   "qr_code",
   "data_matrix",
   "code_128",
+  "code_39",
+  "codabar",
+  "itf",
+  "ean_13",
+  "ean_8",
+  "upc_a",
+  "upc_e",
 ] as const;
 
 export type SupportedBarcodeFormat = (typeof CAMERA_SUPPORTED_FORMATS)[number];

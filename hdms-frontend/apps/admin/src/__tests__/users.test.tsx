@@ -205,7 +205,7 @@ describe("4.4a Users Table & Actions", () => {
     });
   });
 
-  it("prints the selected users' existing cards in bulk, skipping users without one", async () => {
+  it("prints permanent employee codes for all selected users without credential lookups", async () => {
     const listCredsSpy = vi.spyOn(apiClient, "listCredentialsBySubject").mockImplementation((async ({ query }: any) => ({
       data: {
         items: query.subjectId === "user-1" ? [{ id: "cred-1", status: "active" }] : [],
@@ -226,10 +226,9 @@ describe("4.4a Users Table & Actions", () => {
     await user.click(screen.getByRole("button", { name: ja.users.printCardsWithCount.replace("{count}", "2") }));
 
     expect(await screen.findByRole("heading", { name: ja.userCardSheetDialog.title })).toBeInTheDocument();
-    expect(await screen.findByText(ja.userCardSheetDialog.skippedOne.replace("{count}", "1"), { exact: false })).toBeInTheDocument();
-    expect(listCredsSpy).toHaveBeenCalledTimes(2);
-    expect(revealSpy).toHaveBeenCalledTimes(1);
-    expect(revealSpy).toHaveBeenCalledWith({ path: { id: "cred-1" } });
+    expect(await screen.findByText(ja.userCardSheetDialog.readyOther.replace("{count}", "2"), { exact: false })).toBeInTheDocument();
+    expect(listCredsSpy).not.toHaveBeenCalled();
+    expect(revealSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: ja.userCardSheetDialog.printSheet })).toBeEnabled();
   });
 

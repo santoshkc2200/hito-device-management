@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -107,6 +108,33 @@ func TestScenario1_DeviceThenUser_Borrow(t *testing.T) {
 	}
 	if r2.Outcome.LoanID == "" {
 		t.Fatal("borrowed outcome has no loanId")
+	}
+}
+
+func TestEmployeeNumberBarcodeWithoutCredential(t *testing.T) {
+	for _, userFirst := range []bool{true, false} {
+		t.Run(fmt.Sprintf("user_first_%t", userFirst), func(t *testing.T) {
+			pool := testdb.New(t)
+			svc := newScanCheckoutService(t, pool, clock.System{})
+			kioskID, _ := fixtures.Kiosk(t, pool)
+			deviceID := fixtures.AvailableDevice(t, pool)
+			userID := fixtures.User(t, pool)
+			user, err := identity.New(pool, audit.New(pool)).LookupUser(t.Context(), userID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, deviceToken := fixtures.ActiveCredentialFor(t, pool, credentialsapi.SubjectDevice, deviceID)
+			session := createSession(t, t.Context(), svc, kioskID)
+			first, second := deviceToken, user.EmployeeNo
+			if userFirst {
+				first, second = second, first
+			}
+			scan(t, t.Context(), svc, session.ID, first)
+			result := scan(t, t.Context(), svc, session.ID, second)
+			if result.Outcome.Kind != checkoutapi.OutcomeBorrowed || result.Session.User == nil || result.Session.User.ID != userID {
+				t.Fatalf("borrow using permanent employee barcode: %+v", result)
+			}
+		})
 	}
 }
 

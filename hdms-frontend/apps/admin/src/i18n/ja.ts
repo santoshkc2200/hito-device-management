@@ -1303,7 +1303,7 @@ export const ja = {
     available: "利用可能",
     employeeNoAlreadyRegistered: "この職員番号は既に登録されています。",
     registeredHeading: "{fullName}を登録しました",
-    newCardGenerated: "新しいカードを発行しました。",
+    newCardGenerated: "既存の職員証の職員番号を使用してください。",
     printCard: "カードを印刷",
     registerAnother: "続けて登録",
     subtitle: "画面遷移なしのワンストップ操作 — 登録とカード発行を1つの操作で完了します。",
@@ -1592,6 +1592,7 @@ export const ja = {
     addToBatch: "バッチに追加",
   },
   credentialsPanel: {
+    permanentEmployeeCode: "既存の職員証の職員番号をスキャンしてください。この固定のQRコード・バーコードは発行・失効・再生成が不要です。",
     reasonForActionLabel: "この操作の理由",
     reasonPlaceholder: "例: 食堂で紛失、バッジ破損、通常の再発行など",
     reasonAuditHint: "この理由は恒久的な監査履歴に記録されます。",

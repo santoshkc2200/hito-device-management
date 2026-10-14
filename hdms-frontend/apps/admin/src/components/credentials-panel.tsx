@@ -181,7 +181,40 @@ function CredentialHistory({ credentialId }: { credentialId: string }) {
   );
 }
 
-export function CredentialsPanel({
+export function CredentialsPanel(props: {
+  subjectType: "user" | "device";
+  subjectId: string;
+  subject: TokenRevealSubject;
+}) {
+  if (props.subject.type === "user") {
+    return <EmployeeCodePanel subject={props.subject} />;
+  }
+  return <CredentialTokensPanel {...props} />;
+}
+
+function EmployeeCodePanel({ subject }: { subject: Extract<TokenRevealSubject, { type: "user" }> }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex flex-col gap-4">
+      <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+        <IdCard className="size-4 text-primary" />
+        {t("credentialsPanel.borrowerCardsHeading")}
+      </h3>
+      <div className="rounded-lg border border-border bg-card p-4">
+        <p className="font-identifier text-lg font-semibold">{subject.employeeNo}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("credentialsPanel.permanentEmployeeCode")}</p>
+        <Button className="mt-3" size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <QrCode className="size-4" data-icon="inline-start" />
+          {t("credentialsPanel.viewQr")}
+        </Button>
+      </div>
+      <TokenRevealDialog open={open} onOpenChange={setOpen} token={subject.employeeNo} subject={subject} />
+    </div>
+  );
+}
+
+function CredentialTokensPanel({
   subjectType,
   subjectId,
   subject,

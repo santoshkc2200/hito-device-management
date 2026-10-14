@@ -46,7 +46,7 @@ describe("CameraSource", () => {
   });
 
   it("exports supported formats and default intervals", () => {
-    expect(CAMERA_SUPPORTED_FORMATS).toEqual(["qr_code", "data_matrix", "code_128"]);
+    expect(CAMERA_SUPPORTED_FORMATS).toEqual(["qr_code", "data_matrix", "code_128", "code_39", "codabar", "itf", "ean_13", "ean_8", "upc_a", "upc_e"]);
     expect(DEFAULT_DECODE_INTERVAL_MS).toBe(100);
     expect(DEFAULT_CAMERA_IDLE_TIMEOUT_MS).toBe(60_000);
   });
@@ -76,7 +76,7 @@ describe("CameraSource", () => {
     expect(mockNav.permissions.query).toHaveBeenCalledWith({ name: "camera" });
   });
 
-  it("restrictsFormatsToTheThreeConfigured", async () => {
+  it("configuresEmployeeBarcodeFormats", async () => {
     let capturedFormats: readonly string[] = [];
     const mockDetector = {
       detect: vi.fn().mockResolvedValue([]),
@@ -102,15 +102,15 @@ describe("CameraSource", () => {
     const emit = vi.fn();
     await camera.start(emit);
 
-    expect(capturedFormats).toEqual(["qr_code", "data_matrix", "code_128"]);
+    expect(capturedFormats).toEqual(["qr_code", "data_matrix", "code_128", "code_39", "codabar", "itf", "ean_13", "ean_8", "upc_a", "upc_e"]);
 
     await camera.stop();
   });
 
-  it("emitsScanOnDetectedBarcode and auto-stops", async () => {
+  it.each(["qr_code", "code_128", "code_39", "itf"])("emits the unchanged employee number from %s and auto-stops", async (format) => {
     const mockDetector = {
       detect: vi.fn().mockResolvedValue([
-        { rawValue: "HD-U-7K3M9QXA2F-4", format: "qr_code" },
+        { rawValue: "001234", format },
       ]),
     };
 
@@ -144,8 +144,8 @@ describe("CameraSource", () => {
     // Advance timers for decode loop tick
     await vi.advanceTimersByTimeAsync(DEFAULT_DECODE_INTERVAL_MS);
 
-    expect(emit).toHaveBeenCalledWith("HD-U-7K3M9QXA2F-4");
-    expect(onScan).toHaveBeenCalledWith("HD-U-7K3M9QXA2F-4");
+    expect(emit).toHaveBeenCalledWith("001234");
+    expect(onScan).toHaveBeenCalledWith("001234");
 
     // Assert camera stopped and released tracks
     expect(camera.isActive()).toBe(false);

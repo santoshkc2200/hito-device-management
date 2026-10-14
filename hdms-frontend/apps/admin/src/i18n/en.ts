@@ -1300,7 +1300,7 @@ export const en: AdminMessages = {
     available: "Available",
     employeeNoAlreadyRegistered: "Employee number is already registered.",
     registeredHeading: "{fullName} is registered",
-    newCardGenerated: "New card generated.",
+    newCardGenerated: "Use the employee number on the existing ID card.",
     printCard: "Print card",
     registerAnother: "Register another",
     subtitle: "One screen, no navigation away — registering and issuing a card is one transaction.",
@@ -1589,6 +1589,7 @@ export const en: AdminMessages = {
     addToBatch: "Add to batch",
   },
   credentialsPanel: {
+    permanentEmployeeCode: "Scan the employee number on the existing ID card. This permanent QR code / barcode does not need to be issued, revoked or regenerated.",
     reasonForActionLabel: "Reason for this action",
     reasonPlaceholder: "e.g. Lost in cafeteria / Badge damaged / Routine reissue",
     reasonAuditHint: "This reason is recorded in the permanent audit trail.",

@@ -32,7 +32,9 @@ WORKDIR /src/hdms-frontend
 RUN pnpm install --frozen-lockfile
 
 # Kiosk at /: same-origin /v1 needs no extra base.
-RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} pnpm --filter kiosk build
+# Staging disables kiosk caching; production keeps its existing PWA behavior.
+ARG VITE_KIOSK_NO_CACHE=false
+RUN VITE_KIOSK_NO_CACHE=${VITE_KIOSK_NO_CACHE} VITE_API_BASE_URL=${VITE_API_BASE_URL} pnpm --filter kiosk build
 # Admin console at /admin: subpath base + same-origin API.
 RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} VITE_BASE_PATH=/admin/ pnpm --filter admin build
 # Staff PWA at /staff: subpath base; the generated client defaults to /v1.

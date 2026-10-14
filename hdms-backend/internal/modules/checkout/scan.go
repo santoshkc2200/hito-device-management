@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hito-hospital/hdms/internal/modules/catalog/catalogapi"
@@ -12,6 +13,7 @@ import (
 	"github.com/hito-hospital/hdms/internal/modules/checkout/internal/machine"
 	checkoutstore "github.com/hito-hospital/hdms/internal/modules/checkout/internal/store"
 	"github.com/hito-hospital/hdms/internal/modules/credentials/credentialsapi"
+	"github.com/hito-hospital/hdms/internal/modules/identity/identityapi"
 	"github.com/hito-hospital/hdms/internal/modules/lending/lendingapi"
 	"github.com/hito-hospital/hdms/internal/platform/db"
 	"github.com/hito-hospital/hdms/internal/platform/observability"
@@ -120,10 +122,21 @@ func (s *Service) Scan(ctx context.Context, params checkoutapi.ScanParams) (chec
 	return checkoutapi.ScanResult{Session: session, Outcome: outcome, OpenLoans: openLoans, Message: message}, nil
 }
 
-// resolveInput resolves token through credentials and, for a device or
-// user token, loads the subject — step (c)-(d) of 2.3c's Scan shape.
+// resolveInput identifies permanent employee-number barcodes directly.
+// Other scans retain credential resolution, including legacy HDMS tokens.
 func (s *Service) resolveInput(ctx context.Context, token string) (machine.Input, error) {
 	preview := tokenPreview(token)
+	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(token)), tokens.Namespace+"-") {
+		if employeeNo, err := identityapi.ValidateEmployeeNo(token); err == nil {
+			u, err := s.deps.Users.LookupUserByEmployeeNo(ctx, employeeNo)
+			switch {
+			case err == nil:
+				return machine.Input{Kind: machine.KindUser, UserID: u.ID, UserStatus: string(u.Status), TokenPreview: preview}, nil
+			case !errors.Is(err, identityapi.ErrUserNotFound):
+				return machine.Input{}, fmt.Errorf("checkout: lookup scanned employee number: %w", err)
+			}
+		}
+	}
 	sr, err := s.deps.Tokens.Resolve(ctx, token)
 	switch {
 	case errors.Is(err, credentialsapi.ErrCredentialUnknown):

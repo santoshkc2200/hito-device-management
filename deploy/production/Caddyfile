@@ -67,6 +67,7 @@
 	}
 
 	# Admin console at /admin (built with VITE_BASE_PATH=/admin/).
+	redir /admin /admin/ 308
 	handle /admin/* {
 		root * /srv/admin
 		uri strip_prefix /admin
@@ -75,6 +76,7 @@
 	}
 
 	# Staff PWA at /staff (built with VITE_BASE_PATH=/staff/).
+	redir /staff /staff/ 308
 	handle /staff/* {
 		root * /srv/staff
 		uri strip_prefix /staff

@@ -34,6 +34,9 @@
 		}
 	}
 
+	redir /admin /admin/ 308
+	redir /staff /staff/ 308
+
 	handle /admin/* {
 		root * /srv/admin
 		uri strip_prefix /admin
@@ -50,6 +53,7 @@
 	}
 
 	handle {
+		header Cache-Control "no-store"
 		root * /srv/kiosk
 		try_files {path} /index.html
 		file_server

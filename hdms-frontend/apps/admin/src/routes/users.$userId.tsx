@@ -2,7 +2,6 @@ import {
   archiveUser,
   getUser,
   getUserNotificationPreferences,
-  listCredentialsBySubject,
   listDepartments,
   listUserLoans,
   listUserReservations,
@@ -324,24 +323,6 @@ export function UserDetailPage() {
 
   const reservations = useMemo(() => reservationsData?.items ?? [], [reservationsData]);
 
-  // Query user credentials to know if "no card issued" badge should show in header
-  const { data: credentialsData } = useQuery({
-    queryKey: ["credentials", "user", userId],
-    queryFn: async () => {
-      const { data, error } = await listCredentialsBySubject({
-        query: { subjectType: "user", subjectId: userId },
-      });
-      if (error) throw error;
-      return data.items;
-    },
-    enabled: Boolean(userId),
-  });
-
-  const hasActiveCredential = useMemo(
-    () => credentialsData?.some((c) => c.status === "active") ?? true,
-    [credentialsData],
-  );
-
   const suspendMutation = useMutation({
     mutationFn: async (reason: string) => {
       const res = await suspendUser({ path: { id: userId }, body: { reason } });
@@ -415,14 +396,6 @@ export function UserDetailPage() {
               <h1 className="text-2xl font-bold tracking-tight text-foreground">{user.fullName}</h1>
               <span className="font-identifier text-lg text-muted-foreground">{user.employeeNo}</span>
               <StatusBadge label={labelize(user.status)} tone={userStatusTone[user.status] ?? "muted"} />
-              {!hasActiveCredential && (
-                <Badge
-                  variant="outline"
-                  className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-normal text-xs"
-                >
-                  {t("userDetail.noCardIssued")}
-                </Badge>
-              )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {departmentName ? t("userDetail.departmentPrefix", { department: departmentName }) : ""}

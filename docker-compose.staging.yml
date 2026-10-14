@@ -59,8 +59,11 @@ services:
       - ../../certs:/certs:ro
 
   caddy:
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --no-check-certificate https://127.0.0.1:9443/v1/healthz || exit 1"]
     build:
       args:
+        VITE_KIOSK_NO_CACHE: "true"
         VITE_STAFF_NO_CACHE: "true"
     # Own host port and own site address, so staging and dev can be up at the
     # same time: a drill against staging must never require stopping dev.

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
@@ -91,97 +91,8 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     },
   ];
 
-  it("renders active and historical credentials with issue sequence, tokens, and reasons", async () => {
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: mockUserCredentials },
-      error: undefined,
-    } as any);
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{
-            type: "user",
-            fullName: "Dr. Taro Yamada",
-            employeeNo: "HH-1001",
-            department: "Emergency Department",
-          }}
-        />
-      </QueryClientProvider>
-    );
 
-    expect(
-      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
-    ).toBeInTheDocument();
-    expect(screen.getByText(ja.credentialsPanel.borrowerCardsHeading)).toBeInTheDocument();
-    expect(
-      screen.getByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 1 }))
-    ).toBeInTheDocument();
-    expect(screen.getByText("…7K3M")).toBeInTheDocument();
-    expect(screen.getByText("…4A2F")).toBeInTheDocument();
-
-    // Revocation details
-    expect(screen.getByText(/Badge lost during commute/)).toBeInTheDocument();
-    expect(
-      screen.getByText(translate(catalogues, "ja", "credentialsPanel.replacedBySeq", { seq: 2 }))
-    ).toBeInTheDocument();
-  });
-
-  it("distinguishes 'No card issued' empty state for user with bind and issue buttons", async () => {
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: [] },
-      error: undefined,
-    } as any);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{
-            type: "user",
-            fullName: "Dr. Taro Yamada",
-            employeeNo: "HH-1001",
-            department: "Emergency Department",
-          }}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByText(ja.credentialsPanel.noCardIssued)).toBeInTheDocument();
-    expect(screen.getByText(ja.credentialsPanel.noCardIssuedHint)).toBeInTheDocument();
-    // Cards are issued at registration; the panel offers neither issuing nor binding.
-    expect(screen.queryByRole("button", { name: /発行|紐付/ })).not.toBeInTheDocument();
-  });
-
-  it("distinguishes 'All credentials have been revoked' warning state", async () => {
-    const allRevokedUserCreds = [mockUserCredentials[1]]; // Only revoked cred-1
-
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: allRevokedUserCreds },
-      error: undefined,
-    } as any);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{
-            type: "user",
-            fullName: "Dr. Taro Yamada",
-            employeeNo: "HH-1001",
-            department: "Emergency Department",
-          }}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(await screen.findByText(ja.credentialsPanel.allRevoked)).toBeInTheDocument();
-    expect(screen.getByText(ja.credentialsPanel.allRevokedHintUser)).toBeInTheDocument();
-  });
 
   it("renders 'Print' button on device panel and never 'Reissue & print'", async () => {
     vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
@@ -213,179 +124,9 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'View QR' and 'Report lost' on user panel and never plain 'Print'", async () => {
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: mockUserCredentials },
-      error: undefined,
-    } as any);
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{
-            type: "user",
-            fullName: "Dr. Taro Yamada",
-            employeeNo: "HH-1001",
-            department: "Emergency Department",
-          }}
-        />
-      </QueryClientProvider>
-    );
 
-    expect(
-      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: ja.credentialsPanel.viewQr })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: ja.credentialsPanel.reportLost })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: ja.credentialsPanel.reprint })
-    ).not.toBeInTheDocument();
-  });
 
-  it("destructive flow requires mandatory reason and cancel leaves state untouched", async () => {
-    const user = userEvent.setup();
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: mockUserCredentials },
-      error: undefined,
-    } as any);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{
-            type: "user",
-            fullName: "Dr. Taro Yamada",
-            employeeNo: "HH-1001",
-            department: "Emergency Department",
-          }}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(
-      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
-    ).toBeInTheDocument();
-    const reissueBtn = screen.getByRole("button", { name: ja.credentialsPanel.reportLost });
-    await user.click(reissueBtn);
-
-    // Dialog opens with consequences description
-    expect(
-      screen.getByText(ja.credentialsPanel.reissueConfirmDescriptionUser)
-    ).toBeInTheDocument();
-
-    const submitBtn = screen.getByRole("button", {
-      name: ja.credentialsPanel.reissueConfirmButtonUser,
-    });
-    expect(submitBtn).toBeDisabled();
-
-    // Cancel branch
-    const cancelBtn = screen.getByRole("button", { name: ja.common.cancel });
-    await user.click(cancelBtn);
-
-    expect(apiClient.reissueCredential).not.toHaveBeenCalled();
-  });
-
-  it("submits reissue when reason is provided", async () => {
-    const user = userEvent.setup();
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: mockUserCredentials },
-      error: undefined,
-    } as any);
-    vi.mocked(apiClient.reissueCredential).mockResolvedValue({
-      data: {
-        id: "cred-3",
-        token: "HD-U-9999999999-K",
-        issueSeq: 3,
-        status: "active",
-      },
-      error: undefined,
-    } as any);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{
-            type: "user",
-            fullName: "Dr. Taro Yamada",
-            employeeNo: "HH-1001",
-            department: "Emergency Department",
-          }}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(
-      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: ja.credentialsPanel.reportLost }));
-
-    const textarea = screen.getByPlaceholderText(ja.credentialsPanel.reasonPlaceholder);
-    await user.type(textarea, "Card broken into two pieces");
-
-    const submitBtn = screen.getByRole("button", {
-      name: ja.credentialsPanel.reissueConfirmButtonUser,
-    });
-    expect(submitBtn).toBeEnabled();
-    await user.click(submitBtn);
-
-    await waitFor(() => {
-      expect(apiClient.reissueCredential).toHaveBeenCalledWith({
-        path: { id: "cred-2" },
-        body: { reason: "Card broken into two pieces" },
-      });
-    });
-  });
-
-  it("destructive revoke flow requires mandatory reason and supports cancel", async () => {
-    const user = userEvent.setup();
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: mockUserCredentials },
-      error: undefined,
-    } as any);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{
-            type: "user",
-            fullName: "Dr. Taro Yamada",
-            employeeNo: "HH-1001",
-            department: "Emergency Department",
-          }}
-        />
-      </QueryClientProvider>
-    );
-
-    expect(
-      await screen.findByText(translate(catalogues, "ja", "credentialsPanel.issueSeq", { seq: 2 }))
-    ).toBeInTheDocument();
-    const revokeBtn = screen.getByRole("button", { name: ja.credentialsPanel.revokeAction });
-    await user.click(revokeBtn);
-
-    // Revoke dialog opens
-    expect(screen.getByText(ja.credentialsPanel.revokeConfirmTitle)).toBeInTheDocument();
-    const submitBtn = screen.getByRole("button", {
-      name: ja.credentialsPanel.revokeConfirmButton,
-    });
-    expect(submitBtn).toBeDisabled();
-
-    // Cancel branch
-    const cancelBtn = screen.getByRole("button", { name: ja.common.cancel });
-    await user.click(cancelBtn);
-    expect(apiClient.revokeCredential).not.toHaveBeenCalled();
-  });
 
   function renderPanel({
     subjectType,
@@ -427,14 +168,19 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     );
   }
 
-  it("offers view and print on a user card and no reissue-to-reprint", async () => {
-    renderPanel({ subjectType: "user", credentials: [mockUserCredentials[0]] });
 
-    expect(await screen.findByRole("button", { name: /view qr/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^reissue$/i })).not.toBeInTheDocument();
-    // The lost-card path survives: it is the only way to invalidate a card
-    // someone can no longer find (ADR-0016).
-    expect(screen.getByRole("button", { name: /report lost/i })).toBeInTheDocument();
+  it("shows a permanent employee code without issuing, revoking or regenerating credentials", async () => {
+    renderPanel({ subjectType: "user", credentials: [] });
+    expect(await screen.findByText("HH-1001")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reissue|revoke|report lost|add employee/i })).not.toBeInTheDocument();
+    expect(apiClient.listCredentialsBySubject).not.toHaveBeenCalled();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /view qr/i }));
+    expect(await screen.findByTestId("revealed-token")).toHaveTextContent("HH-1001");
+    expect(apiClient.revealCredential).not.toHaveBeenCalled();
+    expect(apiClient.issueCredential).not.toHaveBeenCalled();
+    expect(apiClient.reissueCredential).not.toHaveBeenCalled();
+    expect(apiClient.revokeCredential).not.toHaveBeenCalled();
   });
 
   it("keeps reissue and reprint on a device credential", async () => {
@@ -451,58 +197,6 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
     expect(screen.queryByRole("button", { name: /issue/i })).not.toBeInTheDocument();
   });
 
-  it("adds an employee ID barcode as a manual credential and offers no QR or reissue for it", async () => {
-    const manual: apiClient.Credential = {
-      id: "cred-m",
-      subjectType: "user",
-      subjectId: "user-1",
-      kind: "manual",
-      tokenPreview: "4217",
-      status: "active",
-      issueSeq: 1,
-      issuedAt: "2026-08-10T10:00:00Z",
-      issuedBy: "admin:admin-1",
-      printedCount: 0,
-    };
-    vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
-      data: { items: [manual] },
-      error: undefined,
-    } as any);
-    vi.mocked(apiClient.issueCredential).mockResolvedValue({
-      data: { ...manual, token: "E-004217" },
-      error: undefined,
-      response: { status: 201 },
-    } as any);
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsPanel
-          subjectType="user"
-          subjectId="user-1"
-          subject={{ type: "user", fullName: "Dr. Taro Yamada", employeeNo: "HH-1001" }}
-        />
-      </QueryClientProvider>
-    );
-
-    await screen.findByText("…4217");
-    expect(screen.queryByRole("button", { name: ja.credentialsPanel.viewQr })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: ja.credentialsPanel.reportLost })).not.toBeInTheDocument();
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: ja.credentialsPanel.employeeBarcodeAdd }));
-    await user.type(await screen.findByLabelText(ja.credentialsPanel.employeeBarcodeField), "Ｅ－００４２１７{Enter}");
-
-    await waitFor(() =>
-      expect(apiClient.issueCredential).toHaveBeenCalledWith({
-        body: expect.objectContaining({
-          subjectType: "user",
-          subjectId: "user-1",
-          kind: "manual",
-          manualToken: "E-004217",
-        }),
-      })
-    );
-  });
 
   it("passes axe accessibility checks", async () => {
     vi.mocked(apiClient.listCredentialsBySubject).mockResolvedValue({
