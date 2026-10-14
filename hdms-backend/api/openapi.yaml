@@ -4870,7 +4870,7 @@ components:
       required: [currentPassword, newPassword]
       properties:
         currentPassword: {type: string, maxLength: 256}
-        newPassword: {type: string, minLength: 12, maxLength: 256}
+        newPassword: {type: string, minLength: 8, maxLength: 256}
 
     StaffPasswordResetResponse:
       type: object

@@ -59,6 +59,9 @@ services:
       - ../../certs:/certs:ro
 
   caddy:
+    build:
+      args:
+        VITE_STAFF_NO_CACHE: "true"
     # Own host port and own site address, so staging and dev can be up at the
     # same time: a drill against staging must never require stopping dev.
     # Same production image (baked /srv/* frontends); only the Caddyfile and

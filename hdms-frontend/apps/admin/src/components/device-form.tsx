@@ -104,7 +104,7 @@ export function DeviceForm({
                 </Button>
               )}
             </div>
-            <Input id="assetTag" className="font-identifier" autoFocus {...form.register("assetTag")} />
+            <Input halfWidth id="assetTag" className="font-identifier" autoFocus {...form.register("assetTag")} />
             {form.formState.errors.assetTag && (
               <FieldError>{form.formState.errors.assetTag.message}</FieldError>
             )}
@@ -143,13 +143,13 @@ export function DeviceForm({
           </Field>
           <Field>
             <FieldLabel htmlFor="model">{t("columns.model")}</FieldLabel>
-            <Input id="model" {...form.register("model")} />
+            <Input halfWidth id="model" {...form.register("model")} />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <FieldLabel htmlFor="serialNo">{t("deviceForm.serialNoLabel")}</FieldLabel>
-            <Input id="serialNo" className="font-identifier" {...form.register("serialNo")} />
+            <Input halfWidth id="serialNo" className="font-identifier" {...form.register("serialNo")} />
           </Field>
           <Field>
             <FieldLabel htmlFor="homeLocation">{t("devices.csvHeaders.homeLocation")}</FieldLabel>

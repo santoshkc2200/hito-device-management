@@ -29,8 +29,8 @@ func (s *Server) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 		writeValidationFailed(w, r, "email, fullName, role and password are required", nil)
 		return
 	}
-	if len(req.Password) < 12 {
-		writeValidationFailed(w, r, "password must be at least 12 characters", []string{"password"})
+	if len([]rune(req.Password)) < 8 {
+		writeValidationFailed(w, r, "password must be at least 8 characters", []string{"password"})
 		return
 	}
 
@@ -109,8 +109,8 @@ func (s *Server) ResetAdminPassword(w http.ResponseWriter, r *http.Request, id g
 	if !requireReason(w, r, req.Reason) {
 		return
 	}
-	if len(req.Password) < 12 {
-		writeValidationFailed(w, r, "password must be at least 12 characters", []string{"password"})
+	if len([]rune(req.Password)) < 8 {
+		writeValidationFailed(w, r, "password must be at least 8 characters", []string{"password"})
 		return
 	}
 

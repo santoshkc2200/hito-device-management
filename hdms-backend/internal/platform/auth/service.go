@@ -50,7 +50,7 @@ var (
 	ErrAdminNotFound      = errors.New("auth: admin account not found")
 	ErrNoPendingTotp      = errors.New("auth: no pending totp re-enrolment")
 	ErrInvalidPassword    = errors.New("auth: invalid current password")
-	ErrPasswordTooShort   = errors.New("auth: password must be at least 12 characters")
+	ErrPasswordTooShort   = errors.New("auth: password must be at least 8 characters")
 )
 
 // Service backs admin login, sessions and kiosk-token validation against
@@ -166,7 +166,7 @@ func (s *Service) CreateAdminAccount(ctx context.Context, email, fullName, passw
 // CreateAdminAccountWithSecret inserts a new admin account, optionally with a pre-specified
 // base32 TOTP secret (for deterministic test environments).
 func (s *Service) CreateAdminAccountWithSecret(ctx context.Context, email, fullName, password, role, customSecret string) (id, totpSecret, otpauthURL string, err error) {
-	if len(password) < 12 {
+	if len([]rune(password)) < 8 {
 		return "", "", "", ErrPasswordTooShort
 	}
 	hash, err := HashPassword(password)
@@ -207,7 +207,7 @@ func (s *Service) CreateAdminAccountWithSecret(ctx context.Context, email, fullN
 
 // CreateAdminFull inserts a new admin account and generates initial recovery codes.
 func (s *Service) CreateAdminFull(ctx context.Context, actorID, email, fullName, password, role string) (admin AdminIdentity, totpSecret, otpauthURL string, recoveryCodes []string, err error) {
-	if len(password) < 12 {
+	if len([]rune(password)) < 8 {
 		return AdminIdentity{}, "", "", nil, ErrPasswordTooShort
 	}
 	id, secret, url, err := s.CreateAdminAccount(ctx, email, fullName, password, role)
@@ -754,7 +754,7 @@ func (s *Service) UpdateAdminLocale(ctx context.Context, id string, locale strin
 
 // ResetAdminPassword sets a new password for another admin and revokes their sessions.
 func (s *Service) ResetAdminPassword(ctx context.Context, actorID, id, newPassword, reason string) error {
-	if len(newPassword) < 12 {
+	if len([]rune(newPassword)) < 8 {
 		return ErrPasswordTooShort
 	}
 	uid, err := pgtypeconv.UUID(id)
@@ -874,7 +874,7 @@ func (s *Service) UnlockAdminByEmail(ctx context.Context, email string) error {
 // set must_change_password — the operator running the CLI is choosing the
 // password themselves.
 func (s *Service) SetAdminPasswordByEmail(ctx context.Context, email, newPassword string) error {
-	if len(newPassword) < 12 {
+	if len([]rune(newPassword)) < 8 {
 		return ErrPasswordTooShort
 	}
 	q := authstore.New(db.Conn(ctx, s.pool))
@@ -909,7 +909,7 @@ func (s *Service) SetAdminPasswordByEmail(ctx context.Context, email, newPasswor
 
 // ChangeOwnPassword allows the authenticated admin to change their own password.
 func (s *Service) ChangeOwnPassword(ctx context.Context, adminID, currentPassword, newPassword, currentSessionToken string) error {
-	if len(newPassword) < 12 {
+	if len([]rune(newPassword)) < 8 {
 		return ErrPasswordTooShort
 	}
 	uid, err := pgtypeconv.UUID(adminID)

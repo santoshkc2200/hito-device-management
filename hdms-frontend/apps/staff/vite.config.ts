@@ -66,7 +66,16 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA(pwaOptions),
+    VitePWA(process.env.VITE_STAFF_NO_CACHE === "true" ? {
+      ...pwaOptions,
+      strategies: "injectManifest",
+      srcDir: "src/service-worker",
+      filename: "sw.js",
+      // Existing workers discover the replacement at the same URL. Do not
+      // register it from new pages, which would cause repeated cleanup reloads.
+      injectRegister: false,
+      injectManifest: { injectionPoint: undefined },
+    } : pwaOptions),
   ],
   resolve: {
     alias: {

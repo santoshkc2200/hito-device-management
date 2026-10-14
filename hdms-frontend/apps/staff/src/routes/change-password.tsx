@@ -18,7 +18,7 @@ import { authenticatedRoute } from "./authenticated";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "validation.currentPasswordRequired"),
-  newPassword: z.string().min(12, "validation.passwordMinLength"),
+  newPassword: z.string().min(8, "validation.passwordMinLength"),
 });
 
 type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;

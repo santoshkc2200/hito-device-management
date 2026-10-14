@@ -89,6 +89,17 @@ func createAdminAndLogin(t *testing.T, h *testHarness, email, name, role, passwo
 	}, secret, recoveryCodes
 }
 
+func TestEightCharacterAdminPasswords(t *testing.T) {
+	h := newTestHarness(t)
+	admin, _, _ := createAdminAndLogin(t, h, "eight@example.org", "Eight Admin", "admin", "eight123")
+	status, body := admin.do(t, h, http.MethodPost, "/v1/auth/password", map[string]string{
+		"currentPassword": "eight123", "newPassword": "next1234",
+	})
+	if status != http.StatusNoContent {
+		t.Fatalf("change eight-character admin password = %d: %s", status, body)
+	}
+}
+
 func TestAdminCRUD(t *testing.T) {
 	h := newTestHarness(t)
 	admin, _, _ := createAdminAndLogin(t, h, "superadmin@example.org", "Super Admin", "admin", "correct horse battery staple")

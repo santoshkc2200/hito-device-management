@@ -31,7 +31,7 @@ const passwordChangeSchema = z
     currentPassword: z.string().min(1, "validation.currentPasswordRequired"),
     newPassword: z
       .string()
-      .min(12, "validation.newPasswordMin"),
+      .min(8, "validation.newPasswordMin"),
     confirmPassword: z.string().min(1, "validation.confirmPasswordRequired"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {

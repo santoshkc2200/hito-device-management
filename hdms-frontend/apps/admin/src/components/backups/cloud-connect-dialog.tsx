@@ -161,7 +161,7 @@ function ConnectForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="cloud-client-id">{t("backups.cloud.connect.clientId")}</Label>
-          <Input id="cloud-client-id" value={clientId} autoComplete="off" onChange={(e) => setClientId(e.target.value)} />
+          <Input halfWidth id="cloud-client-id" value={clientId} autoComplete="off" onChange={(e) => setClientId(e.target.value)} />
         </div>
         {google ? (
           <div className="flex flex-col gap-1.5">
@@ -172,7 +172,7 @@ function ConnectForm({
         ) : (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cloud-tenant">{t("backups.cloud.connect.tenant")}</Label>
-            <Input id="cloud-tenant" value={tenant} onChange={(e) => setTenant(e.target.value)} />
+            <Input halfWidth id="cloud-tenant" value={tenant} onChange={(e) => setTenant(e.target.value)} />
             <p className="text-xs text-muted-foreground">{t("backups.cloud.connect.tenantHelp")}</p>
           </div>
         )}

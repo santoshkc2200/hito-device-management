@@ -35,7 +35,7 @@ var (
 	ErrInvalidCredentials = errors.New("staffauth: invalid credentials")
 	ErrNoPasswordSet      = errors.New("staffauth: this account has no password")
 	ErrSessionInvalid     = errors.New("staffauth: session invalid or expired")
-	ErrWeakPassword       = errors.New("staffauth: password must be at least 12 characters")
+	ErrWeakPassword       = errors.New("staffauth: password must be at least 8 characters")
 )
 
 // Account is the staff principal as the rest of the system sees it. The
@@ -193,7 +193,7 @@ func (s *Service) getByID(ctx context.Context, accountID string) (staffauthstore
 // mustChange forces a change at next sign-in, which is what a temporary
 // password means.
 func (s *Service) SetPassword(ctx context.Context, accountID, plaintext string, mustChange bool) error {
-	if len([]rune(plaintext)) < 12 {
+	if len([]rune(plaintext)) < 8 {
 		return ErrWeakPassword
 	}
 	hash, err := auth.HashPassword(plaintext)

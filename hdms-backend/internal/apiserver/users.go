@@ -381,7 +381,7 @@ func (s *Server) resetStaffPassword(ctx context.Context, userID string, actor st
 		return "", fmt.Errorf("ensure staff account: %w", err)
 	}
 
-	tempPassword, err := generateTemporaryPassword(16)
+	tempPassword, err := generateTemporaryPassword(8)
 	if err != nil {
 		return "", err
 	}

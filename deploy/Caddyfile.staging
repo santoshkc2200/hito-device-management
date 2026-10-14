@@ -42,6 +42,7 @@
 	}
 
 	handle /staff/* {
+		header Cache-Control "no-store"
 		root * /srv/staff
 		uri strip_prefix /staff
 		try_files {path} /index.html

@@ -111,7 +111,7 @@ describe("change password and settings routes", () => {
     vi.clearAllMocks();
   });
 
-  it("requires the current password and a new one of at least 12 characters", async () => {
+  it("requires the current password and a new one of at least 8 characters", async () => {
     renderChangePassword();
 
     const currentPasswordInput = await screen.findByLabelText(/current password/i);
@@ -119,7 +119,7 @@ describe("change password and settings routes", () => {
     await userEvent.type(screen.getByLabelText(/new password/i), "short");
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
 
-    expect(await screen.findByText(/at least 12 characters/i)).toBeInTheDocument();
+    expect(await screen.findByText(/at least 8 characters/i)).toBeInTheDocument();
   });
 
   it("explains, on a forced change, why it is being asked", async () => {
@@ -150,13 +150,13 @@ describe("change password and settings routes", () => {
 
     const currentPasswordInput = await screen.findByLabelText(/current password/i);
     await userEvent.type(currentPasswordInput, "temporary-password");
-    await userEvent.type(screen.getByLabelText(/new password/i), "a-much-longer-password");
+    await userEvent.type(screen.getByLabelText(/new password/i), "eight123");
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
 
     expect(changeSpy).toHaveBeenCalledWith({
       body: {
         currentPassword: "temporary-password",
-        newPassword: "a-much-longer-password",
+        newPassword: "eight123",
       },
     });
   });

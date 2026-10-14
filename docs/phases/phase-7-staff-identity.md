@@ -46,7 +46,7 @@ The architecture preserves module isolation while delivering self-service onboar
 ### Phase 7e: Settings & Lifecycle Management (Task 15)
 - Staff settings route displaying user profile, assigned department, and active sign-in methods.
 - Language switcher toggling between Japanese and English.
-- Self-service password change with 12-character minimum validation.
+- Self-service password change with 8-character minimum validation.
 - Clean sign out revoking the session server-side and purging the query cache.
 
 ---

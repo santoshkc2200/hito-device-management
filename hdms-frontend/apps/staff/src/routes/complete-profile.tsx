@@ -85,6 +85,7 @@ export function CompleteProfilePage() {
               </FieldLabel>
               <Input
                 id="employeeNo"
+                halfWidth
                 type="text"
                 autoComplete="off"
                 autoFocus

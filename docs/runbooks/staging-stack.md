@@ -117,6 +117,16 @@ HDMS_DATABASE_URL="postgres://hdms_staging:staging-db-password-change-me@localho
 
 ---
 
+## Staff app updates on iOS
+
+Staging serves `/staff/*` with `Cache-Control: no-store` and builds the staff
+app with `VITE_STAFF_NO_CACHE=true`. New pages do not register a service worker.
+The existing `/staff/sw.js` URL serves a cleanup worker: when an older installed
+worker discovers it, it removes only Workbox caches belonging to `/staff/`,
+unregisters itself, and reloads its staff pages. Kiosk caches are preserved.
+Reopen the staff app online to let an existing installation discover the update.
+Production retains its normal PWA caching configuration.
+
 ## Backup drives
 
 The staging worker lists backup drives from `HDMS_BACKUP_DRIVES_HOST_PATH`

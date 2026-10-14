@@ -194,7 +194,7 @@ function RecoveryKeyDialog({ localPath, onClose }: { localPath: string; onClose:
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="rk-confirm">{t("backups.recoveryKey.confirmLabel")}</Label>
-              <Input id="rk-confirm" className="w-32 font-identifier" maxLength={4} value={lastGroup} onChange={(e) => setLastGroup(e.target.value)} />
+              <Input halfWidth id="rk-confirm" className="w-32 font-identifier" maxLength={4} value={lastGroup} onChange={(e) => setLastGroup(e.target.value)} />
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
             <DialogFooter>

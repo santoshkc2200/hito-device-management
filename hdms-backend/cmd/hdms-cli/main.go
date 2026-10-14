@@ -746,8 +746,8 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string, cat *i18n.C
 			if err != nil {
 				return err
 			}
-		} else if len(password) < 12 {
-			return fmt.Errorf("password must be at least 12 characters")
+		} else if len([]rune(password)) < 8 {
+			return fmt.Errorf("password must be at least 8 characters")
 		}
 
 		if err := db.Migrate(ctx, cfg.DatabaseURL); err != nil {
@@ -794,8 +794,8 @@ func runAdmin(ctx context.Context, cfg config.Config, args []string, cat *i18n.C
 			if err != nil {
 				return err
 			}
-		} else if len(password) < 12 {
-			return fmt.Errorf("password must be at least 12 characters")
+		} else if len([]rune(password)) < 8 {
+			return fmt.Errorf("password must be at least 8 characters")
 		}
 
 		pool, err := db.Open(ctx, cfg.DatabaseURL)
@@ -930,8 +930,8 @@ func promptPassword() (string, error) {
 	if string(pw1) != string(pw2) {
 		return "", fmt.Errorf("passwords did not match")
 	}
-	if len(pw1) < 12 {
-		return "", fmt.Errorf("password must be at least 12 characters")
+	if len([]rune(string(pw1))) < 8 {
+		return "", fmt.Errorf("password must be at least 8 characters")
 	}
 	return string(pw1), nil
 }

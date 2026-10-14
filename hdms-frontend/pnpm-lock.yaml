@@ -478,6 +478,9 @@ importers:
       '@hdms/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@hdms/domain':
+        specifier: workspace:*
+        version: link:../domain
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

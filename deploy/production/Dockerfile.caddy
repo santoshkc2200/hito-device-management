@@ -36,7 +36,9 @@ RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} pnpm --filter kiosk build
 # Admin console at /admin: subpath base + same-origin API.
 RUN VITE_API_BASE_URL=${VITE_API_BASE_URL} VITE_BASE_PATH=/admin/ pnpm --filter admin build
 # Staff PWA at /staff: subpath base; the generated client defaults to /v1.
-RUN VITE_BASE_PATH=/staff/ pnpm --filter staff build
+# Staging disables staff caching; production keeps its existing PWA behavior.
+ARG VITE_STAFF_NO_CACHE=false
+RUN VITE_STAFF_NO_CACHE=${VITE_STAFF_NO_CACHE} VITE_BASE_PATH=/staff/ pnpm --filter staff build
 # Recovery page at /recovery: subpath base; it calls only /recovery/api.
 RUN VITE_BASE_PATH=/recovery/ pnpm --filter recovery build
 

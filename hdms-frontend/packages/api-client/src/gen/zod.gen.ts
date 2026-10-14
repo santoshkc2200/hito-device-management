@@ -1286,7 +1286,7 @@ export const zStaffPasswordLoginRequest = z.object({
 
 export const zChangeStaffPasswordRequest = z.object({
     currentPassword: z.string().max(256),
-    newPassword: z.string().min(12).max(256)
+    newPassword: z.string().min(8).max(256)
 });
 
 export const zStaffPasswordResetResponse = z.object({

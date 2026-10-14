@@ -1,8 +1,7 @@
-import * as React from "react";
+import { cn, useHalfWidthInput, type HalfWidthInputProps } from "@hdms/ui";
 
-import { cn } from "@hdms/ui";
-
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+function Input({ className, type, ...props }: HalfWidthInputProps) {
+  const inputProps = useHalfWidthInput({ ...props, halfWidth: props.halfWidth ?? (type === "email" || type === "tel" || type === "search" || props.inputMode === "numeric") });
   return (
     <input
       type={type}
@@ -13,7 +12,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
         className,
       )}
-      {...props}
+      {...inputProps}
     />
   );
 }

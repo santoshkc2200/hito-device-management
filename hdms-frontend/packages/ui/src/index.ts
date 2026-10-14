@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+export { useHalfWidthInput, type HalfWidthInputProps } from "./half-width-input";
 
 // The standard shadcn/ui class-merging helper, shared so every copied-in
 // component behaves the same way in both apps.

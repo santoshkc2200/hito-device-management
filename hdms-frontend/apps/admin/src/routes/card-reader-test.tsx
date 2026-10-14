@@ -179,7 +179,7 @@ export function CardReaderTestPage() {
           {t("cardReaderTest.step1Heading")}
         </h2>
         <div className="flex flex-col sm:flex-row gap-3">
-          <Input
+          <Input halfWidth
             placeholder={t("cardReaderTest.inputPlaceholder")}
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}

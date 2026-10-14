@@ -137,7 +137,7 @@ export function UserForm({
           </Field>
           <Field>
             <FieldLabel htmlFor="phone">{t("userDetail.phoneLabel")}</FieldLabel>
-            <Input id="phone" {...form.register("phone")} />
+            <Input halfWidth inputMode="tel" id="phone" {...form.register("phone")} />
           </Field>
         </div>
         <Field>

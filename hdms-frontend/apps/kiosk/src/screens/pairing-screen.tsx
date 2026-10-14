@@ -1,5 +1,6 @@
 import * as React from "react";
 import { pairKiosk } from "@hdms/api-client";
+import { toHalfWidth } from "@hdms/domain";
 import { DEFAULT_LOCALE, isLocale } from "@hdms/i18n";
 import { setKioskConfig } from "@/lib/kiosk-config";
 import { parseProblem } from "@/lib/problem";
@@ -47,7 +48,7 @@ export function PairingScreen({
   };
 
   const handlePastedText = React.useCallback((text: string) => {
-    const cleaned = text.replace(/\D/g, "").slice(0, 6);
+    const cleaned = toHalfWidth(text).replace(/\D/g, "").slice(0, 6);
     setCode(cleaned);
     setErrorMessage(null);
   }, []);
@@ -195,7 +196,7 @@ export function PairingScreen({
             maxLength={6}
             value={code}
             onChange={(e) => {
-              const cleaned = e.target.value.replace(/\D/g, "").slice(0, 6);
+              const cleaned = toHalfWidth(e.target.value).replace(/\D/g, "").slice(0, 6);
               setCode(cleaned);
               setErrorMessage(null);
             }}

@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { createRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export interface LoginPageProps {
 
 export function LoginPage({ onSubmit, error: errorProp }: LoginPageProps = {}) {
   const t = useT();
+  const [showPassword, setShowPassword] = useState(false);
 
   const [urlError, setUrlError] = useState<string | undefined>(() => {
     if (errorProp) return errorProp;
@@ -126,6 +128,7 @@ export function LoginPage({ onSubmit, error: errorProp }: LoginPageProps = {}) {
               <FieldLabel htmlFor="employeeNo">{t("login.employeeNoLabel")}</FieldLabel>
               <Input
                 id="employeeNo"
+                halfWidth
                 type="text"
                 autoComplete="username"
                 autoFocus
@@ -140,14 +143,27 @@ export function LoginPage({ onSubmit, error: errorProp }: LoginPageProps = {}) {
 
             <Field data-invalid={!!form.formState.errors.password}>
               <FieldLabel htmlFor="password">{t("login.passwordLabel")}</FieldLabel>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                placeholder={t("login.passwordPlaceholder")}
-                aria-invalid={!!form.formState.errors.password}
-                {...form.register("password")}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  className="pr-11"
+                  autoComplete="current-password"
+                  placeholder={t("login.passwordPlaceholder")}
+                  aria-invalid={!!form.formState.errors.password}
+                  {...form.register("password")}
+                />
+                <button
+                  type="button"
+                  aria-label={t(showPassword ? "login.hidePassword" : "login.showPassword")}
+                  aria-pressed={showPassword}
+                  aria-controls="password"
+                  onClick={() => setShowPassword((shown) => !shown)}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  {showPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+                </button>
+              </div>
               {form.formState.errors.password && (
                 <FieldError>{form.formState.errors.password.message}</FieldError>
               )}

@@ -79,6 +79,7 @@ export function EmployeeBarcodeDialog({
             <DialogDescription>{t("credentialsPanel.employeeBarcodeDescription")}</DialogDescription>
           </DialogHeader>
           <Input
+            halfWidth
             autoFocus
             autoComplete="off"
             aria-label={t("credentialsPanel.employeeBarcodeField")}

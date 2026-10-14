@@ -73,7 +73,7 @@ describe("PairingScreen", () => {
 
     const input = screen.getByTestId("pairing-code-hidden-input");
     await user.click(input);
-    await user.paste("12 34-56");
+    await user.paste("１２　３４－５６");
 
     expect(input).toHaveValue("123456");
     expect(screen.getByTestId("pairing-submit-button")).toBeEnabled();

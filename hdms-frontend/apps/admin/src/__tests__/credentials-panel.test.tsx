@@ -490,7 +490,7 @@ describe("CredentialsPanel (4.5a, 4.5b)", () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: ja.credentialsPanel.employeeBarcodeAdd }));
-    await user.type(await screen.findByLabelText(ja.credentialsPanel.employeeBarcodeField), "E-004217{Enter}");
+    await user.type(await screen.findByLabelText(ja.credentialsPanel.employeeBarcodeField), "Ｅ－００４２１７{Enter}");
 
     await waitFor(() =>
       expect(apiClient.issueCredential).toHaveBeenCalledWith({

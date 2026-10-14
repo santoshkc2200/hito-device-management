@@ -101,8 +101,8 @@ func (s *Server) ChangeOwnPassword(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if len(req.NewPassword) < 12 {
-		writeValidationFailed(w, r, "newPassword must be at least 12 characters", []string{"newPassword"})
+	if len([]rune(req.NewPassword)) < 8 {
+		writeValidationFailed(w, r, "newPassword must be at least 8 characters", []string{"newPassword"})
 		return
 	}
 

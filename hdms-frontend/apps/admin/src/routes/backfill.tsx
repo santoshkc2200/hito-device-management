@@ -316,7 +316,7 @@ function PersonInput({
         <div className="flex gap-1">
           <div className="relative flex-1">
             <Input
-              id="pv-person"
+              halfWidth id="pv-person"
               ref={inputRef}
               value={person ? person.label : value}
               onChange={(e) => {
@@ -885,7 +885,7 @@ function BackfillPage() {
             {t("backfill.pageReferenceLabel")}
           </FieldLabel>
           <Input
-            id="ctx-ref"
+            halfWidth id="ctx-ref"
             value={paperRef}
             onChange={(e) => setPaperRef(e.target.value)}
             placeholder={t("backfill.pageReferencePlaceholder")}
@@ -921,7 +921,7 @@ function BackfillPage() {
                 {t("backfill.deviceLabel")}
               </FieldLabel>
               <Input
-                id="entry-device"
+                halfWidth id="entry-device"
                 ref={deviceRef}
                 value={entry.deviceRef}
                 onChange={(e) =>

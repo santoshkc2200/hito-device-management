@@ -152,7 +152,7 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
             {t("credentials.step1")}
           </label>
           <Input
-            id="user-search-input"
+            halfWidth id="user-search-input"
             placeholder={t("credentials.userSearchPlaceholder")}
             value={employeeSearch}
             onChange={(e) => {
@@ -216,7 +216,7 @@ function QuickBindCardSection({ onBound }: { onBound: () => void }) {
             {t("credentials.step2")}
           </label>
           <Input
-            id="card-token-input"
+            halfWidth id="card-token-input"
             placeholder={t("credentials.tokenPlaceholder")}
             value={tokenInput}
             onChange={(e) => {

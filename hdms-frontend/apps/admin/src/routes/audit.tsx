@@ -275,7 +275,7 @@ function AuditPage() {
           <div className="space-y-1">
             <Label htmlFor="filter-actor" className="text-xs">{t("audit.actorLabel")}</Label>
             <Input
-              id="filter-actor"
+              halfWidth id="filter-actor"
               placeholder={t("audit.actorPlaceholder")}
               value={actorInput}
               onChange={(e) => setActorInput(e.target.value)}
@@ -287,7 +287,7 @@ function AuditPage() {
           <div className="space-y-1">
             <Label htmlFor="filter-action" className="text-xs">{t("audit.actionLabel")}</Label>
             <Input
-              id="filter-action"
+              halfWidth id="filter-action"
               placeholder={t("audit.actionPlaceholder")}
               value={actionInput}
               onChange={(e) => setActionInput(e.target.value)}
@@ -299,7 +299,7 @@ function AuditPage() {
           <div className="space-y-1">
             <Label htmlFor="filter-subject" className="text-xs">{t("audit.subjectLabel")}</Label>
             <Input
-              id="filter-subject"
+              halfWidth id="filter-subject"
               placeholder={t("audit.subjectPlaceholder")}
               value={subjectInput}
               onChange={(e) => setSubjectInput(e.target.value)}

@@ -123,7 +123,7 @@ export function InlineUserDialog({
           <Field>
             <FieldLabel htmlFor="iud-empno">{t("users.columnEmployeeNo")}</FieldLabel>
             <Input
-              id="iud-empno"
+              halfWidth id="iud-empno"
               value={employeeNo}
               onChange={(e) => setEmployeeNo(e.target.value)}
               placeholder="E-1234" // i18n-allow-literal: employee number format example, not translatable prose

@@ -252,7 +252,7 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 	case errors.Is(err, auth.ErrInvalidPassword):
 		httpx.WriteProblem(w, r, httpx.NewProblem("invalid-password", "Current password is incorrect", http.StatusUnprocessableEntity))
 	case errors.Is(err, auth.ErrPasswordTooShort):
-		writeValidationFailed(w, r, "password must be at least 12 characters", []string{"password"})
+		writeValidationFailed(w, r, "password must be at least 8 characters", []string{"password"})
 	case errors.Is(err, auth.ErrKioskNotFound):
 		httpx.WriteProblem(w, r, httpx.NewProblem("kiosk-not-found", "Kiosk not found", http.StatusNotFound))
 	// Listing errors

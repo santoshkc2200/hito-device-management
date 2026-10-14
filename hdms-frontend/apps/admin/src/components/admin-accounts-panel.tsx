@@ -88,7 +88,7 @@ const createAdminSchema = z.object({
   fullName: z.string().min(1, "validation.fullNameRequired"),
   email: z.string().min(1, "validation.emailRequired").email("validation.emailInvalid"),
   role: z.enum(["admin", "technician", "viewer"] as const),
-  password: z.string().min(12, "validation.initialPasswordMin"),
+  password: z.string().min(8, "validation.initialPasswordMin"),
 });
 
 type CreateAdminFormValues = z.infer<typeof createAdminSchema>;
@@ -102,7 +102,7 @@ const editAdminSchema = z.object({
 type EditAdminFormValues = z.infer<typeof editAdminSchema>;
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(12, "validation.newPasswordMin"),
+  password: z.string().min(8, "validation.newPasswordMin"),
   reason: z.string().min(3, "validation.reasonRequired"),
 });
 
