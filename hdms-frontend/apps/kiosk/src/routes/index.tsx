@@ -5,8 +5,7 @@ import { useKioskSession } from "@/machine/use-kiosk-session";
 import { IdleScreen } from "@/screens/idle-screen";
 import { AwaitingUserScreen } from "@/screens/awaiting-user-screen";
 import { AwaitingDeviceScreen } from "@/screens/awaiting-device-screen";
-import { SuccessScreen } from "@/screens/success-screen";
-import { BlockedScreen } from "@/screens/blocked-screen";
+import { SessionTransactionList } from "@/components/session-transaction-list";
 import { OfflineScreen } from "@/screens/offline-screen";
 import { PairingScreen } from "@/screens/pairing-screen";
 import { MaintenanceScreen } from "@/screens/maintenance-screen";
@@ -40,14 +39,12 @@ export function KioskApp() {
     isDiagnosticsOpen,
     isAttendantOpen,
     isOffline,
-    outcomeView,
     cameraSource,
     hidSource,
     manualSource,
     setIsCameraOpen,
     setIsDiagnosticsOpen,
     setIsAttendantOpen,
-    dismissOutcome,
     sessionId,
     applyDueUpdate,
     startScanning,
@@ -64,6 +61,9 @@ export function KioskApp() {
 
   const underMaintenance = useMaintenance();
   const finishProps = { onFinish: () => void finish(), isFinishing };
+  const scannedItems = transactions.length > 0 ? (
+    <SessionTransactionList transactions={transactions} sessionId={sessionId} onDueUpdated={applyDueUpdate} isFinishing={isFinishing} />
+  ) : null;
 
   // Re-anchoring the provider on every return to idle is the reset: whatever
   // language the last person selected is discarded with their session.
@@ -137,49 +137,11 @@ export function KioskApp() {
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
           onOpenManualEntry={() => setIsAttendantOpen(true)}
         />
-      ) : outcomeView.type === "success" && outcomeView.outcome ? (
-        /* 2. Success Outcome Screen */
-        <SuccessScreen
-          {...finishProps}
-          kind={outcomeView.outcome.kind}
-          device={outcomeView.outcome.device ?? context.pendingDevice}
-          dueAt={outcomeView.outcome.dueAt}
-          itemCount={context.openLoans.length || 1}
-          sessionId={sessionId}
-          loanId={outcomeView.outcome.loanId}
-          latestReturnAt={outcomeView.outcome.latestReturnAt ?? null}
-          onDueUpdated={applyDueUpdate}
-          onDone={dismissOutcome}
-          onScanAnother={dismissOutcome}
-          kioskName={kioskName}
-          supportCode={context.supportCode}
-          scannerReady={scannerReady}
-          scannerFresh={scannerFresh}
-          onToggleCamera={openCameraFallback}
-          onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
-          onOpenManualEntry={() => setIsAttendantOpen(true)}
-        />
-      ) : outcomeView.type === "blocked" ? (
-        /* 3. Blocked / Refusal Outcome Screen */
-        <BlockedScreen
-          {...finishProps}
-          message={outcomeView.message}
-          problem={outcomeView.problem}
-          onDismiss={dismissOutcome}
-          kioskName={kioskName}
-          supportCode={context.supportCode}
-          scannerReady={scannerReady}
-          scannerFresh={scannerFresh}
-          onToggleCamera={openCameraFallback}
-          onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
-          onOpenManualEntry={() => setIsAttendantOpen(true)}
-        />
       ) : (
-        /* 4. Primary Interactive Screens */
+        /* Keep scan results in the active session's list. */
         <>
-          {state === "idle" && (
+          {state === "idle" && transactions.length === 0 && (
             <IdleScreen
-              {...(transactions.length > 0 ? finishProps : {})}
               kioskName={kioskName}
               supportCode={context.supportCode}
               scannerReady={scannerReady}
@@ -192,7 +154,7 @@ export function KioskApp() {
             />
           )}
 
-          {state === "awaiting_user" && (
+          {!context.user && (state === "awaiting_user" || transactions.length > 0) && (
             <AwaitingUserScreen
               {...finishProps}
               kioskName={kioskName}
@@ -205,10 +167,12 @@ export function KioskApp() {
               onToggleCamera={openCameraFallback}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
               onOpenManualEntry={() => setIsAttendantOpen(true)}
-            />
+            >
+              {scannedItems}
+            </AwaitingUserScreen>
           )}
 
-          {(state === "awaiting_device" || state === "ready") && (
+          {context.user && (
             <AwaitingDeviceScreen
               {...finishProps}
               kioskName={kioskName}
@@ -223,7 +187,9 @@ export function KioskApp() {
               onToggleCamera={openCameraFallback}
               onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
               onOpenManualEntry={() => setIsAttendantOpen(true)}
-            />
+            >
+              {scannedItems}
+            </AwaitingDeviceScreen>
           )}
         </>
       )}

@@ -36,7 +36,7 @@ describe("AwaitingUserScreen", () => {
     expect(results).toHaveNoViolations();
   });
 
-  it("tells the person an on-loan device is already out before they scan a card", () => {
+  it("invites the borrower to identify themselves when their item is on loan", () => {
     render(
       <AwaitingUserScreen
         pendingDevice={{ id: "d1", assetTag: "LAPTOP-01", name: "Clinical Tablet", status: "on_loan" }}
@@ -45,8 +45,8 @@ describe("AwaitingUserScreen", () => {
       />
     );
 
-    expect(screen.getByTestId("awaiting-user-prompt")).toHaveTextContent("This device is already on loan");
-    expect(screen.getByTestId("awaiting-user-hint")).toHaveTextContent(/Only the person who borrowed it/);
+    expect(screen.getByTestId("awaiting-user-prompt")).toHaveTextContent("Now scan your ID card");
+    expect(screen.getByTestId("awaiting-user-hint")).toHaveTextContent(/Scan your ID to borrow or return/);
   });
 
   it("awaitingUserShowsDeviceWithoutHolderName", () => {

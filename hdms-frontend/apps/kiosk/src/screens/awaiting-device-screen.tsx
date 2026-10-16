@@ -14,6 +14,7 @@ import { useTranslator } from "@/i18n";
 import { ScreenFrame } from "./screen-frame";
 
 export interface AwaitingDeviceScreenProps {
+  children?: React.ReactNode;
   user: SessionUser | null;
   openLoans: SessionOpenLoan[];
   expiresAt: string | null;
@@ -31,6 +32,7 @@ export interface AwaitingDeviceScreenProps {
 }
 
 export function AwaitingDeviceScreen({
+  children,
   user,
   openLoans,
   expiresAt,
@@ -150,12 +152,18 @@ export function AwaitingDeviceScreen({
           </div>
         </div>
 
+        {children}
+
         {/* Scrollable Open Loans Area */}
+        <details open={children ? undefined : true}>
+          <summary id="active-loans-summary" hidden={!children} className="min-h-12 cursor-pointer py-3 text-lg font-bold">
+            {children ? t("awaitingDevice.loansHeading", { count: openLoans.length }) : null}
+          </summary>
         <section
-          aria-labelledby="borrowed-items-heading"
+          aria-labelledby={children ? "active-loans-summary" : "borrowed-items-heading"}
           className="flex-1 overflow-y-auto max-h-[46vh] pr-1 space-y-3"
         >
-          <div className="flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur-xs py-1 z-10">
+          {!children && <div className="flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur-xs py-1 z-10">
             <h3
               id="borrowed-items-heading"
               className="text-lg font-bold tracking-tight text-foreground"
@@ -165,7 +173,7 @@ export function AwaitingDeviceScreen({
             <span className="text-xs text-muted-foreground">
               {t("awaitingDevice.returnHint")}
             </span>
-          </div>
+          </div>}
 
           {openLoans.length === 0 ? (
             <div
@@ -276,6 +284,7 @@ export function AwaitingDeviceScreen({
             </div>
           )}
         </section>
+        </details>
 
         {/* Footer Done Action */}
         <div className="w-full pt-2">

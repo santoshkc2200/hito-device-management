@@ -58,6 +58,11 @@ export const ja: KioskCatalogue = {
     deviceBarcode: "機器バーコード",
     scannerWakeHint: "スキャナーが省電力モードです — スキャナーのトリガーを1回押して復帰させてください。",
   },
+  scanList: {
+    title: "スキャンした機器",
+    awaitingId: "職員証の確認待ち",
+    identificationHint: "職員証をスキャンして、機器の貸出または返却を行ってください。先に他の機器をスキャンすることもできます。",
+  },
   awaitingUser: {
     stepBadge: "ステップ 2/2: 職員証確認",
     prompt: "職員証をスキャンしてください",

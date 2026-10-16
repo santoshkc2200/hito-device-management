@@ -9,6 +9,7 @@ export interface SessionTransaction {
   problem?: KioskProblem | null;
   failureReason?: "user-required" | "result-unconfirmed" | "session-expired";
   dueAt?: string | null;
+  latestReturnAt?: string | null;
   loanId?: string;
 }
 

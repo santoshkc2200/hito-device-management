@@ -312,7 +312,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
           const row: SessionTransaction = {
             id: rowId ?? nextRowId.current++, device,
             status: result.outcome.kind === "rejected" ? "failed" : result.outcome.kind === "returned" ? "returned" : "borrowed",
-            message: result.message, dueAt: result.outcome.dueAt, loanId: result.outcome.loanId,
+            message: result.message, dueAt: result.outcome.dueAt, latestReturnAt: result.outcome.latestReturnAt, loanId: result.outcome.loanId,
           };
           if (rowId !== undefined) pendingRef.current = pendingRef.current.filter((pending) => pending.rowId !== rowId);
           updateTransactions((rows) => rowId === undefined ? [...rows, row] : rows.map((old) => old.id === rowId ? row : old));
@@ -510,7 +510,7 @@ export function useKioskSession(options?: UseKioskSessionOptions) {
   const applyDueUpdate = React.useCallback(
     (update: Extract<SetDueDateResult, { ok: true }>) => {
       actor.send({ type: "LOAN_DUE_UPDATED", ...update });
-      updateTransactions((rows) => rows.map((row) => row.loanId === update.loanId ? { ...row, dueAt: update.dueAt } : row));
+      updateTransactions((rows) => rows.map((row) => row.loanId === update.loanId ? { ...row, dueAt: update.dueAt, latestReturnAt: update.latestReturnAt } : row));
     },
     [actor, updateTransactions]
   );

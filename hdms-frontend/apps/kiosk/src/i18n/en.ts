@@ -56,6 +56,11 @@ export const en = {
     deviceBarcode: "Device Barcode",
     scannerWakeHint: "Scanner in power-saving mode — press the scanner trigger once to wake it.",
   },
+  scanList: {
+    title: "Scanned items",
+    awaitingId: "Awaiting ID",
+    identificationHint: "Scan your ID to borrow or return these items. You can scan more items first.",
+  },
   awaitingUser: {
     stepBadge: "Step 2 of 2: Identification",
     prompt: "Now scan your ID card",

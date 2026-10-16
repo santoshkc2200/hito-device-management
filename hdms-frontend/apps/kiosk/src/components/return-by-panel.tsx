@@ -7,6 +7,7 @@ import { pickerDays, returnChips, timeSlots, type ReturnChip } from "@/lib/retur
 import { executeSetDueDate, type SetDueDateInput, type SetDueDateResult } from "@/machine/session-machine";
 
 export interface ReturnByPanelProps {
+  ariaLabel?: string;
   sessionId: string;
   loanId: string;
   dueAt: string;
@@ -22,6 +23,7 @@ type Message = { kind: "conflict"; latest: Date } | { kind: "failed" } | null;
 // The loan is already open with a default return date. This panel lets the
 // borrower change it; walking away keeps the default.
 export function ReturnByPanel({
+  ariaLabel,
   sessionId,
   loanId,
   dueAt,
@@ -32,6 +34,7 @@ export function ReturnByPanel({
   now = () => new Date(),
 }: ReturnByPanelProps) {
   const t = useTranslator();
+  const titleId = React.useId();
   const { locale } = useLocale();
   const [current, setCurrent] = React.useState(dueAt);
   const [latest, setLatest] = React.useState<Date | null>(latestReturnAt ? new Date(latestReturnAt) : null);
@@ -76,11 +79,12 @@ export function ReturnByPanel({
   return (
     <section
       data-testid="return-by-panel"
-      aria-labelledby="return-by-title"
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabel ? undefined : titleId}
       className="w-full space-y-3 pt-3 border-t border-border/80"
       onPointerDown={onActivity}
     >
-      <h2 id="return-by-title" className="text-lg font-bold text-foreground">
+      <h2 id={titleId} className="text-lg font-bold text-foreground">
         {t("returnBy.title")}
       </h2>
       <p data-testid="return-by-current" className="text-sm font-semibold text-foreground/90" aria-live="polite">

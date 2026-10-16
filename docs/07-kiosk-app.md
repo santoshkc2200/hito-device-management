@@ -163,6 +163,19 @@ token or an asset tag / employee number. Every use is audited and counted.
 
 ## Screens
 
+Active sessions show a running **Scanned items** list with each device's name,
+asset tag, and result. Before identification, every scanned device is marked
+**Awaiting ID**, including devices already on loan, and the kiosk asks for an ID
+to borrow or return the items. After identification, results update their original rows.
+Borrowed, Returned, and Failed results stay in the list; new or updated rows
+scroll into view. Borrowed rows offer expandable **Return by** controls. The
+existing active-loan list remains available in an expandable section after
+items have been scanned. Finish opens the session summary, and Close session
+clears it for the next borrower.
+
+The individual outcome screens in the original sketches below have been
+replaced by inline results in the active-session list.
+
 ```
 ┌───────────────────────────────────────────────────────────┐
 │  IDLE                                                     │
@@ -208,15 +221,15 @@ token or an asset tag / employee number. Every use is audited and counted.
 │      Scan another device, or tap Finish    [ Finish ]     │
 └───────────────────────────────────────────────────────────┘
 
-### Return by panel (borrow success)
+### Return by panel (borrowed rows)
 
-When a device is borrowed or a reservation collected, the success screen presents a **Return by** panel letting the borrower adjust the expected return date:
+When a device is borrowed or a reservation collected, its row offers an expandable **Return by** panel letting the borrower adjust the expected return date:
 
 - **Quick choices (chips)**: Pre-set options for common return times (such as *End of day*, *Tomorrow*, *2 days*, *1 week*), plus a *Latest* chip showing the maximum allowed return time. Chips that fall beyond the latest allowed return date are disabled.
 - **Other… day/time picker**: A flexible picker allowing selection of a specific day and time in 15-minute intervals, strictly bounded by the latest return date.
 - **Immediate save**: Selecting a chip or a time slot immediately persists the new return date via `POST /v1/sessions/{id}/loan-due-date`.
 - **Conflict handling**: If a reservation was placed on the device in the meantime, the server rejects the request with `409 due-date-conflict` carrying the revised `latestReturnAt`; the panel displays a clear conflict explanation and resets to the new maximum allowed time.
-- **Auto-dismissal & activity**: For borrows with the Return by panel, the auto-dismiss countdown is 12 seconds (giving borrowers ample time to adjust if needed). Any touch/interaction with the panel resets this 12-second timer. Return outcomes (device check-in) do not display the panel and auto-dismiss after 4 seconds as before.
+- **Persistent results**: Results remain in the list until the session ends. Return outcomes do not offer date controls. A successful date change refreshes the server's session expiry.
 
 ┌───────────────────────────────────────────────────────────┐
 │  BLOCKED                                                  │
@@ -270,8 +283,8 @@ timeouts and an actor invoking the scan API.
 idle ──SCAN──▶ submitting ──▶ (server response)
                               ├─ device_pending      ──▶ awaitingUser
                               ├─ user_identified     ──▶ awaitingDevice
-                              ├─ borrowed | returned ──▶ ready
-                              └─ rejected            ──▶ blocked ──after 8s──▶ previous
+                              ├─ borrowed | returned ──▶ ready (inline result)
+                              └─ rejected            ──▶ retain session (inline failure)
 ```
 
 The machine is **presentation only**. It never decides whether a borrow is

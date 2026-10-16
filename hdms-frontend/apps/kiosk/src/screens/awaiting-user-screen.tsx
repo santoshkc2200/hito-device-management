@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { IdCard, Laptop, XCircle } from "lucide-react";
 import type { SessionDevice } from "@hdms/api-client";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { ScreenFrame } from "./screen-frame";
 import { FinishButton, type FinishButtonProps } from "@/components/finish-button";
 
 export interface AwaitingUserScreenProps extends FinishButtonProps {
+  children?: ReactNode;
   pendingDevice: SessionDevice | null;
   expiresAt: string | null;
   kioskName?: string;
@@ -19,6 +21,7 @@ export interface AwaitingUserScreenProps extends FinishButtonProps {
 }
 
 export function AwaitingUserScreen({
+  children,
   pendingDevice,
   expiresAt,
   kioskName = "HDMS Kiosk",
@@ -63,16 +66,16 @@ export function AwaitingUserScreen({
             data-testid="awaiting-user-prompt"
             className="text-kiosk-prompt text-foreground leading-tight"
           >
-            {isOnLoan ? t("awaitingUser.onLoanPrompt") : t("awaitingUser.prompt")}
+            {t("awaitingUser.prompt")}
           </h2>
 
           <p data-testid="awaiting-user-hint" className="text-kiosk-body text-muted-foreground">
-            {isOnLoan ? t("awaitingUser.onLoanHint") : t("awaitingUser.hint")}
+            {t("scanList.identificationHint")}
           </p>
         </div>
 
         {/* Pending Scanned Device Card */}
-        {pendingDevice && (
+        {children ?? (pendingDevice && (
           <div
             data-testid="pending-device-card"
             className="w-full rounded-2xl border-2 border-border bg-card p-6 shadow-sm text-left space-y-4"
@@ -125,7 +128,7 @@ export function AwaitingUserScreen({
               )}
             </div>
           </div>
-        )}
+        ))}
 
         {/* Cancellation and Primary Action Row */}
         <div className="w-full space-y-3 pt-4">
