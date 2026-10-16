@@ -168,9 +168,9 @@ asset tag, and result. Before identification, every scanned device is marked
 **Awaiting ID**, including devices already on loan, and the kiosk asks for an ID
 to borrow or return the items. After identification, results update their original rows.
 Borrowed, Returned, and Failed results stay in the list; new or updated rows
-scroll into view. Borrowed rows offer expandable **Return by** controls. The
-existing active-loan list remains available in an expandable section after
-items have been scanned. Finish opens the session summary, and Close session
+scroll into view. Borrowed rows show **Return by** controls open by default. The
+existing active-loan list also stays open by default after items have been
+scanned. Both sections can be collapsed manually. Finish opens the session summary, and Close session
 clears it for the next borrower.
 
 The individual outcome screens in the original sketches below have been
@@ -223,7 +223,7 @@ replaced by inline results in the active-session list.
 
 ### Return by panel (borrowed rows)
 
-When a device is borrowed or a reservation collected, its row offers an expandable **Return by** panel letting the borrower adjust the expected return date:
+When a device is borrowed or a reservation collected, its row shows a **Return by** panel open by default, letting the borrower adjust the expected return date:
 
 - **Quick choices (chips)**: Pre-set options for common return times (such as *End of day*, *Tomorrow*, *2 days*, *1 week*), plus a *Latest* chip showing the maximum allowed return time. Chips that fall beyond the latest allowed return date are disabled.
 - **Other… day/time picker**: A flexible picker allowing selection of a specific day and time in 15-minute intervals, strictly bounded by the latest return date.

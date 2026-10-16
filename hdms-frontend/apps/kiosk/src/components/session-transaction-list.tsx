@@ -61,7 +61,7 @@ export function SessionTransactionList({ transactions, sessionId, onDueUpdated, 
                 </div>
               </div>
               {editable && (
-                <details className="mt-3">
+                <details open className="mt-3">
                   <summary className="min-h-12 cursor-pointer py-3 text-lg font-semibold text-primary">{t("returnBy.title")}</summary>
                   <fieldset disabled={isFinishing}>
                     <ReturnByPanel ariaLabel={`${t("returnBy.title")} · ${row.device?.assetTag || row.loanId}`} sessionId={sessionId!} loanId={row.loanId!} dueAt={row.dueAt!} latestReturnAt={row.latestReturnAt ?? null} onUpdated={onDueUpdated!} onActivity={() => {}} />

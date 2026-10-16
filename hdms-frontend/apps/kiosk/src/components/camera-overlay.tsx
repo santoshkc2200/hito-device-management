@@ -49,7 +49,7 @@ function CameraOverlayContent({
         // Attach video element to preview container
         const video = source.getVideoElement();
         if (video && containerRef.current) {
-          video.className = "w-full h-full object-cover rounded-lg";
+          video.className = "w-full h-full object-contain rounded-lg";
           if (!containerRef.current.contains(video)) {
             containerRef.current.innerHTML = "";
             containerRef.current.appendChild(video);

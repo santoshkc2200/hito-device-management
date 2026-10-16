@@ -708,7 +708,6 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     await simulateScan(page, borrower.token);
     await expect(page.getByTestId("awaiting-device-prompt")).toBeVisible({ timeout: 5_000 });
     await simulateScan(page, device.token);
-    await scannedRows(page).last().locator("summary").click();
     await expect(page.getByTestId("return-by-panel").last()).toBeVisible({ timeout: 5_000 });
 
     // Tomorrow 17:00 is after 09:00 (10:00 minus the 60-minute gap).
@@ -734,7 +733,6 @@ test.describe("HDMS Kiosk E2E Scenarios (E1–E13, E20)", () => {
     await expect(page.getByTestId("awaiting-device-prompt")).toBeVisible({ timeout: 5_000 });
     await simulateScan(page, second.token);
     await expect(scannedRows(page).last()).toContainText(second.assetTag);
-    await scannedRows(page).last().locator("summary").click();
     await expect(page.getByTestId("return-by-panel").last()).toBeVisible({ timeout: 5_000 });
     await expect
       .poll(async () => {

@@ -13,6 +13,7 @@ interface MockTrack {
   stop: ReturnType<typeof vi.fn>;
   getCapabilities?: ReturnType<typeof vi.fn>;
   applyConstraints?: ReturnType<typeof vi.fn>;
+  getConstraints: ReturnType<typeof vi.fn>;
 }
 
 function createMockStream(hasTorch = false): {
@@ -24,6 +25,7 @@ function createMockStream(hasTorch = false): {
     stop: vi.fn(),
     getCapabilities: vi.fn(() => (hasTorch ? { torch: true } : {})),
     applyConstraints: vi.fn().mockResolvedValue(undefined),
+    getConstraints: vi.fn(() => ({ width: { ideal: 1920 }, height: { ideal: 1080 } })),
   };
 
   const tracks = [videoTrack];
@@ -106,6 +108,73 @@ describe("CameraSource", () => {
 
     await camera.stop();
   });
+
+  it("requests detailed video and continuous focus on startup and camera switch", async () => {
+    const front = createMockStream();
+    const rear = createMockStream();
+    for (const { tracks } of [front, rear]) {
+      tracks[0]!.getCapabilities!.mockReturnValue({ focusMode: ["manual", "continuous"] });
+    }
+    const getUserMedia = vi.fn()
+      .mockResolvedValueOnce(front.stream)
+      .mockResolvedValueOnce(rear.stream);
+    const camera = new CameraSource({
+      targetNavigator: { mediaDevices: { getUserMedia } } as unknown as Navigator,
+      barcodeDetectorFactory: () => ({ detect: vi.fn().mockResolvedValue([]) }),
+    });
+
+    await camera.start(vi.fn());
+    await camera.switchCamera();
+
+    for (const facingMode of ["user", "environment"]) {
+      expect(getUserMedia).toHaveBeenCalledWith({
+        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+    }
+    for (const { tracks } of [front, rear]) {
+      expect(tracks[0]!.applyConstraints).toHaveBeenCalledWith({
+        width: { ideal: 1920 }, height: { ideal: 1080 },
+        advanced: [{ focusMode: "continuous" }],
+      });
+    }
+    await camera.stop();
+  });
+
+  it.each(["unsupported", "missing capabilities", "rejected", "capabilities throw"])(
+    "still decodes device barcodes when autofocus is %s",
+    async (scenario: string) => {
+      const { stream, tracks } = createMockStream();
+      const track = tracks[0]!;
+      if (scenario === "missing capabilities") {
+        delete track.getCapabilities;
+      } else if (scenario === "capabilities throw") {
+        track.getCapabilities!.mockImplementation(() => { throw new Error("Unavailable"); });
+      } else if (scenario === "rejected") {
+        track.getCapabilities!.mockReturnValue({ focusMode: ["continuous"] });
+        track.applyConstraints!.mockRejectedValue(new Error("Unsupported constraint"));
+      }
+      const emit = vi.fn();
+      const camera = new CameraSource({
+        targetNavigator: {
+          mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+        } as unknown as Navigator,
+        barcodeDetectorFactory: () => ({
+          detect: vi.fn().mockResolvedValue([{ rawValue: "DEVICE-001", format: "code_128" }]),
+        }),
+      });
+
+      await camera.start(emit);
+      const video = camera.getVideoElement()!;
+      Object.defineProperty(video, "readyState", { value: HTMLMediaElement.HAVE_CURRENT_DATA });
+      await vi.advanceTimersByTimeAsync(DEFAULT_DECODE_INTERVAL_MS);
+
+      expect(emit).toHaveBeenCalledWith("DEVICE-001");
+      expect(camera.getLastError()).toBeNull();
+      if (scenario !== "rejected") expect(track.applyConstraints).not.toHaveBeenCalled();
+      await camera.stop();
+    },
+  );
 
   it.each(["qr_code", "code_128", "code_39", "itf"])("emits the unchanged employee number from %s and auto-stops", async (format) => {
     const mockDetector = {

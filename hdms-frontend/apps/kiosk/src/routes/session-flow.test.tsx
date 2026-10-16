@@ -104,9 +104,9 @@ describe("Finish and Close session", () => {
     expect(rows[2]).toHaveTextContent("Failed");
     expect(rows[2]).toHaveTextContent(/reserved/i);
     expect(screen.queryByTestId("blocked-screen")).not.toBeInTheDocument();
-    await act(async () => { fireEvent.click(within(rows[0]).getByText("Return by", { selector: "summary" })); });
-    await act(async () => { fireEvent.click(within(rows[1]).getByText("Return by", { selector: "summary" })); });
-    expect(within(rows[0]).getByRole("region", { name: "Return by · ASSET-1" })).toBeInTheDocument();
+    expect(within(rows[0]).getByRole("region", { name: "Return by · ASSET-1" })).toBeVisible();
+    expect(within(rows[1]).getByRole("region", { name: "Return by · ASSET-2" })).toBeVisible();
+    expect(screen.getByTestId("empty-loans-container")).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
     const current = within(rows[0]).getByTestId("return-by-current").textContent;
     await act(async () => { fireEvent.click(within(rows[0]).getByRole("button", { name: "Tomorrow 17:00" })); });

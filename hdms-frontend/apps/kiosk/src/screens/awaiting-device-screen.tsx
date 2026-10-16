@@ -155,7 +155,7 @@ export function AwaitingDeviceScreen({
         {children}
 
         {/* Scrollable Open Loans Area */}
-        <details open={children ? undefined : true}>
+        <details open>
           <summary id="active-loans-summary" hidden={!children} className="min-h-12 cursor-pointer py-3 text-lg font-bold">
             {children ? t("awaitingDevice.loansHeading", { count: openLoans.length }) : null}
           </summary>

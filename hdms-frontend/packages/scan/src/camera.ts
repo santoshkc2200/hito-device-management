@@ -153,13 +153,14 @@ export class CameraSource implements ScanSource {
       const stream = await nav.mediaDevices.getUserMedia({
         video: {
           facingMode: this.facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       });
 
       this.stream = stream;
+      await this.configureAutofocus(stream);
 
       // Create or reuse video element configured for iOS Safari inline playback
       let video = this.videoElement;
@@ -316,13 +317,14 @@ export class CameraSource implements ScanSource {
         const stream = await nav.mediaDevices.getUserMedia({
           video: {
             facingMode: this.facingMode,
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           },
           audio: false,
         });
 
         this.stream = stream;
+        await this.configureAutofocus(stream);
 
         // 3. Update video element srcObject
         if (this.videoElement) {
@@ -407,6 +409,30 @@ export class CameraSource implements ScanSource {
 
   getLastError(): Error | null {
     return this.lastError;
+  }
+
+  private async configureAutofocus(stream: MediaStream): Promise<void> {
+    const track = stream.getVideoTracks()[0];
+    if (!track || typeof track.getCapabilities !== "function") return;
+
+    try {
+      const capabilities = track.getCapabilities() as MediaTrackCapabilities & {
+        focusMode?: string[];
+      };
+      if (!capabilities.focusMode?.includes("continuous")) return;
+
+      // Keep the requested resolution when applying the optional focus constraint.
+      const constraints = track.getConstraints();
+      await track.applyConstraints({
+        ...constraints,
+        advanced: [
+          ...(constraints.advanced ?? []),
+          { focusMode: "continuous" } as MediaTrackConstraintSet,
+        ],
+      });
+    } catch {
+      // Some browsers advertise camera controls they cannot apply. Keep scanning.
+    }
   }
 
   private startDecodeLoop(detector: {
